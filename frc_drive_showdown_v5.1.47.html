@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.46.html
-  version: 5.1.46
+  file: frc_drive_showdown_v5.1.47.html
+  version: 5.1.47
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -156,6 +156,8 @@ let mouseX=0,mouseY=0,mouseAim=false; try{mouseAim=localStorage.getItem('frcds_m
 function toggleMouseAim(){mouseAim=!mouseAim;try{localStorage.setItem('frcds_maim',mouseAim?'1':'0');}catch(e){}sfx('click');}
 let friendlyFire=false; try{friendlyFire=localStorage.getItem('frcds_ff')==='1';}catch(e){} // OFF = hits land only on the OPPOSING alliance/side (ram · guns · blasts); ON = you can hit your own team too
 function toggleFriendlyFire(){friendlyFire=!friendlyFire;try{localStorage.setItem('frcds_ff',friendlyFire?'1':'0');}catch(e){}sfx('click');}
+let rotRatio=1; try{const _r=parseFloat(localStorage.getItem('frcds_rot'));if(_r>0)rotRatio=clamp(_r,0.25,3);}catch(e){} // TURN-RATE ratio vs translation (1 = 1:1, the classic feel); adjustable in the pause menu. Keeps the single simple sensitivity lever but lets turn vs drive be biased.
+function setRotRatio(v){rotRatio=clamp(Math.round(v*4)/4,0.25,3);try{localStorage.setItem('frcds_rot',String(rotRatio));}catch(e){}}
 function mouseAimVr(bind){ // MOUSE-AIM: keyboard player's bot turns toward the cursor (overrides key/stick turn). Returns vr in TSP units, or null.
   if(!mouseAim||steerMode)return null;                 // steer drives turn by rolling — N/A
   if(!(bind.type==='kb'||bind.type==='any'))return null;
@@ -167,9 +169,35 @@ function mouseAimVr(bind){ // MOUSE-AIM: keyboard player's bot turns toward the 
 }
 function p2MatchLive(){return (phase==='p2ball'&&b2&&b2.result===null)||(phase==='p2tank'&&tf2&&tf2.result===null)||(phase==='p2race'&&r2&&r2.result===null);}
 function canPause(){return phase==='playing'||phase==='countdown'||p2MatchLive();}
-function pauseResumeRect(){return{x:CW/2-110,y:CH/2-24,w:220,h:40};}
-function pauseSettingsRect(){return{x:CW/2-110,y:CH/2+22,w:220,h:40};}
-function pauseQuitRect(){return{x:CW/2-110,y:CH/2+68,w:220,h:40};}
+// ── pause overlay: endgame-style nav so you can choose how far to back out (v5.1.47) ──
+function pauseTo(target){ // tear down the live 2P match and jump to a 2P nav screen (mirrors p2NavClick)
+  r2=null;tf2=null;tfObs=null;b2Teardown();applyLayout('land2p');
+  if(target==='p2claim'){m2._dp=0;m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);}
+  phase=target;
+}
+function pauseRestart(){ // restart the current match/run from pause
+  if(phase==='p2tank')startP2Tank();
+  else if(phase==='p2ball')startP2Ball();
+  else if(phase==='p2race')startP2Race();
+  else retryRun(); // single-player drive practice
+}
+function pauseToMenu(){ if(phase&&phase.indexOf('p2')===0)p2Exit(); else phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu'; }
+function pauseItems(){ // RESUME · RESTART · (SETUP) · MODE · SETTINGS · MENU — context-aware
+  const is2P=phase&&phase.indexOf('p2')===0,it=[];
+  it.push({lab:'▶ RESUME',  c:'#44ffaa',act:()=>{paused=false;}});
+  it.push({lab:'⟳ RESTART', c:'#ffd740',act:()=>{paused=false;pauseRestart();}});
+  if(is2P)it.push({lab:'🔧 SETUP',c:'#40c4ff',act:()=>{paused=false;pauseTo('p2claim');}});
+  it.push({lab:'🏁 MODE',    c:'#ee66bb',act:()=>{paused=false;if(is2P)pauseTo('p2modes');else pauseToMenu();}});
+  // TURN RATE: rotation-vs-translation ratio (the single sensitivity lever stays; this just biases turn vs drive). ◀▶ / D-pad L-R adjust; A resets to 1:1.
+  it.push({kind:'step',lab:'TURN RATE',c:'#7fd4ff',get:()=>rotRatio,dec:()=>setRotRatio(rotRatio-0.25),inc:()=>setRotRatio(rotRatio+0.25),act:()=>setRotRatio(1)});
+  it.push({lab:'⚙ SETTINGS', c:'#aaaadd',act:()=>{settingsReturn=phase;settingsGpIdx=0;paused=false;phase='settings';}});
+  it.push({lab:(is2P?'✕ MENU':'✕ QUIT'),c:'#ff6b6b',act:()=>{paused=false;pauseToMenu();}});
+  return it;
+}
+function pauseItemRect(i,n){const h=38,g=8,total=n*h+(n-1)*g,y0=CH/2-total/2+14;return{x:CW/2-120,y:y0+i*(h+g),w:240,h:h};}
+function pauseStepArrow(r,dir){return dir<0?{x:r.x+r.w-94,y:r.y+6,w:26,h:r.h-12}:{x:r.x+r.w-30,y:r.y+6,w:26,h:r.h-12};} // ◀ / ▶ hit-rects for a stepper row
+function pauseResumeRect(){return pauseItemRect(0,pauseItems().length);} // kept: RESUME is always item 0
+function pauseQuitRect(){const n=pauseItems().length;return pauseItemRect(n-1,n);} // kept: MENU/QUIT is always the last item
 function pauseQuit(){ // leave the current game (the old Esc behavior)
   paused=false;
   if(phase&&phase.indexOf('p2')===0)p2Back();
@@ -177,13 +205,20 @@ function pauseQuit(){ // leave the current game (the old Esc behavior)
 }
 function drawPause(){
   ctx.fillStyle='rgba(0,0,0,0.66)';ctx.fillRect(0,0,CW,CH);
-  ctx.textAlign='center';ctx.fillStyle='#ffd740';ctx.font='bold 34px Courier New';ctx.fillText('PAUSED',CW/2,CH/2-58);
-  const btn=(r,txt,c)=>{ctx.fillStyle='rgba(20,30,50,0.9)';rr(r.x,r.y,r.w,r.h,10);ctx.fill();ctx.strokeStyle=c;ctx.lineWidth=2;rr(r.x,r.y,r.w,r.h,10);ctx.stroke();ctx.fillStyle=c;ctx.font='bold 16px Courier New';ctx.fillText(txt,r.x+r.w/2,r.y+26);};
-  btn(pauseResumeRect(),'▶ RESUME','#44ffaa');
-  btn(pauseSettingsRect(),'⚙ SETTINGS','#aaaadd');
-  btn(pauseQuitRect(),'✕ QUIT','#ff6b6b');
-  if(gpConnected){const pr=[pauseResumeRect(),pauseSettingsRect(),pauseQuitRect()][pauseGpIdx];ctx.save();ctx.strokeStyle='#ffd740';ctx.lineWidth=2;ctx.setLineDash([5,4]);rr(pr.x-3,pr.y-3,pr.w+6,pr.h+6,12);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
-  ctx.font='10px Courier New';ctx.fillStyle='#8890b0';ctx.fillText('D-pad: navigate  ·  A: select  ·  Start: resume  ·  B: quit',CW/2,CH/2+130);
+  const items=pauseItems(),n=items.length,r0=pauseItemRect(0,n);
+  ctx.textAlign='center';ctx.fillStyle='#ffd740';ctx.font='bold 30px Courier New';ctx.fillText('PAUSED',CW/2,r0.y-20);
+  for(let i=0;i<n;i++){const r=pauseItemRect(i,n),it=items[i];
+    ctx.fillStyle='rgba(20,30,50,0.9)';rr(r.x,r.y,r.w,r.h,10);ctx.fill();
+    ctx.strokeStyle=it.c;ctx.lineWidth=2;rr(r.x,r.y,r.w,r.h,10);ctx.stroke();
+    ctx.fillStyle=it.c;ctx.font='bold 15px Courier New';
+    if(it.kind==='step'){ // ◀ value ▶ stepper (TURN RATE)
+      ctx.textAlign='left';ctx.fillText(it.lab,r.x+14,r.y+25);
+      const la=pauseStepArrow(r,-1),ra=pauseStepArrow(r,1);
+      ctx.textAlign='center';ctx.fillText('◀',la.x+la.w/2,r.y+25);ctx.fillText('▶',ra.x+ra.w/2,r.y+25);
+      ctx.fillStyle='#d4d4f4';ctx.fillText(it.get().toFixed(2)+'×',r.x+r.w-58,r.y+25);
+    }else{ctx.textAlign='center';ctx.fillText(it.lab,r.x+r.w/2,r.y+25);}}
+  if(gpConnected){const r=pauseItemRect(clamp(pauseGpIdx,0,n-1),n);ctx.save();ctx.strokeStyle='#ffd740';ctx.lineWidth=2;ctx.setLineDash([5,4]);rr(r.x-3,r.y-3,r.w+6,r.h+6,12);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
+  ctx.font='10px Courier New';ctx.fillStyle='#8890b0';ctx.fillText('D-pad: navigate  ·  A: select  ·  Start: resume  ·  B: menu',CW/2,pauseItemRect(n-1,n).y+50);
 }
 let curD=0;
 let best={};
@@ -612,9 +647,16 @@ window.addEventListener('keyup',e=>{keys[e.key]=false;if(e.key===' ')kbSpaceHeld
 
 function pauseClick(mx,my){ // returns true if the click was consumed by the pause overlay
   if(!paused)return false;
-  if(inR(mx,my,pauseResumeRect())){paused=false;sfx('click');}
-  else if(inR(mx,my,pauseSettingsRect())){settingsReturn=phase;settingsGpIdx=0;paused=false;phase='settings';}
-  else if(inR(mx,my,pauseQuitRect())){pauseQuit();sfx('click');}
+  const items=pauseItems(),n=items.length;
+  for(let i=0;i<n;i++){const r=pauseItemRect(i,n);if(!inR(mx,my,r))continue;
+    const it=items[i];
+    if(it.kind==='step'){ // ◀ dec / ▶ inc / elsewhere on the row = reset
+      if(inR(mx,my,pauseStepArrow(r,-1)))it.dec();
+      else if(inR(mx,my,pauseStepArrow(r,1)))it.inc();
+      else it.act();
+      sfx('click');
+    }else{sfx('click');it.act();}
+    break;}
   return true; // swallow all other clicks while paused
 }
 // ── Global Settings screen ──
@@ -1112,7 +1154,7 @@ function getInp(bind){
     const coupling=holoCentric?0:hdId==='frontStrafer'?0.28:hdId==='uDrive'?-0.28:0;
     vr=(rot+st*coupling)*TSP;
     {const _ma=mouseAimVr(bind);if(_ma!=null)vr=_ma;}
-    return{vx:vx*sensitivity,vy:vy*sensitivity,vr:vr*sensitivity};
+    return{vx:vx*sensitivity,vy:vy*sensitivity,vr:vr*sensitivity*rotRatio};
   }
   const id=steerMode?STEER_DRIVES[curSD].id:DRIVES[curD].id;
   if(id==='tank'){
@@ -1186,7 +1228,7 @@ function getInp(bind){
     fwsVis.crab=throttle<0?-crabIn:crabIn;
   }
   {const _ma=mouseAimVr(bind);if(_ma!=null)vr=_ma;} // MOUSE-AIM override (non-steer drives)
-  return{vx:vx*sensitivity,vy:vy*sensitivity,vr:vr*sensitivity};
+  return{vx:vx*sensitivity,vy:vy*sensitivity,vr:vr*sensitivity*rotRatio};
 }
 
 function wallCheck(obj,r){
@@ -1276,15 +1318,16 @@ function updateGamepad(){
   if(paused){ // pause overlay: D-pad nav + A activate; Start always resumes, B quits
     const now=performance.now(),rep=now-gpNavLast>180;
     const D=just(13)||(gpAxis.ly>0.55&&rep),U=just(12)||(gpAxis.ly<-0.55&&rep);
-    if(D){pauseGpIdx=Math.min(2,pauseGpIdx+1);gpNavLast=now;}
+    const _pit=pauseItems(),_pn=_pit.length;
+    if(pauseGpIdx>=_pn)pauseGpIdx=_pn-1;
+    const _pL=just(14)||(gpAxis.lx<-0.55&&rep),_pR=just(15)||(gpAxis.lx>0.55&&rep),_pf=_pit[pauseGpIdx];
+    if(D){pauseGpIdx=Math.min(_pn-1,pauseGpIdx+1);gpNavLast=now;}
     if(U){pauseGpIdx=Math.max(0,pauseGpIdx-1);gpNavLast=now;}
+    if(_pf&&_pf.kind==='step'&&_pL){_pf.dec();gpNavLast=now;} // D-pad L/R adjusts a focused stepper (TURN RATE)
+    if(_pf&&_pf.kind==='step'&&_pR){_pf.inc();gpNavLast=now;}
     if(just(9)){paused=false;pauseGpIdx=0;} // Start always resumes immediately
-    else if(just(0)){
-      if(pauseGpIdx===0){paused=false;}
-      else if(pauseGpIdx===1){settingsReturn=phase;settingsGpIdx=0;paused=false;phase='settings';}
-      else{pauseQuit();}
-      pauseGpIdx=0;
-    }else if(just(1)){pauseQuit();pauseGpIdx=0;}
+    else if(just(0)){_pit[pauseGpIdx].act();pauseGpIdx=0;} // A activates the focused item
+    else if(just(1)){paused=false;pauseToMenu();pauseGpIdx=0;} // B → menu
     gpPrevAll=gpBtnsAll.map(b=>b?b.slice():b);gpPrev=gpBtnsAll[0]?gpBtnsAll[0].slice():[];return;
   }
   if(canPause()&&just(9)){paused=true; // Start pauses a live game (instead of exiting)
@@ -6956,6 +6999,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.47 (2026-06-14): PAUSE MENU — ENDGAME-STYLE NAV + TURN-RATE RATIO. (1) The pause overlay is no longer just RESUME/SETTINGS/QUIT — it now offers the same "how far back do you want to go" choices as the end-of-match screen: RESUME · RESTART (relaunch the current match/run) · SETUP (2P → claim screen) · MODE (mode select) · SETTINGS · MENU. Context-aware (SETUP only in 2P; SP shows RESTART/MODE/SETTINGS/QUIT). List-driven render + click + full D-pad/A/B/Start gamepad nav (B → menu). pauseResumeRect/pauseQuitRect kept (derive from the list) so existing tests/handlers hold. (2) TURN RATE knob: a rotation-vs-translation ratio stepper lives in the pause menu (◀▶ click or D-pad L/R, A resets to 1:1, persisted frcds_rot). The single simple sensitivity lever (slider + LB/RB bumpers) is unchanged; this just biases turn vs drive — `vr` is now scaled by `rotRatio` at the input return while translation stays on sensitivity. Pairs with the v5.1.46 MAX SENSITIVITY cheat so you can crank speed and still keep a sane turn rate. smoke54 +7 (pause nav items + destinations, RESTART, rotRatio scaling + stepper). Full battery green. Single file, no assets.
   v5.1.46 (2026-06-14): CHEATS — MAX SENSITIVITY (replaces DRIFT) + RAM COOLDOWN. The tabled/WIP DRIFT cheat is retired and replaced by two new Konami sliders. (1) MAX SENSITIVITY: uncaps the sensitivity ceiling — SENS_MAX is now a live `let` (base 2.0) that this slider raises to 2×–8×, so the normal SENS slider/bumpers (SP + per-player claim) can crank far past the old 2× wall; pair with the upcoming pause RATIO knob to keep extreme values drivable. (2) RAM COOLDOWN: scales the RAM dash cooldown `BOOST.cd` (0.1×–1×) at every boost trigger (ball + tank + race), so with RAMMING on you can spam the dash; the slider reads out the resulting seconds. Both taint records via `anyCheat()` (SENS_MAX!==base or ramCdMult!==1). DRIFT's `driftMode`/momModeFor wiring removed (ICE SKATING remains the lone momentum cheat; the MOM.drift infra is left dormant). smoke54 retargeted (DRIFT asserts → MAX SENSITIVITY + RAM COOLDOWN). Full battery green. Single file, no assets.
   v5.1.45 (2026-06-14): FRIENDLY FIRE TOGGLE. New FRIENDLY FIRE option in the ⚙ SETTINGS screen (opens from the main menu and from the pause overlay → "pause settings"), default OFF, persisted (frcds_ff). OFF = hits only land on the OPPOSING alliance/side (the long-standing behavior); ON = your own team is fair game too. One shared `friendlyFire` flag gates every contact/damage path it makes sense for: the tank bullet→tank collision and `tf2Explode` (their same-side skip is now `&&!friendlyFire`), the tank arcade RAM (`arcadeTackle` target list includes squadmates when ON), and the ball-mode arcade RAM (now also staggers your own main/support bots when ON). Note the enemy-side RAM in ball mode was already wired (`arcadeTackle` ran on `ballFoes`, which includes the opposing main + support bots) and the ram already scatters a victim's carried balls — FF just unlocks hitting your own side. Kill credit stays cross-side only, so a friendly-fire teamkill deals damage/eliminates but never scores (keeps TIMED kill counts honest). smoke56 +2 (same-side bullet damages with FF on, skipped with FF off). Full battery green. Single file, no assets.
   v5.1.44 (2026-06-14): SWERVE VISIBILITY — PODS ON TOP + LARGER SEE-THROUGH TEAM RING. Two visual tweaks (no physics change) so the swerve drive reads clearly — you can see all four pods steer to the same angle when translating and splay tangentially when the chassis spins. (1) The square/rectangular chassis body was painted AFTER the wheels, burying the corner swerve modules (they sit at ±0.7·RR, well inside the ±RR body). drawWheels is now a two-pass renderer: an UNDER pass draws every non-swerve drive as before, and a new OVER pass (called from drawRobot after the body) re-draws the swerve pods ON TOP of the chassis so all four are fully visible. Pod angle/spin state still advances once per frame (in the over pass). (2) The red/blue alliance team ring (p2AllianceRing) is kept dashed but is now a touch larger (r=RR+10→RR+13, sits further out and reveals more of the pods) and slightly see-through (dashed team-color stroke at ~0.72 alpha over a lighter dark underlay) — Sam's call from the preview (see-through, not a solid tint). Applies across ball/tank/race main bots. Full battery green (draw-only; harness canvas is a no-op proxy). Single file, no assets.

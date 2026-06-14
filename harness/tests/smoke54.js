@@ -151,6 +151,19 @@ src+=`
   paused=false;{const t1=b2.t;update(1/60);ok('resume advances the match',b2.t>t1);}
   paused=true;{const r=pauseResumeRect();pauseClick(r.x+5,r.y+5);ok('RESUME click unpauses',paused===false);}
   startBall('normal');paused=true;{const q=pauseQuitRect();pauseClick(q.x+5,q.y+5);ok('QUIT click leaves the match',paused===false&&phase!=='p2ball');}
+  // ── pause menu = endgame-style nav (v5.1.47): RESUME · RESTART · SETUP · MODE · SETTINGS · MENU ──
+  startBall('normal');paused=true;{const labs=pauseItems().map(i=>i.lab.replace(/[^A-Z]/g,''));
+   ok('2P pause has 7 nav items incl. SETUP/MODE/MENU + TURN RATE',pauseItems().length===7&&labs.indexOf('SETUP')>=0&&labs.indexOf('MODE')>=0&&labs.indexOf('MENU')>=0&&labs.indexOf('TURNRATE')>=0);}
+  startBall('normal');paused=true;{const it=pauseItems(),mode=it.find(x=>x.lab.indexOf('MODE')>=0);mode.act();ok('pause → MODE goes to mode select',phase==='p2modes'&&paused===false);}
+  startBall('normal');paused=true;{const it=pauseItems(),setup=it.find(x=>x.lab.indexOf('SETUP')>=0);setup.act();ok('pause → SETUP goes to the claim screen',phase==='p2claim'&&paused===false);}
+  startBall('normal');paused=true;{const it=pauseItems(),re=it.find(x=>x.lab.indexOf('RESTART')>=0);re.act();ok('pause → RESTART relaunches the match',phase==='p2ball'&&paused===false&&!!b2);}
+  // ── TURN RATE knob: rotRatio biases rotation vs translation (default 1:1) ──
+  {phase='playing';holoMode=false;steerMode=false;obstacleCourse=false;curD=1;Object.keys(keys).forEach(kk=>delete keys[kk]);
+   robot={x:300,y:300,h:0};FX=0;FY=0;sensitivity=1;mouseAim=false;setRotRatio(1);keys['ArrowLeft']=true;
+   const vr1=getInp({type:'kb'}).vr;setRotRatio(2);const vr2=getInp({type:'kb'}).vr;
+   ok('TURN RATE 2× doubles rotation, translation unchanged',Math.abs(vr2-vr1*2)<1e-6&&vr1!==0);
+   const st=pauseItems().find(x=>x.kind==='step');st.dec();ok('TURN RATE ◀ steps rotRatio down 0.25',Math.abs(rotRatio-1.75)<1e-6);
+   st.act();ok('TURN RATE reset → 1:1',rotRatio===1);keys['ArrowLeft']=false;}
 
   // ── MOUSE-AIM: a keyboard bot turns toward the cursor (non-steer drives) ──
   {phase='playing';holoMode=false;steerMode=false;obstacleCourse=false;curD=1;Object.keys(keys).forEach(kk=>delete keys[kk]);
