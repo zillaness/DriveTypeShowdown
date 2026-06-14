@@ -24,9 +24,9 @@ src+=`
   ok('disabling puHp reduces to 4 (hpk alone no longer enough)',tf2AllowedPups().length===4);
   m2.set.puRapid=true;m2.set.puSpeed=true;m2.set.puHp=true;m2.set.hpk=false; // restore smoke55 baseline
   // settings rows: pow/hpk removed from tankfight rows (moved to per-pup sub-screen)
-  m2.mode='tankfight';
+  m2.mode='tankfight';m2.set.tformat='lives';
   const tfrows=p2SettingsRows();
-  ok('tankfight has 4 settings rows (tcpus/lives/bestOf/map; pow+hpk in sub-screen)',tfrows.length===4&&tfrows[0].k==='tcpus'&&tfrows[1].k==='lives'&&tfrows[2].k==='bestOf'&&tfrows[3].k==='map');
+  ok('tankfight has 5 settings rows (tcpus/format/lives/bestOf/map; pow+hpk in sub-screen)',tfrows.length===5&&tfrows[0].k==='tcpus'&&tfrows[1].k==='tformat'&&tfrows[2].k==='lives'&&tfrows[3].k==='bestOf'&&tfrows[4].k==='map');
   ok('p2ShowPupCfg() true in tankfight',p2ShowPupCfg());
   ok('p2ShowPupCfg() false in ball mode',(m2.mode='normal',!p2ShowPupCfg()));
   m2.mode='tankfight';

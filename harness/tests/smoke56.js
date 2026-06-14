@@ -3,8 +3,8 @@ src+=`
 ;(function(){
   let P=0,F=0;const ok=(l,c)=>{console.log((c?'PASS':'FAIL')+' — '+l);c?P++:F++;};
   // start a 1v1 tank match (RED human vs BLUE CPU) — Phase 1 roster plumbing must stay behavior-identical at 2 tanks
-  const startTank=(map,cpuTier,tcpus)=>{applyLayout('land2p');phase='p2claim';tour=null;m2.mode='tankfight';
-    m2.set.cpus=0;m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.bestOf=1;m2.set.contact='full';m2.set.lives=3;m2.set.map=map||0;m2.set.hpk=false;m2.set.pow=true;m2.set.tcpus=tcpus||1;
+  const startTank=(map,cpuTier,tcpus,tformat,tTimeSec)=>{applyLayout('land2p');phase='p2claim';tour=null;m2.mode='tankfight';
+    m2.set.cpus=0;m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.bestOf=1;m2.set.contact='full';m2.set.lives=3;m2.set.map=map||0;m2.set.hpk=false;m2.set.pow=true;m2.set.tcpus=tcpus||1;m2.set.tformat=tformat||'lives';m2.set.tTimeSec=tTimeSec||90;
     m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};
     m2.claim=[{type:'kb'},(cpuTier!=null?{type:'cpu',tier:cpuTier}:{type:'kb'})];m2.sens=[1,1];m2._gpPrev=[];
     const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);updateP2Tank(3.1);};
@@ -124,7 +124,43 @@ src+=`
   ok('both tanks are human',tf2.tanks.every(t=>t.ctl.type==='human'));
   ok('side-1 human wears BLUE',tf2.tanks[1].col===M2_COLS[1]);
 
-  console.log('--- multi-tank (phase 1 roster + phase 2 N-tanks): '+P+' pass, '+F+' fail ---');
+  // ── 12. settings: tankfight FORMAT lever swaps the lives/time row (Phase 3) ──
+  m2.mode='tankfight';m2.set.tformat='lives';
+  let tfrows=p2SettingsRows();
+  ok('LIVES format → 5 rows (tcpus/format/lives/bestOf/map)',tfrows.length===5&&tfrows[0].k==='tcpus'&&tfrows[1].k==='tformat'&&tfrows[2].k==='lives'&&tfrows[3].k==='bestOf'&&tfrows[4].k==='map');
+  m2.set.tformat='timed';tfrows=p2SettingsRows();
+  ok('TIMED format → MATCH TIME row replaces LIVES',tfrows[2].k==='tTimeSec'&&tfrows.length===5);
+  // settings overflow guard: every row sits above the START button
+  {const sb=p2StartBtnRect();let okFit=true;for(let i=0;i<tfrows.length;i++){const rc=p2SetRowRect(i);if(rc.y+rc.h>sb.y)okFit=false;}
+   ok('all 5 tankfight rows fit above START',okFit);}
+
+  // ── 13. TIMED is a deathmatch: infinite lives, respawn ignores lives ──
+  startTank(0,1,1,'timed',90);
+  ok('TIMED match flagged tf2.timed',tf2.timed===true&&tf2.tLimit===90);
+  ok('TIMED tanks have infinite lives',tf2.tanks.every(t=>!isFinite(t.lives)));
+  {const v=tf2.tanks[1];v.hp=1;v.inv=0;v.shield=false;v.dead=false;tf2.result=null;
+   tf2Damage(1,0); // a "lethal" hit in TIMED → respawn, never dead, no result
+   ok('TIMED death respawns (not dead) and sets no result',v.dead===false&&tf2.result===null);
+   ok('TIMED kill still credits the killer',tf2.tanks[0].kills>=1);}
+
+  // ── 14. TIMED expiry: the side with more kills wins ──
+  startTank(0,1,3,'timed',90);
+  tf2.tanks[0].kills=5;tf2.tanks[1].kills=1;tf2.tanks[2].kills=1;tf2.tanks[3].kills=1; // RED 5 vs BLUE 3
+  tf2.t=tf2.tLimit;tf2.result=null;tf2.sudden=false;
+  tf2TimeUp();
+  ok('TIMED expiry → most-kills side wins (RED)',tf2.result===0);
+
+  // ── 15. TIMED tie → SUDDEN DEATH, then first kill wins ──
+  startTank(0,1,1,'timed',90);
+  tf2.tanks[0].kills=2;tf2.tanks[1].kills=2; // dead heat
+  tf2.t=tf2.tLimit;tf2.result=null;tf2.sudden=false;
+  tf2TimeUp();
+  ok('a tie at time-up enters sudden death (no winner yet)',tf2.sudden===true&&tf2.result===null);
+  {const v=tf2.tanks[1];v.hp=1;v.inv=0;v.shield=false;v.dead=false;
+   tf2Damage(1,0); // RED lands the golden kill
+   ok('sudden death: first kill decides the winner (RED)',tf2.result===0);}
+
+  console.log('--- multi-tank (phase 1 roster + phase 2 N-tanks + phase 3 TIMED): '+P+' pass, '+F+' fail ---');
 })();
 `;
 global.ctxState={depth:0};global.texts=[];global.rumbles=[];
