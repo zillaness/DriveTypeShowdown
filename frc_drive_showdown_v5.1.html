@@ -2414,6 +2414,9 @@ function drawP2Ball(){
     ctx.fillText(p2Name(w)+' WINS '+b2.score[w]+'–'+b2.score[l],CW/2,FY+FH/2-66);
     ctx.font='bold 14px Courier New';ctx.fillStyle='#d4d4f4';
     ctx.fillText(m2.drive[w].name+'  vs  '+m2.drive[l].name+'  ·  '+fmt(b2.t)+(b2.sudden?'  ·  golden ball':''),CW/2,FY+FH/2-30);
+    {const lc=m2.claim&&m2.claim[l],wc=m2.claim&&m2.claim[w];
+     const ci=(lc&&lc.type==='cpu')?('defeated '+CPU_TIERS[lc.tier|0].name+' CPU'):(wc&&wc.type==='cpu')?('lost to '+CPU_TIERS[wc.tier|0].name+' CPU'):'';
+     if(ci){ctx.font='bold 12px Courier New';ctx.fillStyle='#ffd740';ctx.fillText('🤖 '+ci,CW/2,FY+FH/2-8);}}
     drawP2Nav(FY+FH/2+34);
   }
 }
@@ -2841,7 +2844,7 @@ function drawP2Tank(){
     ctx.font='bold 40px Courier New';ctx.fillStyle=M2_COLS[w];
     ctx.fillText(p2Name(w)+' WINS',CW/2,FY+FH/2-66);
     ctx.font='bold 14px Courier New';ctx.fillStyle='#d4d4f4';
-    ctx.fillText(m2.drive[w].name+'  ·  ♥×'+tf2.tanks[w].lives+' left  ·  '+fmt(tf2.t),CW/2,FY+FH/2-30);
+    ctx.fillText(m2.drive[w].name+'  ·  ♥×'+tf2.tanks[w].lives+' left  ·  '+fmt(tf2.t)+p2CpuTag(w,l),CW/2,FY+FH/2-30);
     ctx.font='11px Courier New';ctx.fillStyle='#666688';
     ctx.fillText(p2Name(l)+' '+m2.drive[l].name+' — eliminated',CW/2,FY+FH/2-6);
     drawP2Nav(FY+FH/2+34);
@@ -3247,7 +3250,7 @@ function drawP2Race(){
     ctx.font='bold 40px Courier New';ctx.fillStyle=M2_COLS[w];
     ctx.fillText(p2Name(w)+' WINS',CW/2,FY+FH/2-66);
     ctx.font='bold 14px Courier New';ctx.fillStyle='#d4d4f4';
-    ctx.fillText(m2.drive[w].name+' — '+fmt(r2.bots[w].fin)+'  ·  ↺'+r2.bots[w].resets,CW/2,FY+FH/2-30);
+    ctx.fillText(m2.drive[w].name+' — '+fmt(r2.bots[w].fin)+'  ·  ↺'+r2.bots[w].resets+p2CpuTag(w,l),CW/2,FY+FH/2-30);
     ctx.font='11px Courier New';ctx.fillStyle='#666688';
     ctx.fillText(p2Name(l)+' '+m2.drive[l].name+(r2.bots[l].fin!==null?' — '+fmt(r2.bots[l].fin):' — DNF')+'  ·  ↺'+r2.bots[l].resets,CW/2,FY+FH/2-6);
     drawP2Nav(FY+FH/2+34);
@@ -3720,6 +3723,7 @@ function p2cDriveDef(pl){const d=m2.drive[pl]||{kind:'main',idx:1};const g=DGROU
 function p2cGroupIdx(pl){const k=m2.drive[pl]?m2.drive[pl].kind:'main';const i=DGROUPS.findIndex(g=>g.kind===k);return i<0?0:i;}
 function p2cSetDrive(pl,gi,idx){const g=DGROUPS[((gi%3)+3)%3],n=g.list.length,ii=((idx%n)+n)%n,d=g.list[ii];m2.drive[pl]={kind:g.kind,idx:ii,name:d.name,c:d.c};}
 function p2Name(pl){return (m2.name&&m2.name[pl])?m2.name[pl]:(pl===0?'RED':'BLUE');}
+function p2CpuTag(w,l){const lc=m2.claim&&m2.claim[l],wc=m2.claim&&m2.claim[w];return (lc&&lc.type==='cpu')?('  ·  🤖 beat '+CPU_TIERS[lc.tier|0].name):(wc&&wc.type==='cpu')?('  ·  🤖 vs '+CPU_TIERS[wc.tier|0].name):'';}
 // card layout (CW=1280,CH=720)
 function p2cCol(pl){return pl===0?CW/4:3*CW/4;}
 function p2cCardRect(pl){const cx=p2cCol(pl);return{x:cx-280,y:100,w:560,h:548};}
