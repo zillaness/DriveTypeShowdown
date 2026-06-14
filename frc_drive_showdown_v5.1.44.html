@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.43.html
-  version: 5.1.43
+  file: frc_drive_showdown_v5.1.44.html
+  version: 5.1.44
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -3701,11 +3701,13 @@ function p2AllianceRing(p,colOverride){
   const k=eggKind(m2.name&&m2.name[p]),col=colOverride||(k?EGG_COLS[k]:M2_COLS[p]);
   // a clear dashed team ring just OUTSIDE the chassis + wheel pods. Drawn AFTER the bot body so the
   // swerve corner modules (light, drive-colored) can't bury it; a dark underlay makes it pop.
-  const r=RR+10; // sits clear of the swerve module housings (~RR*0.7+11) which used to read as a 'light frame'
-  ctx.strokeStyle='rgba(0,0,0,0.6)';ctx.lineWidth=5;
+  const r=RR+13; // v5.1.44: a touch larger so it sits further out and reveals more of the swerve pods
+  ctx.strokeStyle='rgba(0,0,0,0.45)';ctx.lineWidth=5;
   ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.stroke();
+  ctx.save();ctx.globalAlpha=0.72; // v5.1.44: dashed ring kept, just slightly see-through so it frames the team color without hiding the wheels
   ctx.strokeStyle=col;ctx.lineWidth=3;ctx.setLineDash([6,4]);
   ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  ctx.restore();
 }
 function r2StartPos(p){return{x:OC_START.x,y:OC_START.y,h:OC_START.h};}
 // ── v3.8: H2H CPU — race brain. Gap-seeking climb with predictive hazard gates. ──
@@ -4971,16 +4973,13 @@ function drawOmniWhl(cx,cy,ang,spin,color){
   ctx.restore();
 }
 // ── Main wheel dispatch ─────────────────────────────────────────────
-function drawWheels(inp){
+function drawWheels(inp,layer){
   const id=curDrv().id;
   const col=(curDrv()).c;
   const S=0.065,M=6284;
-  if(id==='tank'||id==='arcade'){
-    const lv=inp.vx-inp.vr*RR*0.7,rv=inp.vx+inp.vr*RR*0.7;
-    wSpin.l=(wSpin.l+lv*S+M)%M; wSpin.r=(wSpin.r+rv*S+M)%M;
-    drawTrack(-RR+1,RR-1,-(RR+3),wSpin.l,col);
-    drawTrack(-RR+1,RR-1,(RR+3),wSpin.r,col);
-  }else if(id==='botSwerve'||id==='fieldSwerve'){
+  const swerve=(id==='botSwerve'||id==='fieldSwerve');
+  if(layer==='over'){ // swerve modules render ON TOP of the chassis so the body can't bury the pods (v5.1.44)
+    if(!swerve)return;
     const cosH=Math.cos(robot.h),sinH=Math.sin(robot.h);
     const vlx= inp.vx*cosH+inp.vy*sinH;
     const vly=-inp.vx*sinH+inp.vy*cosH;
@@ -4993,6 +4992,14 @@ function drawWheels(inp){
       swerveMods[i].s=(swerveMods[i].s+mag*S+M)%M;
       drawSwerveWhl(cx[i],cy[i],swerveMods[i].d,swerveMods[i].s,col);
     }
+    return;
+  }
+  if(swerve)return; // swerve pods are deferred to the 'over' pass (drawn after the body)
+  if(id==='tank'||id==='arcade'){
+    const lv=inp.vx-inp.vr*RR*0.7,rv=inp.vx+inp.vr*RR*0.7;
+    wSpin.l=(wSpin.l+lv*S+M)%M; wSpin.r=(wSpin.r+rv*S+M)%M;
+    drawTrack(-RR+1,RR-1,-(RR+3),wSpin.l,col);
+    drawTrack(-RR+1,RR-1,(RR+3),wSpin.r,col);
   }else if(id==='mecanum'){
     // Wheel bodies parallel to robot (+x forward). Rollers: FL+BR = / (+1), FR+BL = \ (-1)
     const ws=[[RR*0.6,-(RR+2), 1],[RR*0.6,(RR+2),-1],
@@ -5194,6 +5201,7 @@ function drawRobot(){
       ctx.fillStyle='#ff4444cc';ctx.fillText('FULL!',RR+8,-RR-6);
     }
   }
+  drawWheels(lastRobotInp,'over'); // swerve pods on TOP of the body (no-op for other drives) — v5.1.44
   ctx.restore();
 
   // Field-centric compass (not rotated with robot)
@@ -6939,6 +6947,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.44 (2026-06-14): SWERVE VISIBILITY — PODS ON TOP + LARGER SEE-THROUGH TEAM RING. Two visual tweaks (no physics change) so the swerve drive reads clearly — you can see all four pods steer to the same angle when translating and splay tangentially when the chassis spins. (1) The square/rectangular chassis body was painted AFTER the wheels, burying the corner swerve modules (they sit at ±0.7·RR, well inside the ±RR body). drawWheels is now a two-pass renderer: an UNDER pass draws every non-swerve drive as before, and a new OVER pass (called from drawRobot after the body) re-draws the swerve pods ON TOP of the chassis so all four are fully visible. Pod angle/spin state still advances once per frame (in the over pass). (2) The red/blue alliance team ring (p2AllianceRing) is kept dashed but is now a touch larger (r=RR+10→RR+13, sits further out and reveals more of the pods) and slightly see-through (dashed team-color stroke at ~0.72 alpha over a lighter dark underlay) — Sam's call from the preview (see-through, not a solid tint). Applies across ball/tank/race main bots. Full battery green (draw-only; harness canvas is a no-op proxy). Single file, no assets.
   v5.1.43 (2026-06-14): MULTI-TANK PHASE 3 — TIMED / MOST-KILLS (queue item 4 complete). TANK FIGHT MATCH SETTINGS gain a FORMAT lever: LIVES — last standing (the existing mode) or TIMED — most kills wins. In TIMED the LIVES PER TANK row becomes MATCH TIME (60/90/120/180s) and the match is a DEATHMATCH: every tank has infinite lives and always respawns, you rack up kills against the clock, and the side with the most kills when time expires wins. An exact tie enters SUDDEN DEATH — the next kill wins (golden-goal), per Sam's tie-break call. Kill scoring sums per side (tf2SideKills, built on the Phase-1 kill credit); tf2TimeUp decides the winner at expiry; tf2Damage routes the sudden-death golden kill. TIMED HUD: a center COUNTDOWN flanked by a live RED n – n BLUE kills scoreboard, and each tank card shows ☠kills instead of hearts (the ∞-lives guard from Phase 2 keeps the heart strip from blowing up). The result overlay reports the winning side, the KILLS line (w–l), and flags SUDDEN DEATH when it went to golden kill. LIVES mode is unchanged (still byte-identical at 1v1). This completes the 3-phase multi-tank item: ENEMY TANKS ×1–4 (Phase 2) compose freely with LIVES/TIMED (Phase 3) — e.g. 1 human vs 3 CPU, TIMED 120s. smoke56 +10 (FORMAT row swap, 5-row overflow guard, infinite-lives respawn, kill credit in TIMED, most-kills expiry, tie→sudden-death→golden kill); smoke55 updated for the new FORMAT row (5 rows). Full battery green. Single file, no assets.
   v5.1.42 (2026-06-14): MULTI-TANK PHASE 2 — ENEMY TANKS ×1–4 (queue item 4). The TANK FIGHT MATCH SETTINGS gain an ENEMY TANKS lever (×1–4) — face a whole squad of CPU tanks. Two teams: side 0 = the player(s), side 1 = the CPU squad. With a CPU claim, 1+ humans take on N enemy CPU tanks; two human claims stay legacy 1v1 rivals (the lever is ignored). The roster build spawns players down the LEFT column and the CPU squad down the RIGHT, Y-spread symmetric about mid (±120 / ±160,mid / ±180,±60), clamped in-bounds; tcpus=1 collapses to the exact legacy 1v1 spawn (byte-identical). Each CPU tank now carries its OWN brain (cpuTankBrainsInit → ctl.brain) so the squad thinks independently instead of moving in lockstep; every CPU inherits P2's drive (m2.drive[1]) and shares P2's claimed tier. NO FRIENDLY FIRE between squadmates (bullet + explosion skip same-side). Each enemy tank gets a distinct shade (TF2_CPU_COLS: blue/cyan/violet/teal) on its ring/tag/bullets; eliminated tanks leave the field. HUD stacks the player card(s) on the left and the squad's cards on the right; the LIVES win is decided by tf2CheckResult (last SIDE standing) and the result overlay shows the winning TEAM + survivors when >2 tanks. The CPU brain now keys its tier/drive/dodge off each tank's control bind (not its array index), so indices 2+ no longer read undefined. smoke56 +23 (N-tank roster/sides, independent brains, spawn fairness, distinct colors, squad no-friendly-fire, last-side-standing with 3 enemies, tcpus=1 byte-identical, 2-human rivals); smoke38/55 updated for the per-tank brain + the new ENEMY TANKS row. Phase 3 (TIMED / most-kills) is next. Full battery green. Single file, no assets.
   v5.1.41 (2026-06-14): MULTI-TANK PHASE 1 — ROSTER PLUMBING (behavior-identical at 2 tanks). Internal refactor toward "multiple enemy tanks + TIMED mode" (queue item 4). The tank engine no longer assumes exactly two tanks at indices 0/1: each tank now carries its own identity (side, ctl:{type,bind,tier}, kills, dead), and a set of roster helpers (tankCtl/tankSide/tankBrain/tankFoes/tankNearestFoe/tankFire/tankMgOn/withTank) resolve every per-tank value through that identity. All the 1v1-hardcoded loops were generalized to N tanks: cpuTankUpdate (each CPU targets its nearest live opposite-side foe; dodge skips same-side fire), updateP2Tank (per-tank update, pickup pickup, O(N²) tank-tank push, arcadeTackle), the bullet→tank collision (loops all tanks, skips dead & same-side = NO FRIENDLY FIRE; pierce damages each once and flies through), tf2Explode (damages every opposite-side tank in radius, owner side immune), tf2Shoot AUTO-AIM (nearest foe). New tf2Damage cascade adds kill credit + a dead flag; new tf2CheckResult decides LIVES (last side standing) — for 2 tanks the side index equals the tank index, so the result/HUD are byte-identical. No settings or visible behavior change yet (still 1v1); Phase 2 adds the ENEMY TANKS 1–4 lever + per-CPU brains, Phase 3 adds TIMED/most-kills. New smoke56 (21 asserts: roster model, helpers, kill credit, dead flag, last-side-standing, no-friendly-fire, side-aware explosion). Full battery green incl. smoke38/55. Single file, no assets.
