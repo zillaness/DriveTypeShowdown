@@ -52,6 +52,13 @@ src+=`
   m2.set.allySpd=1.2;m2.set.timeSec=180;m2.set.ballN=12;m2.set.cpus=0;
   const xb=p2ResetBtnRect();p2Click(xb.x+xb.w/2,xb.y+xb.h/2);
   ok('RESET DEFAULTS restores allySpd/timeSec/ballN/cpus',m2.set.allySpd===M2_SET_DEFAULTS.allySpd&&m2.set.timeSec===M2_SET_DEFAULTS.timeSec&&m2.set.ballN===M2_SET_DEFAULTS.ballN&&m2.set.cpus===M2_SET_DEFAULTS.cpus);
+  // v5.1.33: clicking the ◀ / ▶ glyphs on a row steps the value; the body still opens the dropdown
+  phase='p2settings';m2.mode='normal';setDropdown=null;
+  {const rws=p2SettingsRows(),ci=rws.findIndex(r=>r.k==='cpus'),rc=p2SetRowRect(ci);m2.set.cpus=0;
+   p2Click(rc.x+rc.w-16,rc.y+rc.h/2); ok('▶ click steps the setting up ('+m2.set.cpus+')',m2.set.cpus===1);
+   p2Click(rc.x+rc.w-70,rc.y+rc.h/2); ok('◀ click steps the setting down ('+m2.set.cpus+')',m2.set.cpus===0);
+   p2Click(rc.x+rc.w/2,rc.y+rc.h/2);  ok('row-body click still opens the dropdown',setDropdown===ci);setDropdown=null;}
+
   console.log('--- settings-options: '+P+' pass, '+F+' fail ---');
 })();
 `;
