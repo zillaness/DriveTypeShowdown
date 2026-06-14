@@ -84,6 +84,16 @@ src+=`
   ok('NO-CLIP off: overlapping bots separate (d='+dYes.toFixed(0)+')',dYes>dNo);
   noClip=false;
 
+  // ── ICE / DRIFT momentum: builds + glides; human-only ──
+  iceMode=true;
+  {const bot={x:0,y:0,h:0,vx:0,vy:0};applyMomentum(bot,{vx:120,vy:0},1/60,'ice');const v1=bot.vx;applyMomentum(bot,{vx:0,vy:0},1/60,'ice');
+   ok('ICE: velocity builds then glides after input stops (v1='+v1.toFixed(0)+'→'+bot.vx.toFixed(0)+')',v1>0&&bot.vx>v1*0.5);}
+  startBall('normal');playerBind[0]={type:'kb'};playerBind[1]={type:'cpu',tier:1};
+  ok('ICE applies to the human bot, not the CPU',momModeFor(b2.bots[0],0)==='ice'&&momModeFor(b2.bots[1],1)===null);
+  iceMode=false;driftMode=true;
+  ok('DRIFT selected for the human bot',momModeFor(b2.bots[0],0)==='drift');
+  driftMode=false;ok('no momentum when both cheats off',momModeFor(b2.bots[0],0)===null);
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;
