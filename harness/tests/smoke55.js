@@ -62,11 +62,14 @@ src+=`
   for(let i=0;i<10;i++){fp.x=600;fp.y=320;fp.inv=0;updateP2Tank(1/60);}
   ok('PIERCING hits a tank exactly once (hp '+fphp+'→'+fp.hp+')',fp.hp===fphp-1);
 
-  // ── MACHINE GUN burns the stack one-per-shot (not faster) ──
-  startTank(0);machineGun=2;const tg=tf2.tanks[0];tg.explAmmo=3;tg.reload=0;tg.stunT=0;kbSpaceHeld=true;
-  let shots=0,guard=0;while(tg.explAmmo>0&&guard++<400){const before=tg.explAmmo;updateP2Tank(1/60);if(tg.explAmmo<before)shots++;}
-  kbSpaceHeld=false;machineGun=0;
-  ok('MACHINE GUN burns exactly 3 explosive rounds (one per shot)',tg.explAmmo===0&&shots===3);
+  // ── MACHINE GUN converts a banked stack into a TIMED full-auto barrage (~MG_BURST_PER s/round), not one-per-shot ──
+  startTank(0);machineGun=2;const tg=tf2.tanks[0];tg.explAmmo=3;tg.explBurstT=0;tg.reload=0;tg.stunT=0;tg.h=0;tg.x=600;tg.y=320;
+  tf2.bullets.length=0;tf2Shoot(0); // first MG shot banks the stack into a burst
+  ok('MACHINE GUN banks the stack into a ~3s barrage (burst='+tg.explBurstT.toFixed(1)+', ammo='+tg.explAmmo+')',tg.explAmmo===0&&Math.abs(tg.explBurstT-3*MG_BURST_PER)<0.01&&tf2.bullets[0].expl===true);
+  // during the barrage every MG shot is explosive without consuming ammo
+  tf2.bullets.length=0;tf2Shoot(0);
+  ok('barrage shots stay explosive while the timer runs',tf2.bullets[0].expl===true&&tg.explBurstT>0);
+  machineGun=0;
 
   console.log('--- tank-pickups: '+P+' pass, '+F+' fail ---');
 })();

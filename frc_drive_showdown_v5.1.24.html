@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.23.html
-  version: 5.1.23
+  file: frc_drive_showdown_v5.1.24.html
+  version: 5.1.24
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -2776,10 +2776,10 @@ function startP2Tank(){
   tf2={t:0,cd:3,result:null,bullets:[],blasts:[],_bid:0,map:mp,pups:[],fx:[],btTouch:false,pupTimer:3+Math.random()*3,
     tanks:[0,1].map(p=>{const sp=tf2SpawnPos(p);
       return{x:sp.x,y:sp.y,h:sp.h,hp:3,reload:0,lives:m2.set.lives,inv:0,
-        rapidT:0,speedT:0,shield:false,explAmmo:0,pierceAmmo:0,aimT:0,_inp:{vx:0,vy:0,vr:0},_csv:null};})};
+        rapidT:0,speedT:0,shield:false,explAmmo:0,pierceAmmo:0,aimT:0,explBurstT:0,pierceBurstT:0,_inp:{vx:0,vy:0,vr:0},_csv:null};})};
   cpuH2HInit();
 }
-function tf2Respawn(p){const t=tf2.tanks[p],sp=tf2SpawnPos(p);t.x=sp.x;t.y=sp.y;t.h=sp.h;t.hp=3;t.inv=1.5;t.reload=0.5;t.rapidT=0;t.speedT=0;t.shield=false;t.aimT=0;} // ammo (expl/pierce) persists across respawns; timed buffs reset
+function tf2Respawn(p){const t=tf2.tanks[p],sp=tf2SpawnPos(p);t.x=sp.x;t.y=sp.y;t.h=sp.h;t.hp=3;t.inv=1.5;t.reload=0.5;t.rapidT=0;t.speedT=0;t.shield=false;t.aimT=0;t.explBurstT=0;t.pierceBurstT=0;} // ammo (expl/pierce) persists across respawns; timed buffs reset
 let p2TFire=[false,false],p2TFireId=[-1,-1];
 let p2Strip=[{id:-1,v:0},{id:-1,v:0}]; // optional 2nd touch channel (right-stick Y) per side
 function p2StripRect(sd){return sd===0?{x:CW/2-78,y:CH/2-110,w:48,h:220}:{x:CW/2+30,y:CH/2-110,w:48,h:220};}
@@ -2954,13 +2954,19 @@ function tf2Shoot(p){
   // AUTO-AIM: snap the launch angle to the foe's CURRENT position (no lead/curve). Firing is already gated to "pointed at the foe".
   let ang=t.h;
   if(t.aimT>0){const foe=tf2.tanks[1-p];ang=Math.atan2(foe.y-t.y,foe.x-t.x);}
-  let expl=false,pierce=false; // consume one of each stack if loaded; flags ride on the bullet
-  if(t.explAmmo>0){t.explAmmo--;expl=true;}
-  if(t.pierceAmmo>0){t.pierceAmmo--;pierce=true;}
+  let expl=false,pierce=false;
+  if(mgOn(p)){ // MACHINE GUN: a banked stack becomes a TIMED full-auto barrage (chaos), not one round per shot
+    if(t.explBurstT>0)expl=true; else if(t.explAmmo>0){t.explBurstT=t.explAmmo*MG_BURST_PER;t.explAmmo=0;expl=true;}
+    if(t.pierceBurstT>0)pierce=true; else if(t.pierceAmmo>0){t.pierceBurstT=t.pierceAmmo*MG_BURST_PER;t.pierceAmmo=0;pierce=true;}
+  }else{ // normal/rapid fire: one round per shot
+    if(t.explAmmo>0){t.explAmmo--;expl=true;}
+    if(t.pierceAmmo>0){t.pierceAmmo--;pierce=true;}
+  }
   tf2.bullets.push({x:t.x+Math.cos(ang)*(RR+10),y:t.y+Math.sin(ang)*(RR+10),
     vx:Math.cos(ang)*400,vy:Math.sin(ang)*400,owner:p,id:tf2._bid++,expl:expl,pierce:pierce,hitSet:pierce?[]:null});
   sfx(expl?'explosion':'shoot');
 }
+const MG_BURST_PER=1.0; // MACHINE GUN: seconds of full-auto special fire banked per held round (3 rounds → ~3s of mayhem)
 const TF2_BLAST_R=62; // explosive AoE radius
 function tf2Damage(tg,owner){ // shared kill/respawn cascade for direct + AoE hits
   const t=tf2.tanks[tg];if(t.inv>0)return;
@@ -2985,6 +2991,8 @@ function updateP2Tank(dt){
     t.rapidT=Math.max(0,t.rapidT-dt);
     t.speedT=Math.max(0,t.speedT-dt);
     t.aimT=Math.max(0,(t.aimT||0)-dt);
+    t.explBurstT=Math.max(0,(t.explBurstT||0)-dt);
+    t.pierceBurstT=Math.max(0,(t.pierceBurstT||0)-dt);
     withBot(p,t,()=>{
       let inp=getInp(playerBind[p]);
       if(t.speedT>0){inp.vx*=1.4;inp.vy*=1.4;}
@@ -3118,8 +3126,8 @@ function drawP2Tank(){
     if(t.shield)fx.push('◈');
     if(t.rapidT>0)fx.push('⚡'+Math.ceil(t.rapidT));
     if(t.speedT>0)fx.push('»'+Math.ceil(t.speedT));
-    if(t.explAmmo>0)fx.push('💥'+t.explAmmo);
-    if(t.pierceAmmo>0)fx.push('↯'+t.pierceAmmo);
+    if(t.explBurstT>0)fx.push('💥'+t.explBurstT.toFixed(1)+'s'); else if(t.explAmmo>0)fx.push('💥'+t.explAmmo);
+    if(t.pierceBurstT>0)fx.push('↯'+t.pierceBurstT.toFixed(1)+'s'); else if(t.pierceAmmo>0)fx.push('↯'+t.pierceAmmo);
     if(t.aimT>0)fx.push('🎯'+Math.ceil(t.aimT));
     ctx.fillText('HP '+'●'.repeat(Math.max(0,t.hp))+'○'.repeat(Math.max(0,3-t.hp))+'  '+'♥'.repeat(Math.max(0,t.lives))+(fx.length?'  '+fx.join(' '):''),x,32);
   }
@@ -6528,6 +6536,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.24 (2026-06-14): MACHINE-GUN SPECIAL-AMMO BARRAGE. With MACHINE GUN on, a banked EXPLOSIVE/PIERCING stack no longer vanishes in ~0.15s (one round per 0.05s shot) — instead the first shot CONVERTS the whole stack into a timed full-auto barrage of that special round: MG_BURST_PER (1.0s) of fire per banked round, so a 3-stack = ~3s of nonstop explosive/piercing mayhem at MG cadence (~60 rounds). During the barrage every MG shot carries the flag without consuming ammo; the timer decays and resets on respawn. HUD shows the barrage countdown (e.g. '💥 3.0s') instead of the round count while it runs. smoke55 updated for the barrage model (16 asserts). Full battery green. Single file, no assets.
   v5.1.23 (2026-06-14): TANK POWER-UPS — EXPLOSIVE / PIERCING / AUTO-AIM (cheat-build batch 1). Three new tank-fight pickups (spawn under the existing POWER-UPS toggle): (1) EXPLOSIVE 💥 — single-use, STACKABLE (+3 per pickup); each fired shot consumes one and detonates an area blast on impact (wall/obstacle/tank) that damages the enemy within ~62px (owner-immune) with a fading ring. (2) PIERCING ↯ — single-use, STACKABLE (+3); the shot punches THROUGH obstacles and through the enemy (single hit, guarded against multi-frame double-hit), still dies at the arena bound. (3) AUTO-AIM 🎯 — timed 8s; each shot's launch angle snaps to the foe's CURRENT position. Ammo persists across respawns; the aim timer resets (like rapid/speed/shield). Precedence when a shot is both explosive AND piercing: explosive wins on walls (detonate+stop), piercing wins on tanks (pass through, no blast). HUD shows ammo/timer pills. Also fixes a latent gap: sfx('explosion') was never defined (the RAMMING tackle was silently silent) — now a real boom, shared by tackle + blasts. New suite smoke55 (15 asserts). Full battery green. Single file, no assets.
   v5.1.22 (2026-06-14): SHOOTER SHOVE EDGE + REAR-STEER CONTROL FIX. (1) DIFFICULTY (shooter): the main CPU bot now out-muscles alliance bots in the shoving match (tier-scaled mass B2_SHOVE [1.3,1.6,2.5,6]) so it isn't bullied off its scoring run — CHAMPION barely budges and plows through, ROOKIE is near-even. Alliance bots can still STRIP carried balls and BLOCK shots; they just can't body-bully the main bot. This (not intake-denial, which costs the CPU scoring time) is the lever that lets a strong CPU actually score. Gated to SHOOTER for now per the playtest plan; classic/normal unchanged pending a test. (2) Rear-steer (Forklift) steering input negated so left/right is intuitive (press right → curve right) — it read as inverted before; the rear wheels still toe opposite for the rear-pivot feel. smoke45 +2 (shove resists by tier). Full battery green. Single file, no assets.
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
