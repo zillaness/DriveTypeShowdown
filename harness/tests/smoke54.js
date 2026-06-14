@@ -121,10 +121,21 @@ src+=`
    ok('cheated H2H win records nothing',JSON.stringify(h2hRec)===h0);}
   iceMode=false;cheatedRun=false;
 
-  // ── cheat menu fits on screen with the full (13) cheat list ──
+  // ── cheat menu fits on screen with the full cheat list ──
   konamiActive=true;drawKonami();
   {const lr=drawKonami._rows[drawKonami._rows.length-1];const linkMax=Math.max.apply(null,(drawKonami._links||[{hy:0,hh:0}]).map(l=>l.hy+l.hh));
    ok('cheat menu fits ('+CHEATS.length+' cheats, rows→'+(lr.y+lr.h).toFixed(0)+', links→'+linkMax.toFixed(0)+' < '+CH+')',lr.y+lr.h<CH-40&&linkMax<CH-8);}
+
+  // ── v5.1.37: ICE GRIP slider + cheat-menu slider drag (applyKonamiSlider sets value from a canvas x) ──
+  {const gi=CHEATS.findIndex(c=>c.name==='ICE GRIP');
+   ok('ICE GRIP slider cheat exists',gi>=0&&CHEATS[gi].slider===true&&CHEATS[gi].min===0.4);
+   const r=drawKonami._rows[gi];
+   applyKonamiSlider(gi,r.slider.x1);ok('drag to far-left = max slide (min grip 0.40)',Math.abs(iceGrip-0.4)<1e-9&&Math.abs(MOM.ice.fri-0.4)<1e-9);
+   applyKonamiSlider(gi,r.slider.x2);ok('drag to far-right = most control (max grip 2.50)',Math.abs(iceGrip-2.5)<1e-9&&Math.abs(MOM.ice.fri-2.5)<1e-9);
+   applyKonamiSlider(gi,(r.slider.x1+r.slider.x2)/2);ok('drag to mid sets a mid grip ('+iceGrip.toFixed(2)+')',iceGrip>0.9&&iceGrip<2.0&&MOM.ice.fri===iceGrip);
+   iceGrip=0.4;MOM.ice.fri=0.4;
+   // a non-slider cheat row: applyKonamiSlider is a no-op (guards on c.slider)
+   const ti=CHEATS.findIndex(c=>!c.slider);const tv=CHEATS[ti].get();applyKonamiSlider(ti,drawKonami._rows[ti].x);ok('applyKonamiSlider ignores non-slider rows',CHEATS[ti].get()===tv);}
   konamiActive=false;
 
   // ── PAUSE menu: freezes the match; RESUME/QUIT overlay ──

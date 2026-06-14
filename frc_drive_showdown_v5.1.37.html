@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.36.html
-  version: 5.1.36
+  file: frc_drive_showdown_v5.1.37.html
+  version: 5.1.37
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -245,6 +245,12 @@ let settingsGpIdx=0;
 let pauseGpIdx=0; // cursor index in the pause overlay (0=RESUME 1=SETTINGS 2=QUIT)
 const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
 let konamiIdx=0,_gpKonamiIdx=0,_gpKonPrev={},konamiActive=false,frisbeeMode=false;
+let konamiDrag=null,konamiDragTouch=-1; // cheat-menu slider drag: row index being dragged (konamiDragTouch = touch id, -1 for mouse)
+function applyKonamiSlider(i,mx){ // set CHEATS[i]'s slider value from a canvas x (honors step), shared by click + drag
+  const c=CHEATS[i],r=(drawKonami._rows||[])[i];
+  if(!c||!c.slider||!r||!r.slider)return;
+  const t=clamp((mx-r.slider.x1)/(r.slider.x2-r.slider.x1),0,1),st=c.step||1;
+  c.set(c.min+Math.round(t*(c.max-c.min)/st)*st);}
 // konami cheat menu: toggleable fun modes (replaces the old auto-frisbee flip). arcadeMode adds the LT boost-tackle in 2P H2H ball+tank.
 let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides
 let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,driftMode=false,ballScale=1,robotScale=1,ballPups=false; // more cheats
@@ -322,6 +328,13 @@ C.addEventListener('touchstart',e=>{
   for(const t of e.changedTouches){
     const p=toCanvas(t);
     if(paused){pauseClick(p.x,p.y);continue;} // pause overlay swallows touches
+    if(konamiActive){ // cheat menu overlays any phase: drag sliders, tap toggles/links
+      const rows=drawKonami._rows||[];let hit=false;
+      for(let i=0;i<rows.length;i++){const r=rows[i];
+        if(r.slider&&p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h){konamiDrag=i;konamiDragTouch=t.identifier;cheatIdx=i;applyKonamiSlider(i,p.x);sfx('click');hit=true;break;}}
+      if(!hit)click(p.x,p.y);
+      continue;
+    }
     if(muteShown()&&inMuteBtn(p.x,p.y)){sfxToggle();continue;}
     if(phase==='cpuSettings'){
       if(presetNameEntry.active){
@@ -401,6 +414,7 @@ C.addEventListener('touchstart',e=>{
 C.addEventListener('touchmove',e=>{
   e.preventDefault();
   for(const t of e.changedTouches){
+    if(konamiActive&&konamiDrag!==null&&t.identifier===konamiDragTouch){applyKonamiSlider(konamiDrag,toCanvas(t).x);continue;}
     if(t.identifier===sliderTid){applySlider(toCanvas(t).x);continue;}
     if(p2SensDrag&&t.identifier===p2SensDrag.touchId){p2SetSens(p2SensDrag.pl,toCanvas(t).x);continue;}
     if(p2SetSliderDrag&&t.identifier===p2SetSliderDrag.touchId){p2SetSliderVal(p2SetSliderDrag.i,toCanvas(t).x);continue;}
@@ -423,6 +437,7 @@ C.addEventListener('touchmove',e=>{
 },{passive:false});
 function clearTouch(e){
   for(const t of e.changedTouches){
+    if(konamiDrag!==null&&t.identifier===konamiDragTouch){konamiDrag=null;konamiDragTouch=-1;}
     if(p2SensDrag&&t.identifier===p2SensDrag.touchId){p2SensDrag=null;}
     if(p2SetSliderDrag&&t.identifier===p2SetSliderDrag.touchId){p2SetSliderDrag=null;}
     if(cpuSettingsDrag&&t.identifier===cpuSettingsDrag.touchId){cpuSettingsDrag=null;}
@@ -449,6 +464,12 @@ function toCanvasMouse(e){
 C.addEventListener('mousedown',e=>{
   sfxUnlock();
   const p=toCanvasMouse(e);
+  if(konamiActive){ // cheat-menu slider: grab a slider row and drag (click-to-set still works via the click event)
+    const rows=drawKonami._rows||[];
+    for(let i=0;i<rows.length;i++){const r=rows[i];
+      if(r.slider&&p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h){konamiDrag=i;cheatIdx=i;applyKonamiSlider(i,p.x);sfx('click');e.preventDefault();return;}}
+    return; // taps on toggles/links handled by the click event
+  }
   if(phase==='cpuSettings'){
     const _TX=96,_TW=210;
     for(const sl of cpuSliders()){
@@ -474,13 +495,14 @@ C.addEventListener('mousedown',e=>{
 });
 C.addEventListener('mousemove',e=>{
   {const p=toCanvasMouse(e);mouseX=p.x;mouseY=p.y;} // track cursor for MOUSE-AIM
+  if(konamiActive&&konamiDrag!==null){applyKonamiSlider(konamiDrag,toCanvasMouse(e).x);return;}
   if(phase==='cpuSettings'&&cpuSettingsDrag){const p=toCanvasMouse(e);const tt=Math.max(0,Math.min(1,(p.x-cpuSettingsDrag.x)/cpuSettingsDrag.w));applyCpuSlider(cpuSettingsDrag.id,tt);return;}
   if(p2SensDrag){p2SetSens(p2SensDrag.pl,toCanvasMouse(e).x);return;}
   if(p2SetSliderDrag){p2SetSliderVal(p2SetSliderDrag.i,toCanvasMouse(e).x);return;}
   if(sliderMouseDrag){applySlider(toCanvasMouse(e).x);}
 });
-C.addEventListener('mouseup',()=>{sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;});
-C.addEventListener('mouseleave',()=>{sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;});
+C.addEventListener('mouseup',()=>{sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;konamiDrag=null;});
+C.addEventListener('mouseleave',()=>{sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;konamiDrag=null;});
 
 const BALL_STARTS=[
   {x:55,  y:175},{x:165, y:158},{x:290, y:172},
@@ -776,7 +798,7 @@ function click(mx,my){
     const _rows=drawKonami._rows||[];
     for(let i=0;i<_rows.length;i++){const r=_rows[i];
       if(mx>=r.x&&mx<=r.x+r.w&&my>=r.y&&my<=r.y+r.h){cheatIdx=i;
-        if(r.slider){const c=CHEATS[i],t=clamp((mx-r.slider.x1)/(r.slider.x2-r.slider.x1),0,1),st=c.step||1;c.set(c.min+Math.round(t*(c.max-c.min)/st)*st);sfx('click');} // click/drag the track to set (honors step)
+        if(r.slider){applyKonamiSlider(i,mx);sfx('click');} // click the track to set (honors step); drag handled in mousedown/touch
         else cheatToggle();
         return;}
     }
@@ -1310,7 +1332,7 @@ function updateGamepad(){
         const setRows=(phase==='p2settings')?p2SettingsRows().length:0;
         if((D||U||L||R)&&phase==='p2settings')setDropdown=null; // gamepad doesn't use the pointer dropdown
         if((L||R)&&phase==='p2settings'&&p2GpIdx<setRows){const _r=p2SettingsRows()[p2GpIdx]; // ◀▶ cycle the focused option (or nudge a slider row)
-          if(_r&&_r.slider){const _st=_r.step||0.05;m2.set[_r.k]=clamp(Math.round((m2.set[_r.k]+(R?_st:-_st))/_st)*_st,_r.min,_r.max);sfx('click');}
+          if(_r&&_r.slider){const _st=_r.step||0.05;setRowSet(_r,clamp(Math.round((setRowGet(_r)+(R?_st:-_st))/_st)*_st,_r.min,_r.max));sfx('click');}
           else p2CycleSet(p2GpIdx,R?1:-1);gpNavLast=now;}
         else if(D||U||L||R){p2GpIdx=gpDirNav(items,p2GpIdx,U?'u':D?'d':L?'l':'r');gpNavLast=now;} // spatial: real up/down + left/right
         p2GpIdx=Math.min(p2GpIdx,items.length-1);
@@ -1917,8 +1939,8 @@ function b2SpawnCpus(){
 }
 function b2CpuUpdate(dt){
   if(!b2.cpus.length)return;
-  const allySpd=(m2&&m2.set&&typeof m2.set.allySpd==='number')?m2.set.allySpd:0.8;
-  const spd=SPD*allySpd; // v5.1.10: alliance support bots run at the ALLIANCE CPU SPEED slider value (fraction of the player's drive speed; default 0.8)
+  const allySpd=(typeof cpuSpeedMult==='number')?cpuSpeedMult:1; // v5.1.37: alliance support bots run at the SAME speed as the ALLIANCE CPU AI 'SPEED' slider (cpuSpeedMult); the MATCH SETTINGS row edits this same value (default 100%)
+  const spd=SPD*allySpd;
   for(const c of b2.cpus){
     c.roleT-=dt;
     if(c.roleT<=0){
@@ -3812,7 +3834,7 @@ const M2_MODES=[
   {id:'race',     name:'OBSTACLE RACE', desc:'first to the finish line',       col:'#40c4ff'},
 ];
 const M2_COLS=['#ff5555','#5599ff']; // red / blue alliance
-const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,allySpd:0.8,ballN:'auto',pow:true,hpk:true,haz:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these)
+const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,ballN:'auto',pow:true,hpk:true,haz:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];}
@@ -4199,15 +4221,18 @@ function p2SettingsRows(){
     {k:'layout', lab:'FIELD LAYOUT',     vals:['mirrored','shared'],show:v=>v==='shared'?'SHARED GAP':'MIRRORED — defend your own'},
     {k:'contact',lab:'CONTACT RULE',     vals:['full','pin'],     show:v=>v==='full'?'FULL CONTACT':'PIN PENALTY (~3s)'},
     {k:'cpus',   lab:'CPU BOTS PER SIDE',vals:[0,1,2],            show:v=>v===0?'NONE':'×'+v},
-    {k:'allySpd', lab:'ALLIANCE CPU SPEED',slider:true,min:0.4,max:1.2,step:0.05, show:v=>Math.round(v*100)+'%'},
+    {k:'allySpd', lab:'ALLIANCE CPU SPEED',slider:true,min:0.25,max:3.0,step:0.25, get:()=>cpuSpeedMult, set:v=>{cpuSpeedMult=clamp(v,0.25,3.0);}, show:v=>Math.round(v*100)+'%'}, // tied to the ALLIANCE CPU AI 'SPEED' slider (same cpuSpeedMult value); default 100%
     {k:'ballN',  lab:'BALLS IN PLAY',    vals:['auto',4,6,8,10,12], show:v=>v==='auto'?'AUTO — scales with bots':v},
   ];
 }
 function p2SetRowRect(i){return{x:CW/2-330,y:140+i*62,w:660,h:48};}
 // slider rows (e.g. ALLIANCE CPU SPEED): a draggable track on the right of the row, click or drag to set — matches the claim-screen sensitivity slider
 function p2SetSliderGeom(i){const rc=p2SetRowRect(i);return{x1:rc.x+rc.w*0.42,x2:rc.x+rc.w-72,y:rc.y+rc.h/2};}
+// slider rows may bind to a global (get/set) instead of m2.set[k] — e.g. ALLIANCE CPU SPEED edits cpuSpeedMult so it stays in sync with the CPU-AI SPEED slider
+function setRowGet(r){return r.get?r.get():m2.set[r.k];}
+function setRowSet(r,v){if(r.set)r.set(v);else m2.set[r.k]=v;}
 function p2SetSliderVal(i,mx){const r=p2SettingsRows()[i];if(!r||!r.slider)return;const g=p2SetSliderGeom(i),st=r.step||0.05;
-  const t=clamp((mx-g.x1)/(g.x2-g.x1),0,1);m2.set[r.k]=clamp(Math.round((r.min+t*(r.max-r.min))/st)*st,r.min,r.max);}
+  const t=clamp((mx-g.x1)/(g.x2-g.x1),0,1);setRowSet(r,clamp(Math.round((r.min+t*(r.max-r.min))/st)*st,r.min,r.max));}
 // option rows: cycle a row's value (gamepad ◀▶ / A), and a click-dropdown to pick directly
 let setDropdown=null; // index of the settings row whose dropdown is open (pointer UI), else null
 function p2CycleSet(i,dir){const rows=p2SettingsRows(),r=rows[i];if(!r)return;
@@ -4279,7 +4304,7 @@ function p2Click(mx,my){
       if(mx>=valRight-vw-30&&mx<=valRight-vw-2){p2CycleSet(i,-1);sfx('click');return;}  // ◀ prev
       setDropdown=i;sfx('click');return;}} // open the dropdown to choose
     if(p2ShowCpuCfg()&&inR(mx,my,p2CpuCfgBtnRect())){cpuSettingsReturn='p2settings';cpuGpIdx=0;phase='cpuSettings';sfx('click');return;}
-    if(inR(mx,my,p2ResetBtnRect())){m2.set={...M2_SET_DEFAULTS};setDropdown=null;sfx('click');return;} // restore all match settings to defaults
+    if(inR(mx,my,p2ResetBtnRect())){m2.set={...M2_SET_DEFAULTS};cpuSpeedMult=1.0;setDropdown=null;sfx('click');return;} // restore all match settings to defaults (incl. ALLIANCE CPU SPEED = cpuSpeedMult 100%)
     if(inR(mx,my,p2StartBtnRect())){p2cEnsureDrives();if(!(m2.claim[0]&&m2.claim[1])){m2.claim=[null,null];m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);}phase='p2claim';return;}
   }else if(phase==='p2race'){
     if(r2&&r2.result!==null)p2NavClick(mx,my,FY+FH/2+34,startP2Race);
@@ -4485,13 +4510,13 @@ function p2Draw(){
     p2Chrome('MATCH SETTINGS','click a row to choose · 🎮 ◀▶ change · ▲▼ move · '+M2_MODES.find(m=>m.id===m2.mode).name);
     const rows=p2SettingsRows(),gpFocus=(gpConnected&&p2GpPhase==='p2settings')?p2GpIdx:-1;
     for(let i=0;i<rows.length;i++){const r=rows[i],rc=p2SetRowRect(i),foc=i===gpFocus;
-      if(!(r.k in m2.set))m2.set[r.k]=r.vals[0];
+      if(!r.slider&&!(r.k in m2.set))m2.set[r.k]=r.vals[0];
       ctx.fillStyle=foc?'rgba(45,45,75,0.85)':'rgba(25,25,45,0.7)';rr(rc.x,rc.y,rc.w,rc.h,10);ctx.fill();
       ctx.strokeStyle=foc?'#ffd740':'#3a3a5a';ctx.lineWidth=foc?2:1.5;rr(rc.x,rc.y,rc.w,rc.h,10);ctx.stroke();
       ctx.font='bold 13px Courier New';ctx.textAlign='left';ctx.fillStyle='#8888aa';
       ctx.fillText(r.lab,rc.x+22,rc.y+30);
       if(r.slider){                                       // draggable speed track (click or drag), value shown at the right
-        const g=p2SetSliderGeom(i),v=m2.set[r.k];
+        const g=p2SetSliderGeom(i),v=setRowGet(r);
         ctx.strokeStyle='#44446a';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(g.x1,g.y);ctx.lineTo(g.x2,g.y);ctx.stroke();
         const tx=g.x1+(v-r.min)/(r.max-r.min)*(g.x2-g.x1);
         ctx.fillStyle=foc?'#ffd740':'#7a7adf';ctx.beginPath();ctx.arc(tx,g.y,8,0,7);ctx.fill();
@@ -6775,6 +6800,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.37 (2026-06-14): CHEAT-MENU SLIDER DRAG + ALLIANCE SPEED UNIFIED. (1) Cheat-menu sliders (ICE GRIP, EXTRA BALLS, BALL/ROBOT SIZE) now CLICK-AND-DRAG, not just click-to-set — drag wired for mouse and touch (konamiDrag state + shared applyKonamiSlider helper); the konami menu also now takes touches from any phase (mid-match drag works on mobile). (2) The MATCH SETTINGS 'ALLIANCE CPU SPEED' slider is now the SAME value as the 'SPEED' slider inside ALLIANCE CPU AI (both edit cpuSpeedMult) — no more two conflicting speeds; range 0.25–3.0 in 0.25 steps, DEFAULT 100% (was a separate 0.4–1.2 allySpd defaulting to 80%). Slider rows gained optional get/set binding (setRowGet/setRowSet) so a row can drive a global var. RESET DEFAULTS also returns the speed to 100%. smoke54 +5 (ICE GRIP slider range + drag-set + non-slider guard); smoke52 retargeted to cpuSpeedMult (26). Full battery green. Single file, no assets.
   v5.1.36 (2026-06-14): GLOBAL SETTINGS MENU + ICE GRIP SLIDER + PAUSE GAMEPAD NAV. (1) New ⚙ SETTINGS screen (phase='settings'): opens from the main menu (bottom-right button) and from the pause overlay. Houses Sound toggle (sfxOn/sfxToggle), Mouse-Aim toggle (mouseAim/toggleMouseAim), and a link to CPU AI Settings (cpuSettingsReturn='settings'). Back returns to caller (menu or resumes the paused game). Full D-pad + A/B/Esc gamepad nav. (2) ICE GRIP slider added to the cheat menu (after ICE SKATING): drag left for max slide (default 0.40, the original fun level), right for more traction up to 2.50. Mutates MOM.ice.fri live. (3) Pause menu gamepad nav: D-pad up/down now highlights RESUME / SETTINGS / QUIT (yellow dashed ring). A activates the focused button; Start always resumes; B quits. DRIFT description updated to note it works in all modes. Full battery green. Single file, no assets.
   v5.1.18 (2026-06-14): PISTON RUN RACE-CPU FIX + RAMMING ON RIGHT BUMPER. (1) On the PISTON RUN race course with MOVING HAZARDS on, the H2H race CPU froze at the start (it climbed ~6px and stopped). Cause: the moving-wall trajectory probe looked 0.72s ahead and a piston permanently occupied the lane ahead, so the bot held forever from across the course. Fix: it now only holds when impact is imminent (≤0.30s), climbing to the rim; and at the rim it DODGES laterally — scanning the static gap for a column whose climb-path clears soon and punching through — which solves the shelf+piston compound crossing the CPU previously couldn't (hands-off CHAMPION now finishes PISTON RUN with hazards on). (2) RAMMING boost-tackle moved from Right Trigger to RIGHT BUMPER (gamepad), so it no longer collides with RT fire — you can RAM and MACHINE-GUN at once in tank; RT/A still fire (RT is no longer stolen for boost). Keyboard boost stays on Shift. Full battery green. Single file, no assets.
   v5.1.17 (2026-06-14): MACHINE-GUN CRASH FIX + CHEAT-MENU CONTROLLER/LAYOUT + MG TRI-STATE + 2P FRISBEE VISUAL. (1) CRASH FIX: with MACHINE GUN on (shooter), the bot's hopper exceeds 4, and the shooter MAG HUD did '○'.repeat(4-len) — a negative count throws RangeError in the browser ('Invalid count value') and crashes the render. The harness never caught it because its canvas mock no-ops; the real browser does not. Clamped that repeat and hardened the other HUD repeat()s (series dots, SP tank HP). (2) MACHINE GUN is now a 3-state toggle OFF / YOU / BOTH — YOU gives full-auto only to the human side(s), BOTH to everyone (so the CPU opponent doesn't have to get it). (3) Cheat menu CONTROLLER nav: the left stick (and hat) now move/adjust/select in the menu, not just the D-pad (same gap as the konami-entry fix) — the joystick couldn't navigate it before. (4) Cheat menu LAYOUT: with five cheats the rows now collided with the rambots/instagram link buttons and the description; the Stussy logo moved up & smaller, rows start higher, the focused-cheat description has its own clear brighter line, and the link buttons flow below it (no overlap). (5) ULTIMATE ASCENT now renders flying 2P-shooter shots as 🥏 frisbees (2P only tinted them before; the SP path already did). smoke54 +5 (MG hopper crash-regression, MG tri-state OFF/YOU/BOTH). Full battery green. Single file, no assets.

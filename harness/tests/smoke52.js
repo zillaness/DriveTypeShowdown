@@ -35,23 +35,26 @@ src+=`
   ok('clicking it opens the CPU-settings screen',phase==='cpuSettings'&&cpuSettingsReturn==='p2settings');
   handleCpuSettingsClick(4+28,8+14); // the Back button
   ok('Back from there returns to 2P MATCH SETTINGS',phase==='p2settings'&&cpuSettingsReturn===null);
-  // v5.1.10: ALLIANCE CPU SPEED is a draggable slider row (click or drag to set), not a stepper
+  // v5.1.37: ALLIANCE CPU SPEED slider is tied to cpuSpeedMult (the same value as the CPU-AI 'SPEED' slider); range 0.25–3.0, default 100%
   phase='p2settings';m2.mode='normal';
   const srows=p2SettingsRows(),si=srows.findIndex(r=>r.k==='allySpd');
   ok('ALLIANCE CPU SPEED is a slider row',si>=0&&srows[si].slider===true);
+  ok('ALLIANCE CPU SPEED is bound to cpuSpeedMult (get/set)',typeof srows[si].get==='function'&&typeof srows[si].set==='function');
   const sg=p2SetSliderGeom(si);
-  p2SetSliderVal(si,(sg.x1+sg.x2)/2);ok('drag to mid sets ~mid speed ('+m2.set.allySpd+')',Math.abs(m2.set.allySpd-0.8)<=0.05);
-  p2SetSliderVal(si,sg.x1-500);ok('drag past the left clamps to min ('+m2.set.allySpd+')',m2.set.allySpd===0.4);
-  p2SetSliderVal(si,sg.x2+500);ok('drag past the right clamps to max ('+m2.set.allySpd+')',m2.set.allySpd===1.2);
+  p2SetSliderVal(si,(sg.x1+sg.x2)/2);ok('drag to mid sets ~mid of 0.25–3.0 into cpuSpeedMult ('+cpuSpeedMult+')',Math.abs(cpuSpeedMult-1.625)<=0.13);
+  p2SetSliderVal(si,sg.x1-500);ok('drag past the left clamps to min ('+cpuSpeedMult+')',cpuSpeedMult===0.25);
+  p2SetSliderVal(si,sg.x2+500);ok('drag past the right clamps to max ('+cpuSpeedMult+')',cpuSpeedMult===3.0);
+  // the slider edits cpuSpeedMult, NOT m2.set.allySpd (the two sliders are the same value)
+  cpuSpeedMult=2.0;ok('row.get() reflects cpuSpeedMult live',srows[si].get()===2.0);
   // clicking the row sets the value at the click x (does not open a dropdown)
-  setDropdown=null;m2.set.allySpd=0.8;p2Click(sg.x1,p2SetRowRect(si).y+10);
-  ok('clicking the slider row sets value and opens no dropdown',m2.set.allySpd===0.4&&setDropdown===null);
+  setDropdown=null;cpuSpeedMult=1.0;p2Click(sg.x1,p2SetRowRect(si).y+10);
+  ok('clicking the slider row sets value and opens no dropdown',cpuSpeedMult===0.25&&setDropdown===null);
   m2.mode='race';ok('button is hidden in non-ball modes',!p2ShowCpuCfg());
-  // v5.1.16: RESET DEFAULTS button restores M2_SET_DEFAULTS
+  // v5.1.16: RESET DEFAULTS button restores M2_SET_DEFAULTS (+ v5.1.37: cpuSpeedMult back to 100%)
   phase='p2settings';m2.mode='normal';
-  m2.set.allySpd=1.2;m2.set.timeSec=180;m2.set.ballN=12;m2.set.cpus=0;
+  cpuSpeedMult=2.5;m2.set.timeSec=180;m2.set.ballN=12;m2.set.cpus=0;
   const xb=p2ResetBtnRect();p2Click(xb.x+xb.w/2,xb.y+xb.h/2);
-  ok('RESET DEFAULTS restores allySpd/timeSec/ballN/cpus',m2.set.allySpd===M2_SET_DEFAULTS.allySpd&&m2.set.timeSec===M2_SET_DEFAULTS.timeSec&&m2.set.ballN===M2_SET_DEFAULTS.ballN&&m2.set.cpus===M2_SET_DEFAULTS.cpus);
+  ok('RESET DEFAULTS restores cpuSpeedMult(100%)/timeSec/ballN/cpus',cpuSpeedMult===1.0&&m2.set.timeSec===M2_SET_DEFAULTS.timeSec&&m2.set.ballN===M2_SET_DEFAULTS.ballN&&m2.set.cpus===M2_SET_DEFAULTS.cpus);
   // v5.1.33: clicking the ◀ / ▶ glyphs on a row steps the value; the body still opens the dropdown
   phase='p2settings';m2.mode='normal';setDropdown=null;
   {const rws=p2SettingsRows(),ci=rws.findIndex(r=>r.k==='cpus'),rc=p2SetRowRect(ci);m2.set.cpus=0;
