@@ -135,6 +135,14 @@ src+=`
   paused=true;{const r=pauseResumeRect();pauseClick(r.x+5,r.y+5);ok('RESUME click unpauses',paused===false);}
   startBall('normal');paused=true;{const q=pauseQuitRect();pauseClick(q.x+5,q.y+5);ok('QUIT click leaves the match',paused===false&&phase!=='p2ball');}
 
+  // ── MOUSE-AIM: a keyboard bot turns toward the cursor (non-steer drives) ──
+  {phase='playing';holoMode=false;steerMode=false;obstacleCourse=false;curD=1;keys={};
+   robot={x:300,y:300,h:0};FX=0;FY=0;sensitivity=1;mouseAim=true;
+   mouseX=300;mouseY=100;const up=getInp({type:'kb'}).vr;   // cursor above → turn negative
+   mouseX=300;mouseY=500;const dn=getInp({type:'kb'}).vr;   // cursor below → turn positive
+   ok('MOUSE-AIM turns toward the cursor (up='+up.toFixed(1)+' dn='+dn.toFixed(1)+')',up<-0.1&&dn>0.1);
+   mouseAim=false;ok('MOUSE-AIM off leaves turn to keys (~0)',Math.abs(getInp({type:'kb'}).vr)<0.01);}
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;

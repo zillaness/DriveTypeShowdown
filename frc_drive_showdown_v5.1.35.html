@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.34.html
-  version: 5.1.34
+  file: frc_drive_showdown_v5.1.35.html
+  version: 5.1.35
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -152,6 +152,17 @@ function bindAxes(bind){
 }
 function resetBinds(){playerBind=[{type:'any'},{type:'none'}];}
 let phase='menu',paused=false;
+let mouseX=0,mouseY=0,mouseAim=false; try{mouseAim=localStorage.getItem('frcds_maim')==='1';}catch(e){}
+function toggleMouseAim(){mouseAim=!mouseAim;try{localStorage.setItem('frcds_maim',mouseAim?'1':'0');}catch(e){}sfx('click');}
+function mouseAimVr(bind){ // MOUSE-AIM: keyboard player's bot turns toward the cursor (overrides key/stick turn). Returns vr in TSP units, or null.
+  if(!mouseAim||steerMode)return null;                 // steer drives turn by rolling — N/A
+  if(!(bind.type==='kb'||bind.type==='any'))return null;
+  if(phase==='p2race'||obstacleCourse)return null;     // climb modes: aim N/A
+  if(typeof robot==='undefined'||!robot)return null;
+  let dh=Math.atan2((mouseY-FY)-robot.y,(mouseX-FX)-robot.x)-robot.h;
+  while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
+  return clamp(dh*8,-1,1)*TSP;                          // proportional turn toward the cursor (caller applies *sensitivity)
+}
 function p2MatchLive(){return (phase==='p2ball'&&b2&&b2.result===null)||(phase==='p2tank'&&tf2&&tf2.result===null)||(phase==='p2race'&&r2&&r2.result===null);}
 function canPause(){return phase==='playing'||phase==='countdown'||p2MatchLive();}
 function pauseResumeRect(){return{x:CW/2-110,y:CH/2-2,w:220,h:44};}
@@ -453,6 +464,7 @@ C.addEventListener('mousedown',e=>{
   {const _id=curDrv().id;if((holoMode||['botSwerve','fieldSwerve','carSteer','rearSteer'].includes(_id))&&inR(p.x,p.y,SWAP_BTN)){stickSwap=!stickSwap;}}
 });
 C.addEventListener('mousemove',e=>{
+  {const p=toCanvasMouse(e);mouseX=p.x;mouseY=p.y;} // track cursor for MOUSE-AIM
   if(phase==='cpuSettings'&&cpuSettingsDrag){const p=toCanvasMouse(e);const tt=Math.max(0,Math.min(1,(p.x-cpuSettingsDrag.x)/cpuSettingsDrag.w));applyCpuSlider(cpuSettingsDrag.id,tt);return;}
   if(p2SensDrag){p2SetSens(p2SensDrag.pl,toCanvasMouse(e).x);return;}
   if(p2SetSliderDrag){p2SetSliderVal(p2SetSliderDrag.i,toCanvasMouse(e).x);return;}
@@ -551,6 +563,7 @@ window.addEventListener('keydown',e=>{
   if((phase==='playing'||phase==='countdown'||phase==='done')&&(e.key==='r'||e.key==='R'))retryRun();
   if(!tankFight&&(phase==='playing'||phase==='countdown'||phase==='done')&&(e.key==='g'||e.key==='G'))spGhostToggle();
   if(e.key==='m'||e.key==='M')sfxToggle();
+  if(e.key==='k'||e.key==='K')toggleMouseAim(); // MOUSE-AIM toggle
   if(e.key==='Tab'&&phase==='playing'){const id=curDrv().id;if(holoMode||['botSwerve','fieldSwerve','carSteer','rearSteer'].includes(id)){stickSwap=!stickSwap;e.preventDefault();}}
   if(phase==='playing'&&e.key===' '&&shooterMode)e.preventDefault();
   if(phase==='done'&&e.key==='Enter')afterDone();
@@ -998,6 +1011,7 @@ function getInp(bind){
     // Field-centric: no coupling — strafe is already straight in field frame
     const coupling=holoCentric?0:hdId==='frontStrafer'?0.28:hdId==='uDrive'?-0.28:0;
     vr=(rot+st*coupling)*TSP;
+    {const _ma=mouseAimVr(bind);if(_ma!=null)vr=_ma;}
     return{vx:vx*sensitivity,vy:vy*sensitivity,vr:vr*sensitivity};
   }
   const id=steerMode?STEER_DRIVES[curSD].id:DRIVES[curD].id;
@@ -1071,6 +1085,7 @@ function getInp(bind){
     fwsVis.steer=steerIn;
     fwsVis.crab=throttle<0?-crabIn:crabIn;
   }
+  {const _ma=mouseAimVr(bind);if(_ma!=null)vr=_ma;} // MOUSE-AIM override (non-steer drives)
   return{vx:vx*sensitivity,vy:vy*sensitivity,vr:vr*sensitivity};
 }
 
@@ -6646,6 +6661,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.35 (2026-06-14): MOUSE-AIM CONTROL SCHEME. Toggle with K (persisted): the keyboard player's bot turns to face the mouse cursor instead of using arrow/A-D to turn — move with WASD/arrows, aim with the mouse. Applies to non-steer drives (tank/arcade/swerve/holo) in SP + 2P ball/tank; steer drives (they turn by rolling) and the climb/race modes are unaffected. Implemented as a vr override at the end of getInp (turns proportionally toward the cursor, capped at the drive's turn rate, honoring sensitivity). smoke54 +2 (turns toward cursor up/down; off leaves keys). Full battery green. Single file, no assets.
   v5.1.34 (2026-06-14): IN-GAME PAUSE MENU. ESC (or gamepad START) during a live game now PAUSES instead of hard-exiting: a dimmed overlay with RESUME and QUIT, gameplay frozen underneath. Works in single-player (playing/countdown) and all 2P matches (ball/tank/race, while result is null). Resume: ESC/START/A or click RESUME; Quit: B or click QUIT (does the old exit — SP->menu, 2P->back). Mouse + touch + gamepad all drive the overlay; pause auto-clears if the match ends underneath, and resets at every run/match start. SP 'done' results screen ESC still exits as before. smoke54 +5 (canPause, freeze, resume, quit). Full battery green. Single file, no assets.
   v5.1.33 (2026-06-14): TUNING — BIGGER BLAST, WIDER PLOW, CLICKABLE SETTINGS ARROWS. (1) Explosive blast radius 62->80. (2) Sticky-plow capture cone widened a bit (reach [5,5,6,8]->[6,6,8,11], lateral [7,7,9,11]->[11,12,14,16]) so a bot scoops balls beside the cluster and carries more than one at a time — a midpoint between the old narrow cone and the previously-too-grabby version. (3) The 2P MATCH SETTINGS ◀ / ▶ glyphs are now MOUSE-clickable to step a row's value (matching the gamepad ◀▶); clicking the row body still opens the dropdown. smoke52 +3 (arrow-click step up/down, body opens dropdown). Full battery green. Single file, no assets.
   v5.1.32 (2026-06-14): CHEAT SCOPE TAGS. Each cheat description is now prefixed with where it applies — [SP+2P] for ULTIMATE ASCENT, BOUNCY BALLS, ICE SKATING, DRIFT, BALL SIZE, ROBOT SIZE (these work in single-player too), and [2P] for RAMMING, MACHINE GUN, EXTRA BALLS, MULTIBALL, STICKY PLOW, NO-CLIP, BALL POWER-UPS (their hooks live in the 2P ball/tank code). No behavior change. Full battery green. Single file, no assets.
