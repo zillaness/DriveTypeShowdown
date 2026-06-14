@@ -100,6 +100,12 @@ src+=`
    bs.set(0.5);ok('BALL SIZE 0.5× shrinks BR (='+BR+', ≥4)',BR<9&&BR>=4);
    bs.set(1);ok('BALL SIZE 1× restores BR=9',BR===9);}
 
+  // ── ROBOT SIZE cheat scales RR live + recomputes the plow geometry (clamped) ──
+  {const rs=CHEATS.find(c=>c.name==='ROBOT SIZE');const tx0=SC_TX;
+   rs.set(1.5);ok('ROBOT SIZE 1.5× grows RR (='+RR.toFixed(0)+') + plow',RR>17&&RR<=26&&SC_TX>tx0);
+   rs.set(0.5);ok('ROBOT SIZE 0.5× shrinks RR (='+RR.toFixed(0)+', ≥8)',RR<17&&RR>=8);
+   rs.set(1);ok('ROBOT SIZE 1× restores RR=17 + plow',RR===17&&Math.abs(SC_TX-tx0)<0.01);}
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;
