@@ -48,6 +48,7 @@ plus unit checks for the in-lane aligned drive-through and the behind-side gate 
 - ALWAYS count-assert harness edits too — two silent no-op edits bit this project.
 
 ## CHANGELOG
+- v1.11 (2026-06-14): Updated for the game v5.1 fix pass. smoke40 (now 10 asserts): the old "CHAMPION edges the player" speed assert is replaced by a speed-CAP assert (CHAMPION translate capped to the player drive speed, measured facing the target so the heading-locked projection is isolated) plus two drive-kinematics asserts (arcade velocity stays along the heading, swerve can strafe); the shot-block integration loop now also applies inp.vr, matching the real movement path so a heading-locked defender can turn to track. smoke45 (now 14 asserts): CHAMPION capacity 6->3 (fits within the plow arms), plus two movement-drop asserts (CHAMPION holds perfectly while driving unbumped; ROOKIE leaks its carry while moving). smoke31/smoke37 gamepad-nav checks rewritten for spatial up/down + left/right and the v5.0 merged mode->p2settings flow. Full battery green.
 - v1.0 (2026-06-12): Initial bundle, suites through v3.7.
 - v1.1 (2026-06-12): Added smoke38 (H2H CPU + SFX, 44 asserts) for game v3.8. Documented brain-test seeding and the hazard-run bound.
 - v1.2 (2026-06-12): Added smoke39 (ghost export/import + GHOSTS submenu, 26 asserts) for game v3.9. Noted the localStorage-proxy requirement for ghost-key enumeration.

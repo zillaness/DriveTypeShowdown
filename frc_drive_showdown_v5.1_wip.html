@@ -1713,7 +1713,7 @@ function cpuBallGoals(p){ // mirrored: enemy plane ex, own plane ox, gap span. S
 function b2ScoreCycle(p,br,bo,G,T,dt){
   // v4.0 scoring cycle for a main CPU bot: gather a load, drive it through the opponent gap.
   // Pure offense, never routes toward its own gap, so it cannot own-goal.
-  const cap=[1,2,3,4,4][playerBind[p].tier|0]||1;
+  const cap=[1,2,2,3,3][playerBind[p].tier|0]||1;
   const load=bo.load?bo.load.length:0;
   const dirScore=Math.sign(G.ex-G.ox)||1;                 // +x = score right (p0), -x = left (p1)
   const gcy=(G.gt+G.gb)/2, opp=b2.bots[1-p];
@@ -2020,7 +2020,7 @@ function b2StickyCarriers(){
   const out=[];
   for(let p=0;p<2;p++){
     const isCpu=m2.claim&&m2.claim[p]&&m2.claim[p].type==='cpu';
-    if(isCpu){const tier=playerBind[p].tier|0;const cap=[1,2,3,4,4][tier]||1;out.push({bot:b2.bots[p],al:p,cap:cap,tier:tier});}
+    if(isCpu){const tier=playerBind[p].tier|0;const cap=[1,2,2,3,3][tier]||1;out.push({bot:b2.bots[p],al:p,cap:cap,tier:tier});}
   }
   return out;
 }
@@ -2050,6 +2050,14 @@ function b2Sticky(dt){
     // 2) carry: snap the load to a row across the plow face
     const n=car.load.length,fwd=RR+BR-1,fx=bo.x+ch*fwd,fy=bo.y+sh*fwd,px=-sh,py=ch,sp=BR*2;
     for(let i=0;i<n;i++){const off=(i-(n-1)/2)*sp,b=car.load[i];b.x=fx+px*off;b.y=fy+py*off;b.vx=bvx;b.vy=bvy;}
+    // 2b) v5.1: lower tiers leak the carry while DRIVING — CHAMPION holds perfectly when unbumped, the slip chance rises as tier drops
+    if(car.load.length&&Math.hypot(bvx,bvy)>SPD*0.3){
+      const dropPS=[0.70,0.45,0.28,0.10,0][car.tier]||0; // chance/sec to slip a ball while moving
+      if(dropPS>0&&Math.random()<dropPS*dt){
+        const b=car.load[car.load.length-1],side=Math.random()<0.5?1:-1;
+        if(b)b2Release(car,b,px*side*70-ch*30,py*side*70-sh*30); // slips off to the side and slightly back: out of the front cone, not toward either gap
+      }
+    }
     // 3) release-score: any held ball that reaches this alliance's opponent gap mouth
     const G=cpuBallGoals(car.al),leftGap=G.ex<FW/2;
     for(const b of car.load.slice()){

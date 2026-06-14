@@ -18,11 +18,11 @@ src+=`
   b2Sticky(1/60);
   ok('capture: front-contact ball becomes held',cb.held===true&&bo.load.length===1);
 
-  // CAPACITY by tier: CHAMPION caps at 4, ROOKIE at 1
+  // CAPACITY by tier: CHAMPION caps at 3 (fits within the plow arms), ROOKIE at 1
   start(4);bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};
   for(let i=0;i<8;i++)freeBall(i,bo.x-(RR+BR),FH/2-8+i*2);
   for(let f=0;f<30;f++)b2Sticky(1/60);
-  ok('capacity: CHAMPION holds at most 4 ('+bo.load.length+')',bo.load.length===4);
+  ok('capacity: CHAMPION holds at most 3 ('+bo.load.length+')',bo.load.length===3);
   start(0);bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};
   for(let i=0;i<8;i++)freeBall(i,bo.x-(RR+BR),FH/2-8+i*2);
   for(let f=0;f<30;f++)b2Sticky(1/60);
@@ -89,6 +89,18 @@ src+=`
   start(4);m2.claim[1].type='kb';bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};bo.load=[];
   freeBall(0,bo.x-(RR+BR),FH/2);b2Sticky(1/60);
   ok('human main bot has no sticky plow',bo.load.length===0);
+
+  // MOVEMENT DROP (v5.1): CHAMPION holds perfectly while driving unbumped; lower tiers leak the carry while moving
+  let _sd=999;Math.random=()=>{_sd=(_sd*1664525+1013904223)>>>0;return _sd/4294967296;};
+  start(4);bo=b2.bots[1];bo.x=600;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:-SPD,vy:0,vr:0}; // mid-field, driving (no opponent, no gap nearby)
+  for(let i=0;i<3;i++)freeBall(i,bo.x-(RR+BR),FH/2-18+i*18);
+  for(let f=0;f<5;f++)b2Sticky(1/60);const champLoad=bo.load.length;
+  let champMin=champLoad;for(let f=0;f<240;f++){b2Sticky(1/60);champMin=Math.min(champMin,bo.load.length);}
+  ok('move-drop: CHAMPION holds perfectly while driving unbumped (min '+champMin+'='+champLoad+')',champLoad===3&&champMin===3);
+  start(0);bo=b2.bots[1];bo.x=600;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:-SPD,vy:0,vr:0};
+  freeBall(0,bo.x-(RR+BR),FH/2);for(let f=0;f<3;f++)b2Sticky(1/60);
+  let rookieDropped=false;for(let f=0;f<240;f++){b2Sticky(1/60);if(bo.load.length===0){rookieDropped=true;break;}}
+  ok('move-drop: ROOKIE leaks the carry while driving',rookieDropped);
 
   console.log('--- smoke45: '+P+' pass, '+F+' fail ---');
 })();
