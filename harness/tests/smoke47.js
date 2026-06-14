@@ -4,7 +4,7 @@ src+=`
   let P=0,F=0;const ok=(l,c)=>{c?P++:F++;console.log((c?'PASS':'FAIL')+' — '+l);};
   const startShooter=()=>{
     applyLayout('land2p');phase='p2claim';tour=null;m2.mode='shooter';m2.set.cpus=0;m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.bestOf=1;m2.set.contact='full';
-    m2.drive[0]={kind:'main',idx:1,name:'H',c:'#f44'};m2.drive[1]={kind:'main',idx:1,name:'C',c:'#0ff'};m2.claim=[{type:'kb'},{type:'cpu',tier:4}];m2.sens=[1,1];m2._gpPrev=[];
+    m2.drive[0]={kind:'main',idx:1,name:'H',c:'#f44'};m2.drive[1]={kind:'main',idx:1,name:'C',c:'#0ff'};m2.claim=[{type:'kb'},{type:'cpu',tier:3}];m2.sens=[1,1];m2._gpPrev=[];
     const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);while(b2.cd>0)updateP2Ball(1/60);
   };
   let _s=909;Math.random=()=>{_s=(_s*1664525+1013904223)>>>0;return _s/4294967296;};
@@ -23,7 +23,7 @@ src+=`
   ok('shooter unstick: a freely-moving bot never false-triggers',!everEscape);
 
   // normal mode is cycle-driven and unaffected by the shooter unstick fields
-  applyLayout('land2p');phase='p2claim';m2.mode='normal';m2.claim=[{type:'kb'},{type:'cpu',tier:4}];m2._gpPrev=[];
+  applyLayout('land2p');phase='p2claim';m2.mode='normal';m2.claim=[{type:'kb'},{type:'cpu',tier:3}];m2._gpPrev=[];
   const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);while(b2.cd>0)updateP2Ball(1/60);
   for(let f=0;f<120;f++)updateP2Ball(1/60);
   ok('normal mode unaffected: cycle still running, no escape state',cpuH2H[1].cyc&&!(cpuH2H[1].escapeT>0));

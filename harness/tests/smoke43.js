@@ -13,7 +13,7 @@ src+=`
   const clearBalls=()=>{balls.forEach(b=>{b.sc=true;b.intaken=false;b.proj=false;b.golden=false;b.vx=0;b.vy=0;});};
 
   // ── Integration: a ball parked in p1's scoring lane just short of the gap. CHAMPION must drive it THROUGH (pre-fix it stalled at the mouth and scored 0). ──
-  startMatch('normal',0,4);
+  startMatch('normal',0,3);
   clearBalls();
   let G=cpuBallGoals(1); // p1 scores on G.ex (the left gap, small x)
   const bb=balls[0];bb.sc=false;bb.x=G.ex+40;bb.y=FH/2;bb.vx=0;bb.vy=0;
@@ -26,7 +26,7 @@ src+=`
   ok('finish (integration): CHAMPION drives a lane ball through its gap (score '+sc0+' -> '+b2.score[1]+')',b2.score[1]>sc0);
 
   // ── Unit (v4.0 cycle): a loaded bot in SCORE drives its load toward the opponent gap ──
-  startMatch('normal',0,4); G=cpuBallGoals(1);
+  startMatch('normal',0,3); G=cpuBallGoals(1);
   clearBalls();
   const bo=b2.bots[1];bo.x=G.ex+200;bo.y=FH/2;bo.h=Math.PI;bo.load=[balls[0]];
   balls[0].sc=false;balls[0].held=true;balls[0].heldBy=bo;balls[0].x=bo.x-20;balls[0].y=FH/2;
@@ -35,7 +35,7 @@ src+=`
   ok('cycle: a loaded CHAMPION drives toward the opponent gap (vx='+cpuH2H[1].inp.vx.toFixed(0)+' < 0)',cpuH2H[1].inp.vx<0);
 
   // ── Offense (v4.0 cycle): with NO threat near our gap, the cycle never aims a target at its own gap ──
-  startMatch('normal',0,4); G=cpuBallGoals(1);
+  startMatch('normal',0,3); G=cpuBallGoals(1);
   clearBalls();
   let bo2=b2.bots[1];bo2.x=FW-B2M_WX-120;bo2.y=FH/2;bo2.h=Math.PI;bo2.load=[];
   balls[0].sc=false;balls[0].x=B2M_WX+200;balls[0].y=FH/2;balls[0].vx=0;balls[0].vy=0; // a ball to gather toward the OPPONENT gap (no own-gap threat)
@@ -44,7 +44,7 @@ src+=`
   ok('own-goal-safe: offense target is never at our own gap (tx='+cpuH2H[1]._ctx.toFixed(0)+')',Math.abs(cpuH2H[1]._ctx-G.ox)>80);
 
   // ── Own-goal-safe (v5.1.6, pure offense): a ball at our own gap mouth is NOT targeted (gather skips it) and never own-goals ──
-  startMatch('normal',0,4); G=cpuBallGoals(1);
+  startMatch('normal',0,3); G=cpuBallGoals(1);
   clearBalls();
   bo2=b2.bots[1];bo2.x=FW-B2M_WX-120;bo2.y=FH/2;bo2.h=Math.PI;bo2.load=[];
   balls[0].sc=false;balls[0].x=FW-B2M_WX-30;balls[0].y=FH/2;balls[0].vx=0;balls[0].vy=0; // ball at OUR own gap mouth

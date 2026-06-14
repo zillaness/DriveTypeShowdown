@@ -8,7 +8,7 @@ src+=`
     const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);while(b2.cd>0)updateP2Ball(1/60);};
 
   // 1) CYCLE UNSTICK: pin the CPU main bot ~3s -> it jukes away from the opponent toward open space
-  startN(4);let bo=b2.bots[1],br=cpuH2H[1];
+  startN(3);let bo=b2.bots[1],br=cpuH2H[1];
   let fired=false,firedF=-1,awayOK=false;
   for(let f=0;f<260;f++){bo.x=300;bo.y=FH/2;b2.bots[0].x=260;b2.bots[0].y=FH/2;b2.bots[0]._inp={vx:0,vy:0,vr:0}; // opponent pinning from the -x side
     updateP2Ball(1/60);
@@ -33,7 +33,7 @@ src+=`
   ok('pin penalty: an alliance bot in the cluster voids it (maxPin='+ally.maxPin.toFixed(2)+')',ally.penalty===false&&ally.maxPin<1);
 
   // 3) END COUNTDOWN: the final five seconds beep 5-4-3-2-1
-  startN(4);b2.t=84.4;b2._endCount=undefined;const seq=[];
+  startN(3);b2.t=84.4;b2._endCount=undefined;const seq=[];
   for(let f=0;f<420&&b2.result===null;f++){updateP2Ball(1/30);
     if(b2._endCount&&seq[seq.length-1]!==b2._endCount)seq.push(b2._endCount);}
   const hitAll=[5,4,3,2,1].every(n=>seq.includes(n));

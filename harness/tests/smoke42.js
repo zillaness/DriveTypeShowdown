@@ -24,11 +24,11 @@ src+=`
   ok('5th distinct drive unlocks alldrives',!!achUnlocked['alldrives']&&achProg.drives.length===5);
 
   reset();
-  achBeatTier(0);achBeatTier(1);achBeatTier(2);achBeatTier(3);
-  ok('4 tiers: alltiers NOT yet unlocked',!achUnlocked['alltiers']);
-  achBeatTier(3); // dup
-  achBeatTier(4);
-  ok('all 5 tiers unlocks alltiers',!!achUnlocked['alltiers']&&achProg.tiers.length===5);
+  achBeatTier(0);achBeatTier(1);achBeatTier(2);
+  ok('3 of 4 tiers: alltiers NOT yet unlocked',!achUnlocked['alltiers']);
+  achBeatTier(2); // dup
+  achBeatTier(3);
+  ok('all 4 tiers unlocks alltiers',!!achUnlocked['alltiers']&&achProg.tiers.length===4);
   reset();
   achBeatTier('notanumber');
   ok('non-numeric tier ignored',achProg.tiers.length===0);

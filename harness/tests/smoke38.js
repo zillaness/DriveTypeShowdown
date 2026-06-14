@@ -14,17 +14,17 @@ src+=`
   ok('CPU claims open slot',m2.claim[1]&&m2.claim[1].type==='cpu');
   p2ClaimDevice({type:'cpu',tier:0});
   ok('second CPU rejected',m2.claim.filter(c=>c&&c.type==='cpu').length===1);
-  ok('default tier is FINALIST',m2.claim[1].tier===2&&p2BindLabel(m2.claim[1]).indexOf('FINALIST')>=0);
+  ok('default tier is VETERAN',m2.claim[1].tier===1&&p2BindLabel(m2.claim[1]).indexOf('VETERAN')>=0);
   const tr=p2cTierRect(1,1);
   p2Click(tr.x+5,tr.y+5);p2Click(tr.x+5,tr.y+5); // tier ++ on CPU side (slot 1)
-  ok('stepper cycles to CHAMPION',m2.claim[1].tier===4&&p2BindLabel(m2.claim[1]).indexOf('CHAMPION')>=0);
+  ok('stepper cycles to CHAMPION',m2.claim[1].tier===3&&p2BindLabel(m2.claim[1]).indexOf('CHAMPION')>=0);
   p2Click(tr.x+5,tr.y+5);
   ok('tier wraps to ROOKIE',m2.claim[1].tier===0&&p2BindLabel(m2.claim[1]).indexOf('ROOKIE')>=0);
   ok('human sens untouched by CPU-side clicks',m2.sens[1]===1);
   p2Click(cb.x+5,cb.y+5); // REMOVE CPU
   ok('remove clears the CPU claim',m2.claim[1]===null);
   // ── B: routing + a full WORLDS match, normal mirrored, idle keyboard opponent ──
-  p2ClaimDevice({type:'cpu',tier:4});m2.claim[1].tier=4;
+  p2ClaimDevice({type:'cpu',tier:3});m2.claim[1].tier=3;
   const sb=p2StartBtnRect();
   p2Click(sb.x+sb.w/2,sb.y+sb.h/2);
   ok('start launches ball with CPU claimed',phase==='p2ball'&&!!b2);
@@ -49,7 +49,7 @@ src+=`
   ok('idle human did not score',b2.score[0]===0);
   p2QuitMatch(false);
   // ── C: shooter — intake and fire ──
-  m2.mode='shooter';phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:4}];m2._gpPrev=[];
+  m2.mode='shooter';phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:3}];m2._gpPrev=[];
   p2Click(sb.x+sb.w/2,sb.y+sb.h/2);
   updateP2Ball(3.1);
   let intook=false,fired=false,fireFlagSeen=false;
@@ -64,16 +64,16 @@ src+=`
   ok('shooter CPU fires',fired&&fireFlagSeen);
   p2QuitMatch(false);
   // ── D: defend objective under forced randomness ──
-  m2.mode='normal';phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:4}];m2._gpPrev=[];
+  m2.mode='normal';phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:3}];m2._gpPrev=[];
   p2Click(sb.x+sb.w/2,sb.y+sb.h/2);
   updateP2Ball(3.1);
-  // adaptive interpolation sanity (FINALIST endpoint behavior)
-  playerBind[1].tier=2;
+  // adaptive interpolation sanity (VETERAN = old FINALIST endpoint behavior)
+  playerBind[1].tier=1;
   const Tb=cpuTierParams(1,3);  // player far ahead → full effort
   const Ta=cpuTierParams(1,-3); // CPU far ahead → ease off
   ok('rubber-band pushes when behind',Tb.spd>Ta.spd&&Tb.react<Ta.react);
-  playerBind[1].tier=4;
-  ok('fixed tiers ignore score',cpuTierParams(1,3).spd===CPU_TIERS[4].spd);
+  playerBind[1].tier=3;
+  ok('fixed tiers ignore score',cpuTierParams(1,3).spd===CPU_TIERS[3].spd);
   const RND=Math.random;Math.random=()=>0;
   // v4.0: the main CPU bot is PURE OFFENSE — it runs the scoring cycle, never defends or clears, and never parks at its own gap.
   const G2=cpuBallGoals(1);
@@ -91,7 +91,7 @@ src+=`
   p2QuitMatch(false);
   // ── F: tank fight — CPU moves, shoots with LoS gating, wins vs idle ──
   m2.mode='tankfight';m2.set.lives=1;m2.set.map=0;m2.set.hpk=false;m2.set.pow=false;
-  phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:4}];m2._gpPrev=[];
+  phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:3}];m2._gpPrev=[];
   p2Click(sb.x+sb.w/2,sb.y+sb.h/2);
   ok('tank match starts with CPU',phase==='p2tank'&&!!tf2&&!!cpuH2H&&!!cpuH2H[1]);
   updateP2Tank(3.1);
@@ -111,7 +111,7 @@ src+=`
   ok('tank CPU lands hits',hpDropped);
   ok('CHAMPION wins the duel vs idle (result='+tf2.result+')',tf2.result===1);
   // LoS gate: both tanks dead-center behind the CENTER PILLAR — CPU must hold fire
-  p2QuitMatch(false);m2.set.map=1;phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:4}];m2._gpPrev=[];
+  p2QuitMatch(false);m2.set.map=1;phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:3}];m2._gpPrev=[];
   p2Click(sb.x+sb.w/2,sb.y+sb.h/2);
   updateP2Tank(3.1);
   tf2.tanks[0].x=520;tf2.tanks[0].y=320;tf2.tanks[1].x=680;tf2.tanks[1].y=320; // pillar x540-660 between them
@@ -128,7 +128,7 @@ src+=`
   p2QuitMatch(false);
   // ── G: race — CPU navigates the course, finishes, beats an idle player ──
   m2.mode='race';m2.set.course=0;m2.set.haz=false;
-  phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:4}];m2._gpPrev=[];
+  phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:3}];m2._gpPrev=[];
   p2Click(sb.x+sb.w/2,sb.y+sb.h/2);
   ok('race starts with CPU',phase==='p2race'&&!!r2&&!!cpuH2H&&!!cpuH2H[1]);
   updateP2Race(3.1);
@@ -138,8 +138,8 @@ src+=`
   for(let i=0;i<5400&&r2.result===null;i++)updateP2Race(1/60);
   ok('CHAMPION climbs the course (dy='+(RY-r2.bots[1].y).toFixed(0)+')',r2.bots[1].fin!==null||RY-r2.bots[1].y>100);
   ok('CHAMPION wins the race vs idle (result='+r2.result+')',r2.result===1);
-  const champT=r2.bots[1].fin;
-  // ROOKIE on the same seed must be slower over a fixed window
+  // v5.1.11: tiers went 5->4 and ROOKIE is now the adaptive old-FINALIST brain shared across modes — by design it races competently
+  // in race/tank (the ball-only back-off doesn't apply there). Verify it navigates and climbs the course rather than being weak.
   p2QuitMatch(false);phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:0}];m2._gpPrev=[];
   p2Click(sb.x+sb.w/2,sb.y+sb.h/2);
   updateP2Race(3.1);
@@ -148,9 +148,9 @@ src+=`
   for(let i=0;i<600;i++)updateP2Race(1/60); // 10s window
   const rookieDy=RY0-r2.bots[1].y;
   Math.random=RR2;
-  ok('ROOKIE is meaningfully slower (10s dy='+rookieDy.toFixed(0)+')',rookieDy<400);
+  ok('ROOKIE races competently in race mode (10s dy='+rookieDy.toFixed(0)+')',rookieDy>150);
   // hazards on: seeded run still finishes without crashing
-  p2QuitMatch(false);m2.set.haz=true;phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:4}];m2._gpPrev=[];
+  p2QuitMatch(false);m2.set.haz=true;phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:3}];m2._gpPrev=[];
   p2Click(sb.x+sb.w/2,sb.y+sb.h/2);
   updateP2Race(3.1);
   const RH=Math.random;let _hs=0x1114;

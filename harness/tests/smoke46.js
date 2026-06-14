@@ -16,19 +16,19 @@ src+=`
   }
   // HARD: zero own goals, at every tier (cpus=0 -> opponent only scores via CHAMPION own goals)
   let allClean=true;
-  for(let t=0;t<5;t++){const r=run(3000+t*101,t);if(r.opp!==0)allClean=false;}
+  for(let t=0;t<CPU_TIERS.length;t++){const r=run(3000+t*101,t);if(r.opp!==0)allClean=false;}
   ok('own goals are zero at every tier (hard guarantee)',allClean);
 
   // CHAMPION scoring bar: average over seeds >= 30 / 90s
-  let cs=0;const N=3;for(let k=0;k<N;k++)cs+=run(5000+k*733,4).champ;
+  let cs=0;const N=3;for(let k=0;k<N;k++)cs+=run(5000+k*733,3).champ;
   ok('CHAMPION averages >= 30 goals/90s (got '+(cs/N).toFixed(1)+')',cs/N>=30);
 
   // tier ordering: CHAMPION clearly out-scores ROOKIE
-  let champ=0,rook=0;for(let k=0;k<N;k++){champ+=run(6000+k*733,4).champ;rook+=run(6000+k*733,0).champ;}
+  let champ=0,rook=0;for(let k=0;k<N;k++){champ+=run(6000+k*733,3).champ;rook+=run(6000+k*733,0).champ;}
   ok('CHAMPION out-scores ROOKIE (C='+(champ/N).toFixed(0)+' vs R='+(rook/N).toFixed(0)+')',champ/N>=rook/N*1.4);
 
   // own-gap safety: the cycle keeps the bot away from its own gap
-  const rg=run(7777,4);
+  const rg=run(7777,3);
   ok('CHAMPION never parks at its own gap (mindx='+rg.ownGapMin.toFixed(0)+')',rg.ownGapMin>60);
 
   // no objective thrash: cycle state changes stay infrequent over a 90s match

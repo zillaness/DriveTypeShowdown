@@ -19,35 +19,31 @@ src+=`
   const run=()=>{calm();cpuBallUpdate(1/60);};
   const easedClearOfGap=(G)=>Math.abs(cpuH2H[1]._ctx-G.ox)>150 && Math.min(cpuH2H[1]._cty,FH-cpuH2H[1]._cty)<120;
 
-  // ── ROOKIE: plays until it scores a small floor (~3), then eases off while the player is NOT yet up ~4 ──
+  // v5.1.11 tiers (4): 0 ROOKIE (old FINALIST brain + back-off), 1 VETERAN (old FINALIST brain, default, no back-off), 2 WINNER, 3 CHAMPION
+  // ── ROOKIE: plays until it scores its floor (~3), then eases off (backs off to lose) unless the player is up by 2+ ──
   startMatch('normal',0,0);playerBind[1].tier=0;let G=cpuBallGoals(1);
   armOffense(G);setScore(0,0);run(); // below the scoring floor -> plays
   ok('ROOKIE plays offense before reaching its scoring floor (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj!=='ease');
-  armOffense(G);setScore(0,3);run(); // floor reached, even-ish (cpuLead +3 >= -4) -> ease
+  armOffense(G);setScore(0,3);run(); // floor reached, CPU ahead (cpuLead +3 >= -1) -> ease
   ok('ROOKIE eases off once it has scored its floor (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj==='ease');
   ok('ROOKIE ease retreats clear of its own gap (does not block the player)',easedClearOfGap(G));
-  armOffense(G);setScore(2,3);run(); // floor met, player up by only 2 (cpuLead -1) -> still eases
-  ok('ROOKIE still eases when past the floor and the player is only up 2',cpuH2H[1].obj==='ease');
-  armOffense(G);setScore(9,3);run(); // floor met but player up by 6 (cpuLead -6 < -4): ROOKIE plays
-  ok('ROOKIE plays offense once the player is comfortably ahead (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj!=='ease');
+  armOffense(G);setScore(4,3);run(); // floor met, player up by 1 (cpuLead -1 >= -1) -> still eases
+  ok('ROOKIE still eases when the player is only up 1',cpuH2H[1].obj==='ease');
+  armOffense(G);setScore(5,3);run(); // floor met, player up by 2 (cpuLead -2 < -1): ROOKIE plays to claw back
+  ok('ROOKIE plays offense once the player is up by 2+ (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj!=='ease');
 
-  // ── VETERAN: eases off when IT goes up by 2+, keeps it back-and-forth ──
+  // ── VETERAN (default): old FINALIST brain, NO hard ease — a true even fight even when far ahead ──
   startMatch('normal',0,1);playerBind[1].tier=1;G=cpuBallGoals(1);
-  armOffense(G);setScore(0,2);run(); // CPU up by 2 -> ease
-  ok('VETERAN eases when it is up by 2 (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj==='ease');
-  ok('VETERAN ease retreats clear of its own gap',easedClearOfGap(G));
-  armOffense(G);setScore(0,1);run(); // CPU up by only 1 -> plays
-  ok('VETERAN plays offense when up by only 1 (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj!=='ease');
-  armOffense(G);setScore(3,0);run(); // CPU behind -> plays (pushes to catch up)
+  armOffense(G);setScore(0,10);run();
+  ok('VETERAN never hard-eases even when far ahead (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj!=='ease');
+  armOffense(G);setScore(3,0);run(); // behind -> plays
   ok('VETERAN plays offense when behind',cpuH2H[1].obj!=='ease');
 
-  // ── FINALIST: no hard ease (left alone pending playtest) even when way ahead ──
+  // ── WINNER / CHAMPION: fixed tiers never ease ──
   startMatch('normal',0,2);playerBind[1].tier=2;G=cpuBallGoals(1);
   armOffense(G);setScore(0,10);run();
-  ok('FINALIST never hard-eases even when far ahead (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj!=='ease');
-
-  // ── CHAMPION: fixed top tier never eases ──
-  startMatch('normal',0,4);playerBind[1].tier=4;G=cpuBallGoals(1);
+  ok('WINNER never eases (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj!=='ease');
+  startMatch('normal',0,3);playerBind[1].tier=3;G=cpuBallGoals(1);
   armOffense(G);setScore(0,10);run();
   ok('CHAMPION never eases (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj!=='ease');
 

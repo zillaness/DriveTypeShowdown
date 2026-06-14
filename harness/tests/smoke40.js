@@ -13,7 +13,7 @@ src+=`
   const clearBalls=()=>{balls.forEach(b=>{b.sc=true;b.intaken=false;b.proj=false;b.golden=false;b.vx=0;b.vy=0;});};
 
   // ── A: speed couples to the opponent's sensitivity and is CAPPED at the player's drive speed (v5.1) ──
-  startMatch('normal',0,4); // CHAMPION at slot 1
+  startMatch('normal',0,3); // CHAMPION at slot 1
   clearBalls();
   balls[0].sc=false;balls[0].x=B2M_WX+100;balls[0].y=120;balls[0].vx=0;balls[0].vy=0;
   b2.bots[1].x=FW-B2M_WX-100;b2.bots[1].y=FH-120;b2.bots[1].h=0;
@@ -29,7 +29,7 @@ src+=`
   ok('turn rate also couples to sens (r1='+r1.toFixed(2)+' r2='+r2.toFixed(2)+')',r2>r1*1.5);
 
   // ── A2: drive kinematics — tank/arcade move only along their heading (no strafe); swerve can strafe (v5.1) ──
-  startMatch('normal',0,4);
+  startMatch('normal',0,3);
   clearBalls();
   balls[0].sc=false;balls[0].x=B2M_WX+100;balls[0].y=FH/2;balls[0].vx=0;balls[0].vy=0;
   b2.bots[1].x=balls[0].x;b2.bots[1].y=FH/2+200;b2.bots[1].h=0; // facing east, target straight north -> 90 deg abeam
@@ -42,7 +42,7 @@ src+=`
   ok('kinematics: swerve can strafe sideways (lat='+latSw.toFixed(2)+')',latSw>0.7);
 
   // ── B: intake denial — sharp CPU contests the ball the foe is about to grab, even if a closer free ball exists ──
-  startMatch('shooter',0,4);
+  startMatch('shooter',0,3);
   clearBalls();
   const cpuX=FW-B2M_WX-300;
   b2.bots[1].x=cpuX;b2.bots[1].y=FH/2;b2.bots[1].intk=[];
@@ -57,7 +57,7 @@ src+=`
   ok('intake denial: targets the foe-side ball over the closer one',cpuH2H[1].tgt===bN);
 
   // ── C: shot-block tracking — sharp defender's gap-mouth y follows the shooting foe's side ──
-  startMatch('shooter',0,4);
+  startMatch('shooter',0,3);
   const trackY=(foeY)=>{
     clearBalls();
     const G=cpuBallGoals(1);
@@ -74,7 +74,7 @@ src+=`
   ok('shot-block: defender tracks the shooter side (top->y='+yTop.toFixed(0)+' bot->y='+yBot.toFixed(0)+')',yBot>yTop+30);
 
   // ── D: anti-double-team — CPU avoids a ball a same-alliance teammate is already sitting on ──
-  startMatch('normal',0,4);
+  startMatch('normal',0,3);
   clearBalls();
   b2.bots[1].x=FW-B2M_WX-200;b2.bots[1].y=FH/2;
   const bX=balls[0],bY=balls[1];
@@ -89,7 +89,7 @@ src+=`
   b2.cpus=[];
 
   // ── E: alliance directed scoring + own-goal guard ──
-  startMatch('normal',0,4);
+  startMatch('normal',0,3);
   clearBalls();
   // red disrupt bot (al=0) scores on the RIGHT gap (ex). Open-field ball -> push toward right (+x).
   const Gred=cpuBallGoals(0);

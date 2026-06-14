@@ -51,9 +51,9 @@ src+=`
 
   // ── CPU add + tier stepper via new rects ──
   click(p2cCpuRect());
-  OK('ADD CPU fills open slot at FINALIST',m2.claim[1]&&m2.claim[1].type==='cpu'&&m2.claim[1].tier===2);
+  OK('ADD CPU fills open slot at VETERAN',m2.claim[1]&&m2.claim[1].type==='cpu'&&m2.claim[1].tier===1);
   click(p2cTierRect(1,1));
-  OK('tier stepper +1 -> WINNER',m2.claim[1].tier===3);
+  OK('tier stepper +1 -> WINNER',m2.claim[1].tier===2);
 
   // ── swap also swaps name/drive/sens ──
   m2.name=['AAA','BBB'];m2.sens=[0.5,1.5];
@@ -63,7 +63,7 @@ src+=`
   OK('swap exchanges sens',m2.sens[0]===1.5&&m2.sens[1]===0.5);
 
   // ── start launches with both claimed ──
-  m2.claim=[{type:'kb'},{type:'cpu',tier:4}];m2.mode='normal';m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.bestOf=1;m2.set.contact='full';m2.set.cpus=0;
+  m2.claim=[{type:'kb'},{type:'cpu',tier:3}];m2.mode='normal';m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.bestOf=1;m2.set.contact='full';m2.set.cpus=0;
   click(p2StartBtnRect());
   OK('START launches the ball match',phase==='p2ball'&&!!b2);
 
