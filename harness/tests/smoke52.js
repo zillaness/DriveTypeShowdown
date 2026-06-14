@@ -47,6 +47,11 @@ src+=`
   setDropdown=null;m2.set.allySpd=0.8;p2Click(sg.x1,p2SetRowRect(si).y+10);
   ok('clicking the slider row sets value and opens no dropdown',m2.set.allySpd===0.4&&setDropdown===null);
   m2.mode='race';ok('button is hidden in non-ball modes',!p2ShowCpuCfg());
+  // v5.1.16: RESET DEFAULTS button restores M2_SET_DEFAULTS
+  phase='p2settings';m2.mode='normal';
+  m2.set.allySpd=1.2;m2.set.timeSec=180;m2.set.ballN=12;m2.set.cpus=0;
+  const xb=p2ResetBtnRect();p2Click(xb.x+xb.w/2,xb.y+xb.h/2);
+  ok('RESET DEFAULTS restores allySpd/timeSec/ballN/cpus',m2.set.allySpd===M2_SET_DEFAULTS.allySpd&&m2.set.timeSec===M2_SET_DEFAULTS.timeSec&&m2.set.ballN===M2_SET_DEFAULTS.ballN&&m2.set.cpus===M2_SET_DEFAULTS.cpus);
   console.log('--- settings-options: '+P+' pass, '+F+' fail ---');
 })();
 `;

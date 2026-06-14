@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.15.html
-  version: 5.1.15
+  file: frc_drive_showdown_v5.1.16.html
+  version: 5.1.16
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -550,6 +550,7 @@ function sfxUnlock(){
 function sfxToggle(){sfxOn=!sfxOn;try{localStorage.setItem('frcds_sfx',sfxOn?'1':'0');}catch(e){}}
 function sfx(name,vol){
   if(!sfxOn||!sfxCtx||sfxCtx.state!=='running')return;
+  if(!(phase&&phase.indexOf('p2')===0))return; // v5.1.16: SFX are a 2P H2H feature only — single-player (menu, SP play, results, cpuSettings) is silent
   const now=performance.now();
   if(now-(sfxLast[name]||0)<60)return; // per-voice dedupe: collisions rumble both players at once
   sfxLast[name]=now;
@@ -2700,19 +2701,23 @@ function cpuTankUpdate(dt){
       mvx=rx*rad-ry*br.strafe*0.8;mvy=ry*rad+rx*br.strafe*0.8;
       const mm=Math.hypot(mvx,mvy)||1;mvx/=mm;mvy/=mm;
     }
-    // bullet dodge (sharp tiers only): sidestep incoming fire — v5.1.12: range/width/strength scale with sharpness so CHAMPION dodges hard (was too easy to hit)
-    if(T.react<0.16){
-      const sharp=clamp((0.16-T.react)/0.16,0,1); // 0..1 (CHAMPION ~0.81, WINNER ~0.25)
-      const range=200+sharp*170, latW=30+sharp*30, push=1.4+sharp*1.6; // CHAMPION: sees ~337px, reacts to ~54px near-misses, sidesteps ~2.7x
+    // bullet dodge — v5.1.16: WAY stronger at CHAMPION and trickled down every tier (scaled by sharpness).
+    // Commits hard to the single most-imminent threatening bullet (perpendicular sidestep, urgency rising as it nears)
+    // instead of weakly summing all of them, so a sharp tank reliably clears the shot rather than drifting into it.
+    {
+      const sharp=clamp((0.62-T.react)/0.62,0,1); // CHAMPION ~0.95, WINNER ~0.81, low/adaptive-even ~0.03 (still flinches)
+      const range=190+sharp*230, latW=RR+14+sharp*70, push=1.1+sharp*3.1; // CHAMPION: sees ~408px, ~101px lateral catch, sidesteps ~4x
+      let best=null,bestAlong=1e9;
       for(const b of tf2.bullets){
         if(b.owner===p)continue;
         const bx=me.x-b.x,by=me.y-b.y,bv=Math.hypot(b.vx,b.vy)||1;
-        const along=(bx*b.vx+by*b.vy)/bv;       // closing distance along the bullet path
-        const lat=(bx*b.vy-by*b.vx)/bv;          // lateral offset from the path
-        if(along>0&&along<range&&Math.abs(lat)<latW){
-          const s=Math.sign(lat)||1;
-          mvx+=-b.vy/bv*s*push;mvy+=b.vx/bv*s*push;
-        }
+        const along=(bx*b.vx+by*b.vy)/bv;        // closing distance along the bullet path
+        const lat=(bx*b.vy-by*b.vx)/bv;           // signed lateral offset from the path
+        if(along>0&&along<range&&Math.abs(lat)<latW&&along<bestAlong){bestAlong=along;best={bv,lat,vx:b.vx,vy:b.vy};}
+      }
+      if(best&&sharp>0.02){
+        const s=Math.sign(best.lat)||1, urg=push*(1+(1-bestAlong/range)); // closer shot → harder sidestep
+        mvx+=-best.vy/best.bv*s*urg; mvy+=best.vx/best.bv*s*urg;
       }
       const mm=Math.hypot(mvx,mvy);if(mm>1){mvx/=mm;mvy/=mm;}
     }
@@ -2840,7 +2845,7 @@ function p2GpItems(){
   const it=[];
   if(phase==='p2modes'){for(let i=0;i<4;i++)it.push(p2ModeRect(i));it.push(p2TourBtnRect());it.push(p2RecBtnRect());}
   else if(phase==='p2drive'){for(const d of p2DriveList())it.push(p2DriveRect(d));}
-  else if(phase==='p2settings'){const rows=p2SettingsRows();for(let i=0;i<rows.length;i++)it.push(p2SetRowRect(i));if(p2ShowCpuCfg())it.push(p2CpuCfgBtnRect());it.push(p2StartBtnRect());}
+  else if(phase==='p2settings'){const rows=p2SettingsRows();for(let i=0;i<rows.length;i++)it.push(p2SetRowRect(i));if(p2ShowCpuCfg())it.push(p2CpuCfgBtnRect());it.push(p2StartBtnRect());it.push(p2ResetBtnRect());}
   else if(phase==='p2tnames'){for(let i=0;i<4;i++)it.push(tourOptRect(i));if(tour&&tour.names.length>=4)it.push({x:CW/2-110,y:CH-92,w:220,h:42});}
   else if(phase==='p2tqual'){it.push({x:CW/2-100,y:CH-100,w:200,h:40});}
   else if(phase==='p2tbracket'){
@@ -3271,10 +3276,9 @@ function drawP2Tag(p,b){
 // bold red/blue (or egg) alliance halo + ring so each main bot's side reads at a glance, even when both pick the same drive. Call within a translate to the bot center.
 function p2AllianceRing(p){
   const k=eggKind(m2.name&&m2.name[p]),col=k?EGG_COLS[k]:M2_COLS[p];
-  const R=RR+44; // big enough to encircle the bot AND its plow (the scoop tips reach ~RR+26 fwd / ~RR+20 lateral, ~57px diagonal)
-  ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.fillStyle=col+'22';ctx.fill(); // team halo
-  ctx.strokeStyle=col;ctx.lineWidth=3;
-  ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.stroke();
+  // a clear dashed team ring just outside the chassis (same style as the alliance-bot ring, a touch bigger/bolder for the main bot)
+  ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.setLineDash([5,4]);
+  ctx.beginPath();ctx.arc(0,0,RR+7,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
 }
 function r2StartPos(p){return{x:OC_START.x,y:OC_START.y,h:OC_START.h};}
 // ── v3.8: H2H CPU — race brain. Gap-seeking climb with predictive hazard gates. ──
@@ -3427,9 +3431,17 @@ function updateP2Race(dt){
       if(b.y<OC_FINISH_Y){b.fin=r2.t;fin.push(p);sfx('finish');}
     });
   }
+  // v5.1.16: don't end the instant the first racer finishes — let BOTH complete and compare times.
+  // The laggard DNFs only if it takes longer than DOUBLE the first finisher's time, so an idle/stuck bot can't stall the match forever.
   if(r2.solo){if(fin.length)r2.result=0;}
-  else if(fin.length===1)r2.result=fin[0];
-  else if(fin.length===2)r2.result=(r2.bots[0].resets<=r2.bots[1].resets)?0:1; // same-frame tie: fewer resets, then frame order
+  else{
+    const f0=r2.bots[0].fin,f1=r2.bots[1].fin;
+    if((f0!==null||f1!==null)&&r2.firstFin==null)r2.firstFin=(f0!==null?f0:f1); // first crossing starts the DNF clock
+    if(f0!==null&&f1!==null)
+      r2.result=(f0<f1)?0:(f1<f0)?1:(r2.bots[0].resets<=r2.bots[1].resets?0:1); // both finished → lower time wins (tie → fewer resets, then RED)
+    else if(r2.firstFin!=null&&r2.t>=r2.firstFin*2)
+      r2.result=(f0!==null)?0:1; // the other took more than 2× the winning time → DNF; the finisher wins
+  }
   if(r2.result!==null&&!r2.repd){r2.repd=true;p2SeriesReport(r2.result);}
 }
 function drawP2Race(){
@@ -3492,8 +3504,9 @@ const M2_MODES=[
   {id:'race',     name:'OBSTACLE RACE', desc:'first to the finish line',       col:'#40c4ff'},
 ];
 const M2_COLS=['#ff5555','#5599ff']; // red / blue alliance
+const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,allySpd:0.8,ballN:'auto',pow:true,hpk:true,haz:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these)
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
-  set:{format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,allySpd:0.8,ballN:'auto',pow:true,hpk:true,haz:true}};
+  set:{...M2_SET_DEFAULTS}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];}
 function p2Exit(){tour=null;tfObs=null;b2Teardown();resetBinds();applyLayout('legacy');phase='menu';} // resetBinds: restore single-player input routing (else SP reads the stale 2P bind and ignores gamepad sticks)
 // ═══ PHASE 11: TOURNAMENT ═══
@@ -3905,6 +3918,7 @@ function p2StartBtnRect(){return{x:CW/2-130,y:CH-90,w:260,h:48};}
 // Only ball modes have alliance bots whose brain these prefs tune, so it's hidden in tank/race.
 function p2ShowCpuCfg(){return m2.mode==='normal'||m2.mode==='shooter';}
 function p2CpuCfgBtnRect(){return{x:CW/2-130-210,y:CH-90,w:196,h:48};}
+function p2ResetBtnRect(){return{x:CW/2+144,y:CH-90,w:196,h:48};} // RESET DEFAULTS — restores M2_SET_DEFAULTS (all modes)
 function p2BackBtnRect(){return{x:14,y:12,w:90,h:30};}
 // ── claiming ──
 function p2ClaimDevice(b){
@@ -3953,6 +3967,7 @@ function p2Click(mx,my){
       if(!(r.k in m2.set)){m2.set[r.k]=r.vals[0];}
       setDropdown=i;sfx('click');return;}} // open the dropdown to choose
     if(p2ShowCpuCfg()&&inR(mx,my,p2CpuCfgBtnRect())){cpuSettingsReturn='p2settings';cpuGpIdx=0;phase='cpuSettings';sfx('click');return;}
+    if(inR(mx,my,p2ResetBtnRect())){m2.set={...M2_SET_DEFAULTS};setDropdown=null;sfx('click');return;} // restore all match settings to defaults
     if(inR(mx,my,p2StartBtnRect())){p2cEnsureDrives();if(!(m2.claim[0]&&m2.claim[1])){m2.claim=[null,null];m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);}phase='p2claim';return;}
   }else if(phase==='p2race'){
     if(r2&&r2.result!==null)p2NavClick(mx,my,FY+FH/2+34,startP2Race);
@@ -4187,6 +4202,11 @@ function p2Draw(){
       ctx.strokeStyle=cfoc?'#ffd740':'#6a6acf';ctx.lineWidth=2;rr(cb.x,cb.y,cb.w,cb.h,12);ctx.stroke();
       ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle='#aab0ff';
       ctx.fillText('⚙ ALLIANCE CPU AI',cb.x+cb.w/2,cb.y+30);}
+    {const xb=p2ResetBtnRect(),xfoc=gpFocus===rows.length+(p2ShowCpuCfg()?1:0)+1; // focus index sits after rows, [cpuCfg], start
+      ctx.fillStyle=xfoc?'rgba(75,45,45,0.85)':'rgba(50,30,30,0.7)';rr(xb.x,xb.y,xb.w,xb.h,12);ctx.fill();
+      ctx.strokeStyle=xfoc?'#ffd740':'#cf7a7a';ctx.lineWidth=2;rr(xb.x,xb.y,xb.w,xb.h,12);ctx.stroke();
+      ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffb3b3';
+      ctx.fillText('↺ RESET DEFAULTS',xb.x+xb.w/2,xb.y+30);}
     ctx.font='11px Courier New';ctx.fillStyle='#444460';
     ctx.fillText('P1 '+(m2.drive[0]?m2.drive[0].name:'?')+'   vs   P2 '+(m2.drive[1]?m2.drive[1].name:'?'),CW/2,108);
     if(setDropdown!==null){ // open dropdown overlay (pointer UI)
@@ -6417,6 +6437,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.16 (2026-06-14): SILENT SINGLE-PLAYER + RESET DEFAULTS + SMALLER TEAM RING + STRONGER TANK DODGE + RACE TIME-COMPARE. (1) Single-player is now fully silent: sfx() only fires during 2P (H2H) phases, so the SP menu, SP gameplay (shoot blip, bumps), and the SP results screen make no sound; the menu/2P mute toggle and [M] still govern 2P SFX. (2) RESET DEFAULTS button on the 2P MATCH SETTINGS screen (bottom-right, mirrors ALLIANCE CPU AI) restores all match settings to M2_SET_DEFAULTS — clickable, touchable, and in the gamepad nav ring. The defaults are now a shared const. (3) The red/blue team ring on the two MAIN H2H bots is back to a clean DASHED ring just outside the chassis (RR+7, like the alliance-bot ring) instead of the oversized plow-encircling disc from v5.1.10. (4) Tank-fight bullet dodge is WAY stronger at CHAMPION and trickled down every tier (scaled by sharpness): it now commits hard to the single most-imminent threatening bullet with a perpendicular sidestep whose urgency rises as the shot nears (CHAMPION sees ~408px out, ~101px lateral catch, sidesteps ~4×), so a sharp tank reliably clears fire instead of drifting into it; lower/adaptive tiers still flinch. (5) H2H OBSTACLE RACE no longer ends the instant the first racer finishes — both racers complete and the LOWER finish time wins (the slower racer gets a recorded time, not an automatic DNF). The laggard DNFs only if it exceeds DOUBLE the first finisher's time, so an idle/stuck bot can't stall the match. smoke52 +1 (reset defaults); smoke38's race now exercises the 2× DNF path. Full battery green. Single file, no assets.
   v5.1.15 (2026-06-14): PER-MODE CPU TIER TABLES. Splits the single shared tier table into per-mode tables so tuning one mode no longer disturbs the others: CPU_TIERS stays the canonical ball table (names, claim picker, ease lever, plow arrays all key off it) and CPU_TIERS_SHOOTER/TANK/RACE are clones selected by the current mode via modeTiers(); cpuTierParams now reads the active mode's table. Ball/tank/race are behavior-preserving (identical clones, ready to tune). SHOOTER is tuned now: CHAMPION and WINNER regain a top-tier speed edge (1.15/1.04) that the normal-ball speed clamp had removed — the clamp is mode-aware so shooter allows the edge while normal ball still caps every tier at the player's drive speed. The adaptive band (CPU_ADLO/ADHI) is shared across modes for now. smoke54 +1 (per-mode: shooter CHAMPION edge vs normal clamp). Full battery green. Single file, no assets.
   v5.1.14 (2026-06-14): SP MUTE PILL REMOVED. Single-player has no SFX wired (the only SP sound is the shooter launch blip), so the on-HUD speaker pill served no purpose and overlapped the score/ball counter (ball), the tank-fight HUD, and the obstacle HUD. Removed the pill from all three SP HUDs (drawHUD/drawTFHUD/drawOCHUD) and the SP click/touch toggles for it; the [M] hotkey and the menu / 2P-setup mute button (where SFX actually play) are unchanged. Full battery green. Single file, no assets.
   v5.1.13 (2026-06-14): SHOOTER CHEATS FIXED + MACHINE GUN + EXTRA BALLS (cheat menu). All cheats are independent and stack freely. (1) BOUNCY BALLS and ULTIMATE ASCENT now actually affect 2P shooter: the H2H field is so narrow that shots always hit a wall before the old 230px range cap, so neither was visible. Shots fired with either cheat now RICOCHET off the non-scoring walls (gaps still score) instead of dying — ULTIMATE ASCENT keeps them alive indefinitely, BOUNCY makes them pinball. (2) NEW cheat MACHINE GUN: full-auto fire in BOTH 2P tank (reload ~0.05s) and 2P shooter (shootCd ~0.05s, a big 99-shot hopper, and a faster ~480px/s muzzle), with a per-shot rumble. (3) NEW cheat EXTRA BALLS: a slider (1x-6x, ◀▶ on keyboard/gamepad or click/drag the track) that multiplies the balls in play in 2P ball+shooter (capped at 72). The cheat menu now supports slider rows alongside the on/off toggles. New suite smoke54 (5 asserts: extra-balls multiply, machine-gun hopper+rapid fire in shooter and tank, ricochet survival with stacked cheats). Full battery green. Single file, no assets.
