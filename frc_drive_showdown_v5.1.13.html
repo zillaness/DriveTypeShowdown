@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.12.html
-  version: 5.1.12
+  file: frc_drive_showdown_v5.1.13.html
+  version: 5.1.13
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -212,14 +212,18 @@ let cpuSettingsReturn=null; // phase to return to when leaving cpuSettings (set 
 const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
 let konamiIdx=0,_gpKonamiIdx=0,_gpKonPrev={},konamiActive=false,frisbeeMode=false;
 // konami cheat menu: toggleable fun modes (replaces the old auto-frisbee flip). arcadeMode adds the RT boost-tackle in 2P H2H ball+tank.
-let arcadeMode=false,bouncyMode=false,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0;
+let arcadeMode=false,bouncyMode=false,machineGun=false,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0;
+// all cheats are independent — they mix and stack freely (e.g. machine-gun + bouncy + ultimate-ascent + extra-balls)
 const CHEATS=[
   {name:'RAMMING',        desc:'Right Trigger / Shift = boost tackle — ram & stun the enemy bot (2P ball + tank)',get:()=>arcadeMode, tog:()=>{arcadeMode=!arcadeMode;}},
-  {name:'ULTIMATE ASCENT',desc:'Shooter frisbees fly forever (infinite range)',                        get:()=>frisbeeMode, tog:()=>{frisbeeMode=!frisbeeMode;}},
-  {name:'BOUNCY BALLS',   desc:'Low-friction pinball chaos — balls barely slow and bounce hard',        get:()=>bouncyMode,  tog:()=>{bouncyMode=!bouncyMode;}},
+  {name:'ULTIMATE ASCENT',desc:'Shooter shots fly forever — they ricochet off the walls instead of dying',     get:()=>frisbeeMode, tog:()=>{frisbeeMode=!frisbeeMode;}},
+  {name:'BOUNCY BALLS',   desc:'Low-friction pinball chaos — balls barely slow, shots ricochet off walls',     get:()=>bouncyMode,  tog:()=>{bouncyMode=!bouncyMode;}},
+  {name:'MACHINE GUN',    desc:'Full-auto fire — rapid shots + rumble (2P tank AND shooter)',                  get:()=>machineGun,  tog:()=>{machineGun=!machineGun;}},
+  {name:'EXTRA BALLS',    desc:'Multiply the balls in play (2P ball + shooter) — ◀ ▶ or drag to set',          slider:true,min:1,max:6,step:1,get:()=>ballMult,set:v=>{ballMult=clamp(Math.round(v),1,6);},show:v=>v+'×'},
 ];
 function cheatMove(d){cheatIdx=(cheatIdx+d+CHEATS.length)%CHEATS.length;sfx('click');}
-function cheatToggle(){CHEATS[cheatIdx].tog();sfx('claim');}
+function cheatToggle(){const c=CHEATS[cheatIdx];if(c.slider){c.set(c.get()>=c.max?c.min:c.get()+c.step);}else c.tog();sfx('claim');}
+function cheatAdjust(d){const c=CHEATS[cheatIdx];if(c.slider){c.set(clamp(c.get()+d*c.step,c.min,c.max));sfx('click');}else cheatMove(d>0?1:-1);} // ◀▶: nudge a slider, else move rows
 // team easter eggs: NAME a bot 1678 (Citrus Circuits -> LIME TEAM) or 254 (The Cheesy Poofs -> ORANGE TEAM)
 let eggOverride=null; // per-bot color override, set from the bot's name in withBot / the card preview
 const EGG_COLS={lime:'#9aff2e',orange:'#ff6a13'},EGG_NAMES={lime:'LIME TEAM',orange:'ORANGE TEAM'};
@@ -461,9 +465,11 @@ window.addEventListener('keydown',e=>{
     else if(e.key.length===1&&nameEntry.text.length<12&&/[a-zA-Z0-9 !._-]/.test(e.key)){nameEntry.text+=e.key.toUpperCase();}
     return;
   }
-  if(konamiActive){ // cheat menu: arrows move, Enter/Space toggles, Esc closes
+  if(konamiActive){ // cheat menu: up/down move, left/right adjust a slider, Enter/Space toggles, Esc closes
     if(e.key==='ArrowUp')cheatMove(-1);
     else if(e.key==='ArrowDown')cheatMove(1);
+    else if(e.key==='ArrowLeft')cheatAdjust(-1);
+    else if(e.key==='ArrowRight')cheatAdjust(1);
     else if(e.key==='Enter'||e.key===' ')cheatToggle();
     else if(e.key==='Escape'){konamiActive=false;sfx('click');}
     e.preventDefault();return;
@@ -645,7 +651,10 @@ function click(mx,my){
   if(konamiActive){
     const _rows=drawKonami._rows||[];
     for(let i=0;i<_rows.length;i++){const r=_rows[i];
-      if(mx>=r.x&&mx<=r.x+r.w&&my>=r.y&&my<=r.y+r.h){cheatIdx=i;cheatToggle();return;}
+      if(mx>=r.x&&mx<=r.x+r.w&&my>=r.y&&my<=r.y+r.h){cheatIdx=i;
+        if(r.slider){const c=CHEATS[i],t=clamp((mx-r.slider.x1)/(r.slider.x2-r.slider.x1),0,1);c.set(Math.round(c.min+t*(c.max-c.min)));sfx('click');} // click/drag the track to set
+        else cheatToggle();
+        return;}
     }
     const _links=drawKonami._links||[];
     for(const lk of _links){
@@ -1063,11 +1072,13 @@ function updateGamepad(){
     }
     _gpKonPrev=st;
   }
-  // cheat menu open: D-pad U/D move, A toggle, B close (consume input, keep edge state)
+  // cheat menu open: D-pad U/D move, L/R adjust a slider, A toggle, B close (consume input, keep edge state)
   if(konamiActive){
     if(performance.now()-konamiOpenT>250){ // debounce the button that opened the menu
       if(just(12))cheatMove(-1);
       else if(just(13))cheatMove(1);
+      else if(just(14))cheatAdjust(-1);
+      else if(just(15))cheatAdjust(1);
       else if(just(0))cheatToggle();
       else if(just(1)){konamiActive=false;sfx('click');}
     }
@@ -1567,13 +1578,21 @@ function drawKonami(){
   let rowY=Math.round(CH*0.50);
   drawKonami._rows=[];
   for(let i=0;i<CHEATS.length;i++){
-    const c=CHEATS[i],on=c.get(),sel=i===cheatIdx,y=rowY+i*(rowH+6);
-    drawKonami._rows.push({x:rowX,y:y,w:rowW,h:rowH});
+    const c=CHEATS[i],on=c.get(),sel=i===cheatIdx,y=rowY+i*(rowH+6),rec={x:rowX,y:y,w:rowW,h:rowH};
+    drawKonami._rows.push(rec);
     ctx.fillStyle=sel?'rgba(255,70,70,0.26)':'rgba(180,30,30,0.12)';ctx.fillRect(rowX,y,rowW,rowH);
     ctx.strokeStyle=sel?'#ff7777':'#883333';ctx.lineWidth=sel?2:1;ctx.strokeRect(rowX,y,rowW,rowH);
     ctx.font='bold 12px Courier New';ctx.textAlign='left';
     ctx.fillStyle=sel?'#ffd0d0':'#ff9999';ctx.fillText((sel?'▸ ':'  ')+c.name,rowX+12,y+rowH/2+4);
-    ctx.textAlign='right';ctx.fillStyle=on?'#5dff8a':'#cc5555';ctx.fillText(on?'ON':'OFF',rowX+rowW-14,y+rowH/2+4);
+    if(c.slider){ // draggable slider value on the right of the row
+      const tx1=rowX+rowW*0.46,tx2=rowX+rowW-46,ty=y+rowH/2;rec.slider={x1:tx1,x2:tx2};
+      ctx.strokeStyle='#aa4444';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(tx1,ty);ctx.lineTo(tx2,ty);ctx.stroke();
+      const hx=tx1+(c.get()-c.min)/(c.max-c.min)*(tx2-tx1);
+      ctx.fillStyle=sel?'#ff8a8a':'#cc6666';ctx.beginPath();ctx.arc(hx,ty,6,0,7);ctx.fill();
+      ctx.textAlign='right';ctx.fillStyle=c.get()>1?'#5dff8a':'#cc8888';ctx.fillText(c.show?c.show(c.get()):String(c.get()),rowX+rowW-12,y+rowH/2+4);
+    }else{
+      ctx.textAlign='right';ctx.fillStyle=on?'#5dff8a':'#cc5555';ctx.fillText(on?'ON':'OFF',rowX+rowW-14,y+rowH/2+4);
+    }
   }
   // description of the highlighted cheat
   ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillStyle='#cc8888';
@@ -2094,7 +2113,8 @@ function startP2Ball(){
   inverted=false; // wallCheck reads the SP invert toggle; force off for 2P, restored on teardown
   phase='p2ball';
   const _totR=2+2*(m2.set.cpus||0);
-  const _nB=m2.set.ballN==='auto'?Math.max(6,Math.min(16,Math.round(6+_totR))):(m2.set.ballN|0); // more balls so the big plow capacity pays off in scrums
+  let _nB=m2.set.ballN==='auto'?Math.max(6,Math.min(16,Math.round(6+_totR))):(m2.set.ballN|0); // more balls so the big plow capacity pays off in scrums
+  _nB=Math.min(72,_nB*(ballMult||1)); // EXTRA BALLS cheat: multiply the balls in play (capped for sanity)
   const starts=b2Mirrored()?b2GenBallStarts(_nB):B2_BALL_STARTS;
   balls=starts.map((p,j)=>({x:p.x,y:p.y,vx:0,vy:0,id:j,sc:false,intaken:false,proj:false,lastT:null,golden:false}));
   const sp=b2Mirrored()
@@ -2305,7 +2325,7 @@ function updateP2Ball(dt){
         if(b.sc||b.intaken||b.proj)continue;
         const rdx=b.x-bo.x,rdy=b.y-bo.y;
         const lx=ch*rdx+sh*rdy,ly=-sh*rdx+ch*rdy;
-        if(lx>RR-BR-2&&lx<RR+BR+4&&Math.abs(ly)<RR+BR&&fwdSpd>20&&bo.intk.length<4){
+        if(lx>RR-BR-2&&lx<RR+BR+4&&Math.abs(ly)<RR+BR&&fwdSpd>20&&bo.intk.length<(machineGun?99:4)){ // MACHINE GUN: big hopper
           b.intaken=true;b.lastT=p;bo.intk.push(b);sfx('intake');
         }
       }
@@ -2315,8 +2335,9 @@ function updateP2Ball(dt){
         const b=bo.intk.shift();
         b.intaken=false;b.proj=true;b.lastT=p;
         b.x=bo.x+ch*(RR+14);b.y=bo.y+sh*(RR+14);
-        b.vx=ch*300;b.vy=sh*300;b._dist=0;
-        bo.shootCd=0.18;
+        const _ps=machineGun?480:300;b.vx=ch*_ps;b.vy=sh*_ps;b._dist=0; // MACHINE GUN: faster muzzle velocity
+        bo.shootCd=machineGun?0.05:0.18;                                // MACHINE GUN: rapid fire
+        if(machineGun)p2Rumble(p,0.3);
       }
     }
     for(const b of balls){
@@ -2324,15 +2345,23 @@ function updateP2Ball(dt){
       const pdx=b.vx*dt,pdy=b.vy*dt;
       b.x+=pdx;b.y+=pdy;b._dist+=Math.hypot(pdx,pdy);
       if(b2ProjBlock(b))continue; // v3.10.1: shot meets a robot body — front-face catch or motion-scaled block
+      // v5.1.13: BOUNCY / ULTIMATE ASCENT make shots ricochet off the non-scoring walls instead of dying — the H2H field is so narrow
+      // that shots otherwise always hit a wall before the range cap, so neither cheat was visible in 2P shooter. Reflect off walls; gaps still score.
+      const bounce=bouncyMode||frisbeeMode;
       if(b2Mirrored()){
         const inGapY=b.y>=b2mGT()&&b.y<=b2mGB();
-        if(b.x<B2M_WX-BR){b.proj=false;if(inGapY)b2Credit(b,1);}
-        else if(b.x>FW-B2M_WX+BR){b.proj=false;if(inGapY)b2Credit(b,0);}
-        else if(b.y<0||b.y>FH||(b._dist>230&&!frisbeeMode)){b.proj=false;}
+        if(b.x<B2M_WX-BR){ if(inGapY){b.proj=false;b2Credit(b,1);} else if(bounce){b.x=B2M_WX-BR;b.vx=Math.abs(b.vx);} else b.proj=false; }
+        else if(b.x>FW-B2M_WX+BR){ if(inGapY){b.proj=false;b2Credit(b,0);} else if(bounce){b.x=FW-B2M_WX+BR;b.vx=-Math.abs(b.vx);} else b.proj=false; }
+        else if(b.y<BR){ if(bounce){b.y=BR;b.vy=Math.abs(b.vy);} else b.proj=false; }
+        else if(b.y>FH-BR){ if(bounce){b.y=FH-BR;b.vy=-Math.abs(b.vy);} else b.proj=false; }
+        if(b.proj&&b._dist>230&&!frisbeeMode&&!bounce)b.proj=false; // range cap only when no cheat keeps it alive
       }else{
         const inGap=b.x>=GAP_L&&b.x<=GAP_R;
-        if(b.y<WALL_Y-BR){b.proj=false;if(inGap)b2Score(b);}
-        else if(b.x<0||b.x>FW||b.y>FH||(b._dist>230&&!frisbeeMode)){b.proj=false;}
+        if(b.y<WALL_Y-BR){ if(inGap){b.proj=false;b2Score(b);} else if(bounce){b.y=WALL_Y-BR;b.vy=Math.abs(b.vy);} else b.proj=false; }
+        else if(b.x<BR){ if(bounce){b.x=BR;b.vx=Math.abs(b.vx);} else b.proj=false; }
+        else if(b.x>FW-BR){ if(bounce){b.x=FW-BR;b.vx=-Math.abs(b.vx);} else b.proj=false; }
+        else if(b.y>FH-BR){ if(bounce){b.y=FH-BR;b.vy=-Math.abs(b.vy);} else b.proj=false; }
+        if(b.proj&&b._dist>230&&!frisbeeMode&&!bounce)b.proj=false;
       }
       if(!b.proj&&!b.sc){b.vx=0;b.vy=0;b2Wall(b,BR);}
     }
@@ -2894,7 +2923,7 @@ function updateP2Tank(dt){
       obsCheck(t,RR);
     });
     t.reload-=dt;
-    if(p2FireHeld(p)&&t.reload<=0&&!(t.stunT>0)){tf2Shoot(p);t.reload=(t.rapidT>0?0.16:0.32);}
+    if(p2FireHeld(p)&&t.reload<=0&&!(t.stunT>0)){tf2Shoot(p);t.reload=machineGun?0.05:(t.rapidT>0?0.16:0.32);if(machineGun)p2Rumble(p,0.3);} // MACHINE GUN: full-auto + rumble
   }
   if(tf2AllowedPups().length){
     tf2.pupTimer-=dt;
@@ -6400,6 +6429,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.13 (2026-06-14): SHOOTER CHEATS FIXED + MACHINE GUN + EXTRA BALLS (cheat menu). All cheats are independent and stack freely. (1) BOUNCY BALLS and ULTIMATE ASCENT now actually affect 2P shooter: the H2H field is so narrow that shots always hit a wall before the old 230px range cap, so neither was visible. Shots fired with either cheat now RICOCHET off the non-scoring walls (gaps still score) instead of dying — ULTIMATE ASCENT keeps them alive indefinitely, BOUNCY makes them pinball. (2) NEW cheat MACHINE GUN: full-auto fire in BOTH 2P tank (reload ~0.05s) and 2P shooter (shootCd ~0.05s, a big 99-shot hopper, and a faster ~480px/s muzzle), with a per-shot rumble. (3) NEW cheat EXTRA BALLS: a slider (1x-6x, ◀▶ on keyboard/gamepad or click/drag the track) that multiplies the balls in play in 2P ball+shooter (capped at 72). The cheat menu now supports slider rows alongside the on/off toggles. New suite smoke54 (5 asserts: extra-balls multiply, machine-gun hopper+rapid fire in shooter and tank, ricochet survival with stacked cheats). Full battery green. Single file, no assets.
   v5.1.12 (2026-06-14): CLASSIC COURSE SWEEPER REMOVED + CHAMPION TANK DODGE + SETUP CARD FIT. (1) The CLASSIC race course no longer has a sweeper hazard (it is now the plain obstacle course; sweepers live in SWEEPER ALLEY). (2) CHAMPION tank bullet-dodging was too easy to beat: the sharp-tier dodge now scales its detection range, lateral catch width, and sidestep strength with tier sharpness, so CHAMPION sees shots ~337px out, reacts to ~54px near-misses, and sidesteps ~2.7x (WINNER roughly unchanged). (3) The 2P setup card was trimmed (height 548->516) so it no longer overlaps the START / ADD-CPU / SWAP buttons along the bottom. Full battery green. Single file, no assets.
   v5.1.11 (2026-06-14): SKILL-TIER REWORK (5->4). Retires the FINALIST label and shelves the weak fixed ROOKIE and the old VETERAN (target 1.2) brains (both kept commented for easy revert). The four selectable tiers are now: ROOKIE = the old FINALIST adaptive brain (plays you dead-even) PLUS a defense back-off lever — once it has scored ~3 it eases off (retreats clear of its gap, stops scoring) unless the player is up by 2+, so a beginner ultimately wins; VETERAN (NEW DEFAULT) = the same old FINALIST brain with NO back-off, a true even, beatable, fun match; WINNER and CHAMPION unchanged. All tier-indexed data moved to four entries — CARRY_CAP [2,2,3,5], capture reach/lateral, the per-tier movement-drop — and the claim stepper, the default CPU pick (now VETERAN), and the all-tiers achievement now key off CPU_TIERS.length. NOTE: tiers are shared across ball/tank/race, so in race/tank the new ROOKIE is the competent adaptive brain (the ball-only back-off does not apply there) — by design. Suites re-baselined for the 4-tier layout (smoke38/40/42/43/45/46/47/48/50; smoke53 rewritten, 9 asserts). Full battery green; own goals zero at every tier; CHAMPION still clears 30+/90s. Single file, no assets.
   v5.1.10 (2026-06-14): ALLIANCE CPU SPEED SLIDER + BIGGER TEAM RINGS + ROOKIE BALL SPEED. (1) ALLIANCE SKILL (a tier-name stepper that only changed speed) is replaced by an ALLIANCE CPU SPEED slider on the MATCH SETTINGS screen — a real draggable track (click anywhere on it or grab-and-drag), mouse + touch + gamepad ◀▶, 40%–120% of the player's drive speed in 5% steps (default 80%), matching the claim-screen sensitivity slider. It sets m2.set.allySpd directly (the alliance support bots run at that fraction). (2) The red/blue team rings on the two MAIN H2H bots (human and CPU alike) are much bigger — radius RR+44, large enough to encircle the bot AND its plow/scoop — so it's always clear which side a robot is on. (Alliance support bots keep their small dashed ring.) (3) ROOKIE ball speed 0.42->0.55 (it was a touch too easy); scoped to ball mode via a new ballSpd field so race/tank ROOKIE keep 0.42 and the race ROOKIE-is-slower invariant holds. smoke52 +5 (slider: row type, drag-to-set, min/max clamp, click-sets-no-dropdown). Full battery green; own goals zero at every tier. Single file, no assets.
