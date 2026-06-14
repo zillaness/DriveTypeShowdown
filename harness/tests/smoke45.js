@@ -84,6 +84,24 @@ src+=`
   b2.cpus=[{x:bo.x+RR*2,y:bo.y,h:0,al:1,role:'guard',roleT:2}]; // friendly (al===1)
   b2Sticky(1/60);
   ok('no friendly fire: teammate contact does not strip',bo.load.length===before&&before===1);
+  b2.cpus=[];
+
+  // v5.1 DEFENSE: an opponent pressed against a CHAMPION carrier suppresses capture and bleeds the whole load (no instant re-grab)
+  start(4);bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};
+  for(let i=0;i<3;i++)freeBall(i,bo.x-(RR+BR),FH/2-18+i*18);
+  for(let f=0;f<6;f++)b2Sticky(1/60);const champFull=bo.load.length;
+  const foe=b2.bots[0];let lo=champFull;
+  for(let f=0;f<40;f++){foe.x=bo.x-(RR*2);foe.y=FH/2;foe.h=0;foe._inp={vx:SPD,vy:0,vr:0}; // human plow pressed in, facing the load
+    b2Sticky(1/60);
+    for(const b of balls){if(b.sc||b.held||b.intaken||b.proj){if(b._grabCd>0)b._grabCd=0;continue;}if(b._grabCd>0)b._grabCd-=1/60;b.x+=b.vx/60;b.y+=b.vy/60;b.vx*=0.87;b.vy*=0.87;}
+    lo=Math.min(lo,bo.load.length);}
+  ok('defense: a pressed-in opponent bleeds the CHAMPION load to empty ('+champFull+'->'+lo+')',champFull===3&&lo===0);
+  // capture-immunity: a just-stripped ball cannot be re-grabbed for a moment
+  start(4);bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};
+  const cb2=freeBall(0,bo.x-(RR+BR),FH/2);b2Sticky(1/60);
+  cb2.held=false;cb2.heldBy=null;bo.load.length=0;cb2._grabCd=0.55; // strip it loose in place (emulates b2Release)
+  b2Sticky(1/60); // same spot, but immunity must block re-grab
+  ok('capture-immunity: a freshly stripped ball is not instantly re-grabbed',cb2.held===false&&bo.load.length===0);
 
   // HUMAN main bot does NOT capture
   start(4);m2.claim[1].type='kb';bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};bo.load=[];

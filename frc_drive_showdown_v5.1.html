@@ -185,6 +185,14 @@ const ACH_DEFS=[
 let achUnlocked=(()=>{try{return JSON.parse(localStorage.getItem('frcds_ach_v1')||'{}');}catch(e){return {};}})();
 let achProg=(()=>{try{const p=JSON.parse(localStorage.getItem('frcds_achp_v1')||'{}');return {drives:Array.isArray(p.drives)?p.drives:[],tiers:Array.isArray(p.tiers)?p.tiers:[]};}catch(e){return {drives:[],tiers:[]};}})();
 let achToast=null,achToastT=-1e9;
+// H2H vs CPU records: best win per tier (ball mode). { tier: {marg, t, drive, name, mode} }
+let h2hRec=(()=>{try{return JSON.parse(localStorage.getItem('frcds_h2h_v1')||'{}');}catch(e){return {};}})();
+function h2hSave(){try{localStorage.setItem('frcds_h2h_v1',JSON.stringify(h2hRec));}catch(e){}}
+function h2hRecord(tier,rec){ // keep the best win per tier: higher score margin, ties broken by faster time
+  if(typeof tier!=='number')return;
+  const cur=h2hRec[tier];
+  if(!cur||rec.marg>cur.marg||(rec.marg===cur.marg&&rec.t<cur.t)){h2hRec[tier]=rec;h2hSave();}
+}
 function achSave(){try{localStorage.setItem('frcds_ach_v1',JSON.stringify(achUnlocked));}catch(e){}}
 function achSaveProg(){try{localStorage.setItem('frcds_achp_v1',JSON.stringify(achProg));}catch(e){}}
 function achUnlock(id){
@@ -2058,7 +2066,7 @@ function b2StickyCarriers(){
   }
   return out;
 }
-function b2Release(car,b,kx,ky){ b.held=false;b.heldBy=null;const i=car.load.indexOf(b);if(i>=0)car.load.splice(i,1);b.vx=kx;b.vy=ky; }
+function b2Release(car,b,kx,ky){ b.held=false;b.heldBy=null;const i=car.load.indexOf(b);if(i>=0)car.load.splice(i,1);b.vx=kx;b.vy=ky;b._grabCd=0.55; } // capture-immunity so the carrier can't instantly re-grab a stripped/stolen ball
 function b2Sticky(dt){
   if(!b2||m2.mode==='shooter'||!b2Mirrored())return;
   for(const car of b2StickyCarriers()){
@@ -2070,12 +2078,17 @@ function b2Sticky(dt){
     bo._spx=bo.x;bo._spy=bo.y;
     bo._stripCd=(bo._stripCd||0)-dt;
     const ch=Math.cos(bo.h),sh=Math.sin(bo.h);
+    // opposing bots that can contest this carrier (main human + alliance support); pressure suppresses the carrier's stickiness
+    const om=1-car.al,foes=[];
+    if(b2.bots[om])foes.push(b2.bots[om]);
+    if(b2.cpus)for(const c of b2.cpus)if(c.al===om)foes.push(c);
+    const contested=foes.some(o=>Math.hypot(o.x-bo.x,o.y-bo.y)<RR*2+12); // an opponent pressed up against us: no new captures while contested
     // 1) capture one free ball in the plow's front cone if there's room (higher tier = a little more reach = stickier)
-    if(car.load.length<car.cap&&!bo.captureOff){
-      const reach=RR+BR+8, lat=RR+BR+5; // capture reach is consistent across tiers; the skill difference lives in the strip
+    if(car.load.length<car.cap&&!bo.captureOff&&!contested){
+      const reach=RR+BR+[3,4,5,6,8][car.tier], lat=RR+[3,5,7,9,11][car.tier]; // v5.1: capture cone scales with tier — low tiers must drive right onto the ball, champion keeps a small reach
       let best=null,bd=1e9;
       for(const b of balls){
-        if(b.sc||b.intaken||b.proj||b.held)continue;
+        if(b.sc||b.intaken||b.proj||b.held||b._grabCd>0)continue; // skip balls under capture-immunity (just stripped/stolen)
         const rdx=b.x-bo.x,rdy=b.y-bo.y,dist=Math.hypot(rdx,rdy),lx=ch*rdx+sh*rdy,ly=-sh*rdx+ch*rdy;
         if(lx>0&&dist<reach&&Math.abs(ly)<lat&&dist<bd){bd=dist;best=b;}
       }
@@ -2103,9 +2116,6 @@ function b2Sticky(dt){
     //    This fires as the plows overlap (front cone, not deep center contact) so you can reliably take a ball by
     //    driving your plow in, at any tier. A bump to the carrier's BODY (no plow on the load) still knocks the front ball loose.
     if(car.load.length){
-      const om=1-car.al,foes=[];
-      if(b2.bots[om])foes.push(b2.bots[om]);
-      if(b2.cpus)for(const c of b2.cpus)if(c.al===om)foes.push(c);
       const sReach=RR+BR+18, sLat=RR+BR+8; // plow-overlap reach (~44px to the plow tip)
       for(const o of foes){
         if(!car.load.length)break;
@@ -2220,7 +2230,8 @@ function updateP2Ball(dt){
   }
   // free ball motion + drag + wall/gap + scoring
   for(const b of balls){
-    if(b.sc||b.intaken||b.proj||b.held)continue;
+    if(b.sc||b.intaken||b.proj||b.held){if(b._grabCd>0)b._grabCd=0;continue;}
+    if(b._grabCd>0)b._grabCd-=dt;
     b.x+=b.vx*dt;b.y+=b.vy*dt;
     const drag=Math.pow(0.87,dt*60);
     b.vx*=drag;b.vy*=drag;
@@ -2318,7 +2329,10 @@ function achH2HResult(w){ // v3.11 achievements at the H2H match-result edge
   if(!human(w))return; // a human alliance must have won
   achUnlock('firstwin');
   const lc=m2.claim&&m2.claim[1-w];
-  if(lc&&lc.type==='cpu'&&typeof lc.tier==='number')achBeatTier(lc.tier);
+  if(lc&&lc.type==='cpu'&&typeof lc.tier==='number'){
+    achBeatTier(lc.tier);
+    h2hRecord(lc.tier,{marg:(b2.score[w]-b2.score[1-w]),t:b2.t,drive:(m2.drive[w]&&m2.drive[w].name)||'',name:p2Name(w),mode:m2.mode}); // best win per tier
+  }
   if(m2.mode==='shooter'&&b2.score[1-w]===0)achUnlock('shutout');
   if(b2.sudden)achUnlock('golden');
   if(b2.realGoals&&b2.realGoals[w]===0&&b2.score[w]>0)achUnlock('noscore'); // won purely on opponent own-goals
@@ -2630,7 +2644,7 @@ function p2LiveMatch(){
 }
 function p2GpItems(){
   const it=[];
-  if(phase==='p2modes'){for(let i=0;i<4;i++)it.push(p2ModeRect(i));it.push(p2TourBtnRect());}
+  if(phase==='p2modes'){for(let i=0;i<4;i++)it.push(p2ModeRect(i));it.push(p2TourBtnRect());it.push(p2RecBtnRect());}
   else if(phase==='p2drive'){for(const d of p2DriveList())it.push(p2DriveRect(d));}
   else if(phase==='p2settings'){const rows=p2SettingsRows();for(let i=0;i<rows.length;i++)it.push(p2SetRowRect(i));it.push(p2StartBtnRect());}
   else if(phase==='p2tnames'){for(let i=0;i<4;i++)it.push(tourOptRect(i));if(tour&&tour.names.length>=4)it.push({x:CW/2-110,y:CH-92,w:220,h:42});}
@@ -3287,6 +3301,25 @@ function p2Exit(){tour=null;tfObs=null;b2Teardown();resetBinds();applyLayout('le
 // (qualifier runs never write SP records — the 2P race module doesn't touch best[]).
 let tour=null;
 function p2TourBtnRect(){return{x:CW/2-260,y:544,w:520,h:44};}
+function p2RecBtnRect(){return{x:CW/2-130,y:622,w:260,h:34};}
+function drawH2HRec(){
+  p2Chrome('📊 H2H RECORDS — BEST WIN vs CPU','your best win against each CPU difficulty (ball mode)');
+  const cardW=Math.min(620,CW-80),x=CW/2-cardW/2;let y=132;const rh=70;
+  for(let t=0;t<CPU_TIERS.length;t++){
+    const r=h2hRec[t];
+    ctx.fillStyle='rgba(20,20,36,0.7)';rr(x,y,cardW,rh-12,12);ctx.fill();
+    ctx.strokeStyle=r?'#ffd740':'#33334a';ctx.lineWidth=r?2:1;rr(x,y,cardW,rh-12,12);ctx.stroke();
+    ctx.textAlign='left';ctx.font='bold 17px Courier New';ctx.fillStyle=r?'#ffd740':'#556';
+    ctx.fillText(CPU_TIERS[t].name,x+20,y+26);
+    ctx.textAlign='right';
+    if(r){ctx.font='bold 13px Courier New';ctx.fillStyle='#d4d4f4';
+      ctx.fillText('WON '+(r.marg>0?'+'+r.marg:String(r.marg))+'  ·  '+fmt(r.t)+(r.mode==='shooter'?'  ·  shooter':''),x+cardW-20,y+24);
+      ctx.font='11px Courier New';ctx.fillStyle='#8888aa';ctx.fillText('as '+(r.name||'?')+(r.drive?'  ·  '+r.drive:''),x+cardW-20,y+42);
+    }else{ctx.font='12px Courier New';ctx.fillStyle='#556';ctx.fillText('— not yet beaten —',x+cardW-20,y+26);}
+    y+=rh;
+  }
+  ctx.textAlign='center';ctx.font='10px Courier New';ctx.fillStyle='#444460';ctx.fillText('tap / [Esc] to go back',CW/2,CH-16);
+}
 function tourSeedOrder(P){
   let o=[1,2];
   while(o.length<P){const n=o.length*2,t=[];for(const x of o){t.push(x);t.push(n+1-x);}o=t;}
@@ -3589,7 +3622,8 @@ function tourClick(mx,my){
   }
 }
 function p2Back(){
-  if(phase==='p2modes')p2Exit();
+  if(phase==='p2recs')phase='p2modes';
+  else if(phase==='p2modes')p2Exit();
   else if(phase==='p2tnames'){tourCloseInput();phase='p2modes';}
   else if(phase==='p2tqual'){tourBuild();phase='p2tbracket';} // skip remaining qualifiers: unseeded sort last
   else if(phase==='p2tbracket'){phase='p2modes';}
@@ -3665,11 +3699,13 @@ function p2BindLabel(b){return !b?'— press a key or button —':b.type==='cpu'
 // ── clicks ──
 function p2Click(mx,my){
   if(inR(mx,my,p2BackBtnRect())){p2Back();return;}
+  if(phase==='p2recs'){p2Back();return;} // any click closes the records screen
   if(phase==='p2modes'){
     for(let i=0;i<4;i++){if(inR(mx,my,p2ModeRect(i))){tour=null;m2.mode=M2_MODES[i].id;m2._dp=0;p2cEnsureDrives();phase='p2settings';return;}}
     if(inR(mx,my,p2TourBtnRect())){
       tour={names:[],drv:[],policy:'open',seedMode:'rand',format:'double',mode:'normal',buf:'',seeds:[],M:[],qi:0};
       phase='p2tnames';return;}
+    if(inR(mx,my,p2RecBtnRect())){sfx('click');phase='p2recs';return;}
   }else if(phase==='p2tnames'||phase==='p2tqual'||phase==='p2tbracket'){
     tourClick(mx,my);return;
   }else if(phase==='p2drive'){
@@ -3849,6 +3885,7 @@ function p2Overlays(){
   }
 }
 function p2Draw(){
+  if(phase==='p2recs'){drawH2HRec();return;}
   if(phase==='p2tnames'){drawTourNames();return;}
   if(phase==='p2tqual'){drawTourQual();return;}
   if(phase==='p2tbracket'){drawTourBracket();return;}
@@ -3868,6 +3905,7 @@ function p2Draw(){
      btn(tb.x,tb.y,tb.w,tb.h,'🏆 TOURNAMENT · 4–16 PLAYERS','#ffd740');
      ctx.font='11px Courier New';ctx.textAlign='center';ctx.fillStyle='#666688';
      ctx.fillText('double elimination · best-of-3 grand final',CW/2,tb.y+tb.h+16);}
+    {const rb=p2RecBtnRect();btn(rb.x,rb.y,rb.w,rb.h,'📊 H2H RECORDS · vs CPU','#44ccff');}
   }else if(phase==='p2drive'){
     const pc=M2_COLS[m2._dp];
     p2Chrome('PLAYER '+(m2._dp+1)+(m2._dp===0?' (RED)':' (BLUE)')+' — PICK YOUR DRIVE','any drive · '+M2_MODES.find(m=>m.id===m2.mode).name+' mode');
