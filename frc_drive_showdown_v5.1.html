@@ -2089,30 +2089,25 @@ function b2Sticky(dt){
       const inGapY=b.y>=G.gt&&b.y<=G.gb,past=leftGap?(b.x<=G.ex):(b.x>=G.ex);
       if(inGapY&&past){const i=car.load.indexOf(b);if(i>=0)car.load.splice(i,1);b.held=false;b.heldBy=null;b2TryScore(b);}
     }
-    // 4) strip + STEAL (v5.0). The carried balls stick out front. Hitting one of THEM is a STEAL: the ball
-    //    transfers to the stealer (released along the stealer's heading, so it ends up in front of its plow).
-    //    A hard hit on the cluster scatters the whole load. A bump to the BOT BODY dislodges the front ball
-    //    loose at EVERY tier (consistent across skill — you can steal from a CHAMPION just as easily).
+    // 4) STEAL on plow overlap (v5.1). When a held ball enters an opposing bot's FRONT PLOW CONE, that plow wins it:
+    //    the ball transfers to the stealer (released along the stealer's heading, ending up in front of its plow).
+    //    This fires as the plows overlap (front cone, not deep center contact) so you can reliably take a ball by
+    //    driving your plow in, at any tier. A bump to the carrier's BODY (no plow on the load) still knocks the front ball loose.
     if(car.load.length){
       const om=1-car.al,foes=[];
-      if(b2.bots[om])foes.push({bot:b2.bots[om],main:true});
-      if(b2.cpus)for(const c of b2.cpus)if(c.al===om)foes.push({bot:c,main:false});
-      for(const fo of foes){
-        const o=fo.bot;
-        const dBot=Math.hypot(o.x-bo.x,o.y-bo.y)||0.01;
-        let dBall=1e9,hitBall=null;
-        for(const b of car.load){const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<dBall){dBall=d;hitBall=b;}}
-        const ballHit=hitBall&&dBall<RR+BR+3, botHit=dBot<RR*2+2;
-        if(!ballHit&&!botHit)continue;
-        const closing=(fo.main&&o._inp)?Math.hypot(o._inp.vx-bvx,o._inp.vy-bvy):0;
-        const hard=closing>SPD*0.5;
-        if(ballHit){
-          if(hard){ for(const b of car.load.slice()){const kx=b.x-o.x,ky=b.y-o.y,m=Math.hypot(kx,ky)||1;b2Release(car,b,kx/m*150+(Math.random()-0.5)*70,ky/m*150+(Math.random()-0.5)*70);} }
-          else{ const sh2=o.h||0,sx=Math.cos(sh2),sy=Math.sin(sh2); b2Release(car,hitBall,sx*135,sy*135); } // STEAL: ball goes to the stealer's front
-        }else if(!(bo._stripCd>0)){ // body bump dislodges the front ball at all tiers (undefined cd = ready)
-          const b=car.load[0]; if(b){const kx=bo.x-o.x,ky=bo.y-o.y,m=Math.hypot(kx,ky)||1;b2Release(car,b,kx/m*120,ky/m*120);} bo._stripCd=0.25;
+      if(b2.bots[om])foes.push(b2.bots[om]);
+      if(b2.cpus)for(const c of b2.cpus)if(c.al===om)foes.push(c);
+      const sReach=RR+BR+18, sLat=RR+BR+8; // plow-overlap reach (~44px to the plow tip)
+      for(const o of foes){
+        if(!car.load.length)break;
+        const oc=Math.cos(o.h||0),os=Math.sin(o.h||0);
+        let steal=null,bd=1e9;
+        for(const b of car.load){const rdx=b.x-o.x,rdy=b.y-o.y,dist=Math.hypot(rdx,rdy),lx=oc*rdx+os*rdy,ly=-os*rdx+oc*rdy;
+          if(lx>0&&dist<sReach&&Math.abs(ly)<sLat&&dist<bd){bd=dist;steal=b;}}
+        if(steal){b2Release(car,steal,oc*135,os*135);continue;} // plow wins: ball goes to the stealer's plow front
+        if(Math.hypot(o.x-bo.x,o.y-bo.y)<RR*2+2&&!(bo._stripCd>0)){ // body bump (no plow on the load): knock the front ball loose
+          const b=car.load[0];if(b){const kx=bo.x-o.x,ky=bo.y-o.y,m=Math.hypot(kx,ky)||1;b2Release(car,b,kx/m*120,ky/m*120);}bo._stripCd=0.25;
         }
-        break;
       }
     }
   }

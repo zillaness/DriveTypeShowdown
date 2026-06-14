@@ -70,13 +70,13 @@ src+=`
   ok('steal (CHAMPION): a ball-hit removes one from the load ('+champHad2+'->'+bo.load.length+')',champHad2>=2&&bo.load.length===champHad2-1);
   ok('steal direction: the taken ball heads toward the stealer (vx>0)',!!stolen&&stolen.vx>40);
 
-  // A HARD hit on the ball cluster scatters the whole load (even CHAMPION).
+  // v5.1: a plow driven in hard STEALS a ball to the stealer (it no longer scatters the whole load away)
   start(4);bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};
   for(let i=0;i<3;i++)freeBall(i,bo.x-(RR+BR)-i*0.1,FH/2-20+i*20);
-  for(let f=0;f<10;f++)b2Sticky(1/60);
-  b2.bots[0].x=bo.x-(RR+BR-1)-(RR+BR);b2.bots[0].y=FH/2;b2.bots[0]._inp={vx:SPD,vy:0,vr:0};
+  for(let f=0;f<10;f++)b2Sticky(1/60);const had=bo.load.length;
+  b2.bots[0].x=bo.x-(RR+BR-1)-(RR+BR);b2.bots[0].y=FH/2;b2.bots[0].h=0;b2.bots[0]._inp={vx:SPD,vy:0,vr:0}; // driving plow-first into the load
   b2Sticky(1/60);
-  ok('hard ball hit: a hard hit on the cluster scatters the whole CHAMPION load',bo.load.length===0);
+  ok('hard plow hit steals one (no scatter): '+had+'->'+bo.load.length,had>=2&&bo.load.length===had-1);
 
   // NO FRIENDLY FIRE: same-alliance contact does not strip
   start(4);bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};
