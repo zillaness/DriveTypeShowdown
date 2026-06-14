@@ -113,6 +113,14 @@ src+=`
   ok('BALL POWER-UPS: SPEED pickup boosts the bot + is consumed',b2.bots[0].speedT===8&&b2.pups.length===0);
   ballPups=false;b2PupTick(1/60);ok('BALL POWER-UPS off: pickups cleared',b2.pups.length===0);
 
+  // ── cheats disable records/high-scores (anyCheat/cheated + H2H record gate) ──
+  iceMode=false;driftMode=false;ballScale=1;robotScale=1;ballMult=1;machineGun=0;arcadeMode=false;bouncyMode=false;frisbeeMode=false;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;cheatedRun=false;
+  ok('anyCheat() false with nothing on',!anyCheat()&&!cheated());
+  iceMode=true;ok('anyCheat()/cheated() true with a cheat on',anyCheat()&&cheated());
+  {startBall('normal');m2.claim=[{type:'kb'},{type:'cpu',tier:3}];b2.score=[5,0];const h0=JSON.stringify(h2hRec);achH2HResult(0);
+   ok('cheated H2H win records nothing',JSON.stringify(h2hRec)===h0);}
+  iceMode=false;cheatedRun=false;
+
   // ── cheat menu fits on screen with the full (13) cheat list ──
   konamiActive=true;drawKonami();
   {const lr=drawKonami._rows[drawKonami._rows.length-1];const linkMax=Math.max.apply(null,(drawKonami._links||[{hy:0,hh:0}]).map(l=>l.hy+l.hh));
