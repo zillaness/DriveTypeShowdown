@@ -3,8 +3,8 @@ src+=`
 ;(function(){
   let P=0,F=0;const ok=(l,c)=>{console.log((c?'PASS':'FAIL')+' — '+l);c?P++:F++;};
   // start a 1v1 tank match (RED human vs BLUE CPU) — Phase 1 roster plumbing must stay behavior-identical at 2 tanks
-  const startTank=(map,cpuTier,tcpus,tformat,tTimeSec)=>{applyLayout('land2p');phase='p2claim';tour=null;m2.mode='tankfight';
-    m2.set.cpus=0;m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.bestOf=1;m2.set.contact='full';m2.set.lives=3;m2.set.map=map||0;m2.set.hpk=false;m2.set.pow=true;m2.set.tcpus=tcpus||1;m2.set.tformat=tformat||'lives';m2.set.tTimeSec=tTimeSec||90;
+  const startTank=(map,cpuTier,tcpus,tformat,tTimeSec,tallies)=>{applyLayout('land2p');phase='p2claim';tour=null;m2.mode='tankfight';
+    m2.set.cpus=0;m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.bestOf=1;m2.set.contact='full';m2.set.lives=3;m2.set.map=map||0;m2.set.hpk=false;m2.set.pow=true;m2.set.tcpus=tcpus||1;m2.set.tformat=tformat||'lives';m2.set.tTimeSec=tTimeSec||90;m2.set.tallies=tallies||0;m2.set.allyTier=1;
     m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};
     m2.claim=[{type:'kb'},(cpuTier!=null?{type:'cpu',tier:cpuTier}:{type:'kb'})];m2.sens=[1,1];m2._gpPrev=[];
     const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);updateP2Tank(3.1);};
@@ -127,12 +127,12 @@ src+=`
   // ── 12. settings: tankfight FORMAT lever swaps the lives/time row (Phase 3) ──
   m2.mode='tankfight';m2.set.tformat='lives';
   let tfrows=p2SettingsRows();
-  ok('LIVES format → 5 rows (tcpus/format/lives/bestOf/map)',tfrows.length===5&&tfrows[0].k==='tcpus'&&tfrows[1].k==='tformat'&&tfrows[2].k==='lives'&&tfrows[3].k==='bestOf'&&tfrows[4].k==='map');
+  ok('LIVES format → 6 rows (tcpus/tallies/format/lives/bestOf/map)',tfrows.length===6&&tfrows[0].k==='tcpus'&&tfrows[1].k==='tallies'&&tfrows[2].k==='tformat'&&tfrows[3].k==='lives'&&tfrows[4].k==='bestOf'&&tfrows[5].k==='map');
   m2.set.tformat='timed';tfrows=p2SettingsRows();
-  ok('TIMED format → MATCH TIME row replaces LIVES',tfrows[2].k==='tTimeSec'&&tfrows.length===5);
+  ok('TIMED format → MATCH TIME row replaces LIVES',tfrows[3].k==='tTimeSec'&&tfrows.length===6);
   // settings overflow guard: every row sits above the START button
   {const sb=p2StartBtnRect();let okFit=true;for(let i=0;i<tfrows.length;i++){const rc=p2SetRowRect(i);if(rc.y+rc.h>sb.y)okFit=false;}
-   ok('all 5 tankfight rows fit above START',okFit);}
+   ok('all 6 tankfight rows fit above START',okFit);}
 
   // ── 13. TIMED is a deathmatch: infinite lives, respawn ignores lives ──
   startTank(0,1,1,'timed',90);
@@ -173,7 +173,27 @@ src+=`
    const h=b.hp;updateP2Tank(1/60);
    ok('FRIENDLY FIRE off: a same-side bullet is skipped',b.hp===h);}
 
-  console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire): '+P+' pass, '+F+' fail ---');
+  // ── 17. ALLY TANKS / 3v3: CPU teammates on the player side + warm/cool per-bot ring shades ──
+  startTank(0,2,3,'lives',90,2); // 1 human + 2 CPU allies (side 0) vs 3 CPU enemies (side 1) = 3v3
+  ok('3v3 → 6 tanks total',tf2.tanks.length===6);
+  ok('player side (0) has 3 tanks',tf2.tanks.filter(t=>t.side===0).length===3);
+  ok('enemy side (1) has 3 tanks',tf2.tanks.filter(t=>t.side===1).length===3);
+  ok('player keeps the human seat + 2 CPU allies',tf2.tanks[0].ctl.type==='human'&&tf2.tanks.filter(t=>t.side===0&&t.ctl.type==='cpu').length===2);
+  ok('every CPU (ally + enemy) has its own brain',tf2.tanks.filter(t=>t.ctl.type==='cpu').every(t=>!!t.ctl.brain));
+  ok('ally CPUs inherit P1 drive bind (0)',tf2.tanks.filter(t=>t.side===0&&t.ctl.type==='cpu').every(t=>t.ctl.bind===0));
+  ok('ally CPUs target the enemy side',(()=>{const a=tf2.tanks.findIndex(t=>t.side===0&&t.ctl.type==='cpu');return tankFoes(a).every(f=>f.side===1)&&tankFoes(a).length===3;})());
+  // warm(red) for side 0, cool(blue) for side 1; each seat a distinct shade
+  ok('side 0 wears WARM shades (all from TF2_RED_COLS)',tf2.tanks.filter(t=>t.side===0).every(t=>TF2_RED_COLS.includes(t.col)));
+  ok('side 1 wears COOL shades (all from TF2_BLUE_COLS)',tf2.tanks.filter(t=>t.side===1).every(t=>TF2_BLUE_COLS.includes(t.col)));
+  ok('per-bot ring shades are distinct within each side',new Set(tf2.tanks.filter(t=>t.side===0).map(t=>t.col)).size===3&&new Set(tf2.tanks.filter(t=>t.side===1).map(t=>t.col)).size===3);
+  ok('seat 0 keeps the classic team colors (red/blue)',tf2.tanks[0].col===M2_COLS[0]&&tf2.tanks.find(t=>t.side===1).col===M2_COLS[1]);
+  // ally tier comes from allyTier (VETERAN=1), enemy tier from the claim (here 2)
+  ok('ally CPU tier = VETERAN(1); enemy CPU tier = claim(2)',tf2.tanks.filter(t=>t.side===0&&t.ctl.type==='cpu').every(t=>t.ctl.tier===1)&&tf2.tanks.filter(t=>t.side===1).every(t=>t.ctl.tier===2));
+  // default (tallies=0) stays byte-identical 1v1
+  startTank(0,1,1,'lives',90,0);
+  ok('tallies=0 → no allies (2 tanks)',tf2.tanks.length===2&&tf2.tanks.filter(t=>t.side===0).length===1);
+
+  console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire + 3v3 allies): '+P+' pass, '+F+' fail ---');
 })();
 `;
 global.ctxState={depth:0};global.texts=[];global.rumbles=[];

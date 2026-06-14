@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.47.html
-  version: 5.1.47
+  file: frc_drive_showdown_v5.1.48.html
+  version: 5.1.48
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -2118,8 +2118,8 @@ function plowSlots(n){
     default:return [[-1,-BR],[-1,BR],[13,-BR*2],[13,0],[13,BR*2]]; // 5: 2 back + 3 front pile
   }
 }
-function cpuTierParams(p,diff){ // effective params; adaptive tiers interpolate on the mode's differential
-  const t=modeTiers()[(playerBind[p].tier|0)]; // per-mode table (ball/shooter/tank/race)
+function tierParamsByIdx(ti,diff){ // effective params for an explicit tier index (used by ally tanks that have no human bind)
+  const t=modeTiers()[(ti|0)]; // per-mode table (ball/shooter/tank/race)
   if(!t.adaptive)return t;
   diff=diff||0; // player lead over CPU, in goal-equivalent units
   const w=clamp(0.5+0.25*(diff-t.target),0,1); // behind target → ease off; ahead → push
@@ -2127,6 +2127,7 @@ function cpuTierParams(p,diff){ // effective params; adaptive tiers interpolate 
   for(const k of ['spd','turn','react','aim','defBias','shootR','lapse'])o[k]=CPU_ADLO[k]+(CPU_ADHI[k]-CPU_ADLO[k])*w;
   return o;
 }
+function cpuTierParams(p,diff){return tierParamsByIdx(playerBind[p].tier|0,diff);} // by playerBind index (ball/race/legacy callers)
 let cpuH2H=null;
 function cpuH2HInit(){
   cpuH2H=null;
@@ -3005,7 +3006,7 @@ function cpuTankUpdate(dt){
     const bind=me.ctl.bind;
     const foe=tankNearestFoe(p);if(!foe)continue; // nearest live opposite-side tank
     const diff=((foe.lives*3+foe.hp)-(me.lives*3+me.hp))/3;
-    const T=cpuTierParams(bind,diff);
+    const T=tierParamsByIdx(me.ctl.tier|0,diff); // tank carries its own tier (ally CPUs have no human bind)
     br.objT-=dt;br.aimT-=dt;br.strafeT=(br.strafeT||0)-dt;
     if(br.aimT<=0){br.aimJ=(Math.random()*2-1)*T.aim;br.aimT=0.5;}
     if(br.strafeT<=0){br.strafe=Math.random()<0.5?1:-1;br.strafeT=1.1+Math.random()*1.2;}
@@ -3088,27 +3089,32 @@ function startP2Tank(){cheatedRun=false;paused=false;
   if(typeof m2.set.map!=='number'||!TF2_MAPS[m2.set.map])m2.set.map=0;
   const mp=TF2_MAPS[m2.set.map];
   tfObs=mp.obs;phase='p2tank';
-  // ── roster build (v5.1.42) ── two teams: side 0 = humans, side 1 = CPU.
-  //  • one CPU claim → 1+ humans vs ENEMY TANKS (×1–4) CPU tanks (tcpus=1 → byte-identical 1v1)
-  //  • both human    → legacy rivals (one each side, tcpus ignored)
+  // ── roster build (v5.1.48: + ALLY TANKS / 3v3) ── two teams: side 0 = player(s) + CPU allies, side 1 = CPU enemies (or H2H rival).
+  //  • one CPU claim → 1+ humans (+ ALLY ×0–2 CPU teammates) vs ENEMY TANKS ×1–4 CPU tanks  (tallies=0,tcpus=1 → byte-identical 1v1)
+  //  • both human    → rivals, one each side, each may get ALLY CPU teammates (tallies=0 → legacy 1v1)
   const cpuBind=(m2.claim[0]&&m2.claim[0].type==='cpu')?0:((m2.claim[1]&&m2.claim[1].type==='cpu')?1:-1);
-  const roster=[]; // {side, bind, type}
-  if(cpuBind<0){ // human vs human
-    roster.push({side:0,bind:0,type:'human'},{side:1,bind:1,type:'human'});
+  const allies=clamp(m2.set.tallies|0,0,2);                    // CPU teammates per player side
+  const allyTier=clamp((m2.set.allyTier!=null?m2.set.allyTier:1)|0,0,(modeTiers().length-1)); // fill-CPU skill (default VETERAN)
+  const enemyTier=(cpuBind>=0&&m2.claim[cpuBind])?(m2.claim[cpuBind].tier|0):1;
+  const roster=[]; // {side, bind, type, tier}
+  if(cpuBind<0){ // human vs human (+ CPU teammates each)
+    roster.push({side:0,bind:0,type:'human',tier:0},{side:1,bind:1,type:'human',tier:0});
+    for(let k=0;k<allies;k++)roster.push({side:0,bind:0,type:'cpu',tier:allyTier}); // P1's teammates (inherit P1 drive)
+    for(let k=0;k<allies;k++)roster.push({side:1,bind:1,type:'cpu',tier:allyTier}); // P2's teammates (inherit P2 drive)
   }else{
-    for(let b=0;b<2;b++)if(m2.claim[b]&&m2.claim[b].type!=='cpu')roster.push({side:0,bind:b,type:'human'});
-    if(!roster.length)roster.push({side:0,bind:1-cpuBind,type:'human'}); // safety: always one player tank
-    const n=clamp(m2.set.tcpus|0,1,4);for(let k=0;k<n;k++)roster.push({side:1,bind:cpuBind,type:'cpu'});
+    for(let b=0;b<2;b++)if(m2.claim[b]&&m2.claim[b].type!=='cpu')roster.push({side:0,bind:b,type:'human',tier:0});
+    if(!roster.length)roster.push({side:0,bind:1-cpuBind,type:'human',tier:0}); // safety: always one player tank
+    for(let k=0;k<allies;k++)roster.push({side:0,bind:0,type:'cpu',tier:allyTier}); // CPU teammates (inherit P1 drive)
+    const n=clamp(m2.set.tcpus|0,1,4);for(let k=0;k<n;k++)roster.push({side:1,bind:cpuBind,type:'cpu',tier:enemyTier});
   }
   const nSide=[roster.filter(r=>r.side===0).length,roster.filter(r=>r.side===1).length];
-  const ys=[tf2SpawnYs(nSide[0]),tf2SpawnYs(nSide[1])],yIdx=[0,0],cpuIdx={n:0};
+  const ys=[tf2SpawnYs(nSide[0]),tf2SpawnYs(nSide[1])],yIdx=[0,0],seat=[0,0];
   const timed=(m2.set.tformat==='timed'); // TIMED = deathmatch: infinite lives, most kills in the time limit wins
   tf2={t:0,cd:3,result:null,timed:timed,tLimit:timed?(m2.set.tTimeSec|0):0,sudden:false,bullets:[],blasts:[],_bid:0,map:mp,pups:[],fx:[],btTouch:false,pupTimer:3+Math.random()*3,
     tanks:roster.map(r=>{const sp=tf2SpawnSide(r.side,ys[r.side][yIdx[r.side]++]);
       const ctl=tankMkCtl(r.bind);ctl.type=r.type; // roster decides side membership; ctl.bind still drives input/drive/sens
-      let col;
-      if(r.type==='cpu'){const ci=cpuIdx.n++;col=TF2_CPU_COLS[ci]||TF2_CPU_COLS[TF2_CPU_COLS.length-1];ctl.name='CPU'+(nSide[1]>1?' '+(ci+1):'');}
-      else col=M2_COLS[r.side]||M2_COLS[0]; // human wears its side's color (red on side 0, blue on the H2H side 1)
+      const si=seat[r.side]++,col=teamShade(r.side,si); // per-seat warm(red)/cool(blue) shade
+      if(r.type==='cpu'){ctl.tier=r.tier;ctl.name=(r.side===0?'ALLY':'CPU')+(nSide[r.side]>1?' '+(si+1):'');}
       return{x:sp.x,y:sp.y,h:sp.h,sx:sp.x,sy:sp.y,sh:sp.h,hp:3,reload:0,lives:timed?Infinity:m2.set.lives,inv:0,
         side:r.side,col:col,kills:0,dead:false,ctl:ctl,
         rapidT:0,speedT:0,shield:false,explAmmo:0,pierceAmmo:0,aimT:0,explBurstT:0,pierceBurstT:0,_inp:{vx:0,vy:0,vr:0},_csv:null};})};
@@ -4000,8 +4006,13 @@ const M2_MODES=[
   {id:'race',     name:'OBSTACLE RACE', desc:'first to the finish line',       col:'#40c4ff'},
 ];
 const M2_COLS=['#ff5555','#5599ff']; // red / blue alliance
-const TF2_CPU_COLS=['#5599ff','#33ccdd','#9b7bff','#44ddaa']; // ENEMY TANKS: distinct shades for up to 4 CPU tanks (1st = M2_COLS[1] so 1v1 stays identical)
-const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tformat:'lives',tTimeSec:90,ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
+// Per-BOT team shades (v5.1.48): WARM family for RED (side 0), COOL family for BLUE (side 1) — so the team reads at a glance while each seat is uniquely identifiable.
+// [0] matches M2_COLS so 1v1 stays byte-identical.
+const TF2_RED_COLS =['#ff5555','#ff9f43','#ffd740','#ff6f91']; // red · orange · amber · rose
+const TF2_BLUE_COLS=['#5599ff','#33ccdd','#9b7bff','#44ddaa']; // blue · cyan · violet · teal
+function teamShade(side,idx){const pal=side===0?TF2_RED_COLS:TF2_BLUE_COLS;return pal[idx%pal.length];}
+const TF2_CPU_COLS=TF2_BLUE_COLS; // back-compat alias
+const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];}
@@ -4370,6 +4381,7 @@ function p2SettingsRows(){
   const S=m2.set;
   if(m2.mode==='tankfight')return[
     {k:'tcpus',  lab:'ENEMY TANKS',      vals:[1,2,3,4],          show:v=>'×'+v+(v>1?' (vs CPU only)':'')}, // CPU tank count on the enemy side; ignored in human-vs-human
+    {k:'tallies',lab:'ALLY TANKS',       vals:[0,1,2],            show:v=>v===0?'NONE':'×'+v+' CPU'}, // CPU teammates on the player side (→ 2v2 / 3v3)
     {k:'tformat',lab:'FORMAT',           vals:['lives','timed'],  show:v=>v==='timed'?'TIMED — most kills wins':'LIVES — last standing'},
     S.tformat==='timed'
       ?{k:'tTimeSec',lab:'MATCH TIME',   vals:[60,90,120,180],    show:v=>v+'s'}
@@ -6999,6 +7011,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.48 (2026-06-14): TANK 3v3 — ALLY TANKS + WARM/COOL PER-BOT RINGS (queue item 10, phase 1). (1) New ALLY TANKS lever (×0–2) on the TANK FIGHT MATCH SETTINGS adds CPU teammates to the player's side, composing with ENEMY TANKS to build 2v2 / 3v3 (e.g. you + 2 allies vs 3 CPUs). Ally CPUs inherit P1's drive (bind 0), each get their own brain (`cpuTankBrainsInit`), default to VETERAN tier (`allyTier`), and target the enemy side. In human-vs-human, ALLY TANKS gives each player CPU teammates. tallies=0 stays byte-identical 1v1. `cpuTierParams` refactored to `tierParamsByIdx` so a tank's brain uses its own `ctl.tier` (allies have no human bind); `cpuTankUpdate` now reads `me.ctl.tier`. (2) PER-BOT RING SHADES: teammates that share a drive base are now told apart by colour — side 0 wears a WARM family (red→orange→amber→rose, `TF2_RED_COLS`), side 1 a COOL family (blue→cyan→violet→teal, `TF2_BLUE_COLS`), each seat a distinct shade via `teamShade(side,idx)`; seat 0 keeps the classic red/blue so 1v1 is unchanged. Bullets/ring/tag/HUD all read the per-bot shade. NOTE phase 1: humans still limited to the 2 device binds (1 human + CPU allies, or 2 humans as rivals each with allies); a single TEAM SIZE lever + ≥3-human seats + claim-screen seat visualization is the next phase. smoke56 +13 (3v3 roster/sides, ally brains+drive+tier, enemy tier, warm/cool distinct shades, byte-identical default); smoke55/56 settings rows → 6. Full battery green. Single file, no assets.
   v5.1.47 (2026-06-14): PAUSE MENU — ENDGAME-STYLE NAV + TURN-RATE RATIO. (1) The pause overlay is no longer just RESUME/SETTINGS/QUIT — it now offers the same "how far back do you want to go" choices as the end-of-match screen: RESUME · RESTART (relaunch the current match/run) · SETUP (2P → claim screen) · MODE (mode select) · SETTINGS · MENU. Context-aware (SETUP only in 2P; SP shows RESTART/MODE/SETTINGS/QUIT). List-driven render + click + full D-pad/A/B/Start gamepad nav (B → menu). pauseResumeRect/pauseQuitRect kept (derive from the list) so existing tests/handlers hold. (2) TURN RATE knob: a rotation-vs-translation ratio stepper lives in the pause menu (◀▶ click or D-pad L/R, A resets to 1:1, persisted frcds_rot). The single simple sensitivity lever (slider + LB/RB bumpers) is unchanged; this just biases turn vs drive — `vr` is now scaled by `rotRatio` at the input return while translation stays on sensitivity. Pairs with the v5.1.46 MAX SENSITIVITY cheat so you can crank speed and still keep a sane turn rate. smoke54 +7 (pause nav items + destinations, RESTART, rotRatio scaling + stepper). Full battery green. Single file, no assets.
   v5.1.46 (2026-06-14): CHEATS — MAX SENSITIVITY (replaces DRIFT) + RAM COOLDOWN. The tabled/WIP DRIFT cheat is retired and replaced by two new Konami sliders. (1) MAX SENSITIVITY: uncaps the sensitivity ceiling — SENS_MAX is now a live `let` (base 2.0) that this slider raises to 2×–8×, so the normal SENS slider/bumpers (SP + per-player claim) can crank far past the old 2× wall; pair with the upcoming pause RATIO knob to keep extreme values drivable. (2) RAM COOLDOWN: scales the RAM dash cooldown `BOOST.cd` (0.1×–1×) at every boost trigger (ball + tank + race), so with RAMMING on you can spam the dash; the slider reads out the resulting seconds. Both taint records via `anyCheat()` (SENS_MAX!==base or ramCdMult!==1). DRIFT's `driftMode`/momModeFor wiring removed (ICE SKATING remains the lone momentum cheat; the MOM.drift infra is left dormant). smoke54 retargeted (DRIFT asserts → MAX SENSITIVITY + RAM COOLDOWN). Full battery green. Single file, no assets.
   v5.1.45 (2026-06-14): FRIENDLY FIRE TOGGLE. New FRIENDLY FIRE option in the ⚙ SETTINGS screen (opens from the main menu and from the pause overlay → "pause settings"), default OFF, persisted (frcds_ff). OFF = hits only land on the OPPOSING alliance/side (the long-standing behavior); ON = your own team is fair game too. One shared `friendlyFire` flag gates every contact/damage path it makes sense for: the tank bullet→tank collision and `tf2Explode` (their same-side skip is now `&&!friendlyFire`), the tank arcade RAM (`arcadeTackle` target list includes squadmates when ON), and the ball-mode arcade RAM (now also staggers your own main/support bots when ON). Note the enemy-side RAM in ball mode was already wired (`arcadeTackle` ran on `ballFoes`, which includes the opposing main + support bots) and the ram already scatters a victim's carried balls — FF just unlocks hitting your own side. Kill credit stays cross-side only, so a friendly-fire teamkill deals damage/eliminates but never scores (keeps TIMED kill counts honest). smoke56 +2 (same-side bullet damages with FF on, skipped with FF off). Full battery green. Single file, no assets.

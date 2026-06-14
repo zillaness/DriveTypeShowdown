@@ -26,7 +26,7 @@ src+=`
   // settings rows: pow/hpk removed from tankfight rows (moved to per-pup sub-screen)
   m2.mode='tankfight';m2.set.tformat='lives';
   const tfrows=p2SettingsRows();
-  ok('tankfight has 5 settings rows (tcpus/format/lives/bestOf/map; pow+hpk in sub-screen)',tfrows.length===5&&tfrows[0].k==='tcpus'&&tfrows[1].k==='tformat'&&tfrows[2].k==='lives'&&tfrows[3].k==='bestOf'&&tfrows[4].k==='map');
+  ok('tankfight has 6 settings rows (tcpus/tallies/format/lives/bestOf/map; pow+hpk in sub-screen)',tfrows.length===6&&tfrows[0].k==='tcpus'&&tfrows[1].k==='tallies'&&tfrows[2].k==='tformat'&&tfrows[3].k==='lives'&&tfrows[4].k==='bestOf'&&tfrows[5].k==='map');
   ok('p2ShowPupCfg() true in tankfight',p2ShowPupCfg());
   ok('p2ShowPupCfg() false in ball mode',(m2.mode='normal',!p2ShowPupCfg()));
   m2.mode='tankfight';
