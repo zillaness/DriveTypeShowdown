@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.13.html
-  version: 5.1.13
+  file: frc_drive_showdown_v5.1.14.html
+  version: 5.1.14
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -334,7 +334,7 @@ C.addEventListener('touchstart',e=>{
     if((phase==='playing'||phase==='countdown'||phase==='done')&&inR(p.x,p.y,{x:4,y:8,w:38,h:28})){phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu';continue;}
     if((phase==='playing'||phase==='countdown'||phase==='done')&&inR(p.x,p.y,{x:262,y:8,w:48,h:28})){retryRun();continue;}
     if(!tankFight&&(phase==='playing'||phase==='countdown'||phase==='done')&&inR(p.x,p.y,{x:316,y:8,w:52,h:28})){spGhostToggle();continue;}
-    if((phase==='playing'||phase==='countdown'||phase==='done')&&inR(p.x,p.y,{x:374,y:8,w:46,h:28})){sfxToggle();continue;}
+    // v5.1.14: SP mute pill removed (no SP SFX) — was {x:374,y:8} touch toggle
     if(tankFight&&tfState&&tfState.result){click(p.x,p.y);continue;}
     if(obstacleCourse&&ocState&&ocState.result){click(p.x,p.y);continue;}
     if(phase==='done'&&nameEntry.active){const bx=FX+FW/2-90,by=FY+FH/2+52,bw=180,bh=28;if(inR(p.x,p.y,{x:bx,y:by,w:bw,h:bh})){const n=prompt('Enter your name:',nameEntry.text)||'';nameEntry.text=n.toUpperCase().slice(0,12);}continue;}
@@ -716,7 +716,7 @@ function click(mx,my){
   if((phase==='playing'||phase==='countdown'||phase==='done')&&inR(mx,my,{x:4,y:8,w:38,h:28})){phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu';return;}
   if((phase==='playing'||phase==='countdown'||phase==='done')&&inR(mx,my,{x:262,y:8,w:48,h:28})){retryRun();return;}
   if(!tankFight&&(phase==='playing'||phase==='countdown'||phase==='done')&&inR(mx,my,{x:316,y:8,w:52,h:28})){spGhostToggle();return;}
-  if((phase==='playing'||phase==='countdown'||phase==='done')&&inR(mx,my,{x:374,y:8,w:46,h:28})){sfxToggle();return;}
+  // v5.1.14: SP mute pill removed (no SP SFX) — was {x:374,y:8} click toggle
   if(phase==='done'&&inR(mx,my,{x:CW/2-115,y:430,w:230,h:52}))afterDone();
   if(phase==='cpuSettings'){handleCpuSettingsClick(mx,my);return;}
   if(phase==='highscores'){
@@ -4962,14 +4962,7 @@ function drawHUD(){
     ctx.font='8px Courier New';ctx.fillStyle='#6677aa';
     ctx.fillText('[G]',342,33);
   }
-  ctx.fillStyle=sfxOn?'rgba(20,55,40,0.88)':'rgba(30,30,42,0.88)';
-  rr(374,8,46,28,6);ctx.fill();
-  ctx.strokeStyle=sfxOn?'#44ffaa':'#444460';ctx.lineWidth=1.5;
-  rr(374,8,46,28,6);ctx.stroke();
-  ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillStyle=sfxOn?'#44ffaa':'#666688';
-  ctx.fillText(sfxOn?'🔊ON':'🔇OFF',397,22);
-  ctx.font='8px Courier New';ctx.fillStyle='#6677aa';
-  ctx.fillText('[M]',397,33);
+  // v5.1.14: SP HUD mute pill removed — single-player has no SFX, so the toggle only cluttered and overlapped the score/ball counter ([M] still works)
   if(inverted){ctx.font='bold 9px Courier New';ctx.fillStyle='#ff6b6b88';ctx.fillText('↕ INVERTED',CW/2,43);}
   // Mode badges top-right
   let bx=CW-6;
@@ -6017,14 +6010,7 @@ function drawTFHUD(){
     ctx.font='8px Courier New';ctx.fillStyle='#6677aa';
     ctx.fillText('[G]',342,33);
   }
-  ctx.fillStyle=sfxOn?'rgba(20,55,40,0.88)':'rgba(30,30,42,0.88)';
-  rr(374,8,46,28,6);ctx.fill();
-  ctx.strokeStyle=sfxOn?'#44ffaa':'#444460';ctx.lineWidth=1.5;
-  rr(374,8,46,28,6);ctx.stroke();
-  ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillStyle=sfxOn?'#44ffaa':'#666688';
-  ctx.fillText(sfxOn?'🔊ON':'🔇OFF',397,22);
-  ctx.font='8px Courier New';ctx.fillStyle='#6677aa';
-  ctx.fillText('[M]',397,33);
+  // v5.1.14: SP HUD mute pill removed — single-player has no SFX, so the toggle only cluttered and overlapped the score/ball counter ([M] still works)
   // Drive + mode label
   ctx.font='bold 10px Courier New';ctx.textAlign='left';ctx.fillStyle=d.c;ctx.fillText(d.name,52,22);
   ctx.font='bold 9px Courier New';ctx.fillStyle='#ffcc0099';ctx.fillText('⚔ TANK FIGHT',52,36);
@@ -6206,14 +6192,7 @@ function drawOCHUD(){
     ctx.font='8px Courier New';ctx.fillStyle='#6677aa';
     ctx.fillText('[G]',342,33);
   }
-  ctx.fillStyle=sfxOn?'rgba(20,55,40,0.88)':'rgba(30,30,42,0.88)';
-  rr(374,8,46,28,6);ctx.fill();
-  ctx.strokeStyle=sfxOn?'#44ffaa':'#444460';ctx.lineWidth=1.5;
-  rr(374,8,46,28,6);ctx.stroke();
-  ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillStyle=sfxOn?'#44ffaa':'#666688';
-  ctx.fillText(sfxOn?'🔊ON':'🔇OFF',397,22);
-  ctx.font='8px Courier New';ctx.fillStyle='#6677aa';
-  ctx.fillText('[M]',397,33);
+  // v5.1.14: SP HUD mute pill removed — single-player has no SFX, so the toggle only cluttered and overlapped the score/ball counter ([M] still works)
   ctx.font='bold 10px Courier New';ctx.textAlign='left';ctx.fillStyle=d.c;ctx.fillText(d.name,52,22);
   ctx.font='bold 9px Courier New';ctx.fillStyle='#44ffaa88';ctx.fillText('🏁 OBSTACLE COURSE',52,36);
   ctx.font='bold 24px Courier New';ctx.textAlign='center';ctx.fillStyle='#dde';ctx.fillText(fmt(playT),CW/2,32);
@@ -6429,6 +6408,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.14 (2026-06-14): SP MUTE PILL REMOVED. Single-player has no SFX wired (the only SP sound is the shooter launch blip), so the on-HUD speaker pill served no purpose and overlapped the score/ball counter (ball), the tank-fight HUD, and the obstacle HUD. Removed the pill from all three SP HUDs (drawHUD/drawTFHUD/drawOCHUD) and the SP click/touch toggles for it; the [M] hotkey and the menu / 2P-setup mute button (where SFX actually play) are unchanged. Full battery green. Single file, no assets.
   v5.1.13 (2026-06-14): SHOOTER CHEATS FIXED + MACHINE GUN + EXTRA BALLS (cheat menu). All cheats are independent and stack freely. (1) BOUNCY BALLS and ULTIMATE ASCENT now actually affect 2P shooter: the H2H field is so narrow that shots always hit a wall before the old 230px range cap, so neither was visible. Shots fired with either cheat now RICOCHET off the non-scoring walls (gaps still score) instead of dying — ULTIMATE ASCENT keeps them alive indefinitely, BOUNCY makes them pinball. (2) NEW cheat MACHINE GUN: full-auto fire in BOTH 2P tank (reload ~0.05s) and 2P shooter (shootCd ~0.05s, a big 99-shot hopper, and a faster ~480px/s muzzle), with a per-shot rumble. (3) NEW cheat EXTRA BALLS: a slider (1x-6x, ◀▶ on keyboard/gamepad or click/drag the track) that multiplies the balls in play in 2P ball+shooter (capped at 72). The cheat menu now supports slider rows alongside the on/off toggles. New suite smoke54 (5 asserts: extra-balls multiply, machine-gun hopper+rapid fire in shooter and tank, ricochet survival with stacked cheats). Full battery green. Single file, no assets.
   v5.1.12 (2026-06-14): CLASSIC COURSE SWEEPER REMOVED + CHAMPION TANK DODGE + SETUP CARD FIT. (1) The CLASSIC race course no longer has a sweeper hazard (it is now the plain obstacle course; sweepers live in SWEEPER ALLEY). (2) CHAMPION tank bullet-dodging was too easy to beat: the sharp-tier dodge now scales its detection range, lateral catch width, and sidestep strength with tier sharpness, so CHAMPION sees shots ~337px out, reacts to ~54px near-misses, and sidesteps ~2.7x (WINNER roughly unchanged). (3) The 2P setup card was trimmed (height 548->516) so it no longer overlaps the START / ADD-CPU / SWAP buttons along the bottom. Full battery green. Single file, no assets.
   v5.1.11 (2026-06-14): SKILL-TIER REWORK (5->4). Retires the FINALIST label and shelves the weak fixed ROOKIE and the old VETERAN (target 1.2) brains (both kept commented for easy revert). The four selectable tiers are now: ROOKIE = the old FINALIST adaptive brain (plays you dead-even) PLUS a defense back-off lever — once it has scored ~3 it eases off (retreats clear of its gap, stops scoring) unless the player is up by 2+, so a beginner ultimately wins; VETERAN (NEW DEFAULT) = the same old FINALIST brain with NO back-off, a true even, beatable, fun match; WINNER and CHAMPION unchanged. All tier-indexed data moved to four entries — CARRY_CAP [2,2,3,5], capture reach/lateral, the per-tier movement-drop — and the claim stepper, the default CPU pick (now VETERAN), and the all-tiers achievement now key off CPU_TIERS.length. NOTE: tiers are shared across ball/tank/race, so in race/tank the new ROOKIE is the competent adaptive brain (the ball-only back-off does not apply there) — by design. Suites re-baselined for the 4-tier layout (smoke38/40/42/43/45/46/47/48/50; smoke53 rewritten, 9 asserts). Full battery green; own goals zero at every tier; CHAMPION still clears 30+/90s. Single file, no assets.
