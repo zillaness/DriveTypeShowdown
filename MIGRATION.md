@@ -45,8 +45,9 @@ Self-contained context for continuing this project in a fresh thread.
 4. **Multiple enemy tanks + tank TIMED mode** — TWO independent levers the user wants: (a) **ENEMY TANKS** count setting (1–4), separate from (b) tank **tier** (existing). Requires reworking `tf2.tanks` from hardcoded `[0,1]` to a variable roster (human(s) + N CPU tanks): spawn positions for N, `cpuTankUpdate` over all CPU tanks, bullet owner/collision over all, win = last side standing. PLUS a tank **format** lever: LIVES (current) vs **TIMED / most-kills** (count kills in a time limit, most wins) — mirrors the ball TIMED format. Big; spec carefully + heavy tests.
 
 ## 6. Tabled (need user green-light)
-- **BattleBots mode** — large; a phased plan was discussed. Get explicit go-ahead.
-- **3v3 human** — staged foundation exists (`b2Roster` fill-rule, alliance helpers `b2Mains/b2Foes`), full wiring deferred to v5.2. Do last.
+**Full specs for the two big ones are in `PRD_TABLED_MODES.md` — read it before building either.**
+- **BattleBots mode** — combat: HP + weapons + arena hazards + KO/judges, built on the tank arena + RAMMING + drive system. Phased plan in the PRD. Get explicit go-ahead.
+- **3v3 human** — staged foundation exists (`b2Roster` fill-rule, alliance helpers `b2Mains/b2Foes`); full wiring (roster spawn, per-main brain/input, 6-card setup, N-pair pinning, balance) deferred to v5.2. Do last. Details in the PRD.
 - **Race CPU drive-kinematics** — low priority; steer drives may not clear the course (turn radius). Currently holonomic.
 - **CHAMPION "one ball at a time" (normal)** — sticky-plow capture cone fills; widened "a bit" in v5.1.33. Revisit if still feels off.
 
