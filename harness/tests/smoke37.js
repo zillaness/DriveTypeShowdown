@@ -5,15 +5,17 @@ src+=`
   // ── A: pad 2 navigates while pad 1 is idle ──
   applyLayout('land2p');phase='p2modes';tour=null;
   PADS[0].connected=true;PADS[1].connected=true;
-  press(1,13);updateGamepad();releaseAll();updateGamepad();
+  p2GpIdx=0;p2GpPhase=phase;
+  press(1,15);updateGamepad();releaseAll();updateGamepad(); // pad2 RIGHT → next mode (v5.1 spatial nav)
   console.log('pad2 dpad moves cursor: idx='+p2GpIdx+' (expect 1)');
-  press(1,12);updateGamepad();releaseAll();updateGamepad();
+  press(1,14);updateGamepad();releaseAll();updateGamepad(); // pad2 LEFT → back to 0
   press(1,0);updateGamepad();releaseAll();updateGamepad();
-  console.log('pad2 A activates: phase='+phase+' (expect p2drive)');
+  console.log('pad2 A activates: phase='+phase+' (expect p2settings)');
   press(0,1);updateGamepad();releaseAll();updateGamepad();
   console.log('pad1 B still backs out: phase='+phase+' (expect p2modes)');
   // simultaneous edges on both pads = one step each frame, no crash
-  press(0,13);press(1,13);updateGamepad();releaseAll();updateGamepad();
+  phase='p2modes';p2GpIdx=0;p2GpPhase=phase;
+  press(0,15);press(1,15);updateGamepad();releaseAll();updateGamepad();
   console.log('both-pad edge same frame: idx='+p2GpIdx+' (expect 1, merged single step)');
   // pad2 START launches from claim
   m2.mode='normal';m2.set.cpus=0;m2.set.layout='mirrored';m2.set.format='timed';m2.set.bestOf=1;m2.set.contact='full';

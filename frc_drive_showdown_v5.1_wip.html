@@ -1024,14 +1024,29 @@ function updateGamepad(){
   // a button there IS the claim; pad START launches the match once both sides are claimed)
   if(phase&&phase.indexOf('p2')===0){
     if(phase==='p2claim'){
+      // v5.1: each claimed gamepad sets up its own card — dpad L/R cycle drive, U/D switch drive group, LB/RB sensitivity
+      const now=performance.now(),rep=now-gpNavLast>180;
+      for(let gi=0;gi<gpBtnsAll.length;gi++){
+        const pl=m2.claim.findIndex(c=>c&&c.type==='gp'&&c.gp===gi);
+        if(pl<0)continue; // unclaimed pad: a button press claims a side (p2ClaimGp)
+        const b=gpBtnsAll[gi]||[],pv=gpPrevAll[gi]||[],ax=gpAxesAll[gi]||{lx:0,ly:0},jb=i=>b[i]&&!(pv&&pv[i]);
+        const d=m2.drive[pl]||{idx:0};
+        if(jb(14)||(ax.lx<-0.55&&rep)){p2cSetDrive(pl,p2cGroupIdx(pl),d.idx-1);gpNavLast=now;sfx('click');}
+        else if(jb(15)||(ax.lx>0.55&&rep)){p2cSetDrive(pl,p2cGroupIdx(pl),d.idx+1);gpNavLast=now;sfx('click');}
+        else if(jb(12)||(ax.ly<-0.55&&rep)){p2cSetDrive(pl,p2cGroupIdx(pl)-1,0);gpNavLast=now;sfx('click');}
+        else if(jb(13)||(ax.ly>0.55&&rep)){p2cSetDrive(pl,p2cGroupIdx(pl)+1,0);gpNavLast=now;sfx('click');}
+        if(jb(4))m2.sens[pl]=Math.max(SENS_MIN,Math.round((m2.sens[pl]-0.1)*10)/10);
+        if(jb(5))m2.sens[pl]=Math.min(SENS_MAX,Math.round((m2.sens[pl]+0.1)*10)/10);
+      }
       if(m2.claim[0]&&m2.claim[1]&&just(9)){const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);}
     }else if(!p2LiveMatch()){
       const items=p2GpItems();
       if(items.length){
         if(p2GpPhase!==phase){p2GpPhase=phase;p2GpIdx=0;}
         const now=performance.now(),rep=now-gpNavLast>180;
-        if(just(13)||just(15)||((gpAxis.ly>0.55||gpAxis.lx>0.55)&&rep)){p2GpIdx=(p2GpIdx+1)%items.length;gpNavLast=now;}
-        if(just(12)||just(14)||((gpAxis.ly<-0.55||gpAxis.lx<-0.55)&&rep)){p2GpIdx=(p2GpIdx-1+items.length)%items.length;gpNavLast=now;}
+        const D=just(13)||(gpAxis.ly>0.55&&rep),U=just(12)||(gpAxis.ly<-0.55&&rep);
+        const R=just(15)||(gpAxis.lx>0.55&&rep),L=just(14)||(gpAxis.lx<-0.55&&rep);
+        if(D||U||L||R){p2GpIdx=gpDirNav(items,p2GpIdx,U?'u':D?'d':L?'l':'r');gpNavLast=now;} // spatial: real up/down + left/right
         p2GpIdx=Math.min(p2GpIdx,items.length-1);
         if(just(0)){const it=items[p2GpIdx];p2Click(it.x+it.w/2,it.y+it.h/2);}
         if(just(1))p2Back();
@@ -2593,6 +2608,26 @@ function p2GpItems(){
   }
   it.push(p2BackBtnRect());
   return it;
+}
+// v5.1: spatial gamepad nav — pick the nearest item in the pressed direction (real up/down, not just sequential)
+function gpDirNav(items,cur,dir){
+  if(!items.length)return 0;
+  if(cur<0||cur>=items.length)cur=0;
+  const c=items[cur],ccx=c.x+c.w/2,ccy=c.y+c.h/2;
+  let best=-1,bestScore=1e9;
+  for(let i=0;i<items.length;i++){
+    if(i===cur)continue;
+    const it=items[i],dx=(it.x+it.w/2)-ccx,dy=(it.y+it.h/2)-ccy;
+    let primary,cross;
+    if(dir==='d'){if(dy<=6)continue;primary=dy;cross=Math.abs(dx);}
+    else if(dir==='u'){if(dy>=-6)continue;primary=-dy;cross=Math.abs(dx);}
+    else if(dir==='r'){if(dx<=6)continue;primary=dx;cross=Math.abs(dy);}
+    else{if(dx>=-6)continue;primary=-dx;cross=Math.abs(dy);}
+    const score=primary+cross*2.2; // prefer items aligned along the travel axis
+    if(score<bestScore){bestScore=score;best=i;}
+  }
+  if(best<0)return (dir==='d'||dir==='r')?(cur+1)%items.length:(cur-1+items.length)%items.length; // nothing that way: wrap
+  return best;
 }
 // ── live per-player sensitivity (LB/RB on your pad, [ ] on keyboard) ──
 let _p2SensPrev=[],p2SensFlash=[0,0];

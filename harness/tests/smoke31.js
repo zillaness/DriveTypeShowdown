@@ -19,18 +19,22 @@ src+=`
   // 3. gamepad nav: simulate a pad on p2modes
   phase='p2modes';applyLayout('land2p');tour=null;
   PAD.connected=true;
-  press(13);updateGamepad();release();updateGamepad(); // dpad down → idx 1
-  console.log('gp move: idx='+p2GpIdx+' (expect 1)');
-  press(12);updateGamepad();release();updateGamepad(); // up → back to 0
-  press(0);updateGamepad();release();updateGamepad();  // A on mode card 0
-  console.log('gp activate: phase='+phase+' (expect p2drive) mode='+m2.mode);
+  // v5.1 spatial nav: the 4 mode cards are one row, the tournament bar sits below them
+  p2GpIdx=0;p2GpPhase=phase;
+  press(15);updateGamepad();release();updateGamepad(); // dpad RIGHT → next mode card (idx 1)
+  console.log('gp move right: idx='+p2GpIdx+' (expect 1)');
+  press(14);updateGamepad();release();updateGamepad(); // LEFT → back to 0
+  console.log('gp move left: idx='+p2GpIdx+' (expect 0)');
+  press(0);updateGamepad();release();updateGamepad();  // A on mode card 0 → match settings (v5.0 merged flow)
+  console.log('gp activate: phase='+phase+' (expect p2settings) mode='+m2.mode);
   press(1);updateGamepad();release();updateGamepad();  // B → back
   console.log('gp back: phase='+phase+' (expect p2modes)');
-  // wrap-around + tournament bar reachable (items: 4 cards + tour bar + back = 6)
-  p2GpIdx=0;p2GpPhase=phase;
-  for(let i=0;i<4;i++){press(13);updateGamepad();release();updateGamepad();}
+  // tournament bar reachable by pressing DOWN from a mode card (items: 4 cards + tour bar + back = 6)
+  phase='p2modes';p2GpIdx=0;p2GpPhase=phase;
+  press(13);updateGamepad();release();updateGamepad(); // DOWN from mode 0 → tournament bar (idx 4)
+  console.log('gp down reaches tournament bar: idx='+p2GpIdx+' (expect 4)');
   press(0);updateGamepad();release();updateGamepad();
-  console.log('gp reaches tournament bar: phase='+phase+' (expect p2tnames)');
+  console.log('gp activate tournament: phase='+phase+' (expect p2tnames)');
   p2Back();
   // 4. claim: pad button claims; START launches when both claimed
   m2.mode='normal';phase='p2claim';m2.claim=[null,null];m2._gpPrev=[];
