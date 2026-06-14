@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.45.html
-  version: 5.1.45
+  file: frc_drive_showdown_v5.1.46.html
+  version: 5.1.46
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -256,11 +256,11 @@ function applyKonamiSlider(i,mx){ // set CHEATS[i]'s slider value from a canvas 
   c.set(c.min+Math.round(t*(c.max-c.min)/st)*st);}
 // konami cheat menu: toggleable fun modes (replaces the old auto-frisbee flip). arcadeMode adds the LT boost-tackle in 2P H2H ball+tank.
 let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides
-let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,driftMode=false,ballScale=1,robotScale=1,ballPups=false; // more cheats
+let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,ballScale=1,robotScale=1,ballPups=false,ramCdMult=1; // more cheats (ramCdMult scales the RAM dash cooldown; SENS_MAX cheat lives by the sensitivity consts)
 let iceSlip=1; // ICE SKATING slip amount: 1 = the default fun level (least slide), higher = more slip. Drives MOM.ice.fri = 0.4/iceSlip.
 let cheatedRun=false;paused=false; // set true while any cheat is active during a run/match; gates records + high scores
 const B2_BALL_CAP=72; // hard cap on balls in play (shared by EXTRA BALLS + MULTIBALL)
-function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||driftMode||ballScale!==1||robotScale!==1||ballPups;}
+function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1;}
 function cheated(){return anyCheat()||cheatedRun;} // a run is "tainted" if a cheat is on now OR was on at any point this run
 function mgOn(p){return machineGun===2||(machineGun===1&&m2.claim&&m2.claim[p]&&m2.claim[p].type!=='cpu');} // does side p get full-auto?
 // all cheats are independent — they mix and stack freely (e.g. machine-gun + bouncy + ultimate-ascent + extra-balls)
@@ -273,9 +273,10 @@ const CHEATS=[
   {name:'MULTIBALL',      desc:'[2P] Every goal spawns 2 more balls (ball + shooter, capped at '+B2_BALL_CAP+')', get:()=>multiBall,   tog:()=>{multiBall=!multiBall;}},
   {name:'STICKY PLOW',    desc:'[2P] Your bot gets the CHAMPION sticky plow — carry up to 5 (normal ball)',      get:()=>stickyPlow,  tog:()=>{stickyPlow=!stickyPlow;}},
   {name:'NO-CLIP',        desc:'[2P] Phase through robots & obstacles (balls still collide) — ball/tank/race',   get:()=>noClip,      tog:()=>{noClip=!noClip;}},
-  {name:'ICE SKATING',    desc:'[SP+2P] Low-friction gliding — momentum carries you, brakes are useless (all modes)', get:()=>iceMode,  tog:()=>{iceMode=!iceMode;if(iceMode)driftMode=false;clearMomentum();}},
+  {name:'ICE SKATING',    desc:'[SP+2P] Low-friction gliding — momentum carries you, brakes are useless (all modes)', get:()=>iceMode,  tog:()=>{iceMode=!iceMode;clearMomentum();}},
   {name:'ICE SLIP',       desc:'[SP+2P] How slippery ICE SKATING is — left = default fun glide (least), right = wild uncontrollable slide', slider:true,min:1,max:5,step:0.5,get:()=>iceSlip,set:v=>{iceSlip=Math.round(v*2)/2;MOM.ice.fri=0.4/iceSlip;},show:v=>v.toFixed(1)+'×'},
-  {name:'DRIFT (WIP)',    desc:'[SP+2P] ⚠ IN DEVELOPMENT — does not really work yet. Meant to slide out on turns (grippy throttle, slippery sideways)', get:()=>driftMode,tog:()=>{driftMode=!driftMode;if(driftMode)iceMode=false;clearMomentum();}},
+  {name:'MAX SENSITIVITY', desc:'[SP+2P] Uncaps the sensitivity ceiling (normally 2×) so the SENS slider/bumpers can crank far higher — pair with the pause RATIO knob to stay drivable', slider:true,min:2,max:8,step:0.5,get:()=>SENS_MAX,set:v=>{SENS_MAX=clamp(Math.round(v*2)/2,2,8);},show:v=>v.toFixed(1)+'×'},
+  {name:'RAM COOLDOWN',   desc:'[2P] Scales the RAM dash cooldown (needs RAMMING) — drag left to spam the dash', slider:true,min:0.1,max:1,step:0.1,get:()=>ramCdMult,set:v=>{ramCdMult=clamp(Math.round(v*10)/10,0.1,1);},show:v=>(BOOST.cd*v).toFixed(2)+'s'},
   {name:'BALL SIZE',      desc:'[SP+2P] Giant or tiny balls — ◀ ▶ or drag the track to set',                    slider:true,min:0.5,max:2,step:0.1,get:()=>ballScale,set:v=>{ballScale=clamp(Math.round(v*10)/10,0.5,2);BR=clamp(BR0*ballScale,4,18);},show:v=>v.toFixed(1)+'×'},
   {name:'ROBOT SIZE',     desc:'[SP+2P] Giant or tiny robots — ◀ ▶ or drag (big bots strain the race course)',  slider:true,min:0.5,max:1.5,step:0.1,get:()=>robotScale,set:v=>setRobotScale(v),show:v=>v.toFixed(1)+'×'},
   {name:'BALL POWER-UPS', desc:'[2P] SPEED » pickups spawn on the field (ball + shooter) — grab to boost 8s',   get:()=>ballPups,    tog:()=>{ballPups=!ballPups;}},
@@ -319,7 +320,7 @@ const FB_X=200,FB_Y=566,FB_R=24;
 const SWAP_BTN={x:CW/2-55,y:657,w:110,h:20};
 function inFireBtn(x,y){return (shooterMode||tankFight)&&Math.hypot(x-FB_X,y-FB_Y)<=FB_R+10;}
 let sensitivity=1.0;
-const SENS_MIN=0.3,SENS_MAX=2.0;
+const SENS_MIN=0.3,SENS_MAX_BASE=2.0;let SENS_MAX=SENS_MAX_BASE; // SENS_MAX is raised by the MAX SENSITIVITY cheat (uncaps the normal 2× ceiling)
 const SL_X1=138,SL_X2=262,SL_Y=618,SL_H=22;
 let sliderTid=-1;
 function inSlider(x,y){return x>=SL_X1-8&&x<=SL_X2+8&&y>=SL_Y-18&&y<=SL_Y+SL_H+10;}
@@ -1011,10 +1012,10 @@ function applyMomentum(bot,inp,dt,mode){ // mutate bot.vx/vy toward inp, integra
   bot.x+=bot.vx*dt;bot.y+=bot.vy*dt;
 }
 function momModeFor(bot,p){ // p = playerBind index, or -1 for SP movers (always human). CPU bots never get momentum (their brains assume instant control).
-  if(!iceMode&&!driftMode)return null;
+  if(!iceMode)return null; // DRIFT retired (v5.1.46); ICE SKATING is the only momentum cheat
   const human=(p<0)||(playerBind[p]&&playerBind[p].type!=='cpu');
   if(!human)return null;
-  return driftMode?'drift':'ice';
+  return 'ice';
 }
 function clearMomentum(){const z=o=>{if(o){o.vx=0;o.vy=0;}};if(typeof robot!=='undefined')z(robot);if(typeof b2!=='undefined'&&b2&&b2.bots)b2.bots.forEach(z);if(typeof tf2!=='undefined'&&tf2&&tf2.tanks)tf2.tanks.forEach(z);if(typeof r2!=='undefined'&&r2&&r2.bots)r2.bots.forEach(z);if(typeof tfState!=='undefined'&&tfState)z(tfState.player);}
 
@@ -3137,7 +3138,7 @@ function arcadeStep(p,bo,inp,dt,foes){
   bo.boostCd=Math.max(0,(bo.boostCd||0)-dt);
   if(bo.stunT>0)return {vx:0,vy:0,vr:0}; // stunned: no control
   const want=(playerBind[p].type==='cpu')?false:p2BoostHeld(p); // ramming is HUMAN-ONLY (CPU never rams)
-  if(want&&bo.boostCd<=0&&bo.boostT<=0){bo.boostT=BOOST.dur;bo.boostCd=BOOST.cd;sfx('thump');p2Rumble(p,0.6);}
+  if(want&&bo.boostCd<=0&&bo.boostT<=0){bo.boostT=BOOST.dur;bo.boostCd=BOOST.cd*ramCdMult;sfx('thump');p2Rumble(p,0.6);}
   if(bo.boostT>0){const ch=Math.cos(bo.h),sh=Math.sin(bo.h),sp=SPD*BOOST.mul;return {vx:ch*sp,vy:sh*sp,vr:(inp.vr||0)*0.3};}
   return inp;
 }
@@ -3149,7 +3150,7 @@ function arcadeTackle(p,bo,foes){
       o.stunT=BOOST.stun;
       const kx=o.x-bo.x,ky=o.y-bo.y,m=Math.hypot(kx,ky)||1;
       o.x=clamp(o.x+kx/m*BOOST.knock,RR,FW-RR);o.y=clamp(o.y+ky/m*BOOST.knock,RR,FH-RR);
-      bo.boostT=0;bo.boostCd=BOOST.cd;sfx('explosion');p2Rumble(p,1);
+      bo.boostT=0;bo.boostCd=BOOST.cd*ramCdMult;sfx('explosion');p2Rumble(p,1);
       if(o.load&&o.load.length){for(const b of o.load.slice()){b.held=false;b.heldBy=null;b._grabCd=0.7;const a=Math.random()*6.283;b.vx=Math.cos(a)*200;b.vy=Math.sin(a)*200;}o.load.length=0;}
       if(b2)b2.toast={txt:p2Name(p)+' TACKLE!',t:1.1,col:M2_COLS[p]};
       break;
@@ -3874,7 +3875,7 @@ function updateP2Race(dt){
       let inp=getInp(playerBind[p]); // sensitivity applied per-player inside getInp via withBot
       // RAMMING dash (cheat): a held boost briefly speeds the racer up — separate lanes, so it's a pure dash (no tackle). Human-only.
       b.boostT=Math.max(0,(b.boostT||0)-dt);b.boostCd=Math.max(0,(b.boostCd||0)-dt);
-      if(playerBind[p].type!=='cpu'&&p2BoostHeld(p)&&b.boostCd<=0&&b.boostT<=0){b.boostT=BOOST.dur;b.boostCd=BOOST.cd;sfx('thump');p2Rumble(p,0.6);}
+      if(playerBind[p].type!=='cpu'&&p2BoostHeld(p)&&b.boostCd<=0&&b.boostT<=0){b.boostT=BOOST.dur;b.boostCd=BOOST.cd*ramCdMult;sfx('thump');p2Rumble(p,0.6);}
       if(b.boostT>0)inp={vx:inp.vx*BOOST.mul,vy:inp.vy*BOOST.mul,vr:inp.vr};
       b._inp=inp;
       b.h+=inp.vr*dt;{const _m=momModeFor(b,p);if(_m)applyMomentum(b,inp,dt,_m);else{b.x+=inp.vx*dt;b.y+=inp.vy*dt;}}
@@ -6955,6 +6956,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.46 (2026-06-14): CHEATS — MAX SENSITIVITY (replaces DRIFT) + RAM COOLDOWN. The tabled/WIP DRIFT cheat is retired and replaced by two new Konami sliders. (1) MAX SENSITIVITY: uncaps the sensitivity ceiling — SENS_MAX is now a live `let` (base 2.0) that this slider raises to 2×–8×, so the normal SENS slider/bumpers (SP + per-player claim) can crank far past the old 2× wall; pair with the upcoming pause RATIO knob to keep extreme values drivable. (2) RAM COOLDOWN: scales the RAM dash cooldown `BOOST.cd` (0.1×–1×) at every boost trigger (ball + tank + race), so with RAMMING on you can spam the dash; the slider reads out the resulting seconds. Both taint records via `anyCheat()` (SENS_MAX!==base or ramCdMult!==1). DRIFT's `driftMode`/momModeFor wiring removed (ICE SKATING remains the lone momentum cheat; the MOM.drift infra is left dormant). smoke54 retargeted (DRIFT asserts → MAX SENSITIVITY + RAM COOLDOWN). Full battery green. Single file, no assets.
   v5.1.45 (2026-06-14): FRIENDLY FIRE TOGGLE. New FRIENDLY FIRE option in the ⚙ SETTINGS screen (opens from the main menu and from the pause overlay → "pause settings"), default OFF, persisted (frcds_ff). OFF = hits only land on the OPPOSING alliance/side (the long-standing behavior); ON = your own team is fair game too. One shared `friendlyFire` flag gates every contact/damage path it makes sense for: the tank bullet→tank collision and `tf2Explode` (their same-side skip is now `&&!friendlyFire`), the tank arcade RAM (`arcadeTackle` target list includes squadmates when ON), and the ball-mode arcade RAM (now also staggers your own main/support bots when ON). Note the enemy-side RAM in ball mode was already wired (`arcadeTackle` ran on `ballFoes`, which includes the opposing main + support bots) and the ram already scatters a victim's carried balls — FF just unlocks hitting your own side. Kill credit stays cross-side only, so a friendly-fire teamkill deals damage/eliminates but never scores (keeps TIMED kill counts honest). smoke56 +2 (same-side bullet damages with FF on, skipped with FF off). Full battery green. Single file, no assets.
   v5.1.44 (2026-06-14): SWERVE VISIBILITY — PODS ON TOP + LARGER SEE-THROUGH TEAM RING. Two visual tweaks (no physics change) so the swerve drive reads clearly — you can see all four pods steer to the same angle when translating and splay tangentially when the chassis spins. (1) The square/rectangular chassis body was painted AFTER the wheels, burying the corner swerve modules (they sit at ±0.7·RR, well inside the ±RR body). drawWheels is now a two-pass renderer: an UNDER pass draws every non-swerve drive as before, and a new OVER pass (called from drawRobot after the body) re-draws the swerve pods ON TOP of the chassis so all four are fully visible. Pod angle/spin state still advances once per frame (in the over pass). (2) The red/blue alliance team ring (p2AllianceRing) is kept dashed but is now a touch larger (r=RR+10→RR+13, sits further out and reveals more of the pods) and slightly see-through (dashed team-color stroke at ~0.72 alpha over a lighter dark underlay) — Sam's call from the preview (see-through, not a solid tint). Applies across ball/tank/race main bots. Full battery green (draw-only; harness canvas is a no-op proxy). Single file, no assets.
   v5.1.43 (2026-06-14): MULTI-TANK PHASE 3 — TIMED / MOST-KILLS (queue item 4 complete). TANK FIGHT MATCH SETTINGS gain a FORMAT lever: LIVES — last standing (the existing mode) or TIMED — most kills wins. In TIMED the LIVES PER TANK row becomes MATCH TIME (60/90/120/180s) and the match is a DEATHMATCH: every tank has infinite lives and always respawns, you rack up kills against the clock, and the side with the most kills when time expires wins. An exact tie enters SUDDEN DEATH — the next kill wins (golden-goal), per Sam's tie-break call. Kill scoring sums per side (tf2SideKills, built on the Phase-1 kill credit); tf2TimeUp decides the winner at expiry; tf2Damage routes the sudden-death golden kill. TIMED HUD: a center COUNTDOWN flanked by a live RED n – n BLUE kills scoreboard, and each tank card shows ☠kills instead of hearts (the ∞-lives guard from Phase 2 keeps the heart strip from blowing up). The result overlay reports the winning side, the KILLS line (w–l), and flags SUDDEN DEATH when it went to golden kill. LIVES mode is unchanged (still byte-identical at 1v1). This completes the 3-phase multi-tank item: ENEMY TANKS ×1–4 (Phase 2) compose freely with LIVES/TIMED (Phase 3) — e.g. 1 human vs 3 CPU, TIMED 120s. smoke56 +10 (FORMAT row swap, 5-row overflow guard, infinite-lives respawn, kill credit in TIMED, most-kills expiry, tie→sudden-death→golden kill); smoke55 updated for the new FORMAT row (5 rows). Full battery green. Single file, no assets.

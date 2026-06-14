@@ -84,15 +84,21 @@ src+=`
   ok('NO-CLIP off: overlapping bots separate (d='+dYes.toFixed(0)+')',dYes>dNo);
   noClip=false;
 
-  // ── ICE / DRIFT momentum: builds + glides; human-only ──
+  // ── ICE momentum: builds + glides; human-only ──
   iceMode=true;
   {const bot={x:0,y:0,h:0,vx:0,vy:0};applyMomentum(bot,{vx:120,vy:0},1/60,'ice');const v1=bot.vx;applyMomentum(bot,{vx:0,vy:0},1/60,'ice');
    ok('ICE: velocity builds then glides after input stops (v1='+v1.toFixed(0)+'→'+bot.vx.toFixed(0)+')',v1>0&&bot.vx>v1*0.5);}
   startBall('normal');playerBind[0]={type:'kb'};playerBind[1]={type:'cpu',tier:1};
   ok('ICE applies to the human bot, not the CPU',momModeFor(b2.bots[0],0)==='ice'&&momModeFor(b2.bots[1],1)===null);
-  iceMode=false;driftMode=true;
-  ok('DRIFT selected for the human bot',momModeFor(b2.bots[0],0)==='drift');
-  driftMode=false;ok('no momentum when both cheats off',momModeFor(b2.bots[0],0)===null);
+  iceMode=false;ok('no momentum when ICE off',momModeFor(b2.bots[0],0)===null);
+  // ── MAX SENSITIVITY cheat: uncaps the sensitivity ceiling (replaces retired DRIFT) ──
+  {const ms=CHEATS.find(c=>c.name==='MAX SENSITIVITY');
+   ms.set(6);ok('MAX SENSITIVITY raises SENS_MAX (='+SENS_MAX+') + taints records',SENS_MAX===6&&anyCheat());
+   ms.set(2);ok('MAX SENSITIVITY back to 2× restores the base cap',SENS_MAX===2&&SENS_MAX===SENS_MAX_BASE);}
+  // ── RAM COOLDOWN cheat: scales the dash cooldown ──
+  {const rc=CHEATS.find(c=>c.name==='RAM COOLDOWN');
+   rc.set(0.2);ok('RAM COOLDOWN shortens the dash cooldown (mult='+ramCdMult+')',ramCdMult===0.2&&anyCheat());
+   rc.set(1);ok('RAM COOLDOWN 1× restores the default cooldown',ramCdMult===1);}
 
   // ── BALL SIZE cheat scales the live ball radius (clamped 4..18) ──
   {const bs=CHEATS.find(c=>c.name==='BALL SIZE');
@@ -114,7 +120,7 @@ src+=`
   ballPups=false;b2PupTick(1/60);ok('BALL POWER-UPS off: pickups cleared',b2.pups.length===0);
 
   // ── cheats disable records/high-scores (anyCheat/cheated + H2H record gate) ──
-  iceMode=false;driftMode=false;ballScale=1;robotScale=1;ballMult=1;machineGun=0;arcadeMode=false;bouncyMode=false;frisbeeMode=false;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;cheatedRun=false;
+  iceMode=false;SENS_MAX=SENS_MAX_BASE;ramCdMult=1;ballScale=1;robotScale=1;ballMult=1;machineGun=0;arcadeMode=false;bouncyMode=false;frisbeeMode=false;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;cheatedRun=false;
   ok('anyCheat() false with nothing on',!anyCheat()&&!cheated());
   iceMode=true;ok('anyCheat()/cheated() true with a cheat on',anyCheat()&&cheated());
   {startBall('normal');m2.claim=[{type:'kb'},{type:'cpu',tier:3}];b2.score=[5,0];const h0=JSON.stringify(h2hRec);achH2HResult(0);
