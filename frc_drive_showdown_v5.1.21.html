@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.20.html
-  version: 5.1.20
+  file: frc_drive_showdown_v5.1.21.html
+  version: 5.1.21
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -2711,6 +2711,7 @@ function cpuTankUpdate(dt){
       const mm=Math.hypot(mvx,mvy)||1;mvx/=mm;mvy/=mm;
     }
     // bullet dodge — v5.1.20: even stronger at CHAMPION (scaled by sharpness); commits to the single most-imminent shot.
+    let dodging=false;
     {
       const sharp=clamp((0.62-T.react)/0.62,0,1); // CHAMPION ~0.95, WINNER ~0.81, low/adaptive-even ~0.03 (still flinches)
       const range=210+sharp*300, latW=RR+16+sharp*96, push=1.3+sharp*4.2; // CHAMPION: sees ~495px, ~124px lateral catch, sidesteps ~5.3x
@@ -2723,18 +2724,35 @@ function cpuTankUpdate(dt){
         if(along>0&&along<range&&Math.abs(lat)<latW&&along<bestAlong){bestAlong=along;best={bv,lat,vx:b.vx,vy:b.vy};}
       }
       if(best&&sharp>0.02){
+        dodging=true;
         const s=Math.sign(best.lat)||1, urg=push*(1+(1-bestAlong/range)); // closer shot → harder sidestep
         mvx+=-best.vy/best.bv*s*urg; mvy+=best.vx/best.bv*s*urg;
       }
       const mm=Math.hypot(mvx,mvy);if(mm>1){mvx/=mm;mvy/=mm;}
     }
-    br.inp.vx=mvx*SPD*T.spd;br.inp.vy=mvy*SPD*T.spd;
     // aim: lead the target by flight time, jittered by tier
     const lead=dist/400;
     const aimH=Math.atan2(foe.y+foe._inp.vy*lead-me.y,foe.x+foe._inp.vx*lead-me.x)+br.aimJ;
-    let dh=aimH-me.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
+    // v5.1.20: honor drive kinematics. Swerve/holo strafe freely (the common case). Tank/arcade/steer can't strafe: they steer the
+    // BODY toward where they're traveling to relocate/navigate around cover, and only lock onto the foe when settled in a clear
+    // firing pose — so a tank drive plays like a tank (turn, drive, line up the shot) instead of sliding like swerve.
+    const _drv=m2.drive&&m2.drive[p],_did=(typeof p2cDriveDef!=='undefined'&&_drv)?p2cDriveDef(p).id:null;
+    const _canStrafe=!_drv||_drv.kind==='holo'||_did==='botSwerve'||_did==='fieldSwerve';
+    let headH=aimH;
+    if(_canStrafe){
+      br.inp.vx=mvx*SPD*T.spd;br.inp.vy=mvy*SPD*T.spd;
+    }else{
+      const desSp=Math.hypot(mvx,mvy)*SPD*T.spd, travelH=Math.atan2(mvy,mvx);
+      const relocate=(!los)||dist>340||dodging||br.obj!=='fight'; // need to move/get clear: face travel; else hold & aim the foe
+      headH=relocate?travelH:aimH;
+      const fwd=relocate?desSp*clamp(0.30+0.70*Math.cos(travelH-me.h),-0.5,1)   // drive along heading, scaled by how aligned it is with travel
+                        :SPD*T.spd*(dist>260?0.5:dist<200?-0.5:0);              // settled at range/LoS: just keep the band, face the foe
+      br.inp.vx=Math.cos(me.h)*fwd;br.inp.vy=Math.sin(me.h)*fwd;
+    }
+    let dh=headH-me.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
     br.inp.vr=clamp(dh*7,-TSP*T.turn,TSP*T.turn);
-    br.fire=los&&dist<560&&Math.abs(dh)<0.09+T.aim*0.5&&br.obj!=='patrol';
+    let af=aimH-me.h;while(af>Math.PI)af-=2*Math.PI;while(af<-Math.PI)af+=2*Math.PI; // fire only when actually pointed at the foe
+    br.fire=los&&dist<560&&Math.abs(af)<0.09+T.aim*0.5&&br.obj!=='patrol';
   }
 }
 function startP2Tank(){
@@ -6459,6 +6477,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
   v5.1.18 (2026-06-14): PISTON RUN RACE-CPU FIX + RAMMING ON RIGHT BUMPER. (1) On the PISTON RUN race course with MOVING HAZARDS on, the H2H race CPU froze at the start (it climbed ~6px and stopped). Cause: the moving-wall trajectory probe looked 0.72s ahead and a piston permanently occupied the lane ahead, so the bot held forever from across the course. Fix: it now only holds when impact is imminent (≤0.30s), climbing to the rim; and at the rim it DODGES laterally — scanning the static gap for a column whose climb-path clears soon and punching through — which solves the shelf+piston compound crossing the CPU previously couldn't (hands-off CHAMPION now finishes PISTON RUN with hazards on). (2) RAMMING boost-tackle moved from Right Trigger to RIGHT BUMPER (gamepad), so it no longer collides with RT fire — you can RAM and MACHINE-GUN at once in tank; RT/A still fire (RT is no longer stolen for boost). Keyboard boost stays on Shift. Full battery green. Single file, no assets.
