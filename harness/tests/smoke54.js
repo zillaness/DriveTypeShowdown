@@ -19,19 +19,32 @@ src+=`
   ballMult=1;
 
   // ── MACHINE GUN (shooter): big hopper + rapid fire ──
-  machineGun=true;startBall('shooter');
+  machineGun=2;startBall('shooter');
   let bo=b2.bots[0];bo.x=FW/2;bo.y=FH/2;bo.h=0;bo.stunT=0;bo.intk=[];
   for(let i=0;i<8&&i<balls.length;i++){const b=balls[i];b.sc=false;b.proj=false;b.held=false;b.intaken=true;b.lastT=0;bo.intk.push(b);}
   ok('MACHINE GUN shooter: hopper holds more than 4 ('+bo.intk.length+')',bo.intk.length>4);
   bo.shootCd=0;kbSpaceHeld=true;updateP2Ball(1/60);kbSpaceHeld=false;
   ok('MACHINE GUN shooter: rapid shootCd after firing ('+bo.shootCd.toFixed(2)+')',bo.shootCd>0&&bo.shootCd<=0.06);
-  machineGun=false;
+  machineGun=0;
 
   // ── MACHINE GUN (tank): rapid reload after a shot ──
-  machineGun=true;startTank();
+  machineGun=2;startTank();
   const t=tf2.tanks[0];t.reload=0;t.stunT=0;kbSpaceHeld=true;updateP2Tank(1/60);kbSpaceHeld=false;
   ok('MACHINE GUN tank: rapid reload after firing ('+t.reload.toFixed(2)+')',t.reload>0&&t.reload<=0.06);
-  machineGun=false;
+  machineGun=0;
+
+  // ── v5.1.17 crash regression: MACHINE GUN's big hopper (>4) must not crash the shooter MAG readout (repeat() negative count) ──
+  machineGun=2;startBall('shooter');
+  {const bw=b2.bots[0];bw.intk=[];for(let i=0;i<9&&i<balls.length;i++){balls[i].intaken=true;bw.intk.push(balls[i]);}
+   let drew=true;try{drawP2Ball();}catch(e){drew=false;}
+   ok('big MACHINE GUN hopper does not crash the shooter HUD render',drew===true);}
+  machineGun=0;
+
+  // ── MACHINE GUN tri-state (v5.1.17): OFF/YOU/BOTH — YOU gives only the human side full-auto ──
+  m2.claim=[{type:'kb'},{type:'cpu',tier:1}];
+  machineGun=1;ok('MACHINE GUN YOU: human side on, CPU side off',mgOn(0)===true&&mgOn(1)===false);
+  machineGun=2;ok('MACHINE GUN BOTH: both sides on',mgOn(0)===true&&mgOn(1)===true);
+  machineGun=0;ok('MACHINE GUN OFF: neither side',mgOn(0)===false&&mgOn(1)===false);
 
   // ── ULTIMATE ASCENT: a 2P-shooter shot ricochets off walls and stays alive (stacks with everything) ──
   frisbeeMode=true;bouncyMode=true;startBall('shooter'); // stack two cheats
