@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.24.html
-  version: 5.1.24
+  file: frc_drive_showdown_v5.1.25.html
+  version: 5.1.25
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -213,6 +213,8 @@ const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRigh
 let konamiIdx=0,_gpKonamiIdx=0,_gpKonPrev={},konamiActive=false,frisbeeMode=false;
 // konami cheat menu: toggleable fun modes (replaces the old auto-frisbee flip). arcadeMode adds the LT boost-tackle in 2P H2H ball+tank.
 let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides
+let multiBall=false,stickyPlow=false,noClip=false; // more cheats
+const B2_BALL_CAP=72; // hard cap on balls in play (shared by EXTRA BALLS + MULTIBALL)
 function mgOn(p){return machineGun===2||(machineGun===1&&m2.claim&&m2.claim[p]&&m2.claim[p].type!=='cpu');} // does side p get full-auto?
 // all cheats are independent — they mix and stack freely (e.g. machine-gun + bouncy + ultimate-ascent + extra-balls)
 const CHEATS=[
@@ -221,6 +223,9 @@ const CHEATS=[
   {name:'BOUNCY BALLS',   desc:'Low-friction pinball chaos — balls barely slow, shots ricochet off walls',     get:()=>bouncyMode,  tog:()=>{bouncyMode=!bouncyMode;}},
   {name:'MACHINE GUN',    desc:'Full-auto fire — OFF / YOU only / BOTH sides (2P tank AND shooter)',           get:()=>machineGun,  tog:()=>{machineGun=(machineGun+1)%3;}, show:v=>['OFF','YOU','BOTH'][v]||'OFF'},
   {name:'EXTRA BALLS',    desc:'Multiply the balls in play (2P ball + shooter) — ◀ ▶ or drag to set',          slider:true,min:1,max:6,step:1,get:()=>ballMult,set:v=>{ballMult=clamp(Math.round(v),1,6);},show:v=>v+'×'},
+  {name:'MULTIBALL',      desc:'Every goal spawns 2 more balls (2P ball + shooter, capped at '+B2_BALL_CAP+')',  get:()=>multiBall,   tog:()=>{multiBall=!multiBall;}},
+  {name:'STICKY PLOW',    desc:'Your bot gets the CHAMPION sticky plow — carry up to 5 balls (2P normal ball)',  get:()=>stickyPlow,  tog:()=>{stickyPlow=!stickyPlow;}},
+  {name:'NO-CLIP',        desc:'Phase through robots & obstacles (balls still collide) — 2P ball/tank/race',     get:()=>noClip,      tog:()=>{noClip=!noClip;}},
 ];
 function cheatMove(d){cheatIdx=(cheatIdx+d+CHEATS.length)%CHEATS.length;sfx('click');}
 function cheatToggle(){const c=CHEATS[cheatIdx];if(c.slider){c.set(c.get()>=c.max?c.min:c.get()+c.step);}else c.tog();sfx('claim');}
@@ -1810,6 +1815,7 @@ function b2CpuUpdate(dt){
   // CPU vs bots/CPUs separation (+ rumble rising edge when a PLAYER bot meets a CPU)
   const all=[...b2.bots,...b2.cpus];
   for(const cu of b2.cpus){if(!cu._tch)cu._tch=[false,false];}
+  if(noClip)return; // NO-CLIP: robots phase through each other (balls still collide elsewhere)
   for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++){
     const a=all[i],c=all[j];
     const dx=a.x-c.x,dy=a.y-c.y,d=Math.hypot(dx,dy)||0.01;
@@ -2153,10 +2159,15 @@ function b2Teardown(){
   if(b2SavInv!==null){inverted=b2SavInv;b2SavInv=null;}
   b2=null;balls=[];cpuH2H=null;
 }
+function b2AddBalls(n){ // MULTIBALL: drop fresh balls near center (capped)
+  for(let k=0;k<n&&balls.length<B2_BALL_CAP;k++)
+    balls.push({x:FW/2+(Math.random()*2-1)*70,y:FH/2+(Math.random()*2-1)*70,vx:0,vy:0,id:balls.length,sc:false,intaken:false,proj:false});
+}
 function b2Credit(b,who){
   b.sc=true;b.vx=0;b.vy=0;
   if(who===0||who===1){
     b2.score[who]++;sfx('goal');
+    if(multiBall&&!b.golden)b2AddBalls(2); // every goal spawns two more
     if(b.lastT===who){b2.realGoals=b2.realGoals||[0,0];b2.realGoals[who]++;} // v3.11: a goal the credited side actually scored
     else if((b.lastT===0||b.lastT===1)&&m2.claim&&m2.claim[b.lastT]&&m2.claim[b.lastT].type!=='cpu')achUnlock('owngoal'); // own goal by a human
     if(b.golden){b2.result=who;sfx('win');}
@@ -2211,6 +2222,7 @@ function b2StickyCarriers(){
   for(let p=0;p<2;p++){
     const isCpu=m2.claim&&m2.claim[p]&&m2.claim[p].type==='cpu';
     if(isCpu){const tier=playerBind[p].tier|0;const cap=CARRY_CAP[tier]||1;out.push({bot:b2.bots[p],al:p,cap:cap,tier:tier});}
+    else if(stickyPlow&&m2.claim&&m2.claim[p]){out.push({bot:b2.bots[p],al:p,cap:CARRY_CAP[3],tier:3});} // STICKY PLOW cheat: human bots get CHAMPION-grade sticky
   }
   return out;
 }
@@ -2307,7 +2319,7 @@ function updateP2Ball(dt){
      p2Rumble(0,m);p2Rumble(1,m);
    }
    b2.btTouch=touching;
-   if(d<RR*2){const nx=dx/d,ny=dy/d,ov=RR*2-d;
+   if(!noClip&&d<RR*2){const nx=dx/d,ny=dy/d,ov=RR*2-d; // NO-CLIP: main bots phase through each other
      a.x+=nx*ov*0.5;a.y+=ny*ov*0.5;c.x-=nx*ov*0.5;c.y-=ny*ov*0.5;
      b2Wall(a,RR);b2Wall(c,RR);}
    if(m2.set.contact==='pin'){
@@ -2999,7 +3011,7 @@ function updateP2Tank(dt){
       if(arcadeMode)inp=arcadeStep(p,t,inp,dt,[tf2.tanks[1-p]]);
       t._inp=inp;
       t.h+=inp.vr*dt;t.x+=inp.vx*dt;t.y+=inp.vy*dt;
-      obsCheck(t,RR);
+      if(!noClip)obsCheck(t,RR); // NO-CLIP: phase through obstacles
     });
     t.reload-=dt;
     if(p2FireHeld(p)&&t.reload<=0&&!(t.stunT>0)){const _mg=mgOn(p);tf2Shoot(p);t.reload=_mg?0.05:(t.rapidT>0?0.16:0.32);if(_mg)p2Rumble(p,0.3);} // MACHINE GUN: full-auto + rumble
@@ -3029,7 +3041,7 @@ function updateP2Tank(dt){
      p2Rumble(0,m);p2Rumble(1,m);
    }
    tf2.btTouch=touching;}
-  if(d<RR*2){const nx=dx/d,ny=dy/d,ov=RR*2-d;
+  if(!noClip&&d<RR*2){const nx=dx/d,ny=dy/d,ov=RR*2-d; // NO-CLIP: tanks phase through each other
     a.x+=nx*ov*0.5;a.y+=ny*ov*0.5;c.x-=nx*ov*0.5;c.y-=ny*ov*0.5;
     obsCheck(a,RR);obsCheck(c,RR);}
   if(arcadeMode){for(let p=0;p<2;p++)arcadeTackle(p,tf2.tanks[p],[tf2.tanks[1-p]]);}
@@ -3525,7 +3537,7 @@ function updateP2Race(dt){
       b._inp=inp;
       b.h+=inp.vr*dt;b.x+=inp.vx*dt;b.y+=inp.vy*dt;
       if(b.x<RR||b.x>FW-RR||b.y>FH-RR){r2Reset(p);return;}
-      if(r2HitsObs()||r2HitsHaz(r2.t)){r2Reset(p);return;}
+      if(!noClip&&(r2HitsObs()||r2HitsHaz(r2.t))){r2Reset(p);return;} // NO-CLIP: phase through course obstacles/hazards
       if(b.y<OC_FINISH_Y){b.fin=r2.t;fin.push(p);sfx('finish');}
     });
   }
@@ -6536,6 +6548,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.25 (2026-06-14): THREE NEW CHEATS — MULTIBALL, STICKY PLOW, NO-CLIP. (1) MULTIBALL: every goal in 2P ball/shooter spawns 2 fresh balls near center, hard-capped at B2_BALL_CAP (72, shared with EXTRA BALLS). (2) STICKY PLOW: your human bot(s) get the CHAMPION sticky plow in 2P normal ball (carry up to 5); BOUNCY still wins precedence (it disables sticky). (3) NO-CLIP: robots phase through each other (all 2P modes) and through obstacles/hazards (tank + race) — balls and outer walls still collide. New cheat toggles in the Konami menu (now 8). smoke54 +5 (multiball spawn+cap, sticky carriers on/off, no-clip separation on/off). Full battery green. Single file, no assets.
   v5.1.24 (2026-06-14): MACHINE-GUN SPECIAL-AMMO BARRAGE. With MACHINE GUN on, a banked EXPLOSIVE/PIERCING stack no longer vanishes in ~0.15s (one round per 0.05s shot) — instead the first shot CONVERTS the whole stack into a timed full-auto barrage of that special round: MG_BURST_PER (1.0s) of fire per banked round, so a 3-stack = ~3s of nonstop explosive/piercing mayhem at MG cadence (~60 rounds). During the barrage every MG shot carries the flag without consuming ammo; the timer decays and resets on respawn. HUD shows the barrage countdown (e.g. '💥 3.0s') instead of the round count while it runs. smoke55 updated for the barrage model (16 asserts). Full battery green. Single file, no assets.
   v5.1.23 (2026-06-14): TANK POWER-UPS — EXPLOSIVE / PIERCING / AUTO-AIM (cheat-build batch 1). Three new tank-fight pickups (spawn under the existing POWER-UPS toggle): (1) EXPLOSIVE 💥 — single-use, STACKABLE (+3 per pickup); each fired shot consumes one and detonates an area blast on impact (wall/obstacle/tank) that damages the enemy within ~62px (owner-immune) with a fading ring. (2) PIERCING ↯ — single-use, STACKABLE (+3); the shot punches THROUGH obstacles and through the enemy (single hit, guarded against multi-frame double-hit), still dies at the arena bound. (3) AUTO-AIM 🎯 — timed 8s; each shot's launch angle snaps to the foe's CURRENT position. Ammo persists across respawns; the aim timer resets (like rapid/speed/shield). Precedence when a shot is both explosive AND piercing: explosive wins on walls (detonate+stop), piercing wins on tanks (pass through, no blast). HUD shows ammo/timer pills. Also fixes a latent gap: sfx('explosion') was never defined (the RAMMING tackle was silently silent) — now a real boom, shared by tackle + blasts. New suite smoke55 (15 asserts). Full battery green. Single file, no assets.
   v5.1.22 (2026-06-14): SHOOTER SHOVE EDGE + REAR-STEER CONTROL FIX. (1) DIFFICULTY (shooter): the main CPU bot now out-muscles alliance bots in the shoving match (tier-scaled mass B2_SHOVE [1.3,1.6,2.5,6]) so it isn't bullied off its scoring run — CHAMPION barely budges and plows through, ROOKIE is near-even. Alliance bots can still STRIP carried balls and BLOCK shots; they just can't body-bully the main bot. This (not intake-denial, which costs the CPU scoring time) is the lever that lets a strong CPU actually score. Gated to SHOOTER for now per the playtest plan; classic/normal unchanged pending a test. (2) Rear-steer (Forklift) steering input negated so left/right is intuitive (press right → curve right) — it read as inverted before; the rear wheels still toe opposite for the rear-pivot feel. smoke45 +2 (shove resists by tier). Full battery green. Single file, no assets.

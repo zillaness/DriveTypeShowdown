@@ -61,6 +61,29 @@ src+=`
   startBall('normal');playerBind[1].tier=3;const sNo=cpuTierParams(1,0).spd;
   ok('per-mode: shooter CHAMPION has a speed edge but normal is clamped (shooter '+sSh.toFixed(2)+' > normal '+sNo.toFixed(2)+')',sSh>1.0&&sNo<=1.0);
 
+  // ── MULTIBALL: each goal spawns 2 more balls, capped ──
+  startBall('normal');multiBall=true;
+  {const n0=balls.length;const bb=balls.find(b=>!b.sc)||balls[0];b2Credit(bb,0);
+   ok('MULTIBALL: a goal spawns +2 balls ('+n0+'→'+balls.length+')',balls.length===n0+2);}
+  multiBall=false;
+
+  // ── STICKY PLOW: the cheat gives human main bots CHAMPION-grade sticky carriers ──
+  startBall('normal');
+  ok('STICKY PLOW off: no human carriers',b2StickyCarriers().filter(c=>!(m2.claim[c.al]&&m2.claim[c.al].type==='cpu')).length===0);
+  stickyPlow=true;
+  {const cs=b2StickyCarriers();ok('STICKY PLOW on: human bot is a cap-5 carrier',cs.length>=1&&cs.every(c=>c.cap===CARRY_CAP[3]));}
+  stickyPlow=false;
+
+  // ── NO-CLIP: overlapping main bots don't separate ──
+  startBall('normal');
+  const A=b2.bots[0],B=b2.bots[1];
+  const setOverlap=()=>{A.x=600;A.y=320;B.x=600+RR;B.y=320;cpuH2H&&cpuH2H.forEach&&0;};
+  noClip=true;setOverlap();updateP2Ball(1/60);const dNo=Math.hypot(A.x-B.x,A.y-B.y);
+  ok('NO-CLIP: overlapping bots stay overlapped (d='+dNo.toFixed(0)+')',dNo<RR*2);
+  noClip=false;setOverlap();updateP2Ball(1/60);const dYes=Math.hypot(A.x-B.x,A.y-B.y);
+  ok('NO-CLIP off: overlapping bots separate (d='+dYes.toFixed(0)+')',dYes>dNo);
+  noClip=false;
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;
