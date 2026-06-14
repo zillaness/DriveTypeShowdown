@@ -37,6 +37,9 @@ src+=`
   // escape cancels without committing
   click(p2cNameRect(1));kd('X');kd('Escape');
   OK('escape cancels rename',!nameEntry.active&&m2.name[1]===null);
+  // v5.1: typed name persists even without pressing Enter (commits live), so clicking away keeps it
+  m2.name[0]=null;click(p2cNameRect(0));kd('B');kd('o');kd('t');click(p2cArrowRect(0,1)); // type then click another control (no Enter)
+  OK('typed name persists without Enter (live commit)',m2.name[0]==='BOT'&&!nameEntry.active);
 
   // ── sensitivity slider (human spot) ──
   m2.claim=[{type:'kb'},null];m2.sens=[1,1];
