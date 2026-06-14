@@ -2981,7 +2981,7 @@ function withBot(p,bot,fn){
 function drawP2Tag(p,b){
   ctx.font='bold 10px Courier New';ctx.textAlign='center';
   ctx.fillStyle=M2_COLS[p];
-  ctx.fillText(p===0?'▼ RED':'▼ BLUE',FX+b.x,FY+b.y-RR-12);
+  ctx.fillText('▼ '+p2Name(p),FX+b.x,FY+b.y-RR-12);
 }
 function r2StartPos(p){return{x:OC_START.x,y:OC_START.y,h:OC_START.h};}
 // ── v3.8: H2H CPU — race brain. Gap-seeking climb with predictive hazard gates. ──
@@ -3667,6 +3667,20 @@ function p2SetSens(pl,mx){const sl=p2cSlider(pl);m2.sens[pl]=Math.round(clamp(SE
 function p2cTouchRect(pl){const cx=p2cCol(pl);return{x:cx-150,y:584,w:300,h:26};}
 function p2cCpuRect(){return{x:120,y:CH-78,w:180,h:34};}
 function p2cSwapRect(){return{x:CW-300,y:CH-78,w:180,h:34};}
+// v5.1: render the actual drive type (body + wheels + scoop) on the setup card, so each drive looks distinct
+function p2cDrawDrivePreview(pl,cx,cy,scale){
+  const sav={robot,holoMode,steerMode,curD,curHD,curSD,lastRobotInp,vis:visSnapshot()};
+  const c=p2DriveCtx(pl);
+  holoMode=c.holoMode;steerMode=c.steerMode;
+  if(c.curD!==undefined)curD=c.curD;if(c.curHD!==undefined)curHD=c.curHD;if(c.curSD!==undefined)curSD=c.curSD;
+  robot={x:0,y:0,h:0};
+  lastRobotInp={vx:SPD*0.55,vy:0,vr:0}; // gentle forward so the wheels orient forward
+  ctx.save();
+  ctx.translate(cx,cy);ctx.scale(scale,scale);ctx.translate(-FX,-FY); // drawRobot re-adds (FX,FY); net center lands on (cx,cy)
+  drawRobot();
+  ctx.restore();
+  robot=sav.robot;holoMode=sav.holoMode;steerMode=sav.steerMode;curD=sav.curD;curHD=sav.curHD;curSD=sav.curSD;lastRobotInp=sav.lastRobotInp;visLoad(sav.vis);
+}
 function p2DrawBotIcon(cx,cy,r,col){
   ctx.save();
   ctx.fillStyle='rgba(0,0,0,0.35)';rr(cx-r,cy-r,r*2,r*2,7);ctx.fill();
@@ -3812,8 +3826,8 @@ function p2Draw(){
       ctx.fillText(renaming?(nameEntry.text+(blink?'|':'')):p2Name(pl),cx,nr.y+21);
       ctx.font='9px Courier New';ctx.fillStyle='#666688';ctx.textAlign='right';ctx.fillText('✎',nr.x+nr.w-8,nr.y+13);
       ctx.textAlign='center';ctx.font='10px Courier New';ctx.fillStyle=col+'aa';ctx.fillText(pl===0?'RED ALLIANCE':'BLUE ALLIANCE',cx,nr.y-6);
-      // bot icon
-      p2DrawBotIcon(cx,206,30,def.c);
+      // bot icon — the actual drive type (body + wheels + scoop)
+      p2cDrawDrivePreview(pl,cx,202,1.3);
       // drive group tabs
       const gi=p2cGroupIdx(pl);
       for(let g=0;g<3;g++){const tr=p2cTabRect(pl,g),on=g===gi;
