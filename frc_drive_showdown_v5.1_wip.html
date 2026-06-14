@@ -1043,6 +1043,9 @@ function updateGamepad(){
         if(jb(5))m2.sens[pl]=Math.min(SENS_MAX,Math.round((m2.sens[pl]+0.1)*10)/10);
         if(jb(1)){m2.claim[pl]=null;m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);sfx('claim');} // B: release this pad's side (swap controllers)
       }
+      // global actions so a game can be set up with controllers only (no cursor): Y = add/remove a CPU opponent, X = cycle its tier
+      if(just(3)){const ci=m2.claim.findIndex(c=>c&&c.type==='cpu');if(ci>=0)m2.claim[ci]=null;else p2ClaimDevice({type:'cpu',tier:2});sfx('claim');}
+      if(just(2)){const cc=m2.claim.find(c=>c&&c.type==='cpu');if(cc){cc.tier=((cc.tier|0)+1)%5;sfx('click');}}
       if(m2.claim[0]&&m2.claim[1]&&just(9)){const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);}
     }else if(!p2LiveMatch()){
       const items=p2GpItems();
@@ -3890,7 +3893,7 @@ function p2Draw(){
     ctx.font='11px Courier New';ctx.fillStyle='#444460';
     ctx.fillText('P1 '+(m2.drive[0]?m2.drive[0].name:'?')+'   vs   P2 '+(m2.drive[1]?m2.drive[1].name:'?'),CW/2,108);
   }else if(phase==='p2claim'){
-    p2Chrome(tour&&tour.cur?('CLAIM YOUR SIDE — '+tourName(tour.curE[0],12)+' (RED) vs '+tourName(tour.curE[1],12)+' (BLUE)'):'SET UP YOUR ROBOTS','press a key/pad/tap to claim a side · click the controller box to release it · 🎮 D-pad = drive · LB/RB = sensitivity · START = go');
+    p2Chrome(tour&&tour.cur?('CLAIM YOUR SIDE — '+tourName(tour.curE[0],12)+' (RED) vs '+tourName(tour.curE[1],12)+' (BLUE)'):'SET UP YOUR ROBOTS','press a key/pad/tap to claim · 🎮 D-pad: drive · LB/RB: sensitivity · Y: add CPU · X: CPU tier · B: release · START: go');
     const blink=((Date.now()/500)|0)%2===0;
     for(let pl=0;pl<2;pl++){
       const cx=p2cCol(pl),col=M2_COLS[pl],claimed=m2.claim[pl],isCpu=claimed&&claimed.type==='cpu';
