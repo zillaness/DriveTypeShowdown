@@ -14,7 +14,7 @@ src+=`
   setup();let a=b2.bots[0],c=b2.bots[1];
   a.x=300;a.y=FH/2;a.h=0;c.x=900;c.y=60; // c far away
   kbBoostHeld=true; const x0=a.x; updateP2Ball(1/60); kbBoostHeld=false;
-  ok('boost engages on RT/Shift (boostT>0)',a.boostT>0);
+  ok('boost engages on RB/Shift (boostT>0)',a.boostT>0);
   const moved=a.x-x0; for(let f=0;f<12;f++)updateP2Ball(1/60);
   ok('boost lunges the bot forward ('+moved.toFixed(1)+'px in 1 frame)',moved>4);
   ok('boost goes on cooldown',a.boostCd>0);

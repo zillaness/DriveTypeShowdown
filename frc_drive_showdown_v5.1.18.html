@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.17.html
-  version: 5.1.17
+  file: frc_drive_showdown_v5.1.18.html
+  version: 5.1.18
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -211,12 +211,12 @@ let cpuGpIdx=-1; // gamepad cursor index on the SP cpuSettings screen (-1 = inac
 let cpuSettingsReturn=null; // phase to return to when leaving cpuSettings (set when opened from the 2P MATCH SETTINGS screen; null = the SP menu)
 const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
 let konamiIdx=0,_gpKonamiIdx=0,_gpKonPrev={},konamiActive=false,frisbeeMode=false;
-// konami cheat menu: toggleable fun modes (replaces the old auto-frisbee flip). arcadeMode adds the RT boost-tackle in 2P H2H ball+tank.
+// konami cheat menu: toggleable fun modes (replaces the old auto-frisbee flip). arcadeMode adds the RB boost-tackle in 2P H2H ball+tank.
 let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides
 function mgOn(p){return machineGun===2||(machineGun===1&&m2.claim&&m2.claim[p]&&m2.claim[p].type!=='cpu');} // does side p get full-auto?
 // all cheats are independent — they mix and stack freely (e.g. machine-gun + bouncy + ultimate-ascent + extra-balls)
 const CHEATS=[
-  {name:'RAMMING',        desc:'Right Trigger / Shift = boost tackle — ram & stun the enemy bot (2P ball + tank)',get:()=>arcadeMode, tog:()=>{arcadeMode=!arcadeMode;}},
+  {name:'RAMMING',        desc:'Right Bumper / Shift = boost tackle — ram & stun the enemy bot (2P ball + tank)',get:()=>arcadeMode, tog:()=>{arcadeMode=!arcadeMode;}},
   {name:'ULTIMATE ASCENT',desc:'Shooter shots fly forever — they ricochet off the walls instead of dying',     get:()=>frisbeeMode, tog:()=>{frisbeeMode=!frisbeeMode;}},
   {name:'BOUNCY BALLS',   desc:'Low-friction pinball chaos — balls barely slow, shots ricochet off walls',     get:()=>bouncyMode,  tog:()=>{bouncyMode=!bouncyMode;}},
   {name:'MACHINE GUN',    desc:'Full-auto fire — OFF / YOU only / BOTH sides (2P tank AND shooter)',           get:()=>machineGun,  tog:()=>{machineGun=(machineGun+1)%3;}, show:v=>['OFF','YOU','BOTH'][v]||'OFF'},
@@ -2792,18 +2792,18 @@ function p2FireHeld(p){
   const b=playerBind[p];
   if(b.type==='cpu')return !!(cpuH2H&&cpuH2H[p]&&cpuH2H[p].fire);
   if(b.type==='kb'||b.type==='any')return kbSpaceHeld||fireBtnPressed;
-  if(b.type==='gp'){const bt=gpBtnsAll[b.gp];return !!(bt&&(bt[0]||(!arcadeMode&&bt[7])));} // arcade frees RT (bt7) for boost; fire stays on A
+  if(b.type==='gp'){const bt=gpBtnsAll[b.gp];return !!(bt&&(bt[0]||bt[7]));} // fire = A or RT (RAMMING moved to RB so RT stays free to fire, e.g. with MACHINE GUN)
   if(b.type==='touchL')return p2TFire[0];
   if(b.type==='touchR')return p2TFire[1];
   return false;
 }
-// arcade-mode boost trigger: Right Trigger (gp) / Shift (kb). CPU boost is decided by the brain (cpuH2H[p].boost).
+// RAMMING boost trigger: Right Bumper (gp) / Shift (kb). RB (not RT) so it never collides with RT fire (e.g. MACHINE GUN in tank). CPU boost is decided by the brain.
 function p2BoostHeld(p){
   if(!arcadeMode)return false;
   const b=playerBind[p];
   if(b.type==='cpu')return !!(cpuH2H&&cpuH2H[p]&&cpuH2H[p].boost);
   if(b.type==='kb'||b.type==='any')return kbBoostHeld;
-  if(b.type==='gp'){const bt=gpBtnsAll[b.gp];return !!(bt&&bt[7]);}
+  if(b.type==='gp'){const bt=gpBtnsAll[b.gp];return !!(bt&&bt[5]);}
   return false;
 }
 // ── RAMMING: boost-tackle ──
@@ -3368,10 +3368,21 @@ function cpuRaceUpdate(dt){
       const hotHere=cpuHazHot(bo.x,bo.y,r2.t+0.06,6,true);
       if(hotHere){vy=SPD*0.6;} // standing in a closing window: back out
       else{
-        const traj=(tvx,tvy)=>{for(let k=0.08;k<=0.72;k+=0.16){if(cpuHazHot(bo.x+tvx*k,bo.y+tvy*k,r2.t+k,6,true))return true;}return false;};
-        if(traj(vx,vy)){
-          vy=0;
-          if(traj(vx,0))vx=0; // even sliding is hot: full hold
+        // climb toward the rim; hold only when impact is imminent (a far-ahead piston must NOT stall us across the course — it
+        // oscillates and will have moved by the time we arrive). When blocked at the rim, DODGE laterally to a column of the
+        // static gap whose climb-path clears soon, then punch through — this solves the PISTON RUN shelf+piston compound crossing.
+        let hotK=Infinity;
+        for(let k=0.06;k<=0.72;k+=0.06){if(cpuHazHot(bo.x+vx*k,bo.y+vy*k,r2.t+k,6,true)){hotK=k;break;}}
+        if(hotK<=0.30){
+          let tgtX=null,td=1e9;const lo=Math.max(gL+RR+2,RR+2),hi=Math.min(gR-RR-2,FW-RR-2);
+          for(let xc=lo;xc<=hi;xc+=8){
+            let okc=true;for(let k=0.10;k<=0.60;k+=0.08){if(cpuHazHot(xc,bo.y-SPD*k,r2.t+k,6,true)){okc=false;break;}}
+            if(okc){const d=Math.abs(xc-bo.x);if(d<td){td=d;tgtX=xc;}}
+          }
+          if(tgtX!==null){const dx2=tgtX-bo.x;
+            if(Math.abs(dx2)>RR*0.5){vx=Math.sign(dx2)*clamp(Math.abs(dx2)*6,26,SPD);vy=0;} // slide to the clear column
+            else{vx=0;vy=-SPD;}                                                              // aligned with a clear column: punch through
+          }else{vy=0;if(cpuHazHot(bo.x+vx*0.12,bo.y,r2.t+0.12,6,true))vx=0;}                  // no opening yet: hold for the window
         }
       }
       // sweepers: wait at the rim, enter just BEHIND the passing arm, commit to the crossing
@@ -6446,6 +6457,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.18 (2026-06-14): PISTON RUN RACE-CPU FIX + RAMMING ON RIGHT BUMPER. (1) On the PISTON RUN race course with MOVING HAZARDS on, the H2H race CPU froze at the start (it climbed ~6px and stopped). Cause: the moving-wall trajectory probe looked 0.72s ahead and a piston permanently occupied the lane ahead, so the bot held forever from across the course. Fix: it now only holds when impact is imminent (≤0.30s), climbing to the rim; and at the rim it DODGES laterally — scanning the static gap for a column whose climb-path clears soon and punching through — which solves the shelf+piston compound crossing the CPU previously couldn't (hands-off CHAMPION now finishes PISTON RUN with hazards on). (2) RAMMING boost-tackle moved from Right Trigger to RIGHT BUMPER (gamepad), so it no longer collides with RT fire — you can RAM and MACHINE-GUN at once in tank; RT/A still fire (RT is no longer stolen for boost). Keyboard boost stays on Shift. Full battery green. Single file, no assets.
   v5.1.17 (2026-06-14): MACHINE-GUN CRASH FIX + CHEAT-MENU CONTROLLER/LAYOUT + MG TRI-STATE + 2P FRISBEE VISUAL. (1) CRASH FIX: with MACHINE GUN on (shooter), the bot's hopper exceeds 4, and the shooter MAG HUD did '○'.repeat(4-len) — a negative count throws RangeError in the browser ('Invalid count value') and crashes the render. The harness never caught it because its canvas mock no-ops; the real browser does not. Clamped that repeat and hardened the other HUD repeat()s (series dots, SP tank HP). (2) MACHINE GUN is now a 3-state toggle OFF / YOU / BOTH — YOU gives full-auto only to the human side(s), BOTH to everyone (so the CPU opponent doesn't have to get it). (3) Cheat menu CONTROLLER nav: the left stick (and hat) now move/adjust/select in the menu, not just the D-pad (same gap as the konami-entry fix) — the joystick couldn't navigate it before. (4) Cheat menu LAYOUT: with five cheats the rows now collided with the rambots/instagram link buttons and the description; the Stussy logo moved up & smaller, rows start higher, the focused-cheat description has its own clear brighter line, and the link buttons flow below it (no overlap). (5) ULTIMATE ASCENT now renders flying 2P-shooter shots as 🥏 frisbees (2P only tinted them before; the SP path already did). smoke54 +5 (MG hopper crash-regression, MG tri-state OFF/YOU/BOTH). Full battery green. Single file, no assets.
   v5.1.16 (2026-06-14): SILENT SINGLE-PLAYER + RESET DEFAULTS + SMALLER TEAM RING + STRONGER TANK DODGE + RACE TIME-COMPARE. (1) Single-player is now fully silent: sfx() only fires during 2P (H2H) phases, so the SP menu, SP gameplay (shoot blip, bumps), and the SP results screen make no sound; the menu/2P mute toggle and [M] still govern 2P SFX. (2) RESET DEFAULTS button on the 2P MATCH SETTINGS screen (bottom-right, mirrors ALLIANCE CPU AI) restores all match settings to M2_SET_DEFAULTS — clickable, touchable, and in the gamepad nav ring. The defaults are now a shared const. (3) The red/blue team ring on the two MAIN H2H bots is back to a clean DASHED ring just outside the chassis (RR+7, like the alliance-bot ring) instead of the oversized plow-encircling disc from v5.1.10. (4) Tank-fight bullet dodge is WAY stronger at CHAMPION and trickled down every tier (scaled by sharpness): it now commits hard to the single most-imminent threatening bullet with a perpendicular sidestep whose urgency rises as the shot nears (CHAMPION sees ~408px out, ~101px lateral catch, sidesteps ~4×), so a sharp tank reliably clears fire instead of drifting into it; lower/adaptive tiers still flinch. (5) H2H OBSTACLE RACE no longer ends the instant the first racer finishes — both racers complete and the LOWER finish time wins (the slower racer gets a recorded time, not an automatic DNF). The laggard DNFs only if it exceeds DOUBLE the first finisher's time, so an idle/stuck bot can't stall the match. smoke52 +1 (reset defaults); smoke38's race now exercises the 2× DNF path. Full battery green. Single file, no assets.
   v5.1.15 (2026-06-14): PER-MODE CPU TIER TABLES. Splits the single shared tier table into per-mode tables so tuning one mode no longer disturbs the others: CPU_TIERS stays the canonical ball table (names, claim picker, ease lever, plow arrays all key off it) and CPU_TIERS_SHOOTER/TANK/RACE are clones selected by the current mode via modeTiers(); cpuTierParams now reads the active mode's table. Ball/tank/race are behavior-preserving (identical clones, ready to tune). SHOOTER is tuned now: CHAMPION and WINNER regain a top-tier speed edge (1.15/1.04) that the normal-ball speed clamp had removed — the clamp is mode-aware so shooter allows the edge while normal ball still caps every tier at the player's drive speed. The adaptive band (CPU_ADLO/ADHI) is shared across modes for now. smoke54 +1 (per-mode: shooter CHAMPION edge vs normal clamp). Full battery green. Single file, no assets.
