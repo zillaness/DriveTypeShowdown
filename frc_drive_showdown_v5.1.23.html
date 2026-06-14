@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.22.html
-  version: 5.1.22
+  file: frc_drive_showdown_v5.1.23.html
+  version: 5.1.23
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -579,6 +579,7 @@ function sfx(name,vol){
     case 'shoot':V(320,140,0.08,'square',0.26);break;
     case 'hit':N(0.06,0.45,1800);V(220,160,0.06,'square',0.3);break;
     case 'boom':N(0.42,0.7,900);V(110,45,0.42,'sine',0.7);break;
+    case 'explosion':N(0.34,0.8,700);V(150,40,0.34,'sawtooth',0.6);N(0.06,0.5,3000);break;
     case 'pickup':V(520,780,0.12,'triangle',0.34);break;
     case 'intake':V(300,430,0.06,'sine',0.26);break;
     case 'launch':N(0.12,0.32,2400);break;
@@ -2644,11 +2645,14 @@ const PUP_TYPES=[
   {id:'rapid', icon:'⚡', col:'#ffd740', lab:'RAPID FIRE 8s'},
   {id:'speed', icon:'»',  col:'#40c4ff', lab:'SPEED 8s'},
   {id:'shield',icon:'◈', col:'#ee66bb', lab:'SHIELD'},
+  {id:'expl',  icon:'💥', col:'#ff7043', lab:'EXPLOSIVE ×3'}, // single-use, stackable: AoE blast on impact
+  {id:'pierce',icon:'↯',  col:'#b388ff', lab:'PIERCING ×3'},  // single-use, stackable: punches through walls & the enemy
+  {id:'aim',   icon:'🎯', col:'#69f0ae', lab:'AUTO-AIM 8s'},  // timed: shots snap to the foe's current position
 ];
 function tf2AllowedPups(){
   const out=[];
   if(m2.set.hpk)out.push(PUP_TYPES[0]);
-  if(m2.set.pow)out.push(PUP_TYPES[1],PUP_TYPES[2],PUP_TYPES[3]);
+  if(m2.set.pow)out.push(PUP_TYPES[1],PUP_TYPES[2],PUP_TYPES[3],PUP_TYPES[4],PUP_TYPES[5],PUP_TYPES[6]);
   return out;
 }
 function tf2SpawnPup(){
@@ -2664,6 +2668,9 @@ function tf2ApplyPup(t,ty){
   else if(ty.id==='rapid')t.rapidT=8;
   else if(ty.id==='speed')t.speedT=8;
   else if(ty.id==='shield')t.shield=true;
+  else if(ty.id==='expl')t.explAmmo=(t.explAmmo||0)+3;   // stacks
+  else if(ty.id==='pierce')t.pierceAmmo=(t.pierceAmmo||0)+3; // stacks
+  else if(ty.id==='aim')t.aimT=8;                        // timed
 }
 function tf2SpawnPos(p){return p===0?{x:70,y:FH/2,h:0}:{x:FW-70,y:FH/2,h:Math.PI};} // red left, blue right
 // ── v3.8: H2H CPU — tank fight brain. LoS-gated lead aim, range-band strafing, pup contest, dodge. ──
@@ -2766,13 +2773,13 @@ function startP2Tank(){
   if(typeof m2.set.map!=='number'||!TF2_MAPS[m2.set.map])m2.set.map=0;
   const mp=TF2_MAPS[m2.set.map];
   tfObs=mp.obs;phase='p2tank';
-  tf2={t:0,cd:3,result:null,bullets:[],_bid:0,map:mp,pups:[],fx:[],btTouch:false,pupTimer:3+Math.random()*3,
+  tf2={t:0,cd:3,result:null,bullets:[],blasts:[],_bid:0,map:mp,pups:[],fx:[],btTouch:false,pupTimer:3+Math.random()*3,
     tanks:[0,1].map(p=>{const sp=tf2SpawnPos(p);
       return{x:sp.x,y:sp.y,h:sp.h,hp:3,reload:0,lives:m2.set.lives,inv:0,
-        rapidT:0,speedT:0,shield:false,_inp:{vx:0,vy:0,vr:0},_csv:null};})};
+        rapidT:0,speedT:0,shield:false,explAmmo:0,pierceAmmo:0,aimT:0,_inp:{vx:0,vy:0,vr:0},_csv:null};})};
   cpuH2HInit();
 }
-function tf2Respawn(p){const t=tf2.tanks[p],sp=tf2SpawnPos(p);t.x=sp.x;t.y=sp.y;t.h=sp.h;t.hp=3;t.inv=1.5;t.reload=0.5;t.rapidT=0;t.speedT=0;t.shield=false;}
+function tf2Respawn(p){const t=tf2.tanks[p],sp=tf2SpawnPos(p);t.x=sp.x;t.y=sp.y;t.h=sp.h;t.hp=3;t.inv=1.5;t.reload=0.5;t.rapidT=0;t.speedT=0;t.shield=false;t.aimT=0;} // ammo (expl/pierce) persists across respawns; timed buffs reset
 let p2TFire=[false,false],p2TFireId=[-1,-1];
 let p2Strip=[{id:-1,v:0},{id:-1,v:0}]; // optional 2nd touch channel (right-stick Y) per side
 function p2StripRect(sd){return sd===0?{x:CW/2-78,y:CH/2-110,w:48,h:220}:{x:CW/2+30,y:CH/2-110,w:48,h:220};}
@@ -2944,9 +2951,27 @@ function drawP2SensToasts(){
 }
 function tf2Shoot(p){
   const t=tf2.tanks[p];
-  tf2.bullets.push({x:t.x+Math.cos(t.h)*(RR+10),y:t.y+Math.sin(t.h)*(RR+10),
-    vx:Math.cos(t.h)*400,vy:Math.sin(t.h)*400,owner:p,id:tf2._bid++});
-  sfx('shoot');
+  // AUTO-AIM: snap the launch angle to the foe's CURRENT position (no lead/curve). Firing is already gated to "pointed at the foe".
+  let ang=t.h;
+  if(t.aimT>0){const foe=tf2.tanks[1-p];ang=Math.atan2(foe.y-t.y,foe.x-t.x);}
+  let expl=false,pierce=false; // consume one of each stack if loaded; flags ride on the bullet
+  if(t.explAmmo>0){t.explAmmo--;expl=true;}
+  if(t.pierceAmmo>0){t.pierceAmmo--;pierce=true;}
+  tf2.bullets.push({x:t.x+Math.cos(ang)*(RR+10),y:t.y+Math.sin(ang)*(RR+10),
+    vx:Math.cos(ang)*400,vy:Math.sin(ang)*400,owner:p,id:tf2._bid++,expl:expl,pierce:pierce,hitSet:pierce?[]:null});
+  sfx(expl?'explosion':'shoot');
+}
+const TF2_BLAST_R=62; // explosive AoE radius
+function tf2Damage(tg,owner){ // shared kill/respawn cascade for direct + AoE hits
+  const t=tf2.tanks[tg];if(t.inv>0)return;
+  if(t.shield){t.shield=false;return;}
+  t.hp--;sfx('hit');
+  if(t.hp<=0){t.lives--;sfx('boom');if(t.lives>0)tf2Respawn(tg);else{t.hp=0;tf2.result=owner;sfx('win');}}
+}
+function tf2Explode(x,y,owner){ // area blast: damages the enemy if inside the radius (owner-immune) + a fading ring
+  tf2.blasts.push({x:x,y:y,t:0.35});
+  sfx('explosion');p2Rumble(owner,0.5);
+  for(let q=0;q<2;q++){if(q===owner)continue;const t=tf2.tanks[q];if(Math.hypot(t.x-x,t.y-y)<=TF2_BLAST_R+RR)tf2Damage(q,owner);}
 }
 function updateP2Tank(dt){
   if(!tf2)return;
@@ -2959,6 +2984,7 @@ function updateP2Tank(dt){
     t.inv=Math.max(0,t.inv-dt);
     t.rapidT=Math.max(0,t.rapidT-dt);
     t.speedT=Math.max(0,t.speedT-dt);
+    t.aimT=Math.max(0,(t.aimT||0)-dt);
     withBot(p,t,()=>{
       let inp=getInp(playerBind[p]);
       if(t.speedT>0){inp.vx*=1.4;inp.vy*=1.4;}
@@ -3001,21 +3027,28 @@ function updateP2Tank(dt){
   if(arcadeMode){for(let p=0;p<2;p++)arcadeTackle(p,tf2.tanks[p],[tf2.tanks[1-p]]);}
   for(const b of tf2.bullets){
     b.x+=b.vx*dt;b.y+=b.vy*dt;
-    if(tfBulletDead(b)){b.dead=true;continue;}
+    // 1) arena bounds — always lethal (even for pierce); explosive detonates
+    if(tfBulletOOB(b)){b.dead=true;if(b.expl)tf2Explode(b.x,b.y,b.owner);continue;}
+    // 2) obstacle — explosive detonates on the wall; pierce flies through; plain dies
+    if(tfBulletHitObs(b)){
+      if(b.expl){b.dead=true;tf2Explode(b.x,b.y,b.owner);continue;}
+      if(!b.pierce){b.dead=true;continue;}
+      // pierce: pass through, keep flying
+    }
+    // 3) enemy tank
     const tg=1-b.owner,t=tf2.tanks[tg];
     if(Math.hypot(b.x-t.x,b.y-t.y)<RR+4){
-      b.dead=true;
-      if(t.inv>0)continue;
-      if(t.shield){t.shield=false;continue;}
-      t.hp--;sfx('hit');
-      if(t.hp<=0){
-        t.lives--;sfx('boom');
-        if(t.lives>0)tf2Respawn(tg);
-        else{t.hp=0;tf2.result=b.owner;sfx('win');}
+      if(b.pierce){ // damage once (guard the multi-frame overlap), keep flying, no blast
+        if(!b.hitSet.includes(tg)){b.hitSet.push(tg);tf2Damage(tg,b.owner);}
+      }else{
+        b.dead=true;
+        if(b.expl){tf2Explode(b.x,b.y,b.owner);continue;} // AoE covers the direct foe (no double damage)
+        tf2Damage(tg,b.owner);
       }
     }
   }
   tf2.bullets=tf2.bullets.filter(b=>!b.dead);
+  for(const bl of tf2.blasts)bl.t-=dt; tf2.blasts=tf2.blasts.filter(bl=>bl.t>0);
 }
 function drawP2Tank(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
@@ -3029,6 +3062,14 @@ function drawP2Tank(){
     ctx.beginPath();ctx.arc(b.x,b.y,4,0,Math.PI*2);
     ctx.fillStyle=col;ctx.fill();
     ctx.strokeStyle='#ffffff66';ctx.lineWidth=1;ctx.stroke();
+    if(b.expl){ctx.strokeStyle='#ff7043cc';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(b.x,b.y,6.5,0,Math.PI*2);ctx.stroke();} // explosive: orange halo
+  }
+  for(const bl of tf2.blasts){ // explosive blast rings (expanding, fading)
+    const k=1-bl.t/0.35,r=6+(TF2_BLAST_R-6)*k;
+    ctx.globalAlpha=Math.max(0,bl.t/0.35);
+    ctx.fillStyle='#ff704322';ctx.beginPath();ctx.arc(bl.x,bl.y,r,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#ff7043';ctx.lineWidth=3;ctx.beginPath();ctx.arc(bl.x,bl.y,r,0,Math.PI*2);ctx.stroke();
+    ctx.globalAlpha=1;
   }
   ctx.restore(); // closes the bullets block (dropped by the v2.6 patch — caused the marching-rectangles transform leak)
   // power-ups
@@ -3077,6 +3118,9 @@ function drawP2Tank(){
     if(t.shield)fx.push('◈');
     if(t.rapidT>0)fx.push('⚡'+Math.ceil(t.rapidT));
     if(t.speedT>0)fx.push('»'+Math.ceil(t.speedT));
+    if(t.explAmmo>0)fx.push('💥'+t.explAmmo);
+    if(t.pierceAmmo>0)fx.push('↯'+t.pierceAmmo);
+    if(t.aimT>0)fx.push('🎯'+Math.ceil(t.aimT));
     ctx.fillText('HP '+'●'.repeat(Math.max(0,t.hp))+'○'.repeat(Math.max(0,3-t.hp))+'  '+'♥'.repeat(Math.max(0,t.lives))+(fx.length?'  '+fx.join(' '):''),x,32);
   }
   ctx.textAlign='center';ctx.font='bold 13px Courier New';ctx.fillStyle='#d4d4f4';
@@ -5928,14 +5972,15 @@ function obsCheck(obj,r){
     if(d<r){obj.x=cx+dx/d*r;obj.y=cy+dy/d*r;}
   }
 }
-function tfBulletDead(b){
-  if(b.x<=3||b.x>=FW-3||b.y<=3||b.y>=FH-3)return true;
+function tfBulletOOB(b){return b.x<=3||b.x>=FW-3||b.y<=3||b.y>=FH-3;} // arena bounds (always lethal)
+function tfBulletHitObs(b){ // obstacle hit (pierce can survive this)
   for(const o of (tfObs||TF_OBS)){
     const cx=clamp(b.x,o.x,o.x+o.w),cy=clamp(b.y,o.y,o.y+o.h);
     if(Math.hypot(b.x-cx,b.y-cy)<5)return true;
   }
   return false;
 }
+function tfBulletDead(b){return tfBulletOOB(b)||tfBulletHitObs(b);} // legacy SP tank-fight path
 function tfShoot(tank,owner){
   if(!tfState)return;
   tfState.bullets.push({x:tank.x+Math.cos(tank.h)*(RR+10),y:tank.y+Math.sin(tank.h)*(RR+10),
@@ -6483,6 +6528,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.23 (2026-06-14): TANK POWER-UPS — EXPLOSIVE / PIERCING / AUTO-AIM (cheat-build batch 1). Three new tank-fight pickups (spawn under the existing POWER-UPS toggle): (1) EXPLOSIVE 💥 — single-use, STACKABLE (+3 per pickup); each fired shot consumes one and detonates an area blast on impact (wall/obstacle/tank) that damages the enemy within ~62px (owner-immune) with a fading ring. (2) PIERCING ↯ — single-use, STACKABLE (+3); the shot punches THROUGH obstacles and through the enemy (single hit, guarded against multi-frame double-hit), still dies at the arena bound. (3) AUTO-AIM 🎯 — timed 8s; each shot's launch angle snaps to the foe's CURRENT position. Ammo persists across respawns; the aim timer resets (like rapid/speed/shield). Precedence when a shot is both explosive AND piercing: explosive wins on walls (detonate+stop), piercing wins on tanks (pass through, no blast). HUD shows ammo/timer pills. Also fixes a latent gap: sfx('explosion') was never defined (the RAMMING tackle was silently silent) — now a real boom, shared by tackle + blasts. New suite smoke55 (15 asserts). Full battery green. Single file, no assets.
   v5.1.22 (2026-06-14): SHOOTER SHOVE EDGE + REAR-STEER CONTROL FIX. (1) DIFFICULTY (shooter): the main CPU bot now out-muscles alliance bots in the shoving match (tier-scaled mass B2_SHOVE [1.3,1.6,2.5,6]) so it isn't bullied off its scoring run — CHAMPION barely budges and plows through, ROOKIE is near-even. Alliance bots can still STRIP carried balls and BLOCK shots; they just can't body-bully the main bot. This (not intake-denial, which costs the CPU scoring time) is the lever that lets a strong CPU actually score. Gated to SHOOTER for now per the playtest plan; classic/normal unchanged pending a test. (2) Rear-steer (Forklift) steering input negated so left/right is intuitive (press right → curve right) — it read as inverted before; the rear wheels still toe opposite for the rear-pivot feel. smoke45 +2 (shove resists by tier). Full battery green. Single file, no assets.
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
