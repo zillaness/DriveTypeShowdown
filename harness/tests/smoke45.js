@@ -18,11 +18,11 @@ src+=`
   b2Sticky(1/60);
   ok('capture: front-contact ball becomes held',cb.held===true&&bo.load.length===1);
 
-  // CAPACITY by tier: CHAMPION caps at 3 (fits within the plow arms), ROOKIE at 1
+  // CAPACITY by tier: CHAMPION caps at 5 (nested cluster fits within the plow arms), ROOKIE at 1
   start(4);bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};
   for(let i=0;i<8;i++)freeBall(i,bo.x-(RR+BR),FH/2-8+i*2);
   for(let f=0;f<30;f++)b2Sticky(1/60);
-  ok('capacity: CHAMPION holds at most 3 ('+bo.load.length+')',bo.load.length===3);
+  ok('capacity: CHAMPION holds at most 5 ('+bo.load.length+')',bo.load.length===5);
   start(0);bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};
   for(let i=0;i<8;i++)freeBall(i,bo.x-(RR+BR),FH/2-8+i*2);
   for(let f=0;f<30;f++)b2Sticky(1/60);
@@ -32,7 +32,7 @@ src+=`
   start(4);bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};
   const carry=freeBall(0,bo.x-(RR+BR),FH/2);b2Sticky(1/60);
   bo.x=360;b2Sticky(1/60);
-  ok('carry: held ball stays in front of moved bot (x~'+carry.x.toFixed(0)+')',Math.abs(carry.x-(360-(RR+BR-1)))<3&&carry.held);
+  ok('carry: held ball stays in front of moved bot (x~'+carry.x.toFixed(0)+')',Math.abs(carry.x-(360-(RR+BR+2)))<3&&carry.held);
 
   // RELEASE-SCORE: drive a held ball through the opponent (left) gap
   start(4);bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};
