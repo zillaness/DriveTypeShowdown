@@ -56,6 +56,12 @@ src+=`
   bbApplyHit(bb2.bots[1],'rear',20,0); // owner 0 hits same-side 1 → no damage credit
   ok('same-side hit gives no damage credit',(bb2.bots[0].dmgDealt||0)===0);
 
+  // ── 7b. RAM/DASH (always-on, LT/Shift): a burst that engages + cools down ──
+  startBB(0,2);{const b=bb2.bots[0];kbBoostHeld=true;updateBB(1/60);
+   ok('RAM dash engages on Shift/LT',b.boostT>0&&b.boostCd>0);
+   kbBoostHeld=false;const cd=b.boostCd;for(let i=0;i<6;i++)updateBB(1/60);
+   ok('dash is on cooldown (no re-trigger while cooling)',b.boostCd<cd&&b.boostCd>0);}
+
   // ── 8. draw does not throw (no-op canvas) ──
   startBB(0,2);let threw=false;try{drawBB();}catch(e){threw=true;console.log('   drawBB error:',e.message);}
   ok('drawBB() renders without throwing',!threw);

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.49.html
-  version: 5.1.49
+  file: frc_drive_showdown_v5.1.50.html
+  version: 5.1.50
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -3667,9 +3667,14 @@ function startP2BB(){cheatedRun=false;paused=false;
       const ctl=tankMkCtl(r.bind);ctl.type=r.type;const si=seat[r.side]++,col=teamShade(r.side,si);
       if(r.type==='cpu'){ctl.tier=r.tier;ctl.name='CPU'+(nSide[r.side]>1?' '+(si+1):'');}
       ctl.brain=(r.type==='cpu')?{inp:{vx:0,vy:0,vr:0}}:null;
-      return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:BB.MOB,hp:BB.HP,inv:1.0,dead:false,dmgDealt:0,ctl:ctl,_inp:{vx:0,vy:0,vr:0},_vis:null};})};
+      return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:BB.MOB,hp:BB.HP,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,_inp:{vx:0,vy:0,vr:0},_vis:null};})};
   cpuH2H=null;
 }
+// BattleBots RAM/DASH is always available (no RAMMING cheat needed) — LT (gamepad) / Shift (keyboard). Human-only in P1.
+function bbDashHeld(bind){const b=playerBind[bind];if(!b||b.type==='cpu')return false;
+  if(b.type==='kb'||b.type==='any')return kbBoostHeld;
+  if(b.type==='gp'){const bt=gpBtnsAll[b.gp];return !!(bt&&bt[6]);}
+  return false;}
 function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while driving to its REAR to ram it
   if(!bb2)return;
   for(let p=0;p<bb2.bots.length;p++){const me=bb2.bots[p];if(me.dead)continue;const br=me.ctl.brain;if(!br)continue;
@@ -3691,9 +3696,11 @@ function updateBB(dt){
   bbCpuUpdate(dt);
   for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
     b.inv=Math.max(0,b.inv-dt);const bind=b.ctl.bind;
+    b.boostT=Math.max(0,b.boostT-dt);b.boostCd=Math.max(0,b.boostCd-dt);
+    if(bbDashHeld(bind)&&b.boostCd<=0&&b.boostT<=0&&b.mob>0){b.boostT=BOOST.dur;b.boostCd=BOOST.cd*ramCdMult;sfx('thump');p2Rumble(bind,0.6);} // RAM dash: a burst that hits harder (more closing speed → more damage)
     withBot(bind,b,()=>{
       let inp=b.ctl.type==='cpu'?(b.ctl.brain?b.ctl.brain.inp:{vx:0,vy:0,vr:0}):getInp(playerBind[bind]);
-      const sc=bbSpeed(b);inp={vx:inp.vx*sc,vy:inp.vy*sc,vr:inp.vr*sc};b._inp=inp; // slow as mobility drops
+      const sc=bbSpeed(b),dash=b.boostT>0?BOOST.mul:1;inp={vx:inp.vx*sc*dash,vy:inp.vy*sc*dash,vr:inp.vr*sc};b._inp=inp; // slow as mobility drops; dash multiplies translation
       b.h+=inp.vr*dt;b.x+=inp.vx*dt;b.y+=inp.vy*dt;
       if(!noClip)obsCheck(b,RR);
     });
@@ -3735,7 +3742,7 @@ function drawBB(){
     bbBar(x,y+5,184,7,b.mob/BB.MOB,'#ffd740');bbBar(x,y+15,184,7,b.hp/BB.HP,'#ff5555');
   }}
   ctx.textAlign='center';ctx.font='bold 13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText(fmt(Math.max(0,bb2.t)),CW/2,20);
-  ctx.font='9px Courier New';ctx.fillStyle='#556';ctx.fillText('BATTLEBOTS — keep your FRONT to them · ram their REAR (HP) or SIDE (wheels)',CW/2,38);
+  ctx.font='9px Courier New';ctx.fillStyle='#556';ctx.fillText('BATTLEBOTS — keep your FRONT to them · ram their REAR (HP) or SIDE (wheels) · LT/Shift = DASH',CW/2,38);
   if(bb2.cd>0){ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,CW,CH);ctx.font='bold 84px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffd740';ctx.fillText(String(Math.ceil(bb2.cd)),CW/2,FY+FH/2);ctx.font='bold 13px Courier New';ctx.fillStyle='#8888aa';ctx.fillText('BATTLEBOTS — '+bb2.map.name,CW/2,FY+FH/2+40);}
   if(bb2.result!==null){ctx.fillStyle='rgba(0,0,0,0.74)';ctx.fillRect(0,0,CW,CH);const w=bb2.result;ctx.textAlign='center';ctx.font='bold 40px Courier New';ctx.fillStyle=M2_COLS[w];ctx.fillText((w===0?'RED':'BLUE')+' WINS',CW/2,FY+FH/2-54);ctx.font='13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('KO  ·  '+fmt(bb2.t),CW/2,FY+FH/2-22);drawP2Nav(FY+FH/2+34);}
 }
@@ -7139,6 +7146,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.50 (2026-06-14): BATTLEBOTS — RAM/DASH (completes P1). The always-available RAM dash is now wired into BattleBots: LT (gamepad) / Shift (keyboard) fires a short forward burst (reuses BOOST dur/mul/cd, scaled by the RAM COOLDOWN cheat), multiplying translation so a dash-ram lands much more closing speed → more damage on the foe's rear/side. Human-only in P1; can't dash while immobilized (mobility 0). Per-bot boostT/boostCd, `bbDashHeld` reads LT/Shift. HUD hint updated. smoke57 +2 (dash engage + cooldown). Full battery green. Single file, no assets.
   v5.1.49 (2026-06-14): NEW MODE — BATTLEBOTS (P1: directional armor + two bars). A 5th 2P mode (`battlebots`, phase `p2bb`, `bb2` state) on the TANK FIGHT arena: a combat duel where positioning is everything. Every bot has a MOBILITY bar and an HP bar plus DIRECTIONAL ARMOR — keep your FRONT to the foe and kinetic ram hits are shrugged off; their REAR takes HP directly; their SIDE drains MOBILITY first (and once a bot's mobility hits 0 it's IMMOBILIZED — can't drive — and further side hits spill into HP). Damage = closing-speed (`p2ImpactMag`) × hit-location; brief per-contact cooldown; recoil knockback to both. KO (HP→0) = last side standing wins. P1 weapon is the always-on RAM (drive into their weak spots). Reuses the drive system (`withBot`/`getInp`/`obsCheck`), per-bot warm/cool team shades, the best-of series + result nav, and the new pause menu. A simple BattleBots CPU keeps its front to you while circling to your rear. HUD: per-bot MOBILITY + HP bars + a FRONT-armor arc indicator. The 2P mode picker now lays out N modes dynamically (was hard-coded to 4) + full gamepad nav. Settings: BEST OF + ARENA. Later phases (PRD_TABLED_MODES.md): weapons/loadouts (spinner/piston/flamethrower/wedge), hazards, flame blow-up, judges' decision, rumble. New smoke57 (23 asserts: mode wiring, hit-location, front-immune/rear-HP/side-mobility/spillover/immobile, mobility→speed, KO, draw-no-throw). Full battery green. Single file, no assets.
   v5.1.48 (2026-06-14): TANK 3v3 — ALLY TANKS + WARM/COOL PER-BOT RINGS (queue item 10, phase 1). (1) New ALLY TANKS lever (×0–2) on the TANK FIGHT MATCH SETTINGS adds CPU teammates to the player's side, composing with ENEMY TANKS to build 2v2 / 3v3 (e.g. you + 2 allies vs 3 CPUs). Ally CPUs inherit P1's drive (bind 0), each get their own brain (`cpuTankBrainsInit`), default to VETERAN tier (`allyTier`), and target the enemy side. In human-vs-human, ALLY TANKS gives each player CPU teammates. tallies=0 stays byte-identical 1v1. `cpuTierParams` refactored to `tierParamsByIdx` so a tank's brain uses its own `ctl.tier` (allies have no human bind); `cpuTankUpdate` now reads `me.ctl.tier`. (2) PER-BOT RING SHADES: teammates that share a drive base are now told apart by colour — side 0 wears a WARM family (red→orange→amber→rose, `TF2_RED_COLS`), side 1 a COOL family (blue→cyan→violet→teal, `TF2_BLUE_COLS`), each seat a distinct shade via `teamShade(side,idx)`; seat 0 keeps the classic red/blue so 1v1 is unchanged. Bullets/ring/tag/HUD all read the per-bot shade. NOTE phase 1: humans still limited to the 2 device binds (1 human + CPU allies, or 2 humans as rivals each with allies); a single TEAM SIZE lever + ≥3-human seats + claim-screen seat visualization is the next phase. smoke56 +13 (3v3 roster/sides, ally brains+drive+tier, enemy tier, warm/cool distinct shades, byte-identical default); smoke55/56 settings rows → 6. Full battery green. Single file, no assets.
   v5.1.47 (2026-06-14): PAUSE MENU — ENDGAME-STYLE NAV + TURN-RATE RATIO. (1) The pause overlay is no longer just RESUME/SETTINGS/QUIT — it now offers the same "how far back do you want to go" choices as the end-of-match screen: RESUME · RESTART (relaunch the current match/run) · SETUP (2P → claim screen) · MODE (mode select) · SETTINGS · MENU. Context-aware (SETUP only in 2P; SP shows RESTART/MODE/SETTINGS/QUIT). List-driven render + click + full D-pad/A/B/Start gamepad nav (B → menu). pauseResumeRect/pauseQuitRect kept (derive from the list) so existing tests/handlers hold. (2) TURN RATE knob: a rotation-vs-translation ratio stepper lives in the pause menu (◀▶ click or D-pad L/R, A resets to 1:1, persisted frcds_rot). The single simple sensitivity lever (slider + LB/RB bumpers) is unchanged; this just biases turn vs drive — `vr` is now scaled by `rotRatio` at the input return while translation stays on sensitivity. Pairs with the v5.1.46 MAX SENSITIVITY cheat so you can crank speed and still keep a sane turn rate. smoke54 +7 (pause nav items + destinations, RESTART, rotRatio scaling + stepper). Full battery green. Single file, no assets.

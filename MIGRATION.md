@@ -7,7 +7,7 @@ Self-contained context for continuing this project in a fresh thread.
 
 ## 1. Project basics
 - **Single-file HTML5 canvas game.** Everything lives in one `frc_drive_showdown_vX.Y.Z.html` (game code + inline `<script>` + changelog comment block near the end).
-- **Current build:** `frc_drive_showdown_v5.1.49.html`
+- **Current build:** `frc_drive_showdown_v5.1.50.html`
 - **Branch:** `claude/eager-sagan-5wehy1` (develop + push here ONLY; never push elsewhere).
 - **Repo scope:** `zillaness/driveshowdown`. Everything committed + pushed; battery ALL GREEN.
 - Built for FRC Team 2204 Rambots. Modes: 2P H2H (NORMAL ball, SHOOTER, TANK FIGHT, OBSTACLE RACE) + single-player drive practice. Claimable CPU opponent with 4 skill tiers (ROOKIE/VETERAN/WINNER/CHAMPION).
@@ -63,7 +63,7 @@ Self-contained context for continuing this project in a fresh thread.
 
 ## 6. Tabled (need user green-light)
 **Full specs for the two big ones are in `PRD_TABLED_MODES.md` — read it before building either.**
-- **BattleBots mode** — combat: HP + weapons + arena hazards + KO/judges, built on the tank arena + RAMMING + drive system. Phased plan in the PRD. Get explicit go-ahead.
+- **BattleBots mode** — 🔄 **IN PROGRESS. P1 DONE (v5.1.49–50):** new mode `battlebots`/phase `p2bb`/`bb2` on the tank arena — two bars (MOBILITY+HP), directional armor (front immune / rear=HP / side=mobility→spillover), ram-by-impact, mobility→speed (0=immobilized), KO last-standing, basic BattleBots CPU, per-bot MOBILITY+HP HUD + front-arc, always-on RAM/DASH (LT/Shift). Mode picker is N-mode dynamic. Symbols: `BB`/`bbHitLoc`/`bbApplyHit`/`bbCheckResult`/`bbSpeed`/`startP2BB`/`updateBB`/`drawBB`/`bbCpuUpdate`/`bbDashHeld`; smoke57 (25). **Remaining (PRD §A):** P2 weapons/loadouts (SPINNER/PISTON/FLAMETHROWER/WEDGE + weapon picker on the claim card — **needs claim-screen UI; do live, hard to verify headless**), P3 hazards, P4 flame blow-up + TIMED judges + HUD polish, P5 stronger CPU, P6 rumble. Tune TTK/bars (`BB` consts) in playtest.
 - **3v3 human** — staged foundation exists (`b2Roster` fill-rule, alliance helpers `b2Mains/b2Foes`); full wiring (roster spawn, per-main brain/input, 6-card setup, N-pair pinning, balance) deferred to v5.2. Do last. Details in the PRD.
 - **Race CPU drive-kinematics** — low priority; steer drives may not clear the course (turn radius). Currently holonomic.
 - **CHAMPION "one ball at a time" (normal)** — sticky-plow capture cone fills; widened "a bit" in v5.1.33. Revisit if still feels off.
