@@ -160,7 +160,20 @@ src+=`
    tf2Damage(1,0); // RED lands the golden kill
    ok('sudden death: first kill decides the winner (RED)',tf2.result===0);}
 
-  console.log('--- multi-tank (phase 1 roster + phase 2 N-tanks + phase 3 TIMED): '+P+' pass, '+F+' fail ---');
+  // ── 16. FRIENDLY FIRE toggle gates same-side damage (tank guns) ──
+  startTank(0,1,3); // 3 CPU squadmates on side 1
+  friendlyFire=true;
+  {const b=tf2.tanks[2];b.x=900;b.y=320;b.hp=3;b.inv=0;b.shield=false;b.dead=false;
+   tf2.bullets.length=0;tf2.bullets.push({x:900,y:320,vx:0,vy:0,owner:1,id:77,expl:false,pierce:false,hitSet:null}); // tank-1 bullet on squadmate tank-2 (same side)
+   const h=b.hp;updateP2Tank(1/60);
+   ok('FRIENDLY FIRE on: a same-side bullet damages a squadmate',b.hp===h-1);}
+  friendlyFire=false;
+  {const b=tf2.tanks[2];b.x=900;b.y=320;b.hp=3;b.inv=0;b.shield=false;b.dead=false;
+   tf2.bullets.length=0;tf2.bullets.push({x:900,y:320,vx:0,vy:0,owner:1,id:78,expl:false,pierce:false,hitSet:null});
+   const h=b.hp;updateP2Tank(1/60);
+   ok('FRIENDLY FIRE off: a same-side bullet is skipped',b.hp===h);}
+
+  console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire): '+P+' pass, '+F+' fail ---');
 })();
 `;
 global.ctxState={depth:0};global.texts=[];global.rumbles=[];

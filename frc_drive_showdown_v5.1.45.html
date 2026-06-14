@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.44.html
-  version: 5.1.44
+  file: frc_drive_showdown_v5.1.45.html
+  version: 5.1.45
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -154,6 +154,8 @@ function resetBinds(){playerBind=[{type:'any'},{type:'none'}];}
 let phase='menu',paused=false;
 let mouseX=0,mouseY=0,mouseAim=false; try{mouseAim=localStorage.getItem('frcds_maim')==='1';}catch(e){}
 function toggleMouseAim(){mouseAim=!mouseAim;try{localStorage.setItem('frcds_maim',mouseAim?'1':'0');}catch(e){}sfx('click');}
+let friendlyFire=false; try{friendlyFire=localStorage.getItem('frcds_ff')==='1';}catch(e){} // OFF = hits land only on the OPPOSING alliance/side (ram · guns · blasts); ON = you can hit your own team too
+function toggleFriendlyFire(){friendlyFire=!friendlyFire;try{localStorage.setItem('frcds_ff',friendlyFire?'1':'0');}catch(e){}sfx('click');}
 function mouseAimVr(bind){ // MOUSE-AIM: keyboard player's bot turns toward the cursor (overrides key/stick turn). Returns vr in TSP units, or null.
   if(!mouseAim||steerMode)return null;                 // steer drives turn by rolling — N/A
   if(!(bind.type==='kb'||bind.type==='any'))return null;
@@ -623,10 +625,11 @@ function settingsBack(){
 function settingsRowRect(i){return{x:10,y:68+i*50,w:CW-20,h:40};}
 function handleSettingsClick(mx,my){
   if(inR(mx,my,{x:4,y:8,w:56,h:28})){settingsBack();return;}
-  for(let i=0;i<3;i++){
+  for(let i=0;i<4;i++){
     if(inR(mx,my,settingsRowRect(i))){
       if(i===0){sfxUnlock();sfxToggle();}
       else if(i===1){toggleMouseAim();}
+      else if(i===2){toggleFriendlyFire();}
       else{cpuSettingsReturn='settings';cpuGpIdx=0;phase='cpuSettings';}
       return;
     }
@@ -643,6 +646,7 @@ function drawSettings(){
   const sRows=[
     {label:'Sound',val:sfxOn,onCol:'#44ffaa',hint:'plays effects in 2P matches  [M]'},
     {label:'Mouse-Aim',val:mouseAim,onCol:'#40c4ff',hint:'steer toward cursor instead of key/stick  [K]'},
+    {label:'Friendly Fire',val:friendlyFire,onCol:'#ff7043',hint:'OFF = hit enemies only · ON = ram/guns/blasts hit your own team too'},
     {label:'CPU AI Settings',link:true,hint:'speed · behavior · presets'},
   ];
   for(let i=0;i<sRows.length;i++){
@@ -1351,7 +1355,7 @@ function updateGamepad(){
   if(phase==='settings'){
     const now=performance.now(),rep=now-gpNavLast>180;
     const D=just(13)||(gpAxis.ly>0.55&&rep),U=just(12)||(gpAxis.ly<-0.55&&rep);
-    if(D){settingsGpIdx=Math.min(2,settingsGpIdx+1);gpNavLast=now;}
+    if(D){settingsGpIdx=Math.min(3,settingsGpIdx+1);gpNavLast=now;}
     if(U){settingsGpIdx=Math.max(0,settingsGpIdx-1);gpNavLast=now;}
     const sr=settingsRowRect(settingsGpIdx);
     if(just(0))handleSettingsClick(sr.x+sr.w/2,sr.y+20);
@@ -2565,8 +2569,10 @@ function updateP2Ball(dt){
        }
      }
    }}
-  // arcade: boosting bots tackle (stun + knockback + scatter load)
-  if(arcadeMode){for(let p=0;p<2;p++)arcadeTackle(p,b2.bots[p],ballFoes(p));}
+  // arcade: boosting bots tackle (stun + knockback + scatter load). FF on → also tackle your own alliance (main + support bots)
+  if(arcadeMode){for(let p=0;p<2;p++){
+    const tgts=friendlyFire?[b2.bots[1-p],...(b2.cpus||[])].filter(o=>o&&o!==b2.bots[p]):ballFoes(p);
+    arcadeTackle(p,b2.bots[p],tgts);}}
   // shooter: per-bot intake + shoot, then projectile flight (mode-gated)
   if(m2.mode==='shooter'){
     for(let p=0;p<2;p++){
@@ -3287,7 +3293,7 @@ function tf2Explode(x,y,owner){ // area blast: damages every opposing tank insid
   tf2.blasts.push({x:x,y:y,t:0.35});
   sfx('explosion');p2Rumble(owner,0.5);
   const os=tf2.tanks[owner]?tf2.tanks[owner].side:-1;
-  for(let q=0;q<tf2.tanks.length;q++){const t=tf2.tanks[q];if(t.dead||t.side===os)continue;if(Math.hypot(t.x-x,t.y-y)<=TF2_BLAST_R+RR)tf2Damage(q,owner);}
+  for(let q=0;q<tf2.tanks.length;q++){const t=tf2.tanks[q];if(t.dead||(t.side===os&&!friendlyFire))continue;if(Math.hypot(t.x-x,t.y-y)<=TF2_BLAST_R+RR)tf2Damage(q,owner);} // FRIENDLY FIRE off → owner's side is immune
 }
 function updateP2Tank(dt){
   if(!tf2)return;
@@ -3345,7 +3351,9 @@ function updateP2Tank(dt){
        obsCheck(a,RR);obsCheck(c,RR);}
    }
    tf2.btTouch=anyTouch;}
-  if(arcadeMode){for(let p=0;p<tf2.tanks.length;p++){if(tf2.tanks[p].dead)continue;arcadeTackle(tankCtl(p).bind,tf2.tanks[p],tankFoes(p));}}
+  if(arcadeMode){for(let p=0;p<tf2.tanks.length;p++){if(tf2.tanks[p].dead)continue;
+    const tgts=friendlyFire?tf2.tanks.filter((t,j)=>j!==p&&!t.dead):tankFoes(p); // FF on → can ram squadmates too
+    arcadeTackle(tankCtl(p).bind,tf2.tanks[p],tgts);}}
   for(const b of tf2.bullets){
     b.x+=b.vx*dt;b.y+=b.vy*dt;
     // 1) arena bounds — always lethal (even for pierce); explosive detonates
@@ -3360,7 +3368,7 @@ function updateP2Tank(dt){
     const os=tf2.tanks[b.owner]?tf2.tanks[b.owner].side:-1;
     for(let tg=0;tg<tf2.tanks.length;tg++){
       const t=tf2.tanks[tg];
-      if(t.dead||t.side===os)continue;
+      if(t.dead||(t.side===os&&!friendlyFire))continue; // FRIENDLY FIRE off → bullets skip same-side tanks
       if(Math.hypot(b.x-t.x,b.y-t.y)<RR+4){
         if(b.pierce){ // damage each tank once (guard the multi-frame overlap), keep flying through, no blast
           if(!b.hitSet.includes(tg)){b.hitSet.push(tg);tf2Damage(tg,b.owner);}
@@ -6947,6 +6955,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.45 (2026-06-14): FRIENDLY FIRE TOGGLE. New FRIENDLY FIRE option in the ⚙ SETTINGS screen (opens from the main menu and from the pause overlay → "pause settings"), default OFF, persisted (frcds_ff). OFF = hits only land on the OPPOSING alliance/side (the long-standing behavior); ON = your own team is fair game too. One shared `friendlyFire` flag gates every contact/damage path it makes sense for: the tank bullet→tank collision and `tf2Explode` (their same-side skip is now `&&!friendlyFire`), the tank arcade RAM (`arcadeTackle` target list includes squadmates when ON), and the ball-mode arcade RAM (now also staggers your own main/support bots when ON). Note the enemy-side RAM in ball mode was already wired (`arcadeTackle` ran on `ballFoes`, which includes the opposing main + support bots) and the ram already scatters a victim's carried balls — FF just unlocks hitting your own side. Kill credit stays cross-side only, so a friendly-fire teamkill deals damage/eliminates but never scores (keeps TIMED kill counts honest). smoke56 +2 (same-side bullet damages with FF on, skipped with FF off). Full battery green. Single file, no assets.
   v5.1.44 (2026-06-14): SWERVE VISIBILITY — PODS ON TOP + LARGER SEE-THROUGH TEAM RING. Two visual tweaks (no physics change) so the swerve drive reads clearly — you can see all four pods steer to the same angle when translating and splay tangentially when the chassis spins. (1) The square/rectangular chassis body was painted AFTER the wheels, burying the corner swerve modules (they sit at ±0.7·RR, well inside the ±RR body). drawWheels is now a two-pass renderer: an UNDER pass draws every non-swerve drive as before, and a new OVER pass (called from drawRobot after the body) re-draws the swerve pods ON TOP of the chassis so all four are fully visible. Pod angle/spin state still advances once per frame (in the over pass). (2) The red/blue alliance team ring (p2AllianceRing) is kept dashed but is now a touch larger (r=RR+10→RR+13, sits further out and reveals more of the pods) and slightly see-through (dashed team-color stroke at ~0.72 alpha over a lighter dark underlay) — Sam's call from the preview (see-through, not a solid tint). Applies across ball/tank/race main bots. Full battery green (draw-only; harness canvas is a no-op proxy). Single file, no assets.
   v5.1.43 (2026-06-14): MULTI-TANK PHASE 3 — TIMED / MOST-KILLS (queue item 4 complete). TANK FIGHT MATCH SETTINGS gain a FORMAT lever: LIVES — last standing (the existing mode) or TIMED — most kills wins. In TIMED the LIVES PER TANK row becomes MATCH TIME (60/90/120/180s) and the match is a DEATHMATCH: every tank has infinite lives and always respawns, you rack up kills against the clock, and the side with the most kills when time expires wins. An exact tie enters SUDDEN DEATH — the next kill wins (golden-goal), per Sam's tie-break call. Kill scoring sums per side (tf2SideKills, built on the Phase-1 kill credit); tf2TimeUp decides the winner at expiry; tf2Damage routes the sudden-death golden kill. TIMED HUD: a center COUNTDOWN flanked by a live RED n – n BLUE kills scoreboard, and each tank card shows ☠kills instead of hearts (the ∞-lives guard from Phase 2 keeps the heart strip from blowing up). The result overlay reports the winning side, the KILLS line (w–l), and flags SUDDEN DEATH when it went to golden kill. LIVES mode is unchanged (still byte-identical at 1v1). This completes the 3-phase multi-tank item: ENEMY TANKS ×1–4 (Phase 2) compose freely with LIVES/TIMED (Phase 3) — e.g. 1 human vs 3 CPU, TIMED 120s. smoke56 +10 (FORMAT row swap, 5-row overflow guard, infinite-lives respawn, kill credit in TIMED, most-kills expiry, tie→sudden-death→golden kill); smoke55 updated for the new FORMAT row (5 rows). Full battery green. Single file, no assets.
   v5.1.42 (2026-06-14): MULTI-TANK PHASE 2 — ENEMY TANKS ×1–4 (queue item 4). The TANK FIGHT MATCH SETTINGS gain an ENEMY TANKS lever (×1–4) — face a whole squad of CPU tanks. Two teams: side 0 = the player(s), side 1 = the CPU squad. With a CPU claim, 1+ humans take on N enemy CPU tanks; two human claims stay legacy 1v1 rivals (the lever is ignored). The roster build spawns players down the LEFT column and the CPU squad down the RIGHT, Y-spread symmetric about mid (±120 / ±160,mid / ±180,±60), clamped in-bounds; tcpus=1 collapses to the exact legacy 1v1 spawn (byte-identical). Each CPU tank now carries its OWN brain (cpuTankBrainsInit → ctl.brain) so the squad thinks independently instead of moving in lockstep; every CPU inherits P2's drive (m2.drive[1]) and shares P2's claimed tier. NO FRIENDLY FIRE between squadmates (bullet + explosion skip same-side). Each enemy tank gets a distinct shade (TF2_CPU_COLS: blue/cyan/violet/teal) on its ring/tag/bullets; eliminated tanks leave the field. HUD stacks the player card(s) on the left and the squad's cards on the right; the LIVES win is decided by tf2CheckResult (last SIDE standing) and the result overlay shows the winning TEAM + survivors when >2 tanks. The CPU brain now keys its tier/drive/dodge off each tank's control bind (not its array index), so indices 2+ no longer read undefined. smoke56 +23 (N-tank roster/sides, independent brains, spawn fairness, distinct colors, squad no-friendly-fire, last-side-standing with 3 enemies, tcpus=1 byte-identical, 2-human rivals); smoke38/55 updated for the per-tank brain + the new ENEMY TANKS row. Phase 3 (TIMED / most-kills) is next. Full battery green. Single file, no assets.
