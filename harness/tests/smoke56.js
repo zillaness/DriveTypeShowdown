@@ -3,8 +3,8 @@ src+=`
 ;(function(){
   let P=0,F=0;const ok=(l,c)=>{console.log((c?'PASS':'FAIL')+' — '+l);c?P++:F++;};
   // start a 1v1 tank match (RED human vs BLUE CPU) — Phase 1 roster plumbing must stay behavior-identical at 2 tanks
-  const startTank=(map,cpuTier)=>{applyLayout('land2p');phase='p2claim';tour=null;m2.mode='tankfight';
-    m2.set.cpus=0;m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.bestOf=1;m2.set.contact='full';m2.set.lives=3;m2.set.map=map||0;m2.set.hpk=false;m2.set.pow=true;
+  const startTank=(map,cpuTier,tcpus)=>{applyLayout('land2p');phase='p2claim';tour=null;m2.mode='tankfight';
+    m2.set.cpus=0;m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.bestOf=1;m2.set.contact='full';m2.set.lives=3;m2.set.map=map||0;m2.set.hpk=false;m2.set.pow=true;m2.set.tcpus=tcpus||1;
     m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};
     m2.claim=[{type:'kb'},(cpuTier!=null?{type:'cpu',tier:cpuTier}:{type:'kb'})];m2.sens=[1,1];m2._gpPrev=[];
     const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);updateP2Tank(3.1);};
@@ -74,7 +74,57 @@ src+=`
   const ehp=sx.hp;updateP2Tank(1/60);
   ok('a cross-side bullet damages the foe',sx.hp===ehp-1);
 
-  console.log('--- multi-tank (phase 1 roster): '+P+' pass, '+F+' fail ---');
+  // ── 7. ENEMY TANKS lever: 1 human vs N CPU tanks (Phase 2) ──
+  startTank(0,3,3); // 3 enemy CPU tanks
+  ok('tcpus=3 → 4 tanks total',tf2.tanks.length===4);
+  ok('one player tank on side 0',tf2.tanks.filter(t=>t.side===0).length===1);
+  ok('three CPU tanks on side 1',tf2.tanks.filter(t=>t.side===1).length===3);
+  ok('player tank is human, enemies are cpu',tf2.tanks[0].ctl.type==='human'&&tf2.tanks.slice(1).every(t=>t.ctl.type==='cpu'));
+  // each CPU tank has its OWN brain object (no sharing → they think independently)
+  const brains=tf2.tanks.slice(1).map(t=>t.ctl.brain);
+  ok('every CPU tank has a brain',brains.every(b=>!!b));
+  ok('CPU brains are distinct objects',new Set(brains).size===3);
+  // spawn fairness: player LEFT, CPUs RIGHT, distinct Y, in bounds
+  ok('player spawns on the LEFT (x=70)',tf2.tanks[0].x===70);
+  ok('all CPUs spawn on the RIGHT (x=FW-70)',tf2.tanks.slice(1).every(t=>t.x===FW-70));
+  const cys=tf2.tanks.slice(1).map(t=>t.y);
+  ok('CPU spawn Ys are distinct',new Set(cys).size===3);
+  ok('CPU spawns in bounds',cys.every(y=>y>=RR+12&&y<=FH-RR-12));
+  // distinct colors per CPU tank
+  ok('CPU tank colors are distinct',new Set(tf2.tanks.slice(1).map(t=>t.col)).size===3);
+  ok('player tank wears RED',tf2.tanks[0].col===M2_COLS[0]);
+
+  // ── 8. no friendly fire among multiple CPU tanks ──
+  startTank(0,1,3);
+  {const c1=tf2.tanks[1],c2=tf2.tanks[2];
+   c1.x=900;c1.y=300;c2.x=900;c2.y=300;c1.hp=3;c2.hp=3;c1.inv=0;c2.inv=0;c1.shield=false;c2.shield=false;c1.dead=false;c2.dead=false;
+   tf2.bullets.length=0;
+   tf2.bullets.push({x:900,y:300,vx:0,vy:0,owner:1,id:9,expl:false,pierce:false,hitSet:null}); // CPU-1 bullet sitting on CPU-2
+   const h=c2.hp;updateP2Tank(1/60);
+   ok('a CPU bullet does not damage a same-side CPU tank',c2.hp===h);}
+
+  // ── 9. LIVES: last SIDE standing wins with N enemy tanks ──
+  startTank(0,1,3);
+  tf2.result=null;
+  for(let q=1;q<tf2.tanks.length;q++){const t=tf2.tanks[q];t.lives=1;t.hp=1;t.inv=0;t.shield=false;t.dead=false;tf2Damage(q,0);}
+  ok('eliminating all 3 CPUs ends the match',tf2.result!==null);
+  ok('the surviving side (player, side 0) wins',tf2.result===0);
+  ok('player kill count = 3',tf2.tanks[0].kills===3);
+
+  // ── 10. tcpus=1 stays byte-identical to the legacy 1v1 spawn ──
+  startTank(0,1,1);
+  ok('tcpus=1 → exactly 2 tanks',tf2.tanks.length===2);
+  ok('1v1 player spawn unchanged (70, FH/2)',tf2.tanks[0].x===70&&tf2.tanks[0].y===FH/2);
+  ok('1v1 CPU spawn unchanged (FW-70, FH/2)',tf2.tanks[1].x===FW-70&&tf2.tanks[1].y===FH/2);
+
+  // ── 11. human vs human: legacy rivals (one each side), ENEMY TANKS lever ignored ──
+  startTank(0,null,4); // both kb, tcpus=4 should be ignored
+  ok('two humans → exactly 2 tanks (tcpus ignored)',tf2.tanks.length===2);
+  ok('humans are rivals on opposite sides',tf2.tanks[0].side===0&&tf2.tanks[1].side===1);
+  ok('both tanks are human',tf2.tanks.every(t=>t.ctl.type==='human'));
+  ok('side-1 human wears BLUE',tf2.tanks[1].col===M2_COLS[1]);
+
+  console.log('--- multi-tank (phase 1 roster + phase 2 N-tanks): '+P+' pass, '+F+' fail ---');
 })();
 `;
 global.ctxState={depth:0};global.texts=[];global.rumbles=[];

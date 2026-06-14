@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.41.html
-  version: 5.1.41
+  file: frc_drive_showdown_v5.1.42.html
+  version: 5.1.42
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -2913,7 +2913,11 @@ function tf2ApplyPup(t,ty){
   else if(ty.id==='pierce')t.pierceAmmo=(t.pierceAmmo||0)+3; // stacks
   else if(ty.id==='aim')t.aimT=8;                        // timed
 }
-function tf2SpawnPos(p){return p===0?{x:70,y:FH/2,h:0}:{x:FW-70,y:FH/2,h:Math.PI};} // red left, blue right
+function tf2SpawnPos(p){return p===0?{x:70,y:FH/2,h:0}:{x:FW-70,y:FH/2,h:Math.PI};} // legacy 1v1: red left, blue right (kept for byte-identical 1v1 / smoke38/55)
+// Multi-tank spawns: side 0 (players) on the LEFT column, side 1 (CPU) on the RIGHT, each side's tanks Y-spread symmetric about FH/2.
+// n=1 collapses to FH/2, so 1-human-vs-1-CPU is byte-identical to tf2SpawnPos.
+function tf2SpawnYs(n){const c=FH/2,off=n<=1?[0]:n===2?[-120,120]:n===3?[-160,0,160]:[-180,-60,60,180];return off.map(o=>clamp(c+o,RR+12,FH-RR-12));}
+function tf2SpawnSide(side,y){return side===0?{x:70,y:y,h:0}:{x:FW-70,y:y,h:Math.PI};}
 // ── multi-tank roster model (v5.1.41) ──
 // Each tank carries its own identity (side + control descriptor) so the engine no longer
 // assumes exactly two tanks at indices 0/1. Phase 1: behavior-identical at 2 tanks — ctl.bind
@@ -2921,12 +2925,17 @@ function tf2SpawnPos(p){return p===0?{x:70,y:FH/2,h:0}:{x:FW-70,y:FH/2,h:Math.PI
 function tankMkCtl(bind){const pb=(playerBind&&playerBind[bind])||{type:'any'};return{type:pb.type==='cpu'?'cpu':'human',bind:bind,tier:pb.tier|0};}
 function tankCtl(i){return tf2.tanks[i].ctl;}
 function tankSide(i){return tf2.tanks[i].side;}
-function tankBrain(i){const c=tf2.tanks[i].ctl;return (cpuH2H&&c)?cpuH2H[c.bind]:null;} // CPU brain store is keyed by control bind
+function tankBrain(i){return tf2.tanks[i].ctl.brain||null;} // each CPU tank carries its OWN brain (so N CPUs don't share one brain object)
 function tankFoes(i){const s=tf2.tanks[i].side,out=[];for(let j=0;j<tf2.tanks.length;j++){const t=tf2.tanks[j];if(j!==i&&t.side!==s&&!t.dead)out.push(t);}return out;}
 function tankNearestFoe(i){const me=tf2.tanks[i];let best=null,bd=Infinity;for(const f of tankFoes(i)){const d=Math.hypot(f.x-me.x,f.y-me.y);if(d<bd){bd=d;best=f;}}return best;}
-function tankFire(i){const c=tf2.tanks[i].ctl;return c.type==='cpu'?!!(cpuH2H&&cpuH2H[c.bind]&&cpuH2H[c.bind].fire):p2FireHeld(c.bind);}
+function tankFire(i){const c=tf2.tanks[i].ctl;return c.type==='cpu'?!!(c.brain&&c.brain.fire):p2FireHeld(c.bind);}
+function tankInp(i){const c=tf2.tanks[i].ctl;return c.type==='cpu'?(c.brain?c.brain.inp:{vx:0,vy:0,vr:0}):getInp(playerBind[c.bind]);}
 function tankMgOn(i){return mgOn(tf2.tanks[i].ctl.bind);}
+function tankCol(i){return tf2.tanks[i].col||M2_COLS[tf2.tanks[i].side]||M2_COLS[0];}
+function tankLabel(i){const c=tf2.tanks[i].ctl;return c.type==='cpu'?(c.name||'CPU'):p2Name(c.bind);}
 function withTank(i,fn){return withBot(tf2.tanks[i].ctl.bind,tf2.tanks[i],fn);} // uses the tank's own control bind for drive/sens/name
+// one independent brain per CPU tank (keyed on the tank, not the 2-slot cpuH2H store) so multiple enemy tanks each think for themselves
+function cpuTankBrainsInit(){for(const t of tf2.tanks)t.ctl.brain=(t.ctl.type==='cpu')?{inp:{vx:0,vy:0,vr:0},fire:false,obj:'idle',objT:0,tgt:null,aimJ:0,aimT:0}:null;}
 // ── v3.8: H2H CPU — tank fight brain. LoS-gated lead aim, range-band strafing, pup contest, dodge. ──
 function cpuLoS(ax,ay,bx,by){ // sampled segment-vs-obstacles visibility
   const d=Math.hypot(bx-ax,by-ay),n=Math.max(8,Math.ceil(d/26));
@@ -2939,13 +2948,14 @@ function cpuLoS(ax,ay,bx,by){ // sampled segment-vs-obstacles visibility
   return true;
 }
 function cpuTankUpdate(dt){
-  if(!cpuH2H||!tf2)return;
+  if(!tf2)return;
   for(let p=0;p<tf2.tanks.length;p++){
     const me=tf2.tanks[p];if(me.dead)continue;
     const br=tankBrain(p);if(!br)continue;
+    const bind=me.ctl.bind;
     const foe=tankNearestFoe(p);if(!foe)continue; // nearest live opposite-side tank
     const diff=((foe.lives*3+foe.hp)-(me.lives*3+me.hp))/3;
-    const T=cpuTierParams(p,diff);
+    const T=cpuTierParams(bind,diff);
     br.objT-=dt;br.aimT-=dt;br.strafeT=(br.strafeT||0)-dt;
     if(br.aimT<=0){br.aimJ=(Math.random()*2-1)*T.aim;br.aimT=0.5;}
     if(br.strafeT<=0){br.strafe=Math.random()<0.5?1:-1;br.strafeT=1.1+Math.random()*1.2;}
@@ -3004,7 +3014,7 @@ function cpuTankUpdate(dt){
     // v5.1.20: honor drive kinematics. Swerve/holo strafe freely (the common case). Tank/arcade/steer can't strafe: they steer the
     // BODY toward where they're traveling to relocate/navigate around cover, and only lock onto the foe when settled in a clear
     // firing pose — so a tank drive plays like a tank (turn, drive, line up the shot) instead of sliding like swerve.
-    const _drv=m2.drive&&m2.drive[p],_did=(typeof p2cDriveDef!=='undefined'&&_drv)?p2cDriveDef(p).id:null;
+    const _drv=m2.drive&&m2.drive[bind],_did=(typeof p2cDriveDef!=='undefined'&&_drv)?p2cDriveDef(bind).id:null;
     const _canStrafe=!_drv||_drv.kind==='holo'||_did==='botSwerve'||_did==='fieldSwerve';
     let headH=aimH;
     if(_canStrafe){
@@ -3028,14 +3038,33 @@ function startP2Tank(){cheatedRun=false;paused=false;
   if(typeof m2.set.map!=='number'||!TF2_MAPS[m2.set.map])m2.set.map=0;
   const mp=TF2_MAPS[m2.set.map];
   tfObs=mp.obs;phase='p2tank';
+  // ── roster build (v5.1.42) ── two teams: side 0 = humans, side 1 = CPU.
+  //  • one CPU claim → 1+ humans vs ENEMY TANKS (×1–4) CPU tanks (tcpus=1 → byte-identical 1v1)
+  //  • both human    → legacy rivals (one each side, tcpus ignored)
+  const cpuBind=(m2.claim[0]&&m2.claim[0].type==='cpu')?0:((m2.claim[1]&&m2.claim[1].type==='cpu')?1:-1);
+  const roster=[]; // {side, bind, type}
+  if(cpuBind<0){ // human vs human
+    roster.push({side:0,bind:0,type:'human'},{side:1,bind:1,type:'human'});
+  }else{
+    for(let b=0;b<2;b++)if(m2.claim[b]&&m2.claim[b].type!=='cpu')roster.push({side:0,bind:b,type:'human'});
+    if(!roster.length)roster.push({side:0,bind:1-cpuBind,type:'human'}); // safety: always one player tank
+    const n=clamp(m2.set.tcpus|0,1,4);for(let k=0;k<n;k++)roster.push({side:1,bind:cpuBind,type:'cpu'});
+  }
+  const nSide=[roster.filter(r=>r.side===0).length,roster.filter(r=>r.side===1).length];
+  const ys=[tf2SpawnYs(nSide[0]),tf2SpawnYs(nSide[1])],yIdx=[0,0],cpuIdx={n:0};
   tf2={t:0,cd:3,result:null,bullets:[],blasts:[],_bid:0,map:mp,pups:[],fx:[],btTouch:false,pupTimer:3+Math.random()*3,
-    tanks:[0,1].map(p=>{const sp=tf2SpawnPos(p);
-      return{x:sp.x,y:sp.y,h:sp.h,hp:3,reload:0,lives:m2.set.lives,inv:0,
-        side:p,kills:0,dead:false,ctl:tankMkCtl(p), // roster identity (Phase 1: 2 tanks → side 0 / side 1, ctl.bind = index)
+    tanks:roster.map(r=>{const sp=tf2SpawnSide(r.side,ys[r.side][yIdx[r.side]++]);
+      const ctl=tankMkCtl(r.bind);ctl.type=r.type; // roster decides side membership; ctl.bind still drives input/drive/sens
+      let col;
+      if(r.type==='cpu'){const ci=cpuIdx.n++;col=TF2_CPU_COLS[ci]||TF2_CPU_COLS[TF2_CPU_COLS.length-1];ctl.name='CPU'+(nSide[1]>1?' '+(ci+1):'');}
+      else col=M2_COLS[r.side]||M2_COLS[0]; // human wears its side's color (red on side 0, blue on the H2H side 1)
+      return{x:sp.x,y:sp.y,h:sp.h,sx:sp.x,sy:sp.y,sh:sp.h,hp:3,reload:0,lives:m2.set.lives,inv:0,
+        side:r.side,col:col,kills:0,dead:false,ctl:ctl,
         rapidT:0,speedT:0,shield:false,explAmmo:0,pierceAmmo:0,aimT:0,explBurstT:0,pierceBurstT:0,_inp:{vx:0,vy:0,vr:0},_csv:null};})};
-  cpuH2HInit();
+  cpuH2H=null; // tank mode uses per-tank ctl.brain (the 2-slot cpuH2H store is ball/race only)
+  cpuTankBrainsInit(); // one brain per CPU tank
 }
-function tf2Respawn(p){const t=tf2.tanks[p],sp=tf2SpawnPos(p);t.x=sp.x;t.y=sp.y;t.h=sp.h;t.hp=3;t.inv=1.5;t.reload=0.5;t.rapidT=0;t.speedT=0;t.shield=false;t.aimT=0;t.explBurstT=0;t.pierceBurstT=0;} // ammo (expl/pierce) persists across respawns; timed buffs reset
+function tf2Respawn(p){const t=tf2.tanks[p];t.x=t.sx;t.y=t.sy;t.h=t.sh;t.hp=3;t.inv=1.5;t.reload=0.5;t.rapidT=0;t.speedT=0;t.shield=false;t.aimT=0;t.explBurstT=0;t.pierceBurstT=0;} // back to its own spawn; ammo (expl/pierce) persists across respawns; timed buffs reset
 let p2TFire=[false,false],p2TFireId=[-1,-1];
 let p2Strip=[{id:-1,v:0},{id:-1,v:0}]; // optional 2nd touch channel (right-stick Y) per side
 function p2StripRect(sd){return sd===0?{x:CW/2-78,y:CH/2-110,w:48,h:220}:{x:CW/2+30,y:CH/2-110,w:48,h:220};}
@@ -3212,7 +3241,7 @@ function tf2Shoot(p){
   let ang=t.h;
   if(t.aimT>0){const foe=tankNearestFoe(p);if(foe)ang=Math.atan2(foe.y-t.y,foe.x-t.x);}
   let expl=false,pierce=false;
-  if(mgOn(p)){ // MACHINE GUN: a banked stack becomes a TIMED full-auto barrage (chaos), not one round per shot
+  if(mgOn(tankCtl(p).bind)){ // MACHINE GUN: a banked stack becomes a TIMED full-auto barrage (chaos), not one round per shot
     if(t.explBurstT>0)expl=true; else if(t.explAmmo>0){t.explBurstT=t.explAmmo*MG_BURST_PER;t.explAmmo=0;expl=true;}
     if(t.pierceBurstT>0)pierce=true; else if(t.pierceAmmo>0){t.pierceBurstT=t.pierceAmmo*MG_BURST_PER;t.pierceAmmo=0;pierce=true;}
   }else{ // normal/rapid fire: one round per shot
@@ -3266,7 +3295,7 @@ function updateP2Tank(dt){
     t.explBurstT=Math.max(0,(t.explBurstT||0)-dt);
     t.pierceBurstT=Math.max(0,(t.pierceBurstT||0)-dt);
     withTank(p,()=>{
-      let inp=getInp(playerBind[bind]);
+      let inp=tankInp(p);
       if(t.speedT>0){inp.vx*=1.4;inp.vy*=1.4;}
       if(arcadeMode)inp=arcadeStep(bind,t,inp,dt,tankFoes(p));
       t._inp=inp;
@@ -3341,7 +3370,7 @@ function drawP2Tank(){
   drawTFField();drawTFObstacles();
   ctx.save();ctx.translate(FX,FY);
   for(const b of tf2.bullets){
-    const col=M2_COLS[b.owner];
+    const col=(tf2.tanks[b.owner]?tf2.tanks[b.owner].col:M2_COLS[0]); // bullet wears its owning tank's shade
     const ang=Math.atan2(b.vy,b.vx);
     ctx.strokeStyle=col+'44';ctx.lineWidth=2;
     ctx.beginPath();ctx.moveTo(b.x-Math.cos(ang)*16,b.y-Math.sin(ang)*16);ctx.lineTo(b.x,b.y);ctx.stroke();
@@ -3387,28 +3416,35 @@ function drawP2Tank(){
     }
   }
   for(let p=0;p<tf2.tanks.length;p++){const t=tf2.tanks[p];
+    if(t.dead)continue; // eliminated tanks leave the field
     const blink=t.inv>0&&Math.floor(t.inv*10)%2===0;
     ctx.globalAlpha=blink?0.35:1;
     withTank(p,()=>{drawRobot();});
-    ctx.save();ctx.translate(FX+t.x,FY+t.y);p2AllianceRing(p);ctx.restore(); // ring on top so it's never buried by the swerve modules
+    const cov=t.ctl.type==='cpu'?t.col:undefined; // CPU shade; humans keep their name-egg color
+    ctx.save();ctx.translate(FX+t.x,FY+t.y);p2AllianceRing(p,cov);ctx.restore(); // ring on top so it's never buried by the swerve modules
     if(arcadeMode)drawStun(t);
-    drawP2Tag(p,t);
+    drawP2Tag(p,t,t.ctl.type==='cpu'?tankLabel(p):undefined,cov);
     ctx.globalAlpha=1;
   }
-  for(let p=0;p<2;p++){const t=tf2.tanks[p],x=p===0?8:CW-8;
-    ctx.textAlign=p===0?'left':'right';
-    ctx.font='bold 11px Courier New';ctx.fillStyle=M2_COLS[p];
-    ctx.fillText((p===0?'RED ':'BLUE ')+(m2.drive[p]?m2.drive[p].name:''),x,16);
-    ctx.font='bold 12px Courier New';
-    const fx=[];
-    if(t.shield)fx.push('◈');
-    if(t.rapidT>0)fx.push('⚡'+Math.ceil(t.rapidT));
-    if(t.speedT>0)fx.push('»'+Math.ceil(t.speedT));
-    if(t.explBurstT>0)fx.push('💥'+t.explBurstT.toFixed(1)+'s'); else if(t.explAmmo>0)fx.push('💥'+t.explAmmo);
-    if(t.pierceBurstT>0)fx.push('↯'+t.pierceBurstT.toFixed(1)+'s'); else if(t.pierceAmmo>0)fx.push('↯'+t.pierceAmmo);
-    if(t.aimT>0)fx.push('🎯'+Math.ceil(t.aimT));
-    ctx.fillText('HP '+'●'.repeat(Math.max(0,t.hp))+'○'.repeat(Math.max(0,3-t.hp))+'  '+'♥'.repeat(Math.max(0,t.lives))+(fx.length?'  '+fx.join(' '):''),x,32);
-  }
+  // HUD cards — players stack down the LEFT, CPU tanks down the RIGHT (compact, two lines each)
+  {const row=[0,0];
+   for(let p=0;p<tf2.tanks.length;p++){const t=tf2.tanks[p];
+     const left=t.side===0,x=left?8:CW-8,r=row[t.side]++,y=16+r*30;
+     ctx.globalAlpha=t.dead?0.4:1;ctx.textAlign=left?'left':'right';
+     ctx.font='bold 11px Courier New';ctx.fillStyle=tankCol(p);
+     ctx.fillText(tankLabel(p)+' '+(m2.drive[t.ctl.bind]?m2.drive[t.ctl.bind].name:''),x,y);
+     ctx.font='bold 12px Courier New';
+     const fx=[];
+     if(t.shield)fx.push('◈');
+     if(t.rapidT>0)fx.push('⚡'+Math.ceil(t.rapidT));
+     if(t.speedT>0)fx.push('»'+Math.ceil(t.speedT));
+     if(t.explBurstT>0)fx.push('💥'+t.explBurstT.toFixed(1)+'s'); else if(t.explAmmo>0)fx.push('💥'+t.explAmmo);
+     if(t.pierceBurstT>0)fx.push('↯'+t.pierceBurstT.toFixed(1)+'s'); else if(t.pierceAmmo>0)fx.push('↯'+t.pierceAmmo);
+     if(t.aimT>0)fx.push('🎯'+Math.ceil(t.aimT));
+     const hearts=isFinite(t.lives)?'♥'.repeat(Math.max(0,t.lives)):'∞'; // ∞ guard for the (future) TIMED deathmatch
+     ctx.fillText(t.dead?'— eliminated —':('HP '+'●'.repeat(Math.max(0,t.hp))+'○'.repeat(Math.max(0,3-t.hp))+'  '+hearts+(fx.length?'  '+fx.join(' '):'')),x,y+14);
+     ctx.globalAlpha=1;
+   }}
   ctx.textAlign='center';ctx.font='bold 13px Courier New';ctx.fillStyle='#d4d4f4';
   ctx.fillText(fmt(Math.max(0,tf2.t)),CW/2,20);
   ctx.font='9px Courier New';ctx.fillStyle='#444460';
@@ -3423,14 +3459,21 @@ function drawP2Tank(){
   }
   if(tf2.result!==null){
     ctx.fillStyle='rgba(0,0,0,0.74)';ctx.fillRect(0,0,CW,CH);
-    const w=tf2.result,l=1-w;
+    const w=tf2.result,l=1-w,multi=tf2.tanks.length>2,sideName=s=>s===0?'RED':'BLUE';
     ctx.textAlign='center';
     ctx.font='bold 40px Courier New';ctx.fillStyle=M2_COLS[w];
-    ctx.fillText(p2Name(w)+' WINS',CW/2,FY+FH/2-66);
+    ctx.fillText((multi?sideName(w)+' TEAM':p2Name(w))+' WINS',CW/2,FY+FH/2-66);
     ctx.font='bold 14px Courier New';ctx.fillStyle='#d4d4f4';
-    ctx.fillText(m2.drive[w].name+'  ·  ♥×'+tf2.tanks[w].lives+' left  ·  '+fmt(tf2.t)+p2CpuTag(w,l),CW/2,FY+FH/2-30);
-    ctx.font='11px Courier New';ctx.fillStyle='#666688';
-    ctx.fillText(p2Name(l)+' '+m2.drive[l].name+' — eliminated',CW/2,FY+FH/2-6);
+    if(multi){
+      const surv=tf2.tanks.filter(t=>t.side===w&&!t.dead).length,tot=tf2.tanks.filter(t=>t.side===w).length;
+      ctx.fillText(surv+'/'+tot+' tank'+(tot>1?'s':'')+' standing  ·  '+fmt(tf2.t),CW/2,FY+FH/2-30);
+      ctx.font='11px Courier New';ctx.fillStyle='#666688';
+      ctx.fillText(sideName(l)+' TEAM — eliminated',CW/2,FY+FH/2-6);
+    }else{
+      ctx.fillText(m2.drive[tf2.tanks[w].ctl.bind].name+'  ·  ♥×'+tf2.tanks[w].lives+' left  ·  '+fmt(tf2.t)+p2CpuTag(w,l),CW/2,FY+FH/2-30);
+      ctx.font='11px Courier New';ctx.fillStyle='#666688';
+      ctx.fillText(p2Name(l)+' '+m2.drive[l].name+' — eliminated',CW/2,FY+FH/2-6);
+    }
     drawP2Nav(FY+FH/2+34);
   }
 }
@@ -3628,15 +3671,15 @@ function withBot(p,bot,fn){
   sensitivity=sav.sens;eggOverride=sav.egg;visLoad(sav.vis);
   return r;
 }
-function drawP2Tag(p,b){
+function drawP2Tag(p,b,nameOverride,colOverride){
   const k=eggKind(m2.name&&m2.name[p]);
   ctx.font='bold 10px Courier New';ctx.textAlign='center';
-  ctx.fillStyle=k?EGG_COLS[k]:M2_COLS[p];
-  ctx.fillText('▼ '+p2Name(p),FX+b.x,FY+b.y-RR-12);
+  ctx.fillStyle=colOverride||(k?EGG_COLS[k]:M2_COLS[p]);
+  ctx.fillText('▼ '+(nameOverride||p2Name(p)),FX+b.x,FY+b.y-RR-12);
 }
 // bold red/blue (or egg) alliance halo + ring so each main bot's side reads at a glance, even when both pick the same drive. Call within a translate to the bot center.
-function p2AllianceRing(p){
-  const k=eggKind(m2.name&&m2.name[p]),col=k?EGG_COLS[k]:M2_COLS[p];
+function p2AllianceRing(p,colOverride){
+  const k=eggKind(m2.name&&m2.name[p]),col=colOverride||(k?EGG_COLS[k]:M2_COLS[p]);
   // a clear dashed team ring just OUTSIDE the chassis + wheel pods. Drawn AFTER the bot body so the
   // swerve corner modules (light, drive-colored) can't bury it; a dark underlay makes it pop.
   const r=RR+10; // sits clear of the swerve module housings (~RR*0.7+11) which used to read as a 'light frame'
@@ -3884,7 +3927,8 @@ const M2_MODES=[
   {id:'race',     name:'OBSTACLE RACE', desc:'first to the finish line',       col:'#40c4ff'},
 ];
 const M2_COLS=['#ff5555','#5599ff']; // red / blue alliance
-const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
+const TF2_CPU_COLS=['#5599ff','#33ccdd','#9b7bff','#44ddaa']; // ENEMY TANKS: distinct shades for up to 4 CPU tanks (1st = M2_COLS[1] so 1v1 stays identical)
+const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];}
@@ -4252,7 +4296,8 @@ function p2ModeRect(i){const w=280,h=300,g=24,x0=(CW-(4*w+3*g))/2;return{x:x0+i*
 function p2SettingsRows(){
   const S=m2.set;
   if(m2.mode==='tankfight')return[
-    {k:'lives',  lab:'LIVES PER PLAYER', vals:[1,3,5],            show:v=>v},
+    {k:'tcpus',  lab:'ENEMY TANKS',      vals:[1,2,3,4],          show:v=>'×'+v+(v>1?' (vs CPU only)':'')}, // CPU tank count on the enemy side; ignored in human-vs-human
+    {k:'lives',  lab:'LIVES PER TANK',   vals:[1,3,5],            show:v=>v},
     {k:'bestOf', lab:'BEST OF',          vals:[1,3,5],            show:v=>v===1?'OFF (1 round)':'BEST OF '+v},
     {k:'map',    lab:'MAP',              vals:[0,1,2,3],          show:v=>(TF2_MAPS[v]||TF2_MAPS[0]).name},
   ];
@@ -6872,6 +6917,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.42 (2026-06-14): MULTI-TANK PHASE 2 — ENEMY TANKS ×1–4 (queue item 4). The TANK FIGHT MATCH SETTINGS gain an ENEMY TANKS lever (×1–4) — face a whole squad of CPU tanks. Two teams: side 0 = the player(s), side 1 = the CPU squad. With a CPU claim, 1+ humans take on N enemy CPU tanks; two human claims stay legacy 1v1 rivals (the lever is ignored). The roster build spawns players down the LEFT column and the CPU squad down the RIGHT, Y-spread symmetric about mid (±120 / ±160,mid / ±180,±60), clamped in-bounds; tcpus=1 collapses to the exact legacy 1v1 spawn (byte-identical). Each CPU tank now carries its OWN brain (cpuTankBrainsInit → ctl.brain) so the squad thinks independently instead of moving in lockstep; every CPU inherits P2's drive (m2.drive[1]) and shares P2's claimed tier. NO FRIENDLY FIRE between squadmates (bullet + explosion skip same-side). Each enemy tank gets a distinct shade (TF2_CPU_COLS: blue/cyan/violet/teal) on its ring/tag/bullets; eliminated tanks leave the field. HUD stacks the player card(s) on the left and the squad's cards on the right; the LIVES win is decided by tf2CheckResult (last SIDE standing) and the result overlay shows the winning TEAM + survivors when >2 tanks. The CPU brain now keys its tier/drive/dodge off each tank's control bind (not its array index), so indices 2+ no longer read undefined. smoke56 +23 (N-tank roster/sides, independent brains, spawn fairness, distinct colors, squad no-friendly-fire, last-side-standing with 3 enemies, tcpus=1 byte-identical, 2-human rivals); smoke38/55 updated for the per-tank brain + the new ENEMY TANKS row. Phase 3 (TIMED / most-kills) is next. Full battery green. Single file, no assets.
   v5.1.41 (2026-06-14): MULTI-TANK PHASE 1 — ROSTER PLUMBING (behavior-identical at 2 tanks). Internal refactor toward "multiple enemy tanks + TIMED mode" (queue item 4). The tank engine no longer assumes exactly two tanks at indices 0/1: each tank now carries its own identity (side, ctl:{type,bind,tier}, kills, dead), and a set of roster helpers (tankCtl/tankSide/tankBrain/tankFoes/tankNearestFoe/tankFire/tankMgOn/withTank) resolve every per-tank value through that identity. All the 1v1-hardcoded loops were generalized to N tanks: cpuTankUpdate (each CPU targets its nearest live opposite-side foe; dodge skips same-side fire), updateP2Tank (per-tank update, pickup pickup, O(N²) tank-tank push, arcadeTackle), the bullet→tank collision (loops all tanks, skips dead & same-side = NO FRIENDLY FIRE; pierce damages each once and flies through), tf2Explode (damages every opposite-side tank in radius, owner side immune), tf2Shoot AUTO-AIM (nearest foe). New tf2Damage cascade adds kill credit + a dead flag; new tf2CheckResult decides LIVES (last side standing) — for 2 tanks the side index equals the tank index, so the result/HUD are byte-identical. No settings or visible behavior change yet (still 1v1); Phase 2 adds the ENEMY TANKS 1–4 lever + per-CPU brains, Phase 3 adds TIMED/most-kills. New smoke56 (21 asserts: roster model, helpers, kill credit, dead flag, last-side-standing, no-friendly-fire, side-aware explosion). Full battery green incl. smoke38/55. Single file, no assets.
   v5.1.40 (2026-06-14): PER-PUP SUB-SCREEN + SWERVE HOUSING REMOVED + PLOW SCALE FIX. (1) TANK FIGHT POWER-UPS: new per-pup sub-screen (⚡ POWER-UPS button on MATCH SETTINGS, replaces the old POW/HPK rows) lets you toggle each of the 7 pickups ON/OFF individually (puHp/puRapid/puSpeed/puShield/puExpl/puPierce/puAim keys, all true by default). tf2AllowedPups() now gates per-pup within the existing pow/hpk master flags (backward-compat: smoke38/55 still green). smoke55 +14 assertions (per-pup gating, sub-screen open/close/toggle). (2) SWERVE HOUSING REMOVED: the fixed housing square + corner pips around each swerve module are removed — only the animated rotating wheel and direction arrow remain, leaving the alliance ring clearly visible. (3) PLOW SCALE BUG FIX: PLOW_SEGS was a const array initialized once at startup; when ROBOT SIZE cheat changed RR, the collision geometry stayed at the original size. Now let PLOW_SEGS and setRobotScale() rebuilds it — plow contact is correct at 0.5×/1.5× robot scale. Full battery green. Single file, no assets.
   v5.1.39 (2026-06-14): ICE SLIP REWORK (direction fixed). The v5.1.36 'ICE GRIP' slider was backwards and too subtle. Replaced with 'ICE SLIP' (1×–5×, step 0.5, default 1× = the LOWEST/least-slide setting = the original fun glide, as requested): higher = MORE slipping/sliding. It drives MOM.ice.fri = 0.4/iceSlip, so 1×→0.40 (current feel) and 5×→0.08 (long uncontrollable glides) — a clearly perceptible range, in the right direction. Sits inline right under ICE SKATING in the cheat menu. smoke54 retargeted (ICE SLIP range + higher-slip-is-lower-friction). Full battery green. Single file, no assets.

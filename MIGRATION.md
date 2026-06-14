@@ -7,7 +7,7 @@ Self-contained context for continuing this project in a fresh thread.
 
 ## 1. Project basics
 - **Single-file HTML5 canvas game.** Everything lives in one `frc_drive_showdown_vX.Y.Z.html` (game code + inline `<script>` + changelog comment block near the end).
-- **Current build:** `frc_drive_showdown_v5.1.35.html`
+- **Current build:** `frc_drive_showdown_v5.1.42.html`
 - **Branch:** `claude/eager-sagan-5wehy1` (develop + push here ONLY; never push elsewhere).
 - **Repo scope:** `zillaness/driveshowdown`. Everything committed + pushed; battery ALL GREEN.
 - Built for FRC Team 2204 Rambots. Modes: 2P H2H (NORMAL ball, SHOOTER, TANK FIGHT, OBSTACLE RACE) + single-player drive practice. Claimable CPU opponent with 4 skill tiers (ROOKIE/VETERAN/WINNER/CHAMPION).
@@ -32,7 +32,7 @@ Self-contained context for continuing this project in a fresh thread.
 - **Input:** `getInp(bind)` returns `{vx,vy,vr}` per drive; **mouse-aim** = `mouseAimVr(bind)` override at the two `return{vx…}` lines (toggle `mouseAim`, key K). `mouseX/mouseY` tracked in mousemove.
 - **Pause:** `paused`, `canPause()`, `drawPause()`, `pauseClick()`, `pauseResumeRect/pauseQuitRect`; gated in `update(dt)` before the phase dispatch; Esc/Start enter, B/A or click exit.
 - **2P ball:** `b2` (`b2.bots[0/1]`, `b2.cpus` alliance, `b2.score`, `b2.pups`); `updateP2Ball`, `cpuBallUpdate` (brain → `b2ScoreCycle`), `b2Sticky`/`b2StickyCarriers` (plow capture cone `reach=RR+BR+[…]`, `lat=RR+[…]`), `b2Credit`/`b2TryScore`, `B2_SHOVE` (main-bot shove mass vs alliance, shooter).
-- **Tank:** `tf2` (`tf2.tanks[0/1]` — HARDCODED 1v1), `cpuTankUpdate`, `tf2Shoot`/`tf2Explode`/`tf2Damage`, `PUP_TYPES`/`tf2AllowedPups`/`tf2ApplyPup`/`tf2SpawnPup`, `tfBulletOOB`/`tfBulletHitObs`. Constants: `TF2_BLAST_R`, `MG_BURST_PER`.
+- **Tank:** `tf2` (`tf2.tanks[]` — VARIABLE ROSTER as of v5.1.41/42; each tank = `{side, col, ctl:{type,bind,tier,brain,name}, kills, dead, sx/sy/sh spawn, …}`). Roster helpers `tankCtl/tankSide/tankBrain/tankFoes/tankNearestFoe/tankFire/tankInp/tankMgOn/tankCol/tankLabel/withTank`; `cpuTankBrainsInit` (one brain per CPU tank); `tf2SpawnYs/tf2SpawnSide` (multi-spawn); `tf2CheckResult` (LIVES last-side-standing). `cpuTankUpdate`, `tf2Shoot`/`tf2Explode`/`tf2Damage` (kill credit), `PUP_TYPES`/`tf2AllowedPups`/`tf2ApplyPup`/`tf2SpawnPup`, `tfBulletOOB`/`tfBulletHitObs`. Sides: 0 = player(s), 1 = CPU squad; `m2.set.tcpus` (1–4 enemy tanks). Constants: `TF2_BLAST_R`, `MG_BURST_PER`, `TF2_CPU_COLS`.
 - **Race:** `r2` (`r2.bots`), `updateP2Race` (compare-times finish + 2× DNF), `cpuRaceUpdate` (PISTON RUN lateral-dodge). Race CPU is still holonomic (drive-kinematics deferred).
 - **Tiers:** `CPU_TIERS` (4: ROOKIE/VETERAN/WINNER/CHAMPION) + per-mode clones `CPU_TIERS_SHOOTER/TANK/RACE` via `modeTiers()`; `cpuTierParams`. Sizes: `let RR`, `let BR` (live; `RR0/BR0` bases; `setRobotScale` recomputes plow `SC_*`).
 - **Settings UI:** `p2SettingsRows()` (per-mode rows: vals+show or slider), `p2SetRowRect`, `p2SetDropRects`, `p2CycleSet`, `p2SetSliderVal`; `M2_SET_DEFAULTS` (RESET button); `cpuSettings` screen with `cpuSettingsReturn`.
@@ -42,7 +42,11 @@ Self-contained context for continuing this project in a fresh thread.
 1. ✅ **Global ⚙ Settings menu** *(DONE v5.1.36)* — `phase='settings'` from main menu + pause overlay: Sound, Mouse-aim, CPU AI link, full gamepad nav.
 2. ✅ **Per-power-up selection sub-screen (tank)** *(DONE v5.1.40)* — `phase='p2pupSettings'`, ⚡ POWER-UPS button on tank MATCH SETTINGS, ON/OFF per pup. `puHp/puRapid/puSpeed/puShield/puExpl/puPierce/puAim` keys (all true); `tf2AllowedPups()` gates per-pup within the pow/hpk master flags.
 3. ⏸ **"Shooting" cheat in classic (normal) ball** — user wants a shoot ability in normal ball mode (clarify exact behavior: launch a held/plowed ball? reuse shooter-style fire?). Likely a Konami cheat; ball-mode has no fire path in normal — would add one. **Ask the user to confirm the exact mechanic before building.**
-4. 📋 **Multiple enemy tanks + tank TIMED mode** — fully spec'd in `PRD_QUEUE_ITEM4_MULTITANK.md`. TWO independent levers: (a) **ENEMY TANKS** count (1–4), separate from tier; (b) tank **format** LIVES vs **TIMED / most-kills**. Reworks `tf2.tanks` from hardcoded `[0,1]` to a variable roster. Big; 4 phases, smoke56. Has 4 open questions for Sam (see PRD §10) before Phase 2.
+4. 🔄 **Multiple enemy tanks + tank TIMED mode** — spec in `PRD_QUEUE_ITEM4_MULTITANK.md`. TWO levers: (a) **ENEMY TANKS** ×1–4; (b) tank **format** LIVES vs **TIMED / most-kills**.
+   - ✅ **Phase 1 — roster plumbing** *(v5.1.41)*: per-tank identity + helpers, all 1v1 loops generalized, behavior-identical at 2 tanks.
+   - ✅ **Phase 2 — ENEMY TANKS ×1–4** *(v5.1.42)*: `tcpus` lever, multi-spawn, per-CPU brains (each inherits P2's drive + tier), no friendly fire, distinct CPU shades, N-tank HUD + last-side-standing result. Two teams (humans vs CPU); 2 humans = legacy rivals.
+   - 📋 **Phase 3 — TIMED / most-kills** *(next)*: `tformat`+`tTimeSec` rows, kill-count scoring, TIMED branch in `tf2CheckResult` (sum kills/side; tie → sudden death = first kill), `lives=Infinity` deathmatch (HUD `∞` guard already in place), TIMED HUD (countdown + per-side KILLS). smoke56 §ext.
+   - Sam's design calls (confirmed): two teams (humans vs CPU), CPUs inherit P2's drive, TIMED tie-break = sudden death.
 
 ## 6. Tabled (need user green-light)
 **Full specs for the two big ones are in `PRD_TABLED_MODES.md` — read it before building either.**

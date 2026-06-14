@@ -93,7 +93,7 @@ src+=`
   m2.mode='tankfight';m2.set.lives=1;m2.set.map=0;m2.set.hpk=false;m2.set.pow=false;
   phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:3}];m2._gpPrev=[];
   p2Click(sb.x+sb.w/2,sb.y+sb.h/2);
-  ok('tank match starts with CPU',phase==='p2tank'&&!!tf2&&!!cpuH2H&&!!cpuH2H[1]);
+  ok('tank match starts with CPU',phase==='p2tank'&&!!tf2&&!!tf2.tanks[1].ctl.brain&&tf2.tanks[1].ctl.type==='cpu');
   updateP2Tank(3.1);
   const ts=tf2.tanks[1],tsx=ts.x,tsy=ts.y;
   let cpuFired=false,hpDropped=false;
