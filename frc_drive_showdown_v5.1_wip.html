@@ -199,6 +199,7 @@ function achUnlock(id){
 function achDrive(idx){ if(achProg.drives.indexOf(idx)<0){achProg.drives.push(idx);achSaveProg();} if(achProg.drives.length>=5)achUnlock('alldrives'); }
 function achBeatTier(tier){ if(typeof tier!=='number')return; if(achProg.tiers.indexOf(tier)<0){achProg.tiers.push(tier);achSaveProg();} if(achProg.tiers.length>=5)achUnlock('alltiers'); }
 let cpuSettingsDrag=null;
+let cpuGpIdx=-1; // gamepad cursor index on the SP cpuSettings screen (-1 = inactive)
 const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
 const _GPKONAMI=[12,12,13,13,14,15,14,15,1,0];
 let konamiIdx=0,_gpKonamiIdx=0,konamiActive=false,frisbeeMode=false;
@@ -1055,6 +1056,22 @@ function updateGamepad(){
       }
     }
   }
+  // v5.1: SP CPU-settings gamepad nav — dpad moves the cursor, left/right adjusts the focused slider, A activates a button, B backs out
+  if(phase==='cpuSettings'&&!presetNameEntry.active){
+    const items=cpuGpItems();
+    if(cpuGpIdx<0||cpuGpIdx>=items.length)cpuGpIdx=0;
+    const now=performance.now(),rep=now-gpNavLast>160;
+    const D=just(13)||(gpAxis.ly>0.55&&rep),U=just(12)||(gpAxis.ly<-0.55&&rep);
+    const R=just(15)||(gpAxis.lx>0.55&&rep),L=just(14)||(gpAxis.lx<-0.55&&rep);
+    const cur=items[cpuGpIdx];
+    if(cur&&cur.kind==='slider'&&(L||R)){
+      const sl=cpuSliders().find(s=>s.id===cur.id);
+      if(sl){const norm=(sl.val()-sl.min)/(sl.max-sl.min);applyCpuSlider(cur.id,clamp(norm+(R?0.05:-0.05),0,1));}
+      gpNavLast=now;
+    }else if(U||D||L||R){cpuGpIdx=gpDirNav(items,cpuGpIdx,U?'u':D?'d':L?'l':'r');gpNavLast=now;}
+    if(just(0)){const it=items[cpuGpIdx];if(it&&it.kind!=='slider')handleCpuSettingsClick(it.x+it.w/2,it.y+it.h/2);}
+    if(just(1)||just(8))phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu';
+  }else if(phase!=='cpuSettings'&&cpuGpIdx>=0){cpuGpIdx=-1;}
   // Menu navigation — 2D grid: up/down move rows, left/right move columns
   if(phase==='menu'&&!gpShowMap){
     const items=gpMenuItems();
@@ -5066,6 +5083,18 @@ function drawAchToast(){
   ctx.globalAlpha=1;ctx.textAlign='center';
 }
 // ═══ CPU SETTINGS SCREEN ═══
+// v5.1: navigable items for gamepad cursor on the cpuSettings screen (rects mirror handleCpuSettingsClick + cpuSliders)
+function cpuGpItems(){
+  const it=[];
+  it.push({x:4,y:8,w:56,h:28,kind:'btn'});       // back
+  it.push({x:CW-106,y:8,w:102,h:28,kind:'btn'});  // reset
+  for(let i=0;i<4;i++)it.push({x:10+i*92,y:46,w:88,h:26,kind:'btn'}); // CPU count
+  for(const sl of cpuSliders())if(sl.id&&!sl.div)it.push({x:96,y:sl.y-2,w:210,h:30,kind:'slider',id:sl.id,min:sl.min,max:sl.max});
+  it.push({x:10,y:510,w:CW-20,h:28,kind:'btn'});  // save preset
+  const keys=Object.keys(cpuPresets);
+  for(let i=0;i<keys.length;i++)it.push({x:10,y:546+i*34,w:CW-50,h:28,kind:'btn'}); // load preset
+  return it;
+}
 function cpuSliders(){
   return [
     {id:'speed', label:'SPEED',     y:80,  min:0.25,max:3.0,  val:()=>cpuSpeedMult,                fmt:v=>v.toFixed(2)+'×',          col:'#ff8844', desc:'Overall CPU movement speed multiplier'},
@@ -5232,6 +5261,13 @@ function drawCpuSettings(){
     // Hints
     ctx.font='9px Courier New';ctx.textAlign='center';ctx.fillStyle='#336633';
     ctx.fillText('Enter to save  ·  Esc to cancel',CW/2,CH/2+20);
+  }
+  // v5.1: gamepad cursor overlay
+  if(cpuGpIdx>=0&&gpConnected&&!presetNameEntry.active){
+    const items=cpuGpItems();
+    if(cpuGpIdx<items.length){const it=items[cpuGpIdx];
+      ctx.save();ctx.strokeStyle='#ffd740';ctx.lineWidth=2;ctx.setLineDash([5,4]);
+      rr(it.x-3,it.y-3,it.w+6,it.h+6,6);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
   }
 }
 
