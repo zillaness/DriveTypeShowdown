@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.39.html
-  version: 5.1.39
+  file: frc_drive_showdown_v5.1.40.html
+  version: 5.1.40
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -240,6 +240,7 @@ function achBeatTier(tier){ if(typeof tier!=='number')return; if(achProg.tiers.i
 let cpuSettingsDrag=null;
 let cpuGpIdx=-1; // gamepad cursor index on the SP cpuSettings screen (-1 = inactive)
 let cpuSettingsReturn=null; // phase to return to when leaving cpuSettings (set when opened from the 2P MATCH SETTINGS screen; null = the SP menu)
+let pupSettingsReturn=null; // phase to return to when leaving p2pupSettings
 let settingsReturn='menu'; // 'menu' or a game-phase string (when opened from the pause menu)
 let settingsGpIdx=0;
 let pauseGpIdx=0; // cursor index in the pause overlay (0=RESUME 1=SETTINGS 2=QUIT)
@@ -867,6 +868,7 @@ function click(mx,my){
   // v5.1.14: SP mute pill removed (no SP SFX) — was {x:374,y:8} click toggle
   if(phase==='done'&&inR(mx,my,{x:CW/2-115,y:430,w:230,h:52}))afterDone();
   if(phase==='cpuSettings'){handleCpuSettingsClick(mx,my);return;}
+  if(phase==='p2pupSettings'){handleP2PupSettingsClick(mx,my);return;}
   if(phase==='highscores'){
     if(inR(mx,my,{x:4,y:8,w:56,h:28})){phase='menu';hsClearConfirm=false;return;}
     if(inR(mx,my,{x:CW-86,y:8,w:82,h:28})){
@@ -1021,9 +1023,10 @@ let SC_TX=RR+26, SC_TY=RR+20;   // arm tip: wide open mouth at front
 function setRobotScale(s){ // ROBOT SIZE cheat: scale RR live + recompute the plow geometry proportionally (arms scale with the body)
   robotScale=clamp(Math.round(s*10)/10,0.5,1.5);RR=clamp(RR0*robotScale,8,26);const k=RR/RR0;
   SC_BX=RR+2*k;SC_BY=RR+5*k;SC_MX=RR+14*k;SC_MY=RR+13*k;SC_TX=RR+26*k;SC_TY=RR+20*k;
+  PLOW_SEGS=[[SC_BX,-SC_BY,SC_MX,-SC_MY],[SC_MX,-SC_MY,SC_TX,-SC_TY],[SC_BX,SC_BY,SC_MX,SC_MY],[SC_MX,SC_MY,SC_TX,SC_TY]];
 }
-// 4 segments: base-to-mid and mid-to-tip for each side
-const PLOW_SEGS=[
+// 4 segments: base-to-mid and mid-to-tip for each side (rebuilt by setRobotScale when RR changes)
+let PLOW_SEGS=[
   [SC_BX,-SC_BY, SC_MX,-SC_MY],   // left outer arm
   [SC_MX,-SC_MY, SC_TX,-SC_TY],   // left inner arm
   [SC_BX, SC_BY, SC_MX, SC_MY],   // right outer arm
@@ -2882,9 +2885,15 @@ const PUP_TYPES=[
   {id:'aim',   icon:'🎯', col:'#69f0ae', lab:'AUTO-AIM 8s'},  // timed: shots snap to the foe's current position
 ];
 function tf2AllowedPups(){
-  const out=[];
-  if(m2.set.hpk)out.push(PUP_TYPES[0]);
-  if(m2.set.pow)out.push(PUP_TYPES[1],PUP_TYPES[2],PUP_TYPES[3],PUP_TYPES[4],PUP_TYPES[5],PUP_TYPES[6]);
+  // pow/hpk are master gates (backward-compat); puX keys add per-pup control within each gate
+  const S=m2.set,out=[];
+  if(S.hpk!==false&&S.puHp!==false)    out.push(PUP_TYPES[0]);
+  if(S.pow!==false&&S.puRapid!==false)  out.push(PUP_TYPES[1]);
+  if(S.pow!==false&&S.puSpeed!==false)  out.push(PUP_TYPES[2]);
+  if(S.pow!==false&&S.puShield!==false) out.push(PUP_TYPES[3]);
+  if(S.pow!==false&&S.puExpl!==false)   out.push(PUP_TYPES[4]);
+  if(S.pow!==false&&S.puPierce!==false) out.push(PUP_TYPES[5]);
+  if(S.pow!==false&&S.puAim!==false)    out.push(PUP_TYPES[6]);
   return out;
 }
 function tf2SpawnPup(){
@@ -3115,7 +3124,8 @@ function p2GpItems(){
   const it=[];
   if(phase==='p2modes'){for(let i=0;i<4;i++)it.push(p2ModeRect(i));it.push(p2TourBtnRect());it.push(p2RecBtnRect());}
   else if(phase==='p2drive'){for(const d of p2DriveList())it.push(p2DriveRect(d));}
-  else if(phase==='p2settings'){const rows=p2SettingsRows();for(let i=0;i<rows.length;i++)it.push(p2SetRowRect(i));if(p2ShowCpuCfg())it.push(p2CpuCfgBtnRect());it.push(p2StartBtnRect());it.push(p2ResetBtnRect());}
+  else if(phase==='p2settings'){const rows=p2SettingsRows();for(let i=0;i<rows.length;i++)it.push(p2SetRowRect(i));if(p2ShowCpuCfg())it.push(p2CpuCfgBtnRect());if(p2ShowPupCfg())it.push(p2PupCfgBtnRect());it.push(p2StartBtnRect());it.push(p2ResetBtnRect());}
+  else if(phase==='p2pupSettings'){it.push(p2BackBtnRect());const ks=['puHp','puRapid','puSpeed','puShield','puExpl','puPierce','puAim'];for(let i=0;i<7;i++)it.push(p2SetRowRect(i));}
   else if(phase==='p2tnames'){for(let i=0;i<4;i++)it.push(tourOptRect(i));if(tour&&tour.names.length>=4)it.push({x:CW/2-110,y:CH-92,w:220,h:42});}
   else if(phase==='p2tqual'){it.push({x:CW/2-100,y:CH-100,w:200,h:40});}
   else if(phase==='p2tbracket'){
@@ -3838,7 +3848,7 @@ const M2_MODES=[
   {id:'race',     name:'OBSTACLE RACE', desc:'first to the finish line',       col:'#40c4ff'},
 ];
 const M2_COLS=['#ff5555','#5599ff']; // red / blue alliance
-const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,ballN:'auto',pow:true,hpk:true,haz:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
+const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];}
@@ -4183,6 +4193,7 @@ function p2Back(){
   else if((phase==='p2tank'||phase==='p2ball')&&tour&&tour.cur){r2=null;tf2=null;tfObs=null;b2Teardown();applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if(phase==='p2drive'){if(m2._dp===1)m2._dp=0;else if(tour&&tour.cur){tour.cur=null;phase='p2tbracket';}else phase='p2modes';}
   else if(phase==='p2settings'){phase='p2modes';}
+  else if(phase==='p2pupSettings'){const r=pupSettingsReturn||'p2settings';pupSettingsReturn=null;phase=r;}
   else if(phase==='p2claim'){if(tour&&tour.cur){tour.cur=null;phase='p2tbracket';}else phase='p2settings';}
   else if(phase==='p2stub'){phase='p2claim';}
   else if(phase==='p2race'||phase==='p2tank'||phase==='p2ball'){p2QuitMatch(false);}
@@ -4208,8 +4219,6 @@ function p2SettingsRows(){
     {k:'lives',  lab:'LIVES PER PLAYER', vals:[1,3,5],            show:v=>v},
     {k:'bestOf', lab:'BEST OF',          vals:[1,3,5],            show:v=>v===1?'OFF (1 round)':'BEST OF '+v},
     {k:'map',    lab:'MAP',              vals:[0,1,2,3],          show:v=>(TF2_MAPS[v]||TF2_MAPS[0]).name},
-    {k:'pow',    lab:'POWER-UPS ⚡»◈',   vals:[true,false],       show:v=>v?'ON':'OFF'},
-    {k:'hpk',    lab:'HEALTH PICKUPS ✚', vals:[true,false],       show:v=>v?'ON':'OFF'},
   ];
   if(m2.mode==='race')return[
     {k:'course', lab:'COURSE',           vals:[0,1,2],            show:v=>(R2_COURSES[v]||R2_COURSES[0]).name},
@@ -4255,8 +4264,29 @@ function p2StartBtnRect(){return{x:CW/2-130,y:CH-90,w:260,h:48};}
 // Only ball modes have alliance bots whose brain these prefs tune, so it's hidden in tank/race.
 function p2ShowCpuCfg(){return m2.mode==='normal'||m2.mode==='shooter';}
 function p2CpuCfgBtnRect(){return{x:CW/2-130-210,y:CH-90,w:196,h:48};}
+function p2ShowPupCfg(){return m2.mode==='tankfight';}
+function p2PupCfgBtnRect(){return{x:CW/2-130-210,y:CH-90,w:196,h:48};} // same slot as CPU AI btn (mutually exclusive by mode)
 function p2ResetBtnRect(){return{x:CW/2+144,y:CH-90,w:196,h:48};} // RESET DEFAULTS — restores M2_SET_DEFAULTS (all modes)
 function p2BackBtnRect(){return{x:14,y:12,w:90,h:30};}
+// ── per-pup sub-screen ──
+const PUP_KEYS=['puHp','puRapid','puSpeed','puShield','puExpl','puPierce','puAim'];
+function drawP2PupSettings(){
+  p2Chrome('TANK POWER-UPS','toggle each pick-up on or off · back returns to MATCH SETTINGS');
+  for(let i=0;i<PUP_TYPES.length;i++){
+    const p=PUP_TYPES[i],k=PUP_KEYS[i],on=m2.set[k]!==false,rc=p2SetRowRect(i);
+    ctx.fillStyle=on?'rgba(25,45,30,0.8)':'rgba(30,25,25,0.8)';rr(rc.x,rc.y,rc.w,rc.h,10);ctx.fill();
+    ctx.strokeStyle=on?'#44ffaa':'#553333';ctx.lineWidth=1.5;rr(rc.x,rc.y,rc.w,rc.h,10);ctx.stroke();
+    ctx.font='bold 16px Courier New';ctx.textAlign='left';ctx.fillStyle=p.col;
+    ctx.fillText(p.icon+' '+p.lab,rc.x+22,rc.y+30);
+    ctx.font='bold 13px Courier New';ctx.textAlign='right';ctx.fillStyle=on?'#44ffaa':'#aa4444';
+    ctx.fillText(on?'ON':'OFF',rc.x+rc.w-22,rc.y+30);}
+}
+function handleP2PupSettingsClick(mx,my){
+  if(inR(mx,my,p2BackBtnRect())){p2Back();return;}
+  for(let i=0;i<PUP_TYPES.length;i++){
+    if(inR(mx,my,p2SetRowRect(i))){
+      const k=PUP_KEYS[i];m2.set[k]=(m2.set[k]===false);sfx('click');return;}}
+}
 // ── claiming ──
 function p2ClaimDevice(b){
   for(const c of m2.claim){if(c&&((c.type==='kb'&&b.type==='kb')||(c.type==='gp'&&b.type==='gp'&&c.gp===b.gp)||(c.type==='cpu'&&b.type==='cpu')||(b.type.indexOf('touch')===0&&c.type===b.type)))return;}
@@ -4308,6 +4338,7 @@ function p2Click(mx,my){
       if(mx>=valRight-vw-30&&mx<=valRight-vw-2){p2CycleSet(i,-1);sfx('click');return;}  // ◀ prev
       setDropdown=i;sfx('click');return;}} // open the dropdown to choose
     if(p2ShowCpuCfg()&&inR(mx,my,p2CpuCfgBtnRect())){cpuSettingsReturn='p2settings';cpuGpIdx=0;phase='cpuSettings';sfx('click');return;}
+    if(p2ShowPupCfg()&&inR(mx,my,p2PupCfgBtnRect())){pupSettingsReturn='p2settings';phase='p2pupSettings';sfx('click');return;}
     if(inR(mx,my,p2ResetBtnRect())){m2.set={...M2_SET_DEFAULTS};cpuSpeedMult=1.0;setDropdown=null;sfx('click');return;} // restore all match settings to defaults (incl. ALLIANCE CPU SPEED = cpuSpeedMult 100%)
     if(inR(mx,my,p2StartBtnRect())){p2cEnsureDrives();if(!(m2.claim[0]&&m2.claim[1])){m2.claim=[null,null];m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);}phase='p2claim';return;}
   }else if(phase==='p2race'){
@@ -4482,6 +4513,7 @@ function p2Draw(){
   if(phase==='p2race'){drawP2Race();return;}
   if(phase==='p2tank'){drawP2Tank();return;}
   if(phase==='p2ball'){drawP2Ball();return;}
+  if(phase==='p2pupSettings'){drawP2PupSettings();return;}
   if(phase==='p2modes'){
     p2Chrome('2 PLAYER — PICK A MODE','head to head · one machine');
     for(let i=0;i<4;i++){const m=M2_MODES[i],r=p2ModeRect(i),sel=m2.mode===m.id;
@@ -4543,7 +4575,13 @@ function p2Draw(){
       ctx.strokeStyle=cfoc?'#ffd740':'#6a6acf';ctx.lineWidth=2;rr(cb.x,cb.y,cb.w,cb.h,12);ctx.stroke();
       ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle='#aab0ff';
       ctx.fillText('⚙ ALLIANCE CPU AI',cb.x+cb.w/2,cb.y+30);}
-    {const xb=p2ResetBtnRect(),xfoc=gpFocus===rows.length+(p2ShowCpuCfg()?1:0)+1; // focus index sits after rows, [cpuCfg], start
+    if(p2ShowPupCfg()){const pb=p2PupCfgBtnRect(),pfoc=gpFocus===rows.length;
+      ctx.fillStyle=pfoc?'rgba(45,45,75,0.85)':'rgba(30,30,55,0.7)';rr(pb.x,pb.y,pb.w,pb.h,12);ctx.fill();
+      ctx.strokeStyle=pfoc?'#ffd740':'#6a6acf';ctx.lineWidth=2;rr(pb.x,pb.y,pb.w,pb.h,12);ctx.stroke();
+      ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle='#aab0ff';
+      const nOn=PUP_TYPES.filter((_,i)=>m2.set[['puHp','puRapid','puSpeed','puShield','puExpl','puPierce','puAim'][i]]!==false).length;
+      ctx.fillText('⚡ POWER-UPS ('+nOn+'/7)',pb.x+pb.w/2,pb.y+30);}
+    {const xb=p2ResetBtnRect(),xfoc=gpFocus===rows.length+(p2ShowCpuCfg()?1:0)+(p2ShowPupCfg()?1:0)+1; // focus sits after rows + optional btns + start
       ctx.fillStyle=xfoc?'rgba(75,45,45,0.85)':'rgba(50,30,30,0.7)';rr(xb.x,xb.y,xb.w,xb.h,12);ctx.fill();
       ctx.strokeStyle=xfoc?'#ffd740':'#cf7a7a';ctx.lineWidth=2;rr(xb.x,xb.y,xb.w,xb.h,12);ctx.stroke();
       ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffb3b3';
@@ -4786,13 +4824,7 @@ function drawTrack(x1,x2,y,spin,color){
 // Swerve module: prominent housing + rotating wheel + direction arrow
 function drawSwerveWhl(cx,cy,dir,spin,color){
   ctx.save();ctx.translate(cx,cy);
-  // Fixed housing square with corner pips
-  ctx.fillStyle='#141428';ctx.fillRect(-11,-11,22,22);
-  ctx.strokeStyle=color+'66';ctx.lineWidth=1.5;ctx.strokeRect(-11,-11,22,22);
-  ctx.fillStyle=color+'55';
-  for(const [dx,dy] of [[-11,-11],[11,-11],[-11,11],[11,11]]){
-    ctx.beginPath();ctx.arc(dx,dy,2.5,0,Math.PI*2);ctx.fill();}
-  // Rotating wheel assembly
+  // Rotating wheel assembly (no housing — only the animated wheel + direction arrow)
   ctx.rotate(dir);
   ctx.fillStyle='#111';ctx.fillRect(-10,-4.5,20,9);
   ctx.strokeStyle=color+'55';ctx.lineWidth=0.9;
@@ -6804,6 +6836,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.40 (2026-06-14): PER-PUP SUB-SCREEN + SWERVE HOUSING REMOVED + PLOW SCALE FIX. (1) TANK FIGHT POWER-UPS: new per-pup sub-screen (⚡ POWER-UPS button on MATCH SETTINGS, replaces the old POW/HPK rows) lets you toggle each of the 7 pickups ON/OFF individually (puHp/puRapid/puSpeed/puShield/puExpl/puPierce/puAim keys, all true by default). tf2AllowedPups() now gates per-pup within the existing pow/hpk master flags (backward-compat: smoke38/55 still green). smoke55 +14 assertions (per-pup gating, sub-screen open/close/toggle). (2) SWERVE HOUSING REMOVED: the fixed housing square + corner pips around each swerve module are removed — only the animated rotating wheel and direction arrow remain, leaving the alliance ring clearly visible. (3) PLOW SCALE BUG FIX: PLOW_SEGS was a const array initialized once at startup; when ROBOT SIZE cheat changed RR, the collision geometry stayed at the original size. Now let PLOW_SEGS and setRobotScale() rebuilds it — plow contact is correct at 0.5×/1.5× robot scale. Full battery green. Single file, no assets.
   v5.1.39 (2026-06-14): ICE SLIP REWORK (direction fixed). The v5.1.36 'ICE GRIP' slider was backwards and too subtle. Replaced with 'ICE SLIP' (1×–5×, step 0.5, default 1× = the LOWEST/least-slide setting = the original fun glide, as requested): higher = MORE slipping/sliding. It drives MOM.ice.fri = 0.4/iceSlip, so 1×→0.40 (current feel) and 5×→0.08 (long uncontrollable glides) — a clearly perceptible range, in the right direction. Sits inline right under ICE SKATING in the cheat menu. smoke54 retargeted (ICE SLIP range + higher-slip-is-lower-friction). Full battery green. Single file, no assets.
   v5.1.38 (2026-06-14): ALLIANCE RING VISIBILITY (SWERVE) + DRIFT TABLED. (1) The red/blue team ring on the two main H2H bots was being drawn UNDER the bot body, so in swerve drives the light, drive-colored corner wheel-modules buried it (read as a 'light frame' hiding the alliance color). The ring now draws ON TOP of the bot, at a slightly larger radius (RR+10) that clears the module housings, with a dark underlay stroke so it pops against the light modules — works across ball/tank/race. (2) DRIFT cheat renamed 'DRIFT (WIP)' and tabled: its description now warns it's in development and doesn't really work yet (the slide-out-on-turns model needs rework). Pure render/label changes — full battery green. Single file, no assets.
   v5.1.37 (2026-06-14): CHEAT-MENU SLIDER DRAG + ALLIANCE SPEED UNIFIED. (1) Cheat-menu sliders (ICE GRIP, EXTRA BALLS, BALL/ROBOT SIZE) now CLICK-AND-DRAG, not just click-to-set — drag wired for mouse and touch (konamiDrag state + shared applyKonamiSlider helper); the konami menu also now takes touches from any phase (mid-match drag works on mobile). (2) The MATCH SETTINGS 'ALLIANCE CPU SPEED' slider is now the SAME value as the 'SPEED' slider inside ALLIANCE CPU AI (both edit cpuSpeedMult) — no more two conflicting speeds; range 0.25–3.0 in 0.25 steps, DEFAULT 100% (was a separate 0.4–1.2 allySpd defaulting to 80%). Slider rows gained optional get/set binding (setRowGet/setRowSet) so a row can drive a global var. RESET DEFAULTS also returns the speed to 100%. smoke54 +5 (ICE GRIP slider range + drag-set + non-slider guard); smoke52 retargeted to cpuSpeedMult (26). Full battery green. Single file, no assets.

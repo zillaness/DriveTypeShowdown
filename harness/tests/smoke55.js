@@ -15,6 +15,32 @@ src+=`
   m2.set.pow=true;m2.set.hpk=false; ok('allowed pups = 6 with POWER-UPS on, health off',tf2AllowedPups().length===6);
   m2.set.pow=false; ok('allowed pups = 0 with POWER-UPS off',tf2AllowedPups().length===0);
   m2.set.pow=true;
+  // per-pup keys: individual gating within the pow/hpk master gates
+  m2.set.hpk=true;
+  ok('all 7 pups when pow+hpk+all puX enabled',tf2AllowedPups().length===7);
+  m2.set.puRapid=false;m2.set.puSpeed=false;
+  ok('disabling puRapid+puSpeed yields 5 pups',tf2AllowedPups().length===5);
+  m2.set.puHp=false;
+  ok('disabling puHp reduces to 4 (hpk alone no longer enough)',tf2AllowedPups().length===4);
+  m2.set.puRapid=true;m2.set.puSpeed=true;m2.set.puHp=true;m2.set.hpk=false; // restore smoke55 baseline
+  // settings rows: pow/hpk removed from tankfight rows (moved to per-pup sub-screen)
+  m2.mode='tankfight';
+  const tfrows=p2SettingsRows();
+  ok('tankfight has 3 settings rows (lives/bestOf/map; pow+hpk in sub-screen)',tfrows.length===3&&tfrows[0].k==='lives'&&tfrows[1].k==='bestOf'&&tfrows[2].k==='map');
+  ok('p2ShowPupCfg() true in tankfight',p2ShowPupCfg());
+  ok('p2ShowPupCfg() false in ball mode',(m2.mode='normal',!p2ShowPupCfg()));
+  m2.mode='tankfight';
+  // open pup sub-screen via button click
+  phase='p2settings';pupSettingsReturn=null;m2.set.puRapid=true;
+  const pupBtn=p2PupCfgBtnRect();p2Click(pupBtn.x+pupBtn.w/2,pupBtn.y+pupBtn.h/2);
+  ok('pup cfg button opens p2pupSettings',phase==='p2pupSettings'&&pupSettingsReturn==='p2settings');
+  handleP2PupSettingsClick(p2SetRowRect(1).x+10,p2SetRowRect(1).y+10); // click RAPID row
+  ok('clicking pup row toggles off (puRapid=false)',m2.set.puRapid===false);
+  handleP2PupSettingsClick(p2SetRowRect(1).x+10,p2SetRowRect(1).y+10); // click again
+  ok('clicking again re-enables (puRapid=true)',m2.set.puRapid===true);
+  handleP2PupSettingsClick(p2BackBtnRect().x+5,p2BackBtnRect().y+5);
+  ok('back closes pup screen, returns to p2settings',phase==='p2settings'&&pupSettingsReturn===null);
+  m2.set.puRapid=true;m2.set.pow=true;m2.set.hpk=false; // restore baseline
 
   // ── apply stacks / timed ──
   const t0=tf2.tanks[0];t0.explAmmo=0;t0.aimT=0;
