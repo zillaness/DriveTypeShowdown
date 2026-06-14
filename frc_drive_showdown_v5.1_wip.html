@@ -246,6 +246,7 @@ C.addEventListener('touchstart',e=>{
   e.preventDefault();
   for(const t of e.changedTouches){
     const p=toCanvas(t);
+    if(muteShown()&&inMuteBtn(p.x,p.y)){sfxToggle();continue;}
     if(phase==='cpuSettings'){
       if(presetNameEntry.active){
         // Tap outside box or on hint cancels; tap box does nothing (use keyboard)
@@ -598,6 +599,7 @@ function cardRect(i){
 function fmt(t){return t.toFixed(2)+'s';}
 
 function click(mx,my){
+  if(muteShown()&&inMuteBtn(mx,my)){sfxToggle();return;}
   if(konamiActive){
     const _links=drawKonami._links||[];
     for(const lk of _links){
@@ -1611,7 +1613,8 @@ function b2SpawnCpus(){
 }
 function b2CpuUpdate(dt){
   if(!b2.cpus.length)return;
-  const spd=SPD*(typeof cpuSpeedMult!=='undefined'?cpuSpeedMult:1)*0.8;
+  const _at=(m2&&m2.set&&typeof m2.set.allyTier==='number')?m2.set.allyTier:2;
+  const spd=SPD*[0.55,0.68,0.80,0.92,1.05][_at]; // v5.1: alliance support bots scale with the ALLIANCE SKILL setting (tier 2 ~= the old 0.8x)
   for(const c of b2.cpus){
     c.roleT-=dt;
     if(c.roleT<=0){
@@ -3263,7 +3266,7 @@ const M2_MODES=[
 ];
 const M2_COLS=['#ff5555','#5599ff']; // red / blue alliance
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
-  set:{format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,ballN:'auto',pow:true,hpk:true,haz:true}};
+  set:{format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,allyTier:2,ballN:'auto',pow:true,hpk:true,haz:true}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];}
 function p2Exit(){tour=null;tfObs=null;b2Teardown();resetBinds();applyLayout('legacy');phase='menu';} // resetBinds: restore single-player input routing (else SP reads the stale 2P bind and ignores gamepad sticks)
 // ═══ PHASE 11: TOURNAMENT ═══
@@ -3627,6 +3630,7 @@ function p2SettingsRows(){
     {k:'layout', lab:'FIELD LAYOUT',     vals:['mirrored','shared'],show:v=>v==='shared'?'SHARED GAP':'MIRRORED — defend your own'},
     {k:'contact',lab:'CONTACT RULE',     vals:['full','pin'],     show:v=>v==='full'?'FULL CONTACT':'PIN PENALTY (~3s)'},
     {k:'cpus',   lab:'CPU BOTS PER SIDE',vals:[0,1,2],            show:v=>v===0?'NONE':'×'+v},
+    {k:'allyTier',lab:'ALLIANCE SKILL',  vals:[0,1,2,3,4],        show:v=>(CPU_TIERS[v]||CPU_TIERS[2]).name},
     {k:'ballN',  lab:'BALLS IN PLAY',    vals:['auto',4,6,8,10,12], show:v=>v==='auto'?'AUTO — scales with bots':v},
   ];
 }
@@ -3764,6 +3768,17 @@ function p2DrawStat(x,y,w,label,val,col){
   ctx.fillStyle=col;rr(x,y,Math.max(6,w*val),9,4);ctx.fill();
 }
 // ── drawing ──
+// v5.1: a small clickable mute toggle for the corner (menu + 2P setup screens). [M] still works everywhere.
+function muteBtnRect(){return{x:CW-100,y:12,w:88,h:30};} // dynamic: CW changes with layout
+function muteShown(){return phase==='menu'||(phase&&phase.indexOf('p2')===0&&phase!=='p2ball'&&phase!=='p2race'&&phase!=='p2tank');} // drawn on menu + 2P setup screens (p2Chrome), not match screens
+function inMuteBtn(mx,my){return inR(mx,my,muteBtnRect());}
+function drawMuteBtn(){
+  const r=muteBtnRect();
+  ctx.fillStyle=sfxOn?'rgba(20,55,40,0.88)':'rgba(30,30,42,0.88)';rr(r.x,r.y,r.w,r.h,8);ctx.fill();
+  ctx.strokeStyle=sfxOn?'#44ffaa':'#444460';ctx.lineWidth=1.5;rr(r.x,r.y,r.w,r.h,8);ctx.stroke();
+  ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillStyle=sfxOn?'#44ffaa':'#666688';
+  ctx.fillText(sfxOn?'🔊 SFX':'🔇 MUTE',r.x+r.w/2,r.y+20);
+}
 function p2Chrome(title,sub){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
   for(let y=0;y<CH;y+=3){ctx.fillStyle='rgba(0,0,0,0.12)';ctx.fillRect(0,y,CW,1);}
@@ -3774,6 +3789,7 @@ function p2Chrome(title,sub){
   ctx.font='bold 26px Courier New';ctx.fillStyle='#d4d4f4';
   ctx.fillText(title,CW/2,52);
   if(sub){ctx.font='12px Courier New';ctx.fillStyle='#444460';ctx.fillText(sub,CW/2,76);}
+  drawMuteBtn();
 }
 function p2Overlays(){
   if(gpConnected&&phase!=='p2claim'&&!p2LiveMatch()){
@@ -5399,6 +5415,7 @@ for(let i=0;i<4;i++){
       ctx.setLineDash([]);
     }
   }
+  drawMuteBtn();
 }
 
 function drawMiniField(x,y,w,h){
