@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.21.html
-  version: 5.1.21
+  file: frc_drive_showdown_v5.1.22.html
+  version: 5.1.22
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -975,8 +975,9 @@ function getInp(bind){
     vy=Math.sin(robot.h)*speed;
     vr=speed*Math.tan(steerAngle)/wheelbase;
   }else if(id==='rearSteer'){
-    // Rear-wheel steer — pivot at front axle; same controls, opposite turn sense
-    const steerIn =stickSwap?clamp((Rt?1:0)-(Lt?1:0)+jrx,-1,1):clamp((Dk?1:0)-(Ak?1:0)+jlx,-1,1);
+    // Rear-wheel steer — pivot at the front axle. v5.1.22: steering input negated so left/right is intuitive (press right → curve right);
+    // the rear wheels still visibly toe opposite and the -vr keeps the rear-pivot feel, but control is no longer reversed.
+    const steerIn =-(stickSwap?clamp((Rt?1:0)-(Lt?1:0)+jrx,-1,1):clamp((Dk?1:0)-(Ak?1:0)+jlx,-1,1));
     const throttle=stickSwap?clamp((Up?1:0)-(Dn?1:0)-jly,-1,1):clamp((Wk?1:0)-(Sk?1:0)-jry,-1,1);
     carSteerVis.steer=steerIn; carSteerVis.throttle=throttle;
     const steerAngle=steerIn*0.62;
@@ -984,7 +985,7 @@ function getInp(bind){
     const speed=throttle*SPD;
     vx=Math.cos(robot.h)*speed;
     vy=Math.sin(robot.h)*speed;
-    vr=-speed*Math.tan(steerAngle)/wheelbase; // NEGATIVE: rear steer inverts turn direction
+    vr=-speed*Math.tan(steerAngle)/wheelbase; // rear steer inverts turn direction (combined with the negated input → intuitive forward control)
   }else if(id==='fourWheelSteer'){
     // 4-Wheel Steer: WASD = tight turn, ←/→ = crab angle (needs throttle to move)
     const steerIn =clamp((Dk?1:0)-(Ak?1:0)+jlx,-1,1);
@@ -1818,7 +1819,11 @@ function b2CpuUpdate(dt){
       cu._tch[i]=touching;
     }
     if(d<RR*2){const nx=dx/d,ny=dy/d,ov=RR*2-d;
-      a.x+=nx*ov*0.5;a.y+=ny*ov*0.5;c.x-=nx*ov*0.5;c.y-=ny*ov*0.5;
+      // v5.1.22: SHOOTER — the main CPU bot out-shoves alliance bots (tier-scaled) so it isn't bullied off its scoring run; CHAMPION plows through.
+      let wa=1,wc=1;
+      if(m2.mode==='shooter'&&i<2&&j>=2&&m2.claim&&m2.claim[i]&&m2.claim[i].type==='cpu'){wa=B2_SHOVE[playerBind[i].tier|0]||1;}
+      const fa=wc/(wa+wc),fc=wa/(wa+wc); // heavier robot moves less
+      a.x+=nx*ov*fa;a.y+=ny*ov*fa;c.x-=nx*ov*fc;c.y-=ny*ov*fc;
       b2Wall(a,RR);b2Wall(c,RR);}
   }
 }
@@ -1847,6 +1852,7 @@ CPU_TIERS_SHOOTER[3].spd=1.15; // CHAMPION
 CPU_TIERS_SHOOTER[2].spd=1.04; // WINNER
 function modeTiers(){const m=(typeof m2!=='undefined'&&m2)?m2.mode:null;return m==='shooter'?CPU_TIERS_SHOOTER:m==='tankfight'?CPU_TIERS_TANK:m==='race'?CPU_TIERS_RACE:CPU_TIERS;}
 const CARRY_CAP=[2,2,3,5]; // sticky-plow load by tier (ROOKIE/VETERAN 2, WINNER 3, CHAMPION 5 — its main difficulty lever now the speed edge is capped to the player)
+const B2_SHOVE=[1.3,1.6,2.5,6]; // v5.1.22: main CPU bot's shove "mass" vs alliance bots by tier — CHAMPION barely budges, plows through; alliance can still strip/block, just can't bully it
 // pack n carried balls into the widening plow mouth: local (forward,lateral) offsets from the carry anchor (RR+BR-1), nestled so |lateral|+BR stays inside the arms
 function plowSlots(n){
   switch(n){
@@ -6477,6 +6483,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.22 (2026-06-14): SHOOTER SHOVE EDGE + REAR-STEER CONTROL FIX. (1) DIFFICULTY (shooter): the main CPU bot now out-muscles alliance bots in the shoving match (tier-scaled mass B2_SHOVE [1.3,1.6,2.5,6]) so it isn't bullied off its scoring run — CHAMPION barely budges and plows through, ROOKIE is near-even. Alliance bots can still STRIP carried balls and BLOCK shots; they just can't body-bully the main bot. This (not intake-denial, which costs the CPU scoring time) is the lever that lets a strong CPU actually score. Gated to SHOOTER for now per the playtest plan; classic/normal unchanged pending a test. (2) Rear-steer (Forklift) steering input negated so left/right is intuitive (press right → curve right) — it read as inverted before; the rear wheels still toe opposite for the rear-pivot feel. smoke45 +2 (shove resists by tier). Full battery green. Single file, no assets.
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)

@@ -120,6 +120,20 @@ src+=`
   let rookieDropped=false;for(let f=0;f<1500;f++){b2Sticky(1/60);if(bo.load.length===0){rookieDropped=true;break;}}
   ok('move-drop: ROOKIE leaks the carry while driving',rookieDropped);
 
+  // v5.1.22: SHOOTER shove — the main CPU bot out-muscles alliance bots (tier-scaled); CHAMPION barely budges, ROOKIE near-even
+  const shoveDisp=(tier)=>{
+    applyLayout('land2p');phase='p2claim';tour=null;m2.mode='shooter';m2.set.cpus=1;m2.set.bestOf=1;m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.contact='full';m2.set.ballN=6;
+    m2.drive[0]={kind:'main',idx:2,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:2,name:'A',c:'#0ff'};
+    m2.claim=[{type:'kb'},{type:'cpu',tier:tier}];m2.sens=[1,1];m2._gpPrev=[];
+    const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);updateP2Ball(3.1);
+    const champ=b2.bots[1],ally=b2.cpus[0];
+    champ.x=600;champ.y=320;ally.x=600+RR;ally.y=320;cpuH2H[1].inp={vx:0,vy:0,vr:0};
+    const cx0=champ.x;b2CpuUpdate(1/60);return Math.abs(champ.x-cx0);
+  };
+  const rookieShove=shoveDisp(0),champShove=shoveDisp(3);
+  ok('shove: CHAMPION main bot barely moves vs an alliance bot ('+champShove.toFixed(1)+'px)',champShove<4);
+  ok('shove: CHAMPION resists far more than ROOKIE ('+champShove.toFixed(1)+' < '+rookieShove.toFixed(1)+')',champShove<rookieShove*0.6);
+
   console.log('--- smoke45: '+P+' pass, '+F+' fail ---');
 })();
 `;
