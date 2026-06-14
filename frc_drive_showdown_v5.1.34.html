@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.33.html
-  version: 5.1.33
+  file: frc_drive_showdown_v5.1.34.html
+  version: 5.1.34
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -151,7 +151,24 @@ function bindAxes(bind){
   return GP_AXES_ZERO;
 }
 function resetBinds(){playerBind=[{type:'any'},{type:'none'}];}
-let phase='menu';
+let phase='menu',paused=false;
+function p2MatchLive(){return (phase==='p2ball'&&b2&&b2.result===null)||(phase==='p2tank'&&tf2&&tf2.result===null)||(phase==='p2race'&&r2&&r2.result===null);}
+function canPause(){return phase==='playing'||phase==='countdown'||p2MatchLive();}
+function pauseResumeRect(){return{x:CW/2-110,y:CH/2-2,w:220,h:44};}
+function pauseQuitRect(){return{x:CW/2-110,y:CH/2+52,w:220,h:44};}
+function pauseQuit(){ // leave the current game (the old Esc behavior)
+  paused=false;
+  if(phase&&phase.indexOf('p2')===0)p2Back();
+  else phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu';
+}
+function drawPause(){
+  ctx.fillStyle='rgba(0,0,0,0.66)';ctx.fillRect(0,0,CW,CH);
+  ctx.textAlign='center';ctx.fillStyle='#ffd740';ctx.font='bold 34px Courier New';ctx.fillText('PAUSED',CW/2,CH/2-44);
+  const btn=(r,txt,c)=>{ctx.fillStyle='rgba(20,30,50,0.9)';rr(r.x,r.y,r.w,r.h,10);ctx.fill();ctx.strokeStyle=c;ctx.lineWidth=2;rr(r.x,r.y,r.w,r.h,10);ctx.stroke();ctx.fillStyle=c;ctx.font='bold 16px Courier New';ctx.fillText(txt,r.x+r.w/2,r.y+28);};
+  btn(pauseResumeRect(),'▶ RESUME','#44ffaa');
+  btn(pauseQuitRect(),'✕ QUIT','#ff6b6b');
+  ctx.font='10px Courier New';ctx.fillStyle='#8890b0';ctx.fillText('ESC / START: resume    A: resume    B: quit',CW/2,CH/2+118);
+}
 let curD=0;
 let best={};
 let inverted=false,cpuBot=0,shooterMode=false;
@@ -214,7 +231,7 @@ let konamiIdx=0,_gpKonamiIdx=0,_gpKonPrev={},konamiActive=false,frisbeeMode=fals
 // konami cheat menu: toggleable fun modes (replaces the old auto-frisbee flip). arcadeMode adds the LT boost-tackle in 2P H2H ball+tank.
 let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides
 let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,driftMode=false,ballScale=1,robotScale=1,ballPups=false; // more cheats
-let cheatedRun=false; // set true while any cheat is active during a run/match; gates records + high scores
+let cheatedRun=false;paused=false; // set true while any cheat is active during a run/match; gates records + high scores
 const B2_BALL_CAP=72; // hard cap on balls in play (shared by EXTRA BALLS + MULTIBALL)
 function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||driftMode||ballScale!==1||robotScale!==1||ballPups;}
 function cheated(){return anyCheat()||cheatedRun;} // a run is "tainted" if a cheat is on now OR was on at any point this run
@@ -285,6 +302,7 @@ C.addEventListener('touchstart',e=>{
   e.preventDefault();
   for(const t of e.changedTouches){
     const p=toCanvas(t);
+    if(paused){pauseClick(p.x,p.y);continue;} // pause overlay swallows touches
     if(muteShown()&&inMuteBtn(p.x,p.y)){sfxToggle();continue;}
     if(phase==='cpuSettings'){
       if(presetNameEntry.active){
@@ -502,7 +520,7 @@ window.addEventListener('keydown',e=>{
   }
   if(phase==='menu'&&(e.key==='l'||e.key==='L')){phase='layoutPreview';e.preventDefault();return;}
   if(phase&&phase.indexOf('p2')===0){
-    if(e.key==='Escape'){p2Back();e.preventDefault();return;}
+    if(e.key==='Escape'){if(p2MatchLive())paused=!paused;else p2Back();e.preventDefault();return;}
     if(phase==='p2claim'){p2ClaimKb(e);e.preventDefault();return;}
     if(phase==='p2tnames'){
       if(e.key==='Enter'&&tour.buf.trim()&&tour.names.length<16){tour.names.push(tour.buf.trim());tour.buf='';}
@@ -528,7 +546,8 @@ window.addEventListener('keydown',e=>{
   if(phase==='steerMenu'){
     if(e.key>='1'&&e.key<='3')startSteerDrive(+e.key-1);
   }
-  if((phase==='playing'||phase==='countdown'||phase==='done')&&e.key==='Escape')phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu';
+  if((phase==='playing'||phase==='countdown')&&e.key==='Escape'){paused=!paused;return;} // Esc pauses (was: hard-exit)
+  if(phase==='done'&&e.key==='Escape')phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu';
   if((phase==='playing'||phase==='countdown'||phase==='done')&&(e.key==='r'||e.key==='R'))retryRun();
   if(!tankFight&&(phase==='playing'||phase==='countdown'||phase==='done')&&(e.key==='g'||e.key==='G'))spGhostToggle();
   if(e.key==='m'||e.key==='M')sfxToggle();
@@ -542,9 +561,17 @@ window.addEventListener('keydown',e=>{
 });
 window.addEventListener('keyup',e=>{keys[e.key]=false;if(e.key===' ')kbSpaceHeld=false;if(e.key==='Shift')kbBoostHeld=false;});
 
+function pauseClick(mx,my){ // returns true if the click was consumed by the pause overlay
+  if(!paused)return false;
+  if(inR(mx,my,pauseResumeRect())){paused=false;sfx('click');}
+  else if(inR(mx,my,pauseQuitRect())){pauseQuit();sfx('click');}
+  return true; // swallow all other clicks while paused
+}
 C.addEventListener('click',e=>{
   const r=C.getBoundingClientRect();
-  click((e.clientX-r.left)*(CW/r.width),(e.clientY-r.top)*(CH/r.height));
+  const mx=(e.clientX-r.left)*(CW/r.width),my=(e.clientY-r.top)*(CH/r.height);
+  if(pauseClick(mx,my))return;
+  click(mx,my);
 });
 
 function inR(mx,my,r){return mx>=r.x&&mx<=r.x+r.w&&my>=r.y&&my<=r.y+r.h;}
@@ -783,7 +810,7 @@ function startTankFight(i){
   robot=tfState.player;
 }
 function cancelNameEntry(){nameEntry.active=false;}
-function retryRun(){cheatedRun=false;
+function retryRun(){cheatedRun=false;paused=false;
   cancelNameEntry();
   if(tankFight)startTankFight(curD);
   else if(obstacleCourse)startObstacleCourse(curD);
@@ -826,7 +853,7 @@ function startSteerDrive(i){
   cpuRobots=mkCpus(FH-80,-Math.PI/2);
   playT=0; lastRobotInp={vx:0,vy:0,vr:0};
 }
-function startDrive(i){cheatedRun=false;
+function startDrive(i){cheatedRun=false;paused=false;
   holoMode=false; steerMode=false;
   if(tankFight){startTankFight(i);return;}
   if(obstacleCourse){startObstacleCourse(i);return;}
@@ -1131,6 +1158,12 @@ function updateGamepad(){
     gpPrev=gpBtnsAll[0]?gpBtnsAll[0].slice():[];
     return;
   }
+  if(paused){ // pause overlay: Start/A resume, B quits
+    if(just(9)||just(0))paused=false; else if(just(1))pauseQuit();
+    gpPrevAll=gpBtnsAll.map(b=>b?b.slice():b);gpPrev=gpBtnsAll[0]?gpBtnsAll[0].slice():[];return;
+  }
+  if(canPause()&&just(9)){paused=true; // Start pauses a live game (instead of exiting)
+    gpPrevAll=gpBtnsAll.map(b=>b?b.slice():b);gpPrev=gpBtnsAll[0]?gpBtnsAll[0].slice():[];return;}
   // A(0) or RT(7) → shoot / fire
   if(pb(0)||(gp.buttons[7]&&gp.buttons[7].value>0.5))keys[' ']=true;
   else delete keys[' '];
@@ -1251,6 +1284,7 @@ window.addEventListener('gamepaddisconnected',()=>{gpConnected=false;gpPrev=[];}
 function update(dt){
   updateGamepad();
   if(konamiActive)return; // cheat menu open: freeze gameplay underneath; closing resumes right where you were
+  if(paused){if(!canPause())paused=false;else return;} // pause menu: freeze gameplay (auto-clear if we left the match)
   frameN++;
   if(phase&&phase.indexOf('p2')===0){
     if(phase==='p2claim')p2ClaimGp();
@@ -2171,7 +2205,7 @@ function cpuBallUpdate(dt){
     br.inp.vr=clamp(dh*6,-vrCap,vrCap);
   }
 }
-function startP2Ball(){cheatedRun=false;
+function startP2Ball(){cheatedRun=false;paused=false;
   applyLayout('ball2p');
   if(b2SavInv===null)b2SavInv=inverted;
   inverted=false; // wallCheck reads the SP invert toggle; force off for 2P, restored on teardown
@@ -2839,7 +2873,7 @@ function cpuTankUpdate(dt){
     br.fire=los&&dist<560&&Math.abs(af)<0.09+T.aim*0.5&&br.obj!=='patrol';
   }
 }
-function startP2Tank(){cheatedRun=false;
+function startP2Tank(){cheatedRun=false;paused=false;
   applyLayout('tank2p');
   if(typeof m2.set.map!=='number'||!TF2_MAPS[m2.set.map])m2.set.map=0;
   const mp=TF2_MAPS[m2.set.map];
@@ -3563,7 +3597,7 @@ function cpuRaceUpdate(dt){
     br.fire=false;
   }
 }
-function startP2Race(){cheatedRun=false;
+function startP2Race(){cheatedRun=false;paused=false;
   applyLayout('race2p');
   if(typeof m2.set.course!=='number')m2.set.course=0;
   phase='p2race';
@@ -4487,7 +4521,7 @@ function p2Draw(){
   }
 }
 
-function draw(){drawInner();drawAchToast();}
+function draw(){drawInner();if(paused)drawPause();drawAchToast();}
 function drawInner(){
   ctx.setTransform(C._dpr||1,0,0,C._dpr||1,0,0);
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
@@ -6612,6 +6646,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.34 (2026-06-14): IN-GAME PAUSE MENU. ESC (or gamepad START) during a live game now PAUSES instead of hard-exiting: a dimmed overlay with RESUME and QUIT, gameplay frozen underneath. Works in single-player (playing/countdown) and all 2P matches (ball/tank/race, while result is null). Resume: ESC/START/A or click RESUME; Quit: B or click QUIT (does the old exit — SP->menu, 2P->back). Mouse + touch + gamepad all drive the overlay; pause auto-clears if the match ends underneath, and resets at every run/match start. SP 'done' results screen ESC still exits as before. smoke54 +5 (canPause, freeze, resume, quit). Full battery green. Single file, no assets.
   v5.1.33 (2026-06-14): TUNING — BIGGER BLAST, WIDER PLOW, CLICKABLE SETTINGS ARROWS. (1) Explosive blast radius 62->80. (2) Sticky-plow capture cone widened a bit (reach [5,5,6,8]->[6,6,8,11], lateral [7,7,9,11]->[11,12,14,16]) so a bot scoops balls beside the cluster and carries more than one at a time — a midpoint between the old narrow cone and the previously-too-grabby version. (3) The 2P MATCH SETTINGS ◀ / ▶ glyphs are now MOUSE-clickable to step a row's value (matching the gamepad ◀▶); clicking the row body still opens the dropdown. smoke52 +3 (arrow-click step up/down, body opens dropdown). Full battery green. Single file, no assets.
   v5.1.32 (2026-06-14): CHEAT SCOPE TAGS. Each cheat description is now prefixed with where it applies — [SP+2P] for ULTIMATE ASCENT, BOUNCY BALLS, ICE SKATING, DRIFT, BALL SIZE, ROBOT SIZE (these work in single-player too), and [2P] for RAMMING, MACHINE GUN, EXTRA BALLS, MULTIBALL, STICKY PLOW, NO-CLIP, BALL POWER-UPS (their hooks live in the 2P ball/tank code). No behavior change. Full battery green. Single file, no assets.
   v5.1.31 (2026-06-14): CHEATS DISABLE RECORDS + TWO-COLUMN MENU. (1) INTEGRITY: using any cheat now DISABLES records, high scores, ghost PBs, H2H records, and performance achievements for that run/match. anyCheat() tracks if a cheat is on; cheatedRun latches if one was active at any point during the run (set each gameplay tick, reset at every run/match start), so toggling a cheat off right before finishing still won't earn a record. The cheat menu shows an amber 'records & high scores disabled' warning while any cheat is on. (2) The cheat menu is now TWO COLUMNS (the list reached 13) — far more compact; ◀▶ switches columns (or adjusts a slider), ▲▼ move, A toggles. smoke54 +4 (anyCheat/cheated, cheated H2H records nothing, menu fits two-col). Full battery green. Single file, no assets.

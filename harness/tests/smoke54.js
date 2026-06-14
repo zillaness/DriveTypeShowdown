@@ -127,6 +127,14 @@ src+=`
    ok('cheat menu fits ('+CHEATS.length+' cheats, rows→'+(lr.y+lr.h).toFixed(0)+', links→'+linkMax.toFixed(0)+' < '+CH+')',lr.y+lr.h<CH-40&&linkMax<CH-8);}
   konamiActive=false;
 
+  // ── PAUSE menu: freezes the match; RESUME/QUIT overlay ──
+  startBall('normal');paused=false;
+  ok('canPause() true during a live match',canPause()===true);
+  paused=true;{const t0=b2.t;update(1/60);ok('paused freezes the match (b2.t unchanged)',b2.t===t0);}
+  paused=false;{const t1=b2.t;update(1/60);ok('resume advances the match',b2.t>t1);}
+  paused=true;{const r=pauseResumeRect();pauseClick(r.x+5,r.y+5);ok('RESUME click unpauses',paused===false);}
+  startBall('normal');paused=true;{const q=pauseQuitRect();pauseClick(q.x+5,q.y+5);ok('QUIT click leaves the match',paused===false&&phase!=='p2ball');}
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;
