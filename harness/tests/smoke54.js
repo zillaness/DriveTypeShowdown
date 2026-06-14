@@ -94,6 +94,12 @@ src+=`
   ok('DRIFT selected for the human bot',momModeFor(b2.bots[0],0)==='drift');
   driftMode=false;ok('no momentum when both cheats off',momModeFor(b2.bots[0],0)===null);
 
+  // ── BALL SIZE cheat scales the live ball radius (clamped 4..18) ──
+  {const bs=CHEATS.find(c=>c.name==='BALL SIZE');
+   bs.set(2);ok('BALL SIZE 2× grows BR (='+BR+', ≤18)',BR>9&&BR<=18);
+   bs.set(0.5);ok('BALL SIZE 0.5× shrinks BR (='+BR+', ≥4)',BR<9&&BR>=4);
+   bs.set(1);ok('BALL SIZE 1× restores BR=9',BR===9);}
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;
