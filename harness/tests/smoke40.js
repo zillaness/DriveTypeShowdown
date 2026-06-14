@@ -22,7 +22,7 @@ src+=`
   setup();faceBall();m2.sens[0]=1.0;cpuBallUpdate(1/60);const s1=Math.hypot(cpuH2H[1].inp.vx,cpuH2H[1].inp.vy);
   setup();faceBall();m2.sens[0]=2.0;cpuBallUpdate(1/60);const s2=Math.hypot(cpuH2H[1].inp.vx,cpuH2H[1].inp.vy);
   ok('ball speed scales ~2x with opponent sens (s1='+s1.toFixed(0)+' s2='+s2.toFixed(0)+')',s2>s1*1.9&&s2<s1*2.1);
-  ok('CHAMPION speed is capped at the player drive speed (cpu='+s2.toFixed(0)+' ~= player='+(SPD*2).toFixed(0)+')',Math.abs(s2-SPD*2)<3);
+  ok('CHAMPION edges past the player drive speed (cpu='+s2.toFixed(0)+' > player='+(SPD*2).toFixed(0)+')',s2>SPD*2*1.05&&s2<SPD*2*1.2); // v5.1.3: top tier only exceeds the cap
   // turn rate couples to sens (bot faces east, target up-left -> large heading error so the turn saturates at the sens-scaled cap)
   b2.bots[1].h=0;setup();m2.sens[0]=2.0;cpuBallUpdate(1/60);const r2=Math.abs(cpuH2H[1].inp.vr);
   b2.bots[1].h=0;setup();m2.sens[0]=1.0;cpuBallUpdate(1/60);const r1=Math.abs(cpuH2H[1].inp.vr);

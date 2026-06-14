@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.3.html
-  version: 5.1.3
+  file: frc_drive_showdown_v5.1.4.html
+  version: 5.1.4
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -1771,7 +1771,7 @@ const CPU_TIERS=[
   {name:'VETERAN', adaptive:true,target:1.2}, // rubber-band: player stays ~1 goal ahead
   {name:'FINALIST',adaptive:true,target:0},   // rubber-band: dead even, coin-flip endings
   {name:'WINNER',  spd:0.96,turn:0.99,react:0.12,aim:0.07,defBias:0.80,shootR:200,lapse:0.05},
-  {name:'CHAMPION',spd:1.06,turn:1.06,react:0.03,aim:0.02,defBias:0.95,shootR:205,lapse:0}];
+  {name:'CHAMPION',spd:1.12,turn:1.12,react:0.03,aim:0.02,defBias:0.95,shootR:205,lapse:0}];
 const CARRY_CAP=[1,2,2,3,5]; // sticky-plow load by tier; CHAMPION carries 5 — its main difficulty lever now that the speed edge is capped to the player
 // pack n carried balls into the widening plow mouth: local (forward,lateral) offsets from the carry anchor (RR+BR-1), nestled so |lateral|+BR stays inside the arms
 function plowSlots(n){
@@ -1846,6 +1846,24 @@ function b2ScoreCycle(p,br,bo,G,T,dt){
   if(br.lapseCd<=0){br.lapseCd=1.2+Math.random()*1.2; if(T.lapse&&Math.random()<T.lapse)br.lapseT=0.45+Math.random()*0.7;}
   br.lapseT=(br.lapseT||0)-dt;
   if(br.lapseT>0){bo.captureOff=true;br.obj='lapse';br._ctx=clamp(bo.x,RR+2,FW-RR-2);br._cty=clamp(bo.y,RR+2,FH-RR-2);return;}
+  // v5.1.3 DEFENSE: when a free ball threatens our own gap, high-defBias FIXED tiers goalie the gap line (hugs the wall, captureOff -> body-blocks toward midfield, never own-goals). Adaptive VETERAN/FINALIST (no T.name) keep their tuned feel.
+  if(T.name&&load<=1){
+    const ownCY=(G.gt+G.gb)/2,ownHalf=(G.gb-G.gt)/2;
+    let threat=null,thd=1e9;
+    for(const b of balls){ if(b.sc||b.intaken||b.proj||b.held)continue;
+      const dOwn=(b.x-G.ox)*dirScore; // 0 at our gap, grows toward midfield
+      if(dOwn<8||dOwn>175)continue;
+      if(Math.abs(b.y-ownCY)>ownHalf+70)continue;
+      if(dOwn<thd){thd=dOwn;threat=b;} }
+    br.defHold=(br.defHold||0)-dt;
+    if(threat&&br.defHold<=0&&Math.random()<T.defBias)br.defHold=0.6;
+    if(threat&&br.defHold>0){
+      bo.captureOff=true;br.obj='defend';
+      br._ctx=clamp(G.ox+dirScore*(RR+2),RR+2,FW-RR-2);                 // hug the field side of our own gap
+      br._cty=clamp(threat.y,G.gt+RR,G.gb-RR);                          // slide to block the threat's lane
+      return;
+    }
+  }
   let tx,ty; bo.captureOff=false;
   if(br.cyc==='score'){
     let ty2=gcy;
@@ -2018,7 +2036,8 @@ function cpuBallUpdate(dt){
     const dx=tx-bo.x,dy=ty-bo.y,d=Math.hypot(dx,dy);
     let vx=0,vy=0;
     // v5.1: cap CPU translate at the human's drive speed — tier multipliers above 1 (CHAMPION 1.06) are clamped to 1
-    if(d>4){const sp=SPD*Math.min(1,T.spd)*oS*Math.min(1,d/36);vx=dx/d*sp;vy=dy/d*sp;}
+    const _spF=(T.name==='CHAMPION')?T.spd:Math.min(1,T.spd); // CHAMPION (top tier only) edges past the player-speed cap; all others stay clamped to the player
+    if(d>4){const sp=SPD*_spF*oS*Math.min(1,d/36);vx=dx/d*sp;vy=dy/d*sp;}
     const hT=aimH!==null?aimH:(d>4?Math.atan2(dy,dx):bo.h);
     let dh=hT-bo.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
     let vrCap=TSP*T.turn*oS;
@@ -2044,7 +2063,7 @@ function startP2Ball(){
   inverted=false; // wallCheck reads the SP invert toggle; force off for 2P, restored on teardown
   phase='p2ball';
   const _totR=2+2*(m2.set.cpus||0);
-  const _nB=m2.set.ballN==='auto'?Math.max(4,Math.min(14,Math.round(4+_totR))):(m2.set.ballN|0);
+  const _nB=m2.set.ballN==='auto'?Math.max(6,Math.min(16,Math.round(6+_totR))):(m2.set.ballN|0); // more balls so the big plow capacity pays off in scrums
   const starts=b2Mirrored()?b2GenBallStarts(_nB):B2_BALL_STARTS;
   balls=starts.map((p,j)=>({x:p.x,y:p.y,vx:0,vy:0,id:j,sc:false,intaken:false,proj:false,lastT:null,golden:false}));
   const sp=b2Mirrored()
@@ -6298,6 +6317,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.4 (2026-06-14): CHAMPION HARDER — DEFENSE + SPEED EDGE + MORE BALLS. Three levers to close the gap vs a strong human (CHAMPION was a coin-flip). (1) DEFENSE/goalie: when a free ball threatens the CPU's own gap, fixed tiers (gated by defBias: CHAMPION 0.95, WINNER 0.80, ROOKIE 0.10) break off to hug the own-gap line and body-block the threat toward midfield; captureOff while goalie-ing so it is OWN-GOAL-SAFE (verified: own goals stay 0 at every tier). Adaptive VETERAN/FINALIST are untouched (they keep the tuned feel that already played well). (2) SPEED EDGE: CHAMPION (top tier ONLY) may exceed the player-speed cap, spd/turn 1.06->1.12; all other tiers remain clamped to the human's drive speed. (3) MORE BALLS: AUTO ball count raised (now round(6+robots), clamp 6-16) so the 5-ball plow capacity pays off in scrums. CPU-vs-CPU: CHAMPION now beats WINNER ~48-38 and FINALIST ~46-37. smoke40 (CHAMPION edges past the cap) and smoke43 (defense goalie + behavioral own-goal safety) re-baselined. Full battery green. Single file, no assets.
   v5.1.3 (2026-06-14): KONAMI CHEAT MENU + ARCADE MODE + FIELD-SWERVE DEFAULT. (1) The Konami code now opens a selectable CHEAT MENU instead of auto-enabling frisbee: arrows/D-pad move, Enter/A toggles, Esc/B closes; click a row to toggle; cheats persist until toggled off. Three modes: ARCADE MODE, ULTIMATE ASCENT (the frisbee infinite-range toggle, confirmed working in 2P shooter too), and BOUNCY BALLS (low-friction + high-restitution pinball chaos, ball mode). (2) ARCADE MODE adds a boost-tackle in 2P H2H ball + tank: Right Trigger (gamepad) / Shift (keyboard) fires a short forward lunge; ramming a foe mid-boost STUNS it ~2s (spinning-stars visual, can't move or fire), knocks it back, and scatters its carried load. Both human and CPU bots can tackle (CPU boosts when a foe is close and ahead). In arcade mode RT is freed for boost and fire moves to A/Space. (3) Default drive type is now Field-Centric Swerve (was Arcade). New suite smoke51 (boost engage/lunge/cooldown, tackle stun+knockback+load-scatter, frozen-while-stunned, off-when-disabled; 9 asserts). Full battery green. Single file, no assets.
   v5.1.2 (2026-06-14): CHAMPION CAPACITY + PLOW CLUSTER + ALLIANCE RINGS. (1) Sticky-plow carry is now packed as a nested 2-row cluster that scales with the load and stays inside the widening plow mouth (verified: 1-5 balls all fit within the arms), instead of a single row that spilled out past 3. (2) With the overflow fixed, CHAMPION's carry capacity is restored and raised to 5 (per tier: 1/2/2/3/5) as its main difficulty lever now that the player-speed cap nullifies its old speed edge. NOTE: hands-off throughput stays ~35 goals/90s (delivery is travel-time-bound and partial loads deliver opportunistically near the gap); the bigger load matters in CONTESTED play — CHAMPION can scoop a 5-ball scrum and bulldoze it through at once. (3) Each main H2H bot (CPU and human) now gets a bold red/blue alliance halo + ring in-match (ball/tank/race), matching the alliance support bots, so you can tell sides apart even when both pick the same drive (or the egg color when that side is themed). smoke45 re-baselined for cap 5 + the cluster layout (16 asserts); own goals stay zero at every tier. Single file, no assets.
   v5.1.1 (2026-06-14): DEFENSE + RECORDS + EGGS. (1) Stealing/defense reworked so you can take balls off a sticky CPU: a held ball entering an opposing plow's front cone transfers to that bot (no more hard-hit scatter); a freshly stripped/stolen ball gets ~0.55s capture-immunity so it can't be vacuumed straight back; while an opponent (main OR alliance) is pressed against a carrier the carrier cannot capture, so sustained plow pressure bleeds the whole load; alliance bots strip too. (2) Capture cone shrunk and tier-scaled (low tiers must drive onto the ball; champion keeps a small reach). (3) Result screens show the CPU difficulty you beat; new H2H RECORDS screen (from the 2P mode-select) lists your best win per CPU tier. (4) Alliance support bots are now colored by alliance (red/blue) instead of all red. (5) Team name-eggs: name a bot 1678 to turn that whole alliance LIME, or 254 for cheeto ORANGE (any drive type). smoke45 16 asserts; CHAMPION still 35/90s, own goals zero. Single file, no assets.

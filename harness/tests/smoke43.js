@@ -34,14 +34,28 @@ src+=`
   cpuBallUpdate(1/60);
   ok('cycle: a loaded CHAMPION drives toward the opponent gap (vx='+cpuH2H[1].inp.vx.toFixed(0)+' < 0)',cpuH2H[1].inp.vx<0);
 
-  // ── Unit (v4.0 cycle): own-goal-safe — the cycle never aims a target at its own gap ──
+  // ── Offense (v4.0 cycle): with NO threat near our gap, the cycle never aims a target at its own gap ──
   startMatch('normal',0,4); G=cpuBallGoals(1);
   clearBalls();
-  const bo2=b2.bots[1];bo2.x=FW-B2M_WX-120;bo2.y=FH/2;bo2.h=Math.PI;bo2.load=[];
-  balls[0].sc=false;balls[0].x=FW-B2M_WX-30;balls[0].y=FH/2;balls[0].vx=0;balls[0].vy=0; // a ball sitting at OUR own gap mouth
-  cpuH2H[1].cyc='gather';cpuH2H[1].cycT=0;cpuH2H[1].lapseCd=99;b2.bots[0].x=80;b2.bots[0].y=80;
+  let bo2=b2.bots[1];bo2.x=FW-B2M_WX-120;bo2.y=FH/2;bo2.h=Math.PI;bo2.load=[];
+  balls[0].sc=false;balls[0].x=B2M_WX+200;balls[0].y=FH/2;balls[0].vx=0;balls[0].vy=0; // a ball to gather toward the OPPONENT gap (no own-gap threat)
+  cpuH2H[1].cyc='gather';cpuH2H[1].cycT=0;cpuH2H[1].lapseCd=99;cpuH2H[1].defHold=0;b2.bots[0].x=80;b2.bots[0].y=80;
   cpuBallUpdate(1/60);
-  ok('own-goal-safe: cycle target is never at our own gap (tx='+cpuH2H[1]._ctx.toFixed(0)+')',Math.abs(cpuH2H[1]._ctx-G.ox)>80);
+  ok('own-goal-safe: offense target is never at our own gap (tx='+cpuH2H[1]._ctx.toFixed(0)+')',Math.abs(cpuH2H[1]._ctx-G.ox)>80);
+
+  // ── Defense (v5.1.3): a ball threatening our own gap triggers the goalie (captureOff, hugs the gap) and never own-goals ──
+  startMatch('normal',0,4); G=cpuBallGoals(1);
+  clearBalls();
+  bo2=b2.bots[1];bo2.x=FW-B2M_WX-120;bo2.y=FH/2;bo2.h=Math.PI;bo2.load=[];
+  balls[0].sc=false;balls[0].x=FW-B2M_WX-30;balls[0].y=FH/2;balls[0].vx=0;balls[0].vy=0; // ball at OUR own gap mouth
+  cpuH2H[1].cyc='gather';cpuH2H[1].cycT=0;cpuH2H[1].lapseCd=99;cpuH2H[1].defHold=1;b2.bots[0].x=80;b2.bots[0].y=80;
+  cpuBallUpdate(1/60);
+  ok('defense: a ball at our own gap triggers the goalie (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj==='defend');
+  ok('defense: goalie disables capture near our own gap',b2.bots[1].captureOff===true);
+  ok('defense: goalie hugs our own gap line',Math.abs(cpuH2H[1]._ctx-G.ox)<RR+12);
+  let _sd=7;Math.random=()=>{_sd=(_sd*1664525+1013904223)>>>0;return _sd/4294967296;};
+  const own0=b2.score[0];for(let f=0;f<300;f++)updateP2Ball(1/60);
+  ok('own-goal-safe: defending CPU never scores into its own gap',b2.score[0]===own0);
 })();
 
 `;
