@@ -113,6 +113,12 @@ src+=`
   ok('BALL POWER-UPS: SPEED pickup boosts the bot + is consumed',b2.bots[0].speedT===8&&b2.pups.length===0);
   ballPups=false;b2PupTick(1/60);ok('BALL POWER-UPS off: pickups cleared',b2.pups.length===0);
 
+  // ── cheat menu fits on screen with the full (13) cheat list ──
+  konamiActive=true;drawKonami();
+  {const lr=drawKonami._rows[drawKonami._rows.length-1];const linkMax=Math.max.apply(null,(drawKonami._links||[{hy:0,hh:0}]).map(l=>l.hy+l.hh));
+   ok('cheat menu fits ('+CHEATS.length+' cheats, rows→'+(lr.y+lr.h).toFixed(0)+', links→'+linkMax.toFixed(0)+' < '+CH+')',lr.y+lr.h<CH-40&&linkMax<CH-8);}
+  konamiActive=false;
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;

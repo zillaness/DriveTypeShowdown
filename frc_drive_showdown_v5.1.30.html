@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.29.html
-  version: 5.1.29
+  file: frc_drive_showdown_v5.1.30.html
+  version: 5.1.30
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -1610,16 +1610,16 @@ function drawKonami(){
   ctx.font='bold 13px Courier New';ctx.textAlign='center';
   ctx.fillStyle='#ff4444';ctx.fillText('✦ CHEATS UNLOCKED ✦',CW/2,34);
   // Stussy logo — centered, full opacity
-  const sw=280,sh=Math.round(280*(1443/2742));
-  const sx=(CW-sw)/2,sy=40; // shifted up & smaller so the now-taller cheat list + links/logo no longer collide
+  const sw=150,sh=Math.round(150*(1443/2742));
+  const sx=(CW-sw)/2,sy=38; // small logo up top — the cheat list grew to 13, so the rows are tighter and start higher
   try{ctx.globalAlpha=1;ctx.drawImage(_logoStussy,sx,sy,sw,sh);}catch(e){}
   ctx.globalAlpha=1;
-  // ── cheat toggles ──
-  const rowW=Math.min(420,CW-60),rowH=30,rowX=(CW-rowW)/2;
-  let rowY=Math.round(CH*0.29);
+  // ── cheat toggles (tight pitch so the full list fits) ──
+  const rowW=Math.min(440,CW-60),rowH=22,rowPitch=26,rowX=(CW-rowW)/2;
+  let rowY=Math.round(CH*0.18);
   drawKonami._rows=[];
   for(let i=0;i<CHEATS.length;i++){
-    const c=CHEATS[i],on=c.get(),sel=i===cheatIdx,y=rowY+i*(rowH+6),rec={x:rowX,y:y,w:rowW,h:rowH};
+    const c=CHEATS[i],on=c.get(),sel=i===cheatIdx,y=rowY+i*rowPitch,rec={x:rowX,y:y,w:rowW,h:rowH};
     drawKonami._rows.push(rec);
     ctx.fillStyle=sel?'rgba(255,70,70,0.26)':'rgba(180,30,30,0.12)';ctx.fillRect(rowX,y,rowW,rowH);
     ctx.strokeStyle=sel?'#ff7777':'#883333';ctx.lineWidth=sel?2:1;ctx.strokeRect(rowX,y,rowW,rowH);
@@ -1637,7 +1637,7 @@ function drawKonami(){
     }
   }
   // description of the FOCUSED cheat (mouse hover or gamepad focus sets cheatIdx) — its own clear line, brighter, clear of the links below
-  const descY=rowY+CHEATS.length*(rowH+6)+20;
+  const descY=rowY+CHEATS.length*rowPitch+16;
   ctx.font='11px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffcf8f';
   ctx.fillText(CHEATS[cheatIdx].desc,CW/2,descY);
   // Link buttons with icons — flow below the description so they never overlap the cheat rows / logo
@@ -6601,6 +6601,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.30 (2026-06-14): CHEAT MENU COMPACTION. The cheat list grew to 13 entries and was overflowing the menu — compacted the layout (smaller top logo, row pitch 36->26, list starts higher) so all 13 rows + the focused-cheat description + the rambots/instagram links + footer fit on screen with margin. smoke54 now asserts the menu fits (rows + links bottom < canvas height) so future cheats can't silently overflow. Full battery green. Single file, no assets.
   v5.1.29 (2026-06-14): BALL POWER-UPS cheat (pickups in ball modes). A Konami toggle spawns SPEED » pickups on the field in 2P ball + shooter (there was no pickup substrate in ball mode before): a fresh pickup every ~5-9s at free field spots, grabbed on contact for an 8s 1.4x speed boost, rendered on the field. Scoped to SPEED for now (the cleanest effect that maps to ball mode; shield/rapid can follow). smoke54 +2 (grant+consume, off-clears). Full battery green. Single file, no assets.
   v5.1.28 (2026-06-14): ROBOT SIZE cheat (giant/tiny robots). A Konami slider scales the robot radius live (0.5×–1.5×, clamped RR 8–26) — RR is now a live let and the plow geometry SC_* is recomputed proportionally so the arms scale with the body (offsets ×RR/RR0). Every physics/AI/render site reads RR live (wheelbase, capture cone, collisions, race obstacle inflation, name tags, rings). Pairs with BALL SIZE to totally change the feel. Range kept conservative because a giant robot inflates the race obstacle math (the cheat warns big bots may not fit the course); the scoring gap still fits. smoke54 +3 (grow/shrink/restore RR + plow). Full battery green. Single file, no assets.
   v5.1.27 (2026-06-14): BALL SIZE cheat (giant/tiny balls). A Konami slider scales the ball radius live (0.5×–2.0×, clamped to BR 4–18 so giant balls still fit the gap and the plow). BR is now a live let (no load-time const baked it in — only RR feeds the plow geometry, so robots are untouched); every physics + render site reads BR live, so balls resize everywhere consistently. The cheat-menu slider click/drag now honors a fractional step (was int-only for EXTRA BALLS). smoke54 +3 (grow/shrink/restore, clamped). Full battery green. Single file, no assets.
