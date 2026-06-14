@@ -3772,15 +3772,15 @@ function p2DrawStat(x,y,w,label,val,col){
 }
 // ── drawing ──
 // v5.1: a small clickable mute toggle for the corner (menu + 2P setup screens). [M] still works everywhere.
-function muteBtnRect(){return{x:CW-100,y:12,w:88,h:30};} // dynamic: CW changes with layout
+function muteBtnRect(){return{x:CW-38,y:8,w:30,h:26};} // small corner icon; dynamic CW (changes with layout)
 function muteShown(){return phase==='menu'||(phase&&phase.indexOf('p2')===0&&phase!=='p2ball'&&phase!=='p2race'&&phase!=='p2tank');} // drawn on menu + 2P setup screens (p2Chrome), not match screens
 function inMuteBtn(mx,my){return inR(mx,my,muteBtnRect());}
 function drawMuteBtn(){
   const r=muteBtnRect();
-  ctx.fillStyle=sfxOn?'rgba(20,55,40,0.88)':'rgba(30,30,42,0.88)';rr(r.x,r.y,r.w,r.h,8);ctx.fill();
-  ctx.strokeStyle=sfxOn?'#44ffaa':'#444460';ctx.lineWidth=1.5;rr(r.x,r.y,r.w,r.h,8);ctx.stroke();
-  ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillStyle=sfxOn?'#44ffaa':'#666688';
-  ctx.fillText(sfxOn?'🔊 SFX':'🔇 MUTE',r.x+r.w/2,r.y+20);
+  ctx.fillStyle=sfxOn?'rgba(20,55,40,0.85)':'rgba(30,30,42,0.85)';rr(r.x,r.y,r.w,r.h,7);ctx.fill();
+  ctx.strokeStyle=sfxOn?'#44ffaa':'#444460';ctx.lineWidth=1.3;rr(r.x,r.y,r.w,r.h,7);ctx.stroke();
+  ctx.font='13px Courier New';ctx.textAlign='center';ctx.fillStyle=sfxOn?'#44ffaa':'#888899';
+  ctx.fillText(sfxOn?'🔊':'🔇',r.x+r.w/2,r.y+18);
 }
 function p2Chrome(title,sub){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
