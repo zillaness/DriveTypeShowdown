@@ -270,7 +270,6 @@ C.addEventListener('touchstart',e=>{
         let handled=false;
         for(let pl=0;pl<2;pl++){
           if(inR(p.x,p.y,p2cNameRect(pl))){const n=(prompt('Robot name:',m2.name[pl]||'')||'').toUpperCase().slice(0,12);m2.name[pl]=n.trim()||null;handled=true;break;}
-          if(m2.claim[pl]&&m2.claim[pl].type!=='cpu'&&p2cOnSlider(pl,p.x,p.y)){p2SensDrag={pl:pl,touchId:t.identifier};p2SetSens(pl,p.x);handled=true;break;}
           if(!m2.claim[pl]&&inR(p.x,p.y,{x:p2cCol(pl)-180,y:484,w:360,h:40})){m2.claim[pl]={type:pl===0?'touchL':'touchR'};sfx('claim');handled=true;break;}
         }
         if(!handled)p2Click(p.x,p.y);
@@ -317,7 +316,6 @@ C.addEventListener('touchmove',e=>{
   e.preventDefault();
   for(const t of e.changedTouches){
     if(t.identifier===sliderTid){applySlider(toCanvas(t).x);continue;}
-    if(p2SensDrag&&t.identifier===p2SensDrag.touchId){p2SetSens(p2SensDrag.pl,toCanvas(t).x);continue;}
     if(phase==='cpuSettings'&&t.identifier===cpuSettingsDrag?.touchId){
       const p=toCanvas(t);
       const tt=Math.max(0,Math.min(1,(p.x-cpuSettingsDrag.x)/cpuSettingsDrag.w));
@@ -337,7 +335,6 @@ C.addEventListener('touchmove',e=>{
 },{passive:false});
 function clearTouch(e){
   for(const t of e.changedTouches){
-    if(p2SensDrag&&t.identifier===p2SensDrag.touchId){p2SensDrag=null;}
     if(cpuSettingsDrag&&t.identifier===cpuSettingsDrag.touchId){cpuSettingsDrag=null;}
     if(t.identifier===fireBtnTid){fireBtnTid=-1;fireBtnPressed=false;continue;}
     for(let sd=0;sd<2;sd++){if(t.identifier===p2TFireId[sd]){p2TFireId[sd]=-1;p2TFire[sd]=false;}}
@@ -353,7 +350,6 @@ C.addEventListener('touchcancel',clearTouch,{passive:false});
 
 // Mouse drag for sensitivity slider
 let sliderMouseDrag=false;
-let p2SensDrag=null; // 2P claim-screen sensitivity slider drag: {pl, touchId?}
 function toCanvasMouse(e){
   const r=C.getBoundingClientRect();
   return{x:(e.clientX-r.left)*(CW/r.width),y:(e.clientY-r.top)*(CH/r.height)};
@@ -373,20 +369,15 @@ C.addEventListener('mousedown',e=>{
     // Not a slider — let the click event handle buttons
     return;
   }
-  if(phase==='p2claim'){
-    for(let pl=0;pl<2;pl++){const cbd=m2.claim[pl];
-      if(cbd&&cbd.type!=='cpu'&&p2cOnSlider(pl,p.x,p.y)){p2SensDrag={pl:pl};p2SetSens(pl,p.x);e.preventDefault();return;}}
-  }
   if(inSlider(p.x,p.y)){sliderMouseDrag=true;applySlider(p.x);e.preventDefault();return;}
   {const _id=curDrv().id;if((holoMode||['botSwerve','fieldSwerve','carSteer','rearSteer'].includes(_id))&&inR(p.x,p.y,SWAP_BTN)){stickSwap=!stickSwap;}}
 });
 C.addEventListener('mousemove',e=>{
   if(phase==='cpuSettings'&&cpuSettingsDrag){const p=toCanvasMouse(e);const tt=Math.max(0,Math.min(1,(p.x-cpuSettingsDrag.x)/cpuSettingsDrag.w));applyCpuSlider(cpuSettingsDrag.id,tt);return;}
-  if(p2SensDrag){p2SetSens(p2SensDrag.pl,toCanvasMouse(e).x);return;}
   if(sliderMouseDrag){applySlider(toCanvasMouse(e).x);}
 });
-C.addEventListener('mouseup',()=>{sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;});
-C.addEventListener('mouseleave',()=>{sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;});
+C.addEventListener('mouseup',()=>{sliderMouseDrag=false;cpuSettingsDrag=null;});
+C.addEventListener('mouseleave',()=>{sliderMouseDrag=false;cpuSettingsDrag=null;});
 
 const BALL_STARTS=[
   {x:55,  y:175},{x:165, y:158},{x:290, y:172},
@@ -2804,7 +2795,7 @@ function drawP2Nav(cy){
     }
   }
   btn(CW/2-80,cy,160,40,(p2Series&&p2Series.done===null)?'▶ NEXT ROUND':'⟳ REMATCH','#44ffaa');
-  const navB=[['⚙ SETTINGS','#ffd740'],['🔧 SETUP','#40c4ff'],['🏁 MODE','#ee66bb'],['✕ MENU','#ff6b6b']];
+  const navB=[['⚙ SETTINGS','#ffd740'],['🚗 DRIVES','#40c4ff'],['🏁 MODE','#ee66bb'],['✕ MENU','#ff6b6b']];
   for(let i=0;i<4;i++)btn(CW/2-258+i*132,cy+52,120,32,navB[i][0],navB[i][1]);
   ctx.font='10px Courier New';ctx.fillStyle='#444460';ctx.textAlign='center';
   ctx.fillText('[Esc] back to controllers',CW/2,cy+104);
@@ -2828,8 +2819,8 @@ function p2NavClick(mx,my,cy,rematch){
       r2=null;tf2=null;tfObs=null;b2Teardown();
       if(i===3){p2Exit();return true;}
       applyLayout('land2p');
-      if(i===1){m2._dp=0;m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);} // SETUP → unified claim screen, keep existing claims
-      phase=i===0?'p2settings':i===1?'p2claim':'p2modes';
+      if(i===1)m2._dp=0;
+      phase=i===0?'p2settings':i===1?'p2drive':'p2modes';
       return true;}}
   return false;
 }
@@ -3594,7 +3585,7 @@ function p2Click(mx,my){
     for(let i=0;i<rows.length;i++){if(inR(mx,my,p2SetRowRect(i))){
       const r=rows[i];if(!(r.k in m2.set)){m2.set[r.k]=r.vals[0];}
       const ci=r.vals.indexOf(m2.set[r.k]);m2.set[r.k]=r.vals[(ci+1)%r.vals.length];return;}}
-    if(inR(mx,my,p2StartBtnRect())){p2cEnsureDrives();if(!(m2.claim[0]&&m2.claim[1])){m2.claim=[null,null];m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);}phase='p2claim';return;}
+    if(inR(mx,my,p2StartBtnRect())){p2cEnsureDrives();m2.claim=[null,null];m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);phase='p2claim';return;}
   }else if(phase==='p2race'){
     if(r2&&r2.result!==null)p2NavClick(mx,my,FY+FH/2+34,startP2Race);
     return;
@@ -3615,7 +3606,9 @@ function p2Click(mx,my){
       const cbd=m2.claim[pl],isCpu=cbd&&cbd.type==='cpu';
       if(isCpu&&inR(mx,my,p2cTierRect(pl,-1))){sfx('click');cbd.tier=((cbd.tier|0)+4)%5;return;}
       if(isCpu&&inR(mx,my,p2cTierRect(pl, 1))){sfx('click');cbd.tier=((cbd.tier|0)+1)%5;return;}
-      if(cbd&&!isCpu&&p2cOnSlider(pl,mx,my)){p2SetSens(pl,mx);sfx('click');return;}
+      if(cbd&&!isCpu){const sl=p2cSlider(pl);
+        if(my>=sl.y-14&&my<=sl.y+14&&mx>=sl.x1-12&&mx<=sl.x2+12){
+          m2.sens[pl]=Math.round(clamp(SENS_MIN+(mx-sl.x1)/(sl.x2-sl.x1)*(SENS_MAX-SENS_MIN),SENS_MIN,SENS_MAX)*10)/10;sfx('click');return;}}
       if(cbd&&cbd.type&&cbd.type.indexOf('touch')===0&&inR(mx,my,p2cTouchRect(pl))){
         const sd=cbd.type==='touchL'?0:1;m2.tstrip[sd]=!m2.tstrip[sd];sfx('click');return;}
     }
@@ -3648,8 +3641,6 @@ function p2cTabRect(pl,g){const cx=p2cCol(pl);return{x:cx-188+g*128,y:250,w:120,
 function p2cArrowRect(pl,dir){const cx=p2cCol(pl);return dir<0?{x:cx-190,y:298,w:30,h:30}:{x:cx+160,y:298,w:30,h:30};}
 function p2cTierRect(pl,dir){const cx=p2cCol(pl);return dir<0?{x:cx-150,y:540,w:28,h:28}:{x:cx+122,y:540,w:28,h:28};}
 function p2cSlider(pl){const cx=p2cCol(pl);return{x1:cx-120,x2:cx+120,y:556};}
-function p2cOnSlider(pl,mx,my){const sl=p2cSlider(pl);return my>=sl.y-14&&my<=sl.y+14&&mx>=sl.x1-12&&mx<=sl.x2+12;}
-function p2SetSens(pl,mx){const sl=p2cSlider(pl);m2.sens[pl]=Math.round(clamp(SENS_MIN+(mx-sl.x1)/(sl.x2-sl.x1)*(SENS_MAX-SENS_MIN),SENS_MIN,SENS_MAX)*10)/10;}
 function p2cTouchRect(pl){const cx=p2cCol(pl);return{x:cx-150,y:584,w:300,h:26};}
 function p2cCpuRect(){return{x:120,y:CH-78,w:180,h:34};}
 function p2cSwapRect(){return{x:CW-300,y:CH-78,w:180,h:34};}
