@@ -127,13 +127,13 @@ src+=`
    ok('cheat menu fits ('+CHEATS.length+' cheats, rows→'+(lr.y+lr.h).toFixed(0)+', links→'+linkMax.toFixed(0)+' < '+CH+')',lr.y+lr.h<CH-40&&linkMax<CH-8);}
 
   // ── v5.1.37: ICE GRIP slider + cheat-menu slider drag (applyKonamiSlider sets value from a canvas x) ──
-  {const gi=CHEATS.findIndex(c=>c.name==='ICE GRIP');
-   ok('ICE GRIP slider cheat exists',gi>=0&&CHEATS[gi].slider===true&&CHEATS[gi].min===0.4);
+  {const gi=CHEATS.findIndex(c=>c.name==='ICE SLIP');
+   ok('ICE SLIP slider cheat exists',gi>=0&&CHEATS[gi].slider===true&&CHEATS[gi].min===1);
    const r=drawKonami._rows[gi];
-   applyKonamiSlider(gi,r.slider.x1);ok('drag to far-left = max slide (min grip 0.40)',Math.abs(iceGrip-0.4)<1e-9&&Math.abs(MOM.ice.fri-0.4)<1e-9);
-   applyKonamiSlider(gi,r.slider.x2);ok('drag to far-right = most control (max grip 2.50)',Math.abs(iceGrip-2.5)<1e-9&&Math.abs(MOM.ice.fri-2.5)<1e-9);
-   applyKonamiSlider(gi,(r.slider.x1+r.slider.x2)/2);ok('drag to mid sets a mid grip ('+iceGrip.toFixed(2)+')',iceGrip>0.9&&iceGrip<2.0&&MOM.ice.fri===iceGrip);
-   iceGrip=0.4;MOM.ice.fri=0.4;
+   applyKonamiSlider(gi,r.slider.x1);ok('drag to far-left = default fun level (slip 1 → fri 0.40, least slide)',Math.abs(iceSlip-1)<1e-9&&Math.abs(MOM.ice.fri-0.4)<1e-9);
+   applyKonamiSlider(gi,r.slider.x2);ok('drag to far-right = max slip (slip 5 → fri 0.08, more sliding)',Math.abs(iceSlip-5)<1e-9&&Math.abs(MOM.ice.fri-0.08)<1e-6);
+   applyKonamiSlider(gi,(r.slider.x1+r.slider.x2)/2);ok('higher slip = lower friction = more slide ('+iceSlip.toFixed(1)+'×, fri '+MOM.ice.fri.toFixed(3)+')',iceSlip>1&&iceSlip<5&&MOM.ice.fri<0.4&&Math.abs(MOM.ice.fri-0.4/iceSlip)<1e-9);
+   iceSlip=1;MOM.ice.fri=0.4;
    // a non-slider cheat row: applyKonamiSlider is a no-op (guards on c.slider)
    const ti=CHEATS.findIndex(c=>!c.slider);const tv=CHEATS[ti].get();applyKonamiSlider(ti,drawKonami._rows[ti].x);ok('applyKonamiSlider ignores non-slider rows',CHEATS[ti].get()===tv);}
   konamiActive=false;
