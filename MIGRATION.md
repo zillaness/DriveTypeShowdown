@@ -7,7 +7,7 @@ Self-contained context for continuing this project in a fresh thread.
 
 ## 1. Project basics
 - **Single-file HTML5 canvas game.** Everything lives in one `frc_drive_showdown_vX.Y.Z.html` (game code + inline `<script>` + changelog comment block near the end).
-- **Current build:** `frc_drive_showdown_v5.1.48.html`
+- **Current build:** `frc_drive_showdown_v5.1.49.html`
 - **Branch:** `claude/eager-sagan-5wehy1` (develop + push here ONLY; never push elsewhere).
 - **Repo scope:** `zillaness/driveshowdown`. Everything committed + pushed; battery ALL GREEN.
 - Built for FRC Team 2204 Rambots. Modes: 2P H2H (NORMAL ball, SHOOTER, TANK FIGHT, OBSTACLE RACE) + single-player drive practice. Claimable CPU opponent with 4 skill tiers (ROOKIE/VETERAN/WINNER/CHAMPION).

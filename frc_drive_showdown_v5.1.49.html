@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.48.html
-  version: 5.1.48
+  file: frc_drive_showdown_v5.1.49.html
+  version: 5.1.49
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -167,16 +167,17 @@ function mouseAimVr(bind){ // MOUSE-AIM: keyboard player's bot turns toward the 
   while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
   return clamp(dh*8,-1,1)*TSP;                          // proportional turn toward the cursor (caller applies *sensitivity)
 }
-function p2MatchLive(){return (phase==='p2ball'&&b2&&b2.result===null)||(phase==='p2tank'&&tf2&&tf2.result===null)||(phase==='p2race'&&r2&&r2.result===null);}
+function p2MatchLive(){return (phase==='p2ball'&&b2&&b2.result===null)||(phase==='p2tank'&&tf2&&tf2.result===null)||(phase==='p2bb'&&bb2&&bb2.result===null)||(phase==='p2race'&&r2&&r2.result===null);}
 function canPause(){return phase==='playing'||phase==='countdown'||p2MatchLive();}
 // ── pause overlay: endgame-style nav so you can choose how far to back out (v5.1.47) ──
 function pauseTo(target){ // tear down the live 2P match and jump to a 2P nav screen (mirrors p2NavClick)
-  r2=null;tf2=null;tfObs=null;b2Teardown();applyLayout('land2p');
+  r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');
   if(target==='p2claim'){m2._dp=0;m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);}
   phase=target;
 }
 function pauseRestart(){ // restart the current match/run from pause
   if(phase==='p2tank')startP2Tank();
+  else if(phase==='p2bb')startP2BB();
   else if(phase==='p2ball')startP2Ball();
   else if(phase==='p2race')startP2Race();
   else retryRun(); // single-player drive practice
@@ -1468,6 +1469,7 @@ function update(dt){
     if(phase==='p2claim')p2ClaimGp();
     else if(phase==='p2race'){p2SensAdjust(dt);updateP2Race(dt);}
     else if(phase==='p2tank'){p2SensAdjust(dt);updateP2Tank(dt);}
+    else if(phase==='p2bb'){p2SensAdjust(dt);updateBB(dt);}
     else if(phase==='p2ball'){p2SensAdjust(dt);updateP2Ball(dt);}
     return;
   }
@@ -3223,7 +3225,7 @@ function p2LiveMatch(){
 }
 function p2GpItems(){
   const it=[];
-  if(phase==='p2modes'){for(let i=0;i<4;i++)it.push(p2ModeRect(i));it.push(p2TourBtnRect());it.push(p2RecBtnRect());}
+  if(phase==='p2modes'){for(let i=0;i<M2_MODES.length;i++)it.push(p2ModeRect(i));it.push(p2TourBtnRect());it.push(p2RecBtnRect());}
   else if(phase==='p2drive'){for(const d of p2DriveList())it.push(p2DriveRect(d));}
   else if(phase==='p2settings'){const rows=p2SettingsRows();for(let i=0;i<rows.length;i++)it.push(p2SetRowRect(i));if(p2ShowCpuCfg())it.push(p2CpuCfgBtnRect());if(p2ShowPupCfg())it.push(p2PupCfgBtnRect());it.push(p2StartBtnRect());it.push(p2ResetBtnRect());}
   else if(phase==='p2pupSettings'){it.push(p2BackBtnRect());const ks=['puHp','puRapid','puSpeed','puShield','puExpl','puPierce','puAim'];for(let i=0;i<7;i++)it.push(p2SetRowRect(i));}
@@ -3609,7 +3611,7 @@ function p2NavClick(mx,my,cy,rematch){
     rematch();return true;}
   for(let i=0;i<4;i++){
     if(inR(mx,my,{x:CW/2-258+i*132,y:cy+52,w:120,h:32})){
-      r2=null;tf2=null;tfObs=null;b2Teardown();
+      r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();
       if(i===3){p2Exit();return true;}
       applyLayout('land2p');
       if(i===0){m2._dp=0;m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);} // SETUP → unified claim screen, keep existing claims
@@ -3619,7 +3621,123 @@ function p2NavClick(mx,my,cy,rematch){
 }
 function p2QuitMatch(toSettings){
   p2TFire=[false,false];p2TFireId=[-1,-1];
-  r2=null;tf2=null;tfObs=null;b2Teardown();applyLayout('land2p');phase=toSettings?'p2settings':'p2claim';
+  r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');phase=toSettings?'p2settings':'p2claim';
+}
+
+// ═══ BATTLEBOTS (combat mode) — P1: MOBILITY+HP two-bar, directional armor, ram-by-impact ═══
+// Reuses the TANK FIGHT arena (TF2_MAPS/tfObs), the drive system (withBot/getInp/obsCheck), the roster shape,
+// and the per-bot team shades. P1 = the core duel; weapons/hazards/blow-up are later phases (see PRD_TABLED_MODES.md).
+const BB={MOB:100,HP:100,frontCone:Math.PI*0.55,rearCone:Math.PI*0.55,hitCd:0.22,dmgK:26,dmgMax:34,knock:0.9};
+let bb2=null;
+function bbSpeed(b){return b.mob<=0?0:0.3+0.7*(b.mob/BB.MOB);} // mobility% scales drive speed; 0 mobility = IMMOBILIZED (can't drive)
+function bbHitLoc(victim,fromX,fromY){ // contact point (toward the other bot) classified by the VICTIM's heading
+  let d=Math.atan2(fromY-victim.y,fromX-victim.x)-victim.h;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;d=Math.abs(d);
+  if(d<=BB.frontCone/2)return'front';        // facing the hit = armored (kinetic immune)
+  if(d>=Math.PI-BB.rearCone/2)return'rear';  // hit from behind = straight HP
+  return'side';                              // flank = MOBILITY first, then HP
+}
+function bbApplyHit(victim,loc,dmg,owner){ // kinetic hit: front immune, rear→HP, side→mobility then spillover
+  if(victim.dead||victim.inv>0||dmg<=0)return;
+  if(loc==='front'){victim.inv=BB.hitCd;return;} // shrugged off (brief contact cd so it isn't a per-frame grind)
+  if(loc==='rear')victim.hp-=dmg;
+  else{const m=victim.mob;if(m>0){victim.mob=Math.max(0,m-dmg);const spill=dmg-m;if(spill>0)victim.hp-=spill;}else victim.hp-=dmg;} // SIDE: drain wheels, then finish on the flank
+  victim.inv=BB.hitCd;sfx('hit');
+  if(owner!=null&&bb2.bots[owner]&&bb2.bots[owner].side!==victim.side)bb2.bots[owner].dmgDealt=(bb2.bots[owner].dmgDealt||0)+dmg; // for a future judges' decision
+  if(victim.hp<=0){victim.hp=0;victim.mob=0;victim.dead=true;sfx('boom');bbCheckResult(owner);}
+}
+function bbCheckResult(lastKiller){ // last SIDE standing wins (KO). result is a side index.
+  if(bb2.result!==null)return;const s=new Set();for(const b of bb2.bots)if(!b.dead)s.add(b.side);
+  if(s.size<=1){bb2.result=s.size===1?[...s][0]:(lastKiller!=null&&bb2.bots[lastKiller]?bb2.bots[lastKiller].side:0);sfx('win');}
+}
+function startP2BB(){cheatedRun=false;paused=false;
+  applyLayout('tank2p');
+  if(typeof m2.set.map!=='number'||!TF2_MAPS[m2.set.map])m2.set.map=0;
+  const mp=TF2_MAPS[m2.set.map];tfObs=mp.obs;phase='p2bb';
+  // P1 roster: humans on side 0, one CPU enemy on side 1 (or H2H rivals). Multi-bot rumble is a later phase.
+  const cpuBind=(m2.claim[0]&&m2.claim[0].type==='cpu')?0:((m2.claim[1]&&m2.claim[1].type==='cpu')?1:-1);
+  const roster=[];
+  if(cpuBind<0)roster.push({side:0,bind:0,type:'human',tier:0},{side:1,bind:1,type:'human',tier:0});
+  else{for(let b=0;b<2;b++)if(m2.claim[b]&&m2.claim[b].type!=='cpu')roster.push({side:0,bind:b,type:'human',tier:0});
+    if(!roster.length)roster.push({side:0,bind:1-cpuBind,type:'human',tier:0});
+    roster.push({side:1,bind:cpuBind,type:'cpu',tier:(m2.claim[cpuBind].tier|0)});}
+  const nSide=[roster.filter(r=>r.side===0).length,roster.filter(r=>r.side===1).length];
+  const ys=[tf2SpawnYs(nSide[0]),tf2SpawnYs(nSide[1])],yIdx=[0,0],seat=[0,0];
+  bb2={t:0,cd:3,result:null,repd:false,map:mp,fx:[],
+    bots:roster.map(r=>{const sp=tf2SpawnSide(r.side,ys[r.side][yIdx[r.side]++]);
+      const ctl=tankMkCtl(r.bind);ctl.type=r.type;const si=seat[r.side]++,col=teamShade(r.side,si);
+      if(r.type==='cpu'){ctl.tier=r.tier;ctl.name='CPU'+(nSide[r.side]>1?' '+(si+1):'');}
+      ctl.brain=(r.type==='cpu')?{inp:{vx:0,vy:0,vr:0}}:null;
+      return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:BB.MOB,hp:BB.HP,inv:1.0,dead:false,dmgDealt:0,ctl:ctl,_inp:{vx:0,vy:0,vr:0},_vis:null};})};
+  cpuH2H=null;
+}
+function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while driving to its REAR to ram it
+  if(!bb2)return;
+  for(let p=0;p<bb2.bots.length;p++){const me=bb2.bots[p];if(me.dead)continue;const br=me.ctl.brain;if(!br)continue;
+    let foe=null,bd=1e9;for(const f of bb2.bots)if(!f.dead&&f.side!==me.side){const d=Math.hypot(f.x-me.x,f.y-me.y);if(d<bd){bd=d;foe=f;}}
+    if(!foe){br.inp.vx=br.inp.vy=br.inp.vr=0;continue;}
+    const T=tierParamsByIdx(me.ctl.tier|0,0);
+    const tx=foe.x-Math.cos(foe.h)*RR*2.2,ty=foe.y-Math.sin(foe.h)*RR*2.2; // aim a point behind the foe (its weak rear)
+    let mx=tx-me.x,my=ty-me.y,md=Math.hypot(mx,my)||1;mx/=md;my/=md;
+    br.inp.vx=mx*SPD*T.spd;br.inp.vy=my*SPD*T.spd;
+    let dh=Math.atan2(foe.y-me.y,foe.x-me.x)-me.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
+    br.inp.vr=clamp(dh*6,-TSP*T.turn,TSP*T.turn); // face the foe so our front armor takes the trades
+  }
+}
+function updateBB(dt){
+  if(!bb2)return;
+  if(bb2.cd>0){const _p=Math.ceil(bb2.cd);bb2.cd-=dt;if(bb2.cd<=0)sfx('go');else if(Math.ceil(bb2.cd)<_p)sfx('count');return;}
+  if(bb2.result!==null){if(!bb2.repd){bb2.repd=true;p2SeriesReport(bb2.result);}return;}
+  bb2.t+=dt;if(anyCheat())cheatedRun=true;
+  bbCpuUpdate(dt);
+  for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
+    b.inv=Math.max(0,b.inv-dt);const bind=b.ctl.bind;
+    withBot(bind,b,()=>{
+      let inp=b.ctl.type==='cpu'?(b.ctl.brain?b.ctl.brain.inp:{vx:0,vy:0,vr:0}):getInp(playerBind[bind]);
+      const sc=bbSpeed(b);inp={vx:inp.vx*sc,vy:inp.vy*sc,vr:inp.vr*sc};b._inp=inp; // slow as mobility drops
+      b.h+=inp.vr*dt;b.x+=inp.vx*dt;b.y+=inp.vy*dt;
+      if(!noClip)obsCheck(b,RR);
+    });
+  }
+  // bot-bot contact: separate + ram damage by closing speed × hit location (front immune, rear=HP, side=mobility→HP)
+  for(let i=0;i<bb2.bots.length;i++)for(let j=i+1;j<bb2.bots.length;j++){
+    const a=bb2.bots[i],c=bb2.bots[j];if(a.dead||c.dead)continue;
+    const dx=a.x-c.x,dy=a.y-c.y,d=Math.hypot(dx,dy)||0.01;
+    if(d<RR*2){const nx=dx/d,ny=dy/d,ov=RR*2-d;
+      a.x+=nx*ov*0.5;a.y+=ny*ov*0.5;c.x-=nx*ov*0.5;c.y-=ny*ov*0.5;
+      if(a.side!==c.side){
+        const dmg=Math.min(BB.dmgMax,p2ImpactMag(a._inp,c._inp)*BB.dmgK);
+        a.x+=nx*BB.knock;a.y+=ny*BB.knock;c.x-=nx*BB.knock;c.y-=ny*BB.knock; // recoil knockback to both
+        bbApplyHit(a,bbHitLoc(a,c.x,c.y),dmg,j);
+        bbApplyHit(c,bbHitLoc(c,a.x,a.y),dmg,i);
+      }
+      obsCheck(a,RR);obsCheck(c,RR);
+    }
+  }
+  for(const f of bb2.fx)f.t-=dt;bb2.fx=bb2.fx.filter(f=>f.t>0);
+}
+function bbBar(x,y,w,h,frac,col){frac=clamp(frac,0,1);ctx.fillStyle='rgba(0,0,0,0.55)';rr(x,y,w,h,3);ctx.fill();ctx.fillStyle=col;rr(x,y,Math.max(0.001,w*frac),h,3);ctx.fill();}
+function drawBB(){
+  ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
+  drawTFField();drawTFObstacles();
+  for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
+    const blink=b.inv>0&&Math.floor(b.inv*12)%2===0;ctx.globalAlpha=blink?0.45:1;
+    withBot(b.ctl.bind,b,()=>{drawRobot();});
+    ctx.save();ctx.translate(FX+b.x,FY+b.y);
+    p2AllianceRing(p,b.col);
+    ctx.strokeStyle='#ffffffcc';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,RR+13,b.h-BB.frontCone/2,b.h+BB.frontCone/2);ctx.stroke(); // FRONT-armor arc
+    ctx.restore();
+    drawP2Tag(p,b,b.ctl.type==='cpu'?b.ctl.name:undefined,b.col);
+    ctx.globalAlpha=1;
+  }
+  {const row=[0,0];for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];const left=b.side===0,x=left?10:CW-194,r=row[b.side]++,y=16+r*42;
+    ctx.textAlign='left';ctx.font='bold 11px Courier New';ctx.fillStyle=b.col;
+    ctx.fillText((b.ctl.type==='cpu'?b.ctl.name:p2Name(b.ctl.bind))+(b.dead?' ✕KO':(b.mob<=0?' ⚠IMMOBILE':'')),x,y);
+    bbBar(x,y+5,184,7,b.mob/BB.MOB,'#ffd740');bbBar(x,y+15,184,7,b.hp/BB.HP,'#ff5555');
+  }}
+  ctx.textAlign='center';ctx.font='bold 13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText(fmt(Math.max(0,bb2.t)),CW/2,20);
+  ctx.font='9px Courier New';ctx.fillStyle='#556';ctx.fillText('BATTLEBOTS — keep your FRONT to them · ram their REAR (HP) or SIDE (wheels)',CW/2,38);
+  if(bb2.cd>0){ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,CW,CH);ctx.font='bold 84px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffd740';ctx.fillText(String(Math.ceil(bb2.cd)),CW/2,FY+FH/2);ctx.font='bold 13px Courier New';ctx.fillStyle='#8888aa';ctx.fillText('BATTLEBOTS — '+bb2.map.name,CW/2,FY+FH/2+40);}
+  if(bb2.result!==null){ctx.fillStyle='rgba(0,0,0,0.74)';ctx.fillRect(0,0,CW,CH);const w=bb2.result;ctx.textAlign='center';ctx.font='bold 40px Courier New';ctx.fillStyle=M2_COLS[w];ctx.fillText((w===0?'RED':'BLUE')+' WINS',CW/2,FY+FH/2-54);ctx.font='13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('KO  ·  '+fmt(bb2.t),CW/2,FY+FH/2-22);drawP2Nav(FY+FH/2+34);}
 }
 
 // ═══ PHASE 3: 2P OBSTACLE RACE (vertical slice) ═══
@@ -4003,6 +4121,7 @@ const M2_MODES=[
   {id:'normal',   name:'NORMAL',        desc:'push balls through the gap',     col:'#44ffaa'},
   {id:'shooter',  name:'SHOOTER',       desc:'shoot balls through the gap',    col:'#ff8844'},
   {id:'tankfight',name:'TANK FIGHT',    desc:'bullet duel — take their lives', col:'#ffcc00'},
+  {id:'battlebots',name:'BATTLEBOTS',   desc:'combat — ram the rear, guard your front', col:'#ff6b6b'},
   {id:'race',     name:'OBSTACLE RACE', desc:'first to the finish line',       col:'#40c4ff'},
 ];
 const M2_COLS=['#ff5555','#5599ff']; // red / blue alliance
@@ -4016,7 +4135,7 @@ const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layou
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];}
-function p2Exit(){tour=null;tfObs=null;b2Teardown();resetBinds();applyLayout('legacy');phase='menu';} // resetBinds: restore single-player input routing (else SP reads the stale 2P bind and ignores gamepad sticks)
+function p2Exit(){tour=null;tf2=null;bb2=null;r2=null;tfObs=null;b2Teardown();resetBinds();applyLayout('legacy');phase='menu';} // resetBinds: restore single-player input routing (else SP reads the stale 2P bind and ignores gamepad sticks)
 // ═══ PHASE 11: TOURNAMENT ═══
 // 4–16 typed entrants, generic double elimination (byes to the next power of two),
 // FRC 2023+ format: NO bracket reset; the grand final is a straight best-of-3.
@@ -4149,7 +4268,7 @@ function tourMatchEnd(side){
     if(tour.champ!==null)achUnlock('tourney'); // v3.11
   }else{tour.cur.w=we;tour.cur.l=le;tourResolveByes();}
   tour.cur=null;
-  r2=null;tf2=null;tfObs=null;b2Teardown();applyLayout('land2p');phase='p2tbracket';
+  r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');phase='p2tbracket';
 }
 function tourName(e,n){
   if(e===-1)return 'BYE';
@@ -4354,7 +4473,7 @@ function p2Back(){
   else if(phase==='p2tbracket'){phase='p2modes';}
   else if(phase==='p2race'&&tour&&tour.qual){tourQualDone(Infinity);}
   else if(phase==='p2race'&&tour&&tour.cur){r2=null;applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
-  else if((phase==='p2tank'||phase==='p2ball')&&tour&&tour.cur){r2=null;tf2=null;tfObs=null;b2Teardown();applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
+  else if((phase==='p2tank'||phase==='p2ball')&&tour&&tour.cur){r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if(phase==='p2drive'){if(m2._dp===1)m2._dp=0;else if(tour&&tour.cur){tour.cur=null;phase='p2tbracket';}else phase='p2modes';}
   else if(phase==='p2settings'){phase='p2modes';}
   else if(phase==='p2pupSettings'){const r=pupSettingsReturn||'p2settings';pupSettingsReturn=null;phase=r;}
@@ -4375,7 +4494,7 @@ function p2DriveRect(d){
   const pos=d.kind==='main'?d.idx:d.kind==='holo'?d.idx:d.idx;
   return {x:x0+pos*(w+gx),y:150+d.row*(h+gy),w,h};
 }
-function p2ModeRect(i){const w=280,h=300,g=24,x0=(CW-(4*w+3*g))/2;return{x:x0+i*(w+g),y:220,w,h};}
+function p2ModeRect(i){const n=M2_MODES.length,g=20,mar=24,w=Math.min(280,(CW-2*mar-(n-1)*g)/n),h=300,x0=(CW-(n*w+(n-1)*g))/2;return{x:x0+i*(w+g),y:220,w,h};}
 // Settings rows per mode (spec v3.1 matrix). Each row: label + cycle of values.
 function p2SettingsRows(){
   const S=m2.set;
@@ -4388,6 +4507,10 @@ function p2SettingsRows(){
       :{k:'lives', lab:'LIVES PER TANK',  vals:[1,3,5],           show:v=>v},
     {k:'bestOf', lab:'BEST OF',          vals:[1,3,5],            show:v=>v===1?'OFF (1 round)':'BEST OF '+v},
     {k:'map',    lab:'MAP',              vals:[0,1,2,3],          show:v=>(TF2_MAPS[v]||TF2_MAPS[0]).name},
+  ];
+  if(m2.mode==='battlebots')return[
+    {k:'bestOf', lab:'BEST OF',          vals:[1,3,5],            show:v=>v===1?'OFF (1 round)':'BEST OF '+v},
+    {k:'map',    lab:'ARENA',            vals:[0,1,2,3],          show:v=>(TF2_MAPS[v]||TF2_MAPS[0]).name},
   ];
   if(m2.mode==='race')return[
     {k:'course', lab:'COURSE',           vals:[0,1,2],            show:v=>(R2_COURSES[v]||R2_COURSES[0]).name},
@@ -4476,7 +4599,7 @@ function p2Click(mx,my){
   if(inR(mx,my,p2BackBtnRect())){p2Back();return;}
   if(phase==='p2recs'){p2Back();return;} // any click closes the records screen
   if(phase==='p2modes'){
-    for(let i=0;i<4;i++){if(inR(mx,my,p2ModeRect(i))){tour=null;m2.mode=M2_MODES[i].id;m2._dp=0;p2cEnsureDrives();phase='p2settings';return;}}
+    for(let i=0;i<M2_MODES.length;i++){if(inR(mx,my,p2ModeRect(i))){tour=null;m2.mode=M2_MODES[i].id;m2._dp=0;p2cEnsureDrives();phase='p2settings';return;}}
     if(inR(mx,my,p2TourBtnRect())){
       tour={names:[],drv:[],policy:'open',seedMode:'rand',format:'double',mode:'normal',buf:'',seeds:[],M:[],qi:0};
       phase='p2tnames';return;}
@@ -4516,6 +4639,9 @@ function p2Click(mx,my){
   }else if(phase==='p2tank'){
     if(tf2&&tf2.result!==null)p2NavClick(mx,my,FY+FH/2+34,startP2Tank);
     return;
+  }else if(phase==='p2bb'){
+    if(bb2&&bb2.result!==null)p2NavClick(mx,my,FY+FH/2+34,startP2BB);
+    return;
   }else if(phase==='p2ball'){
     if(b2&&b2.result!==null)p2NavClick(mx,my,FY+FH/2+34,startP2Ball);
     return;
@@ -4545,6 +4671,7 @@ function p2Click(mx,my){
       if(tour&&tour.cur)p2Series=null;else p2SeriesStart();
       if(m2.mode==='race'){startP2Race();}
       else if(m2.mode==='tankfight'){startP2Tank();}
+      else if(m2.mode==='battlebots'){startP2BB();}
       else if(m2.mode==='normal'||m2.mode==='shooter'){startP2Ball();}
       else{phase='p2stub';}
       return;}
@@ -4681,11 +4808,12 @@ function p2Draw(){
   if(phase==='p2tbracket'){drawTourBracket();return;}
   if(phase==='p2race'){drawP2Race();return;}
   if(phase==='p2tank'){drawP2Tank();return;}
+  if(phase==='p2bb'){drawBB();return;}
   if(phase==='p2ball'){drawP2Ball();return;}
   if(phase==='p2pupSettings'){drawP2PupSettings();return;}
   if(phase==='p2modes'){
     p2Chrome('2 PLAYER — PICK A MODE','head to head · one machine');
-    for(let i=0;i<4;i++){const m=M2_MODES[i],r=p2ModeRect(i),sel=m2.mode===m.id;
+    for(let i=0;i<M2_MODES.length;i++){const m=M2_MODES[i],r=p2ModeRect(i),sel=m2.mode===m.id;
       ctx.fillStyle='rgba(25,25,45,0.7)';rr(r.x,r.y,r.w,r.h,14);ctx.fill();
       ctx.strokeStyle=sel?m.col:m.col+'55';ctx.lineWidth=sel?2.5:1.5;rr(r.x,r.y,r.w,r.h,14);ctx.stroke();
       ctx.font='bold 20px Courier New';ctx.textAlign='center';ctx.fillStyle=m.col;
@@ -7011,6 +7139,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.49 (2026-06-14): NEW MODE — BATTLEBOTS (P1: directional armor + two bars). A 5th 2P mode (`battlebots`, phase `p2bb`, `bb2` state) on the TANK FIGHT arena: a combat duel where positioning is everything. Every bot has a MOBILITY bar and an HP bar plus DIRECTIONAL ARMOR — keep your FRONT to the foe and kinetic ram hits are shrugged off; their REAR takes HP directly; their SIDE drains MOBILITY first (and once a bot's mobility hits 0 it's IMMOBILIZED — can't drive — and further side hits spill into HP). Damage = closing-speed (`p2ImpactMag`) × hit-location; brief per-contact cooldown; recoil knockback to both. KO (HP→0) = last side standing wins. P1 weapon is the always-on RAM (drive into their weak spots). Reuses the drive system (`withBot`/`getInp`/`obsCheck`), per-bot warm/cool team shades, the best-of series + result nav, and the new pause menu. A simple BattleBots CPU keeps its front to you while circling to your rear. HUD: per-bot MOBILITY + HP bars + a FRONT-armor arc indicator. The 2P mode picker now lays out N modes dynamically (was hard-coded to 4) + full gamepad nav. Settings: BEST OF + ARENA. Later phases (PRD_TABLED_MODES.md): weapons/loadouts (spinner/piston/flamethrower/wedge), hazards, flame blow-up, judges' decision, rumble. New smoke57 (23 asserts: mode wiring, hit-location, front-immune/rear-HP/side-mobility/spillover/immobile, mobility→speed, KO, draw-no-throw). Full battery green. Single file, no assets.
   v5.1.48 (2026-06-14): TANK 3v3 — ALLY TANKS + WARM/COOL PER-BOT RINGS (queue item 10, phase 1). (1) New ALLY TANKS lever (×0–2) on the TANK FIGHT MATCH SETTINGS adds CPU teammates to the player's side, composing with ENEMY TANKS to build 2v2 / 3v3 (e.g. you + 2 allies vs 3 CPUs). Ally CPUs inherit P1's drive (bind 0), each get their own brain (`cpuTankBrainsInit`), default to VETERAN tier (`allyTier`), and target the enemy side. In human-vs-human, ALLY TANKS gives each player CPU teammates. tallies=0 stays byte-identical 1v1. `cpuTierParams` refactored to `tierParamsByIdx` so a tank's brain uses its own `ctl.tier` (allies have no human bind); `cpuTankUpdate` now reads `me.ctl.tier`. (2) PER-BOT RING SHADES: teammates that share a drive base are now told apart by colour — side 0 wears a WARM family (red→orange→amber→rose, `TF2_RED_COLS`), side 1 a COOL family (blue→cyan→violet→teal, `TF2_BLUE_COLS`), each seat a distinct shade via `teamShade(side,idx)`; seat 0 keeps the classic red/blue so 1v1 is unchanged. Bullets/ring/tag/HUD all read the per-bot shade. NOTE phase 1: humans still limited to the 2 device binds (1 human + CPU allies, or 2 humans as rivals each with allies); a single TEAM SIZE lever + ≥3-human seats + claim-screen seat visualization is the next phase. smoke56 +13 (3v3 roster/sides, ally brains+drive+tier, enemy tier, warm/cool distinct shades, byte-identical default); smoke55/56 settings rows → 6. Full battery green. Single file, no assets.
   v5.1.47 (2026-06-14): PAUSE MENU — ENDGAME-STYLE NAV + TURN-RATE RATIO. (1) The pause overlay is no longer just RESUME/SETTINGS/QUIT — it now offers the same "how far back do you want to go" choices as the end-of-match screen: RESUME · RESTART (relaunch the current match/run) · SETUP (2P → claim screen) · MODE (mode select) · SETTINGS · MENU. Context-aware (SETUP only in 2P; SP shows RESTART/MODE/SETTINGS/QUIT). List-driven render + click + full D-pad/A/B/Start gamepad nav (B → menu). pauseResumeRect/pauseQuitRect kept (derive from the list) so existing tests/handlers hold. (2) TURN RATE knob: a rotation-vs-translation ratio stepper lives in the pause menu (◀▶ click or D-pad L/R, A resets to 1:1, persisted frcds_rot). The single simple sensitivity lever (slider + LB/RB bumpers) is unchanged; this just biases turn vs drive — `vr` is now scaled by `rotRatio` at the input return while translation stays on sensitivity. Pairs with the v5.1.46 MAX SENSITIVITY cheat so you can crank speed and still keep a sane turn rate. smoke54 +7 (pause nav items + destinations, RESTART, rotRatio scaling + stepper). Full battery green. Single file, no assets.
   v5.1.46 (2026-06-14): CHEATS — MAX SENSITIVITY (replaces DRIFT) + RAM COOLDOWN. The tabled/WIP DRIFT cheat is retired and replaced by two new Konami sliders. (1) MAX SENSITIVITY: uncaps the sensitivity ceiling — SENS_MAX is now a live `let` (base 2.0) that this slider raises to 2×–8×, so the normal SENS slider/bumpers (SP + per-player claim) can crank far past the old 2× wall; pair with the upcoming pause RATIO knob to keep extreme values drivable. (2) RAM COOLDOWN: scales the RAM dash cooldown `BOOST.cd` (0.1×–1×) at every boost trigger (ball + tank + race), so with RAMMING on you can spam the dash; the slider reads out the resulting seconds. Both taint records via `anyCheat()` (SENS_MAX!==base or ramCdMult!==1). DRIFT's `driftMode`/momModeFor wiring removed (ICE SKATING remains the lone momentum cheat; the MOM.drift infra is left dormant). smoke54 retargeted (DRIFT asserts → MAX SENSITIVITY + RAM COOLDOWN). Full battery green. Single file, no assets.

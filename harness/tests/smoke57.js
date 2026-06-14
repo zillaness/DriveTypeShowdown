@@ -1,0 +1,80 @@
+const fs=require('fs');let src=fs.readFileSync('/tmp/g.js','utf8');
+src+=`
+;(function(){
+  let P=0,F=0;const ok=(l,c)=>{console.log((c?'PASS':'FAIL')+' — '+l);c?P++:F++;};
+
+  // ── 1. mode wiring: BATTLEBOTS is a selectable mode with its own settings ──
+  ok('BATTLEBOTS is in M2_MODES',M2_MODES.some(m=>m.id==='battlebots'));
+  ok('5 modes now lay out without overflow',(()=>{const last=p2ModeRect(M2_MODES.length-1);return last.x+last.w<=CW+1&&p2ModeRect(0).x>=0;})());
+  m2.mode='battlebots';const bbrows=p2SettingsRows();
+  ok('battlebots settings = BEST OF + ARENA',bbrows.length===2&&bbrows[0].k==='bestOf'&&bbrows[1].k==='map');
+
+  // ── 2. start a 1v1 battlebots match (human vs CPU) ──
+  const startBB=(map,cpuTier)=>{applyLayout('land2p');phase='p2claim';tour=null;m2.mode='battlebots';
+    m2.set.bestOf=1;m2.set.map=map||0;
+    m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};
+    m2.claim=[{type:'kb'},{type:'cpu',tier:cpuTier!=null?cpuTier:2}];m2.sens=[1,1];m2._gpPrev=[];
+    const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);updateBB(3.1);};
+  startBB(0,2);
+  ok('match starts: 2 bots, phase p2bb',phase==='p2bb'&&!!bb2&&bb2.bots.length===2);
+  ok('bots have MOBILITY + HP bars full',bb2.bots.every(b=>b.mob===BB.MOB&&b.hp===BB.HP));
+  ok('sides 0/1, player human + CPU enemy',bb2.bots[0].side===0&&bb2.bots[1].side===1&&bb2.bots[0].ctl.type==='human'&&bb2.bots[1].ctl.type==='cpu');
+  ok('CPU bot has a brain',!!bb2.bots[1].ctl.brain);
+  ok('warm/cool seat shades',bb2.bots[0].col===M2_COLS[0]&&bb2.bots[1].col===M2_COLS[1]);
+
+  // ── 3. directional armor: hit-location classification by the victim's heading ──
+  const v={x:300,y:300,h:0}; // facing +x (east)
+  ok('contact from the FRONT (east) = front',bbHitLoc(v,400,300)==='front');
+  ok('contact from the REAR (west) = rear',bbHitLoc(v,200,300)==='rear');
+  ok('contact from the SIDE (north) = side',bbHitLoc(v,300,180)==='side');
+
+  // ── 4. damage model: front immune, rear→HP, side→mobility then spillover ──
+  const mk=()=>({x:0,y:0,h:0,mob:BB.MOB,hp:BB.HP,inv:0,dead:false,side:0});
+  bb2.bots=[mk(),Object.assign(mk(),{side:1})]; bb2.result=null;
+  {const t=bb2.bots[0];bbApplyHit(t,'front',40,1);ok('FRONT hit deals no damage',t.mob===BB.MOB&&t.hp===BB.HP);}
+  {const t=bb2.bots[0];t.inv=0;bbApplyHit(t,'rear',30,1);ok('REAR hit takes HP directly',t.hp===BB.HP-30&&t.mob===BB.MOB);}
+  {const t=bb2.bots[0];t.inv=0;t.mob=BB.MOB;t.hp=BB.HP;bbApplyHit(t,'side',40,1);ok('SIDE hit drains MOBILITY, not HP',t.mob===BB.MOB-40&&t.hp===BB.HP);}
+  // spillover: side hit bigger than remaining mobility bleeds into HP
+  {const t=bb2.bots[0];t.inv=0;t.mob=10;t.hp=BB.HP;bbApplyHit(t,'side',30,1);ok('SIDE spillover: mobility→0 then HP takes the rest',t.mob===0&&t.hp===BB.HP-20);}
+  // fully immobilized → further side hits are pure HP
+  {const t=bb2.bots[0];t.inv=0;t.mob=0;t.hp=50;bbApplyHit(t,'side',15,1);ok('SIDE hit while IMMOBILE = pure HP',t.hp===35);}
+
+  // ── 5. speed scales with mobility; 0 mobility = immobilized ──
+  ok('full mobility → full speed scale',Math.abs(bbSpeed({mob:BB.MOB})-1)<1e-9);
+  ok('zero mobility → cannot drive (scale 0)',bbSpeed({mob:0})===0);
+  ok('low mobility → reduced speed',bbSpeed({mob:50})>0&&bbSpeed({mob:50})<1);
+
+  // ── 6. KO ends the match (last side standing) ──
+  bb2.bots=[mk(),Object.assign(mk(),{side:1})];bb2.result=null;
+  {const t=bb2.bots[1];t.hp=20;t.mob=0;t.inv=0;bbApplyHit(t,'rear',25,0);
+   ok('lethal hit flags the bot dead',t.dead===true&&t.hp===0);
+   ok('KO sets the result to the surviving side (0)',bb2.result===0);}
+
+  // ── 7. friendly fire is irrelevant: same-side bots never trade (different sides only) ──
+  // (BattleBots P1 only damages cross-side in updateBB; bbApplyHit dmg credit is cross-side)
+  bb2.bots=[mk(),Object.assign(mk(),{side:0})];bb2.bots[0].dmgDealt=0;bb2.result=null;
+  bbApplyHit(bb2.bots[1],'rear',20,0); // owner 0 hits same-side 1 → no damage credit
+  ok('same-side hit gives no damage credit',(bb2.bots[0].dmgDealt||0)===0);
+
+  // ── 8. draw does not throw (no-op canvas) ──
+  startBB(0,2);let threw=false;try{drawBB();}catch(e){threw=true;console.log('   drawBB error:',e.message);}
+  ok('drawBB() renders without throwing',!threw);
+
+  console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
+})();
+`;
+global.ctxState={depth:0};global.texts=[];global.rumbles=[];
+function mkCtx(){const noop=()=>{};const ctx={save(){},restore(){},setTransform:()=>{},fillText:()=>{},createRadialGradient:()=>({addColorStop:noop}),createLinearGradient:()=>({addColorStop:noop}),measureText:()=>({width:10})};return new Proxy(ctx,{get:(t,k)=>k in t?t[k]:noop,set:()=>true});}
+const canvas={getContext:()=>mkCtx(),focus:()=>{},style:{},width:1280,height:720,_dpr:1,addEventListener:(ev,fn)=>{canvas['_'+ev]=fn;},getBoundingClientRect:()=>({left:0,top:0,width:1280,height:720})};
+global.window={addEventListener:(ev,fn)=>{if(ev==='keydown')global.window._kd=fn;},innerWidth:1280,innerHeight:720,devicePixelRatio:1,open:()=>{}};
+global.performance={now:(()=>{let t=0;return ()=>(t+=16);})()};
+global.location={protocol:'file:'};
+global.LS={};global.localStorage={getItem:k=>k in LS?LS[k]:null,setItem:(k,v)=>{LS[k]=String(v);},removeItem:k=>{delete LS[k];}};
+global.document={getElementById:()=>canvas,addEventListener:()=>{},createElement:t=>({style:{},addEventListener:()=>{},setAttribute:()=>{},remove:()=>{},focus:()=>{},click:()=>{},value:''}),head:{appendChild:()=>{}},body:{appendChild:()=>{}}};
+global.requestAnimationFrame=()=>{};
+function mkPad(i){return{connected:false,index:i,mapping:'standard',buttons:Array.from({length:17},()=>({pressed:false})),axes:[0,0,0,0,0,0],vibrationActuator:{playEffect:()=>({catch:()=>{}})}};}
+global.PADS=[mkPad(0),mkPad(1)];
+const NAV={getGamepads:()=>PADS.map(p=>p.connected?p:null)};
+try{Object.defineProperty(globalThis,'navigator',{get:()=>NAV,configurable:true});}catch(e){globalThis.navigator.getGamepads=NAV.getGamepads;}
+global.Image=class{set src(v){}};
+try{eval(src);}catch(e){console.log('RUNTIME FAIL:',e.message,e.stack&&e.stack.split('\n')[1]);process.exit(1);}
