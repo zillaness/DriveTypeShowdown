@@ -2861,7 +2861,7 @@ function drawP2Nav(cy){
     }
   }
   btn(CW/2-80,cy,160,40,(p2Series&&p2Series.done===null)?'▶ NEXT ROUND':'⟳ REMATCH','#44ffaa');
-  const navB=[['⚙ SETTINGS','#ffd740'],['🔧 SETUP','#40c4ff'],['🏁 MODE','#ee66bb'],['✕ MENU','#ff6b6b']];
+  const navB=[['🔧 SETUP','#40c4ff'],['⚙ SETTINGS','#ffd740'],['🏁 MODE','#ee66bb'],['✕ MENU','#ff6b6b']];
   for(let i=0;i<4;i++)btn(CW/2-258+i*132,cy+52,120,32,navB[i][0],navB[i][1]);
   ctx.font='10px Courier New';ctx.fillStyle='#444460';ctx.textAlign='center';
   ctx.fillText('[Esc] back to controllers',CW/2,cy+104);
@@ -2885,8 +2885,8 @@ function p2NavClick(mx,my,cy,rematch){
       r2=null;tf2=null;tfObs=null;b2Teardown();
       if(i===3){p2Exit();return true;}
       applyLayout('land2p');
-      if(i===1){m2._dp=0;m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);} // SETUP → unified claim screen, keep existing claims
-      phase=i===0?'p2settings':i===1?'p2claim':'p2modes';
+      if(i===0){m2._dp=0;m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);} // SETUP → unified claim screen, keep existing claims
+      phase=i===0?'p2claim':i===1?'p2settings':'p2modes';
       return true;}}
   return false;
 }
@@ -3244,7 +3244,7 @@ const M2_MODES=[
 ];
 const M2_COLS=['#ff5555','#5599ff']; // red / blue alliance
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
-  set:{format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:0,ballN:'auto',pow:true,hpk:true,haz:true}};
+  set:{format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,ballN:'auto',pow:true,hpk:true,haz:true}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];}
 function p2Exit(){tour=null;tfObs=null;b2Teardown();resetBinds();applyLayout('legacy');phase='menu';} // resetBinds: restore single-player input routing (else SP reads the stale 2P bind and ignores gamepad sticks)
 // ═══ PHASE 11: TOURNAMENT ═══
