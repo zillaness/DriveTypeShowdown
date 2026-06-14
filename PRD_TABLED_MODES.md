@@ -24,27 +24,57 @@ boost-tackle + the drive-kinematics system, but swaps "shoot bullets" for
 - Reuse: `tf2` arena/layout, `obsCheck`, `arcadeStep`/`arcadeTackle` (RAMMING),
   `withBot`, `getInp`, the HP-pip HUD, SFX (`hit`/`boom`/`explosion`).
 
-## Core model
-- **HP per bot** (e.g. 100). No "lives"; one HP bar. Optional armor stat by chassis.
-- **Damage = weapon type × relative impact speed × hit location.** Reuse
-  `p2ImpactMag(a._inp,c._inp)` for closing speed. Front/weapon-side hits do more;
-  body/back hits do less (use heading vs contact normal).
-- **Weapon contact cooldown** per pair (~150–250ms) so a single touch isn't a
-  continuous grind (except spinners — see below).
-- **Self-damage / recoil:** a big hit knocks BOTH bots back (momentum), the
-  attacker less.
+## Core model — TWO bars: MOBILITY then HP  ✅ (confirmed by Sam)
+The signature mechanic. Every bot has **directional armor** and a **two-layer
+health system** so positioning (face your front at the enemy) is the whole game.
 
-## Weapons **[CONFIRM the set]**
-Pick at setup (a weapon picker on the claim card, like the drive picker). Proposed:
-1. **SPINNER** — continuous contact damage while the spinner edge touches a foe;
-   high damage, high knockback to both, needs spin-up time. Visual: rotating bar.
-2. **HAMMER** — periodic overhead strike (press fire): high single-hit damage in a
-   front arc, cooldown ~1s. Reuses the fire button.
-3. **FLIPPER** — front wedge; on fire, launches the foe (big knockback / brief
-   "flipped" stun), low direct damage — wins by control/pit.
-4. **RAMMER** — no weapon; the RAMMING boost-tackle IS the weapon (already exists),
-   damage scales with boost speed.
-(Default everyone has passive ram damage; the weapon is the active layer.)
+- **Two bars per bot:**
+  - **MOBILITY** (e.g. 100) — drains first. As it drops, the bot gets slower
+    (speed/turn scale with mobility%); at 0 the bot is **IMMOBILIZED** (can't drive;
+    weapon may still fire if it doesn't need movement).
+  - **HP** (e.g. 100) — the kill bar. Only takes damage once mobility is gone
+    (for side hits) or directly (rear hits / flame), see hit-location table.
+- **Directional armor (hit location = attacker's contact point vs victim's heading):**
+  - **FRONT** — *generally invulnerable* to kinetic weapons (spinner/piston/ram).
+    This is your shield; you fight by keeping your front toward the foe. ONLY the
+    flamethrower bypasses it (see weapons).
+  - **REAR** — weak spot; kinetic hits do **full HP damage** directly.
+  - **SIDES** — kinetic hits do **MOBILITY damage only** (drain the mobility bar /
+    "damage the wheels"). Once a bot's mobility is fully gone, further side hits
+    spill over into **HP damage** — so you grind the wheels, then finish on the
+    flank. (Sam: "mobility first, then when fully disabled it does HP damage.")
+- **Damage = weapon type × relative impact speed × hit location.** Reuse
+  `p2ImpactMag(a._inp,c._inp)` for closing speed; compute hit location from the
+  victim's heading vs the contact normal (front cone / rear cone / side bands).
+- **Weapon contact cooldown** per pair (~150–250ms) so a single touch isn't a
+  continuous grind (except spinners/flame — continuous by design).
+- **Self-damage / recoil:** a big hit knocks BOTH bots back (momentum), attacker less.
+
+## Weapons — loadout is part of the game  ✅ (set confirmed by Sam)
+Speccing your bot (WEAPON + ARMOR + DRIVE TYPE) at setup IS the game. Picker on the
+claim card, like the drive picker. The set (common BattleBots archetypes):
+1. **SPINNER** — continuous kinetic contact damage while the spinning edge touches a
+   foe; high damage + high knockback to both, needs spin-up time. Bounces off FRONT
+   armor (no damage) — must catch the REAR (HP) or SIDE (mobility). Visual: rotating bar.
+2. **PISTON** — periodic punch/strike on fire: big single kinetic hit in a front arc,
+   cooldown ~1s. Same directional rules (front-armored foe shrugs it off).
+3. **FLAMETHROWER** — the FRONT-COUNTER. Low DPS that **ramps with sustained
+   continuous fire** (must hold the stream on-target for a beat before it bites), and
+   it **damages from ANY direction including the front** (ignores directional armor).
+   Real-life-weak per tick, but the only answer to a turtling front-armored bot — and
+   sustained burn can trigger a **BLOW-UP** (instant KO, big explosion) once a heat/
+   burn meter fills. Risk/reward: get in close and hold it.
+4. **WEDGE / PLOW** — sticky control tool (reuse the existing sticky-plow). Latch onto
+   a foe to grab + ram it (sets up flanking the rear/side); low direct damage, wins by
+   control. Pairs with the dash.
+5. **RAM / DASH (always available)** — the existing RAMMING boost-tackle on **Left
+   Trigger** for every bot regardless of weapon; kinetic damage scales with boost
+   speed (front-armored, so ram the rear/side).
+
+**ARMOR loadout [CONFIRM tradeoffs]:** picking heavier front armor vs balanced vs
+light could trade top speed / mobility-bar size. Simplest v1: armor just sets the
+front/rear/side multipliers + base mobility; drive type sets speed/turn. Confirm
+whether armor is a separate pick or baked into chassis.
 
 ## Arena hazards **[CONFIRM]**
 - **PIT** — a zone; a bot driven into it is instantly KO'd (or falls = loses).
@@ -55,33 +85,55 @@ Pick at setup (a weapon picker on the claim card, like the drive picker). Propos
 - **OUT-OF-ARENA** — if knocked past a wall opening = KO (most arenas are walled).
 Hazards toggleable (a setting), like the race MOVING HAZARDS toggle.
 
-## Win conditions
-- **KO:** opponent HP ≤ 0 → win.
-- **Count-out / immobilized:** if a bot can't move (pinned/flipped) for ~10s → KO.
-- **Pit / out:** instant.
-- **TIME LIMIT → judges' decision:** if time expires, most damage dealt wins
-  (track `damageDealt[p]`); tie → least damage taken. (Mirrors the ball TIMED format.)
+## Win conditions  ✅ (KO + flame-explosion confirmed by Sam)
+- **KO:** opponent HP ≤ 0 → win. (HP only falls via REAR kinetic hits, SIDE hits
+  after mobility is gone, or the flamethrower.)
+- **FLAME BLOW-UP:** sustained flamethrower fills the foe's burn/heat meter →
+  instant KO with a big explosion (a second kill path, the front-armor answer).
+- **IMMOBILIZE is NOT itself a loss** — it's a vulnerability *state* (mobility at 0 =
+  can't drive, and side hits now spill into HP). Sam: immobilize opens you to the kill,
+  it doesn't end the match on its own. (No count-out timer in v1.)
+- **PIT / OUT-OF-ARENA [CONFIRM]:** optional instant-KO hazards (see below).
+- **TIME LIMIT → judges' decision [CONFIRM]:** if a timed format expires, most HP
+  damage dealt wins (track `damageDealt[p]`); tie → least taken. (Mirrors ball TIMED.)
 - Best-of series supported via the existing format engine.
 
 ## Suggested phases (battery-green each)
-1. **P1 — Core melee duel:** HP model, contact damage via impact speed, KO,
-   last-standing win, on the tank arena. No weapons yet (passive ram damage only).
-   New mode id `battlebots` in `M2_MODES`; `bb2` state object mirroring `tf2`.
-2. **P2 — Weapons/loadouts:** weapon picker at setup; SPINNER + HAMMER +
-   FLIPPER + RAMMER with their damage/knockback rules + a fire button.
-3. **P3 — Hazards:** PIT + SAWS + OUT-OF-ARENA; hazard toggle + 2–3 arena maps.
-4. **P4 — Win polish:** count-out timer, TIMED judges' decision (damage tracking),
-   HUD (HP bars + damage meter), SFX.
-5. **P5 — CPU brain:** a BattleBots CPU (approach, weapon-face, dodge hazards,
-   tier-scaled) — reuse `cpuTankUpdate` patterns + the drive-kinematics from v5.1.21.
+1. **P1 — Core duel + directional armor + two bars:** MOBILITY + HP bars, hit-location
+   (front cone / rear cone / side bands) from heading vs contact normal, contact damage
+   via impact speed, the mobility→HP spillover rule, slow-when-low-mobility, KO,
+   last-standing win, on the tank arena. RAM/DASH (LT) as the only weapon (passive +
+   boost). New mode id `battlebots` in `M2_MODES`; `bb2` state object mirroring `tf2`.
+   Heavy tests: hit-location classification, side=mobility, rear=HP, front=immune,
+   spillover after immobilize.
+2. **P2 — Weapons/loadouts:** WEAPON + (ARMOR?) + DRIVE picker at setup; SPINNER +
+   PISTON + FLAMETHROWER + WEDGE/PLOW, each with its damage/knockback/cooldown rules +
+   the fire button. Flamethrower ramp + burn/blow-up meter.
+3. **P3 — Hazards [CONFIRM]:** PIT + SAWS + OUT-OF-ARENA; hazard toggle + 2–3 maps.
+4. **P4 — Win polish:** flame BLOW-UP KO, (optional) TIMED judges' decision, HUD
+   (mobility + HP bars + burn meter + a facing/armor indicator), SFX.
+5. **P5 — CPU brain:** a BattleBots CPU (keep its front to the foe, circle for the
+   rear/side, hold flame on a turtler, dodge hazards, tier-scaled) — reuse
+   `cpuTankUpdate` patterns + drive-kinematics.
 6. **P6 — Multi-bot rumble [CONFIRM]:** N bots free-for-all (ties into the
    multi-tank roster rework).
 
-## Open questions for Sam
-- Weapon set + whether weapon is chosen at setup or fixed per chassis.
-- Arena style (walled box vs open-edge KO) and which hazards.
-- 1v1 only first, or straight to a rumble?
-- Damage numbers / TTK target (how long should a fight last?).
+## Open questions for Sam (remaining)
+- **ARMOR:** separate setup pick (trades speed/mobility) or baked into chassis/drive?
+- **Hazards:** include PIT / OUT-OF-ARENA instant-KO, or HP/mobility only (no pit)?
+- **Arena:** walled box vs open-edge KO; how many maps for v1?
+- **1v1 first, or straight to rumble?** (P1–P5 assume 1v1; rumble is P6.)
+- **Numbers/TTK:** target fight length (e.g. 20–40s), bar sizes, flame ramp time,
+  blow-up threshold — tune in playtest.
+
+### Resolved (Sam) ✅
+- Side hits = MOBILITY damage first; spill to HP only once fully immobilized.
+- Immobilize is a vulnerability state, NOT an instant loss / no count-out.
+- Weapon set = SPINNER, PISTON, FLAMETHROWER, WEDGE/PLOW + always-on RAM/DASH (LT).
+- Directional armor: FRONT ~invulnerable to kinetic, REAR weak (HP), SIDES mobility.
+- Flamethrower = low ramping DPS, ignores directional armor (hits the front), can
+  cause a BLOW-UP on sustained burn. Win cons = KO + flame blow-up.
+- Loadout (weapon/armor/drive) chosen at setup is a core part of the game.
 
 ---
 
