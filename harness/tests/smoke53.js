@@ -19,14 +19,16 @@ src+=`
   const run=()=>{calm();cpuBallUpdate(1/60);};
   const easedClearOfGap=(G)=>Math.abs(cpuH2H[1]._ctx-G.ox)>150 && Math.min(cpuH2H[1]._cty,FH-cpuH2H[1]._cty)<120;
 
-  // ── ROOKIE: eases off while the player is NOT yet up ~4 (kids build a comfortable lead) ──
+  // ── ROOKIE: plays until it scores a small floor (~3), then eases off while the player is NOT yet up ~4 ──
   startMatch('normal',0,0);playerBind[1].tier=0;let G=cpuBallGoals(1);
-  armOffense(G);setScore(0,0);run();
-  ok('ROOKIE eases off at even score (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj==='ease');
+  armOffense(G);setScore(0,0);run(); // below the scoring floor -> plays
+  ok('ROOKIE plays offense before reaching its scoring floor (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj!=='ease');
+  armOffense(G);setScore(0,3);run(); // floor reached, even-ish (cpuLead +3 >= -4) -> ease
+  ok('ROOKIE eases off once it has scored its floor (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj==='ease');
   ok('ROOKIE ease retreats clear of its own gap (does not block the player)',easedClearOfGap(G));
-  armOffense(G);setScore(2,0);run(); // player up by 2 (cpuLead -2, still >= -4)
-  ok('ROOKIE still eases when player is only up 2',cpuH2H[1].obj==='ease');
-  armOffense(G);setScore(6,0);run(); // player up by 6 (cpuLead -6 < -4): ROOKIE plays
+  armOffense(G);setScore(2,3);run(); // floor met, player up by only 2 (cpuLead -1) -> still eases
+  ok('ROOKIE still eases when past the floor and the player is only up 2',cpuH2H[1].obj==='ease');
+  armOffense(G);setScore(9,3);run(); // floor met but player up by 6 (cpuLead -6 < -4): ROOKIE plays
   ok('ROOKIE plays offense once the player is comfortably ahead (obj='+cpuH2H[1].obj+')',cpuH2H[1].obj!=='ease');
 
   // ── VETERAN: eases off when IT goes up by 2+, keeps it back-and-forth ──

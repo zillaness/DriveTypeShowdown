@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.8.html
-  version: 5.1.8
+  file: frc_drive_showdown_v5.1.9.html
+  version: 5.1.9
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -208,6 +208,7 @@ function achDrive(idx){ if(achProg.drives.indexOf(idx)<0){achProg.drives.push(id
 function achBeatTier(tier){ if(typeof tier!=='number')return; if(achProg.tiers.indexOf(tier)<0){achProg.tiers.push(tier);achSaveProg();} if(achProg.tiers.length>=5)achUnlock('alltiers'); }
 let cpuSettingsDrag=null;
 let cpuGpIdx=-1; // gamepad cursor index on the SP cpuSettings screen (-1 = inactive)
+let cpuSettingsReturn=null; // phase to return to when leaving cpuSettings (set when opened from the 2P MATCH SETTINGS screen; null = the SP menu)
 const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
 let konamiIdx=0,_gpKonamiIdx=0,_gpKonPrev={},konamiActive=false,frisbeeMode=false;
 // konami cheat menu: toggleable fun modes (replaces the old auto-frisbee flip). arcadeMode adds the RT boost-tackle in 2P H2H ball+tank.
@@ -1135,7 +1136,7 @@ function updateGamepad(){
       gpNavLast=now;
     }else if(U||D||L||R){cpuGpIdx=gpDirNav(items,cpuGpIdx,U?'u':D?'d':L?'l':'r');gpNavLast=now;}
     if(just(0)){const it=items[cpuGpIdx];if(it&&it.kind!=='slider')handleCpuSettingsClick(it.x+it.w/2,it.y+it.h/2);}
-    if(just(1)||just(8))phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu';
+    if(just(1)||just(8)){if(cpuSettingsReturn){const r=cpuSettingsReturn;cpuSettingsReturn=null;phase=r;}else phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu';}
   }else if(phase!=='cpuSettings'&&cpuGpIdx>=0){cpuGpIdx=-1;}
   // Menu navigation — 2D grid: up/down move rows, left/right move columns
   if(phase==='menu'&&!gpShowMap){
@@ -1784,7 +1785,7 @@ function b2CpuUpdate(dt){
 const CPU_ADLO={spd:0.60,turn:0.72,react:0.60,aim:0.35,defBias:0.15,shootR:140,lapse:0.18};
 const CPU_ADHI={spd:1.02,turn:1.02,react:0.12,aim:0.08,defBias:0.75,shootR:200,lapse:0.04};
 const CPU_TIERS=[
-  {name:'ROOKIE',  spd:0.42,turn:0.60,react:0.80,aim:0.45,defBias:0.10,shootR:130,lapse:0.25,ease:{at:-4}}, // v5.1.8 rubberband: eases off (retreats, stops scoring) unless the PLAYER is already up ~4 — kids get a comfortable lead
+  {name:'ROOKIE',  spd:0.42,turn:0.60,react:0.80,aim:0.45,defBias:0.10,shootR:130,lapse:0.25,ease:{at:-4,floor:3}}, // v5.1.9 rubberband: plays until it scores ~3 (a small floor so it isn't totally idle), then eases off unless the PLAYER is already up ~4 — kids still get a comfortable lead
   {name:'VETERAN', adaptive:true,target:1.2,ease:{at:2}}, // rubber-band: player stays ~1 goal ahead; if the CPU goes up by 2+ it eases off so the player catches up (back-and-forth)
   {name:'FINALIST',adaptive:true,target:0},   // rubber-band: dead even, coin-flip endings (no hard ease — playtest first)
   {name:'WINNER',  spd:0.96,turn:0.99,react:0.12,aim:0.07,defBias:0.80,shootR:200,lapse:0.05},
@@ -1867,7 +1868,7 @@ function b2ScoreCycle(p,br,bo,G,T,dt){
   // ROOKIE eases unless the player is already up ~4 (kids build a comfortable lead); VETERAN eases when it's up by 2+ (keeps it back-and-forth).
   // It retreats into its OWN half but hugs a side wall, clear of its gap mouth, so it never blocks the opponent from scoring (that would defeat the catch-up).
   const _baseT=CPU_TIERS[playerBind[p].tier|0];
-  if(_baseT.ease&&(b2.score[p]-b2.score[1-p])>=_baseT.ease.at){
+  if(_baseT.ease&&b2.score[p]>=(_baseT.ease.floor||0)&&(b2.score[p]-b2.score[1-p])>=_baseT.ease.at){
     bo.captureOff=true;br.obj='ease';br.cyc='gather';
     br._ctx=clamp(G.ox+dirScore*200,RR+2,FW-RR-2);
     br._cty=bo.y<FH/2?RR+80:FH-RR-80;
@@ -2778,7 +2779,7 @@ function p2GpItems(){
   const it=[];
   if(phase==='p2modes'){for(let i=0;i<4;i++)it.push(p2ModeRect(i));it.push(p2TourBtnRect());it.push(p2RecBtnRect());}
   else if(phase==='p2drive'){for(const d of p2DriveList())it.push(p2DriveRect(d));}
-  else if(phase==='p2settings'){const rows=p2SettingsRows();for(let i=0;i<rows.length;i++)it.push(p2SetRowRect(i));it.push(p2StartBtnRect());}
+  else if(phase==='p2settings'){const rows=p2SettingsRows();for(let i=0;i<rows.length;i++)it.push(p2SetRowRect(i));if(p2ShowCpuCfg())it.push(p2CpuCfgBtnRect());it.push(p2StartBtnRect());}
   else if(phase==='p2tnames'){for(let i=0;i<4;i++)it.push(tourOptRect(i));if(tour&&tour.names.length>=4)it.push({x:CW/2-110,y:CH-92,w:220,h:42});}
   else if(phase==='p2tqual'){it.push({x:CW/2-100,y:CH-100,w:200,h:40});}
   else if(phase==='p2tbracket'){
@@ -3835,6 +3836,10 @@ function p2SetDropRects(){ // clickable rects for the open dropdown's choices (f
   const out=[];for(let j=0;j<n;j++)out.push({x:rc.x+rc.w-300,y:y0+j*ih,w:280,h:ih-4,val:r.vals[j],i:j});
   return out;}
 function p2StartBtnRect(){return{x:CW/2-130,y:CH-90,w:260,h:48};}
+// ALLIANCE CPU AI button — opens the shared CPU-behavior settings (which drive the alliance support bots) from the 2P MATCH SETTINGS screen.
+// Only ball modes have alliance bots whose brain these prefs tune, so it's hidden in tank/race.
+function p2ShowCpuCfg(){return m2.mode==='normal'||m2.mode==='shooter';}
+function p2CpuCfgBtnRect(){return{x:CW/2-130-210,y:CH-90,w:196,h:48};}
 function p2BackBtnRect(){return{x:14,y:12,w:90,h:30};}
 // ── claiming ──
 function p2ClaimDevice(b){
@@ -3880,6 +3885,7 @@ function p2Click(mx,my){
     for(let i=0;i<rows.length;i++){if(inR(mx,my,p2SetRowRect(i))){
       const r=rows[i];if(!(r.k in m2.set)){m2.set[r.k]=r.vals[0];}
       setDropdown=i;sfx('click');return;}} // open the dropdown to choose
+    if(p2ShowCpuCfg()&&inR(mx,my,p2CpuCfgBtnRect())){cpuSettingsReturn='p2settings';cpuGpIdx=0;phase='cpuSettings';sfx('click');return;}
     if(inR(mx,my,p2StartBtnRect())){p2cEnsureDrives();if(!(m2.claim[0]&&m2.claim[1])){m2.claim=[null,null];m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);}phase='p2claim';return;}
   }else if(phase==='p2race'){
     if(r2&&r2.result!==null)p2NavClick(mx,my,FY+FH/2+34,startP2Race);
@@ -4102,6 +4108,11 @@ function p2Draw(){
     ctx.strokeStyle='#44ffaa';ctx.lineWidth=2;rr(sb.x,sb.y,sb.w,sb.h,12);ctx.stroke();
     ctx.font='bold 15px Courier New';ctx.textAlign='center';ctx.fillStyle='#44ffaa';
     ctx.fillText('CONTROLLERS →',sb.x+sb.w/2,sb.y+30);
+    if(p2ShowCpuCfg()){const cb=p2CpuCfgBtnRect(),cfoc=gpFocus===rows.length; // gamepad focus index sits right after the rows
+      ctx.fillStyle=cfoc?'rgba(45,45,75,0.85)':'rgba(30,30,55,0.7)';rr(cb.x,cb.y,cb.w,cb.h,12);ctx.fill();
+      ctx.strokeStyle=cfoc?'#ffd740':'#6a6acf';ctx.lineWidth=2;rr(cb.x,cb.y,cb.w,cb.h,12);ctx.stroke();
+      ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle='#aab0ff';
+      ctx.fillText('⚙ ALLIANCE CPU AI',cb.x+cb.w/2,cb.y+30);}
     ctx.font='11px Courier New';ctx.fillStyle='#444460';
     ctx.fillText('P1 '+(m2.drive[0]?m2.drive[0].name:'?')+'   vs   P2 '+(m2.drive[1]?m2.drive[1].name:'?'),CW/2,108);
     if(setDropdown!==null){ // open dropdown overlay (pointer UI)
@@ -5368,7 +5379,7 @@ function applyCpuSlider(id,t){
 function applyPreset(p){cpuPrefs={...p.prefs};cpuSpeedMult=p.speed??1;cpuBot=p.count??cpuBot;}
 function handleCpuSettingsClick(mx,my){
   // Back
-  if(inR(mx,my,{x:4,y:8,w:56,h:28})){phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu';return;}
+  if(inR(mx,my,{x:4,y:8,w:56,h:28})){if(cpuSettingsReturn){const r=cpuSettingsReturn;cpuSettingsReturn=null;phase=r;return;}phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu';return;}
   // Reset
   if(inR(mx,my,{x:CW-106,y:8,w:102,h:28})){cpuPrefs={...CPU_PREFS_DEFAULT};cpuSpeedMult=1.0;return;}
   // CPU count buttons
@@ -6353,6 +6364,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.9 (2026-06-14): ROOKIE SCORING FLOOR + ALLIANCE CPU AI LINK. (1) ROOKIE rubberband now has a small scoring FLOOR: it plays normal (weak) offense until it has scored ~3 goals, THEN eases off (the v5.1.8 ease-off otherwise left it fully idle and a 0-0 game possible if the kid also did nothing). It still eases as soon as it's past the floor and not behind by ~4, so kids still build a comfortable lead — it's just no longer completely passive. (2) ALLIANCE CPU AI now reachable from 2P: a new "⚙ ALLIANCE CPU AI" button on the MATCH SETTINGS screen (ball modes only, where alliance support bots exist) opens the shared CPU-behavior settings (disrupt/guard balance, standoff, speed, presets) and the Back button returns you to MATCH SETTINGS instead of the SP menu; gamepad-navigable (it joins the settings focus ring, B/Back returns too). Note: ALLIANCE SKILL stays as-is — it scales the alliance bots' drive speed; the new link is where you tune their brain. smoke52 +4 asserts (open/return nav, ball-mode gating); smoke53 ROOKIE asserts re-baselined for the floor (11). Full battery green; own goals zero at every tier. Single file, no assets.
   v5.1.8 (2026-06-14): GAMEPAD KONAMI (JOYSTICK) + CHAMPION SPEED CLAMP + RUBBERBAND. (1) The gamepad Konami code now reads directions from the LEFT STICK and the 8-way hat axis, not just the D-pad buttons (12-15) — it was only watching the D-pad, so entering it on the joystick did nothing. A(0)/B(1) unchanged; works on Xbox/PlayStation under the standard mapping regardless of how the pad reports the D-pad. (2) CHAMPION speed/turn edge REMOVED: spd/turn 1.12 -> 1.00, clamped to the player like every other tier (the edge read as obviously unfair). Difficulty now rests on reactions, aim, the 5-ball carry, and zero lapses — hands-off CHAMPION still clears ~35 goals/90s vs a passive opponent, zero own goals. (3) RUBBERBANDING via ease-off (adaptive low tiers): ROOKIE eases off — retreats to its own half clear of its gap and stops scoring — UNLESS the player is already up ~4 goals, so kids reliably build a comfortable lead and win; VETERAN eases off whenever IT goes up by 2+, letting the player catch up for a back-and-forth game. The eased bot hugs a side wall away from its gap mouth so it NEVER blocks the opponent (that would defeat the catch-up). FINALIST/WINNER/CHAMPION never ease (FINALIST left alone pending playtest). New suite smoke53 (rubberband, 10 asserts: ROOKIE/VETERAN ease thresholds + clear-of-gap + FINALIST/CHAMPION never ease); smoke40 re-baselined for the CHAMPION clamp. Full battery green; own goals zero at every tier. Single file, no assets.
   v5.1.7 (2026-06-14): KONAMI-ANYWHERE + RAMMING TUNING + BOUNCY FAIRNESS. (1) The Konami code now opens the cheat menu from ANY screen (menu, 2P setup, mid-match) — keyboard sequence is tracked in every phase, the menu renders as a top overlay, gameplay FREEZES while it's open, and closing it returns you exactly where you were (phase never changes). Gamepad already worked anywhere. (2) ARCADE MODE renamed RAMMING, and it's now HUMAN-ONLY — the CPU never rams (it was too effective); tackle stun trimmed 2.0s->1.2s. (3) BOUNCY BALLS fairness: the CPU loses its sticky plow (push-only) and cannot ram in bouncy mode, so it no longer hoards balls in the chaos. (4) MATCH SETTINGS rows: the ◀ cycle hint is now positioned by the value's text width, so long values (e.g. 'AUTO — scales with bots') no longer cover it. smoke51 now also asserts the CPU never rams (10 asserts). Full battery green. Single file, no assets.
   v5.1.6 (2026-06-14): REVERT CHAMPION DEFENSE GOALIE. The v5.1.4 goalie-defense branch is removed — in playtest it pulled CHAMPION off offense to get stuck defending, LOWERING its scoring (a 40-38 player win). Main CPU bots are pure offense again. The other two CHAMPION buffs stay: the top-tier speed edge (spd/turn 1.12, past the player cap) and the higher AUTO ball count. (Defense may return later as a RUBBERBANDING behavior for the adaptive tiers when they're ahead, not as a fixed-tier buff.) smoke43 re-baselined to the pure-offense own-goal-safety check; own goals 0 at every tier. Full battery green. Single file, no assets.

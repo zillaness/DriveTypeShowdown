@@ -28,6 +28,14 @@ src+=`
   p2Click(CW-20,60);
   ok('click outside closes the dropdown',setDropdown===null);
   ok('outside click did not change the value',m2.set.ballN===8);
+  // v5.1.9: ALLIANCE CPU AI button opens the shared CPU-settings screen and returns to 2P settings
+  setDropdown=null;phase='p2settings';m2.mode='normal';cpuSettingsReturn=null;
+  ok('ALLIANCE CPU AI button shows in ball modes',p2ShowCpuCfg());
+  const cb=p2CpuCfgBtnRect();p2Click(cb.x+cb.w/2,cb.y+cb.h/2);
+  ok('clicking it opens the CPU-settings screen',phase==='cpuSettings'&&cpuSettingsReturn==='p2settings');
+  handleCpuSettingsClick(4+28,8+14); // the Back button
+  ok('Back from there returns to 2P MATCH SETTINGS',phase==='p2settings'&&cpuSettingsReturn===null);
+  m2.mode='race';ok('button is hidden in non-ball modes',!p2ShowCpuCfg());
   console.log('--- settings-options: '+P+' pass, '+F+' fail ---');
 })();
 `;
