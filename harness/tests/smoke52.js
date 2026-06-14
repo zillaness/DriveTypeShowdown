@@ -35,6 +35,17 @@ src+=`
   ok('clicking it opens the CPU-settings screen',phase==='cpuSettings'&&cpuSettingsReturn==='p2settings');
   handleCpuSettingsClick(4+28,8+14); // the Back button
   ok('Back from there returns to 2P MATCH SETTINGS',phase==='p2settings'&&cpuSettingsReturn===null);
+  // v5.1.10: ALLIANCE CPU SPEED is a draggable slider row (click or drag to set), not a stepper
+  phase='p2settings';m2.mode='normal';
+  const srows=p2SettingsRows(),si=srows.findIndex(r=>r.k==='allySpd');
+  ok('ALLIANCE CPU SPEED is a slider row',si>=0&&srows[si].slider===true);
+  const sg=p2SetSliderGeom(si);
+  p2SetSliderVal(si,(sg.x1+sg.x2)/2);ok('drag to mid sets ~mid speed ('+m2.set.allySpd+')',Math.abs(m2.set.allySpd-0.8)<=0.05);
+  p2SetSliderVal(si,sg.x1-500);ok('drag past the left clamps to min ('+m2.set.allySpd+')',m2.set.allySpd===0.4);
+  p2SetSliderVal(si,sg.x2+500);ok('drag past the right clamps to max ('+m2.set.allySpd+')',m2.set.allySpd===1.2);
+  // clicking the row sets the value at the click x (does not open a dropdown)
+  setDropdown=null;m2.set.allySpd=0.8;p2Click(sg.x1,p2SetRowRect(si).y+10);
+  ok('clicking the slider row sets value and opens no dropdown',m2.set.allySpd===0.4&&setDropdown===null);
   m2.mode='race';ok('button is hidden in non-ball modes',!p2ShowCpuCfg());
   console.log('--- settings-options: '+P+' pass, '+F+' fail ---');
 })();

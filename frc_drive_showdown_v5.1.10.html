@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.9.html
-  version: 5.1.9
+  file: frc_drive_showdown_v5.1.10.html
+  version: 5.1.10
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -299,6 +299,12 @@ C.addEventListener('touchstart',e=>{
         if(!handled)p2Click(p.x,p.y);
         continue;
       }
+      if(phase==='p2settings'){
+        const rows=p2SettingsRows();let hs=false;
+        for(let i=0;i<rows.length;i++){if(rows[i].slider&&inR(p.x,p.y,p2SetRowRect(i))){p2SetSliderDrag={i:i,touchId:t.identifier};p2SetSliderVal(i,p.x);sfx('click');hs=true;break;}}
+        if(hs)continue;
+        p2Click(p.x,p.y);continue;
+      }
       const inMatch=phase==='p2race'||phase==='p2tank'||phase==='p2ball';
       const live=inMatch&&((phase==='p2race'&&r2&&r2.result===null)||(phase==='p2tank'&&tf2&&tf2.result===null)||(phase==='p2ball'&&b2&&b2.result===null));
       if(!live){p2Click(p.x,p.y);continue;}
@@ -341,6 +347,7 @@ C.addEventListener('touchmove',e=>{
   for(const t of e.changedTouches){
     if(t.identifier===sliderTid){applySlider(toCanvas(t).x);continue;}
     if(p2SensDrag&&t.identifier===p2SensDrag.touchId){p2SetSens(p2SensDrag.pl,toCanvas(t).x);continue;}
+    if(p2SetSliderDrag&&t.identifier===p2SetSliderDrag.touchId){p2SetSliderVal(p2SetSliderDrag.i,toCanvas(t).x);continue;}
     if(phase==='cpuSettings'&&t.identifier===cpuSettingsDrag?.touchId){
       const p=toCanvas(t);
       const tt=Math.max(0,Math.min(1,(p.x-cpuSettingsDrag.x)/cpuSettingsDrag.w));
@@ -361,6 +368,7 @@ C.addEventListener('touchmove',e=>{
 function clearTouch(e){
   for(const t of e.changedTouches){
     if(p2SensDrag&&t.identifier===p2SensDrag.touchId){p2SensDrag=null;}
+    if(p2SetSliderDrag&&t.identifier===p2SetSliderDrag.touchId){p2SetSliderDrag=null;}
     if(cpuSettingsDrag&&t.identifier===cpuSettingsDrag.touchId){cpuSettingsDrag=null;}
     if(t.identifier===fireBtnTid){fireBtnTid=-1;fireBtnPressed=false;continue;}
     for(let sd=0;sd<2;sd++){if(t.identifier===p2TFireId[sd]){p2TFireId[sd]=-1;p2TFire[sd]=false;}}
@@ -377,6 +385,7 @@ C.addEventListener('touchcancel',clearTouch,{passive:false});
 // Mouse drag for sensitivity slider
 let sliderMouseDrag=false;
 let p2SensDrag=null; // 2P claim-screen sensitivity slider drag: {pl, touchId?}
+let p2SetSliderDrag=null; // 2P MATCH SETTINGS slider-row drag (e.g. ALLIANCE CPU SPEED): {i, touchId?}
 function toCanvasMouse(e){
   const r=C.getBoundingClientRect();
   return{x:(e.clientX-r.left)*(CW/r.width),y:(e.clientY-r.top)*(CH/r.height)};
@@ -400,16 +409,21 @@ C.addEventListener('mousedown',e=>{
     for(let pl=0;pl<2;pl++){const cbd=m2.claim[pl];
       if(cbd&&cbd.type!=='cpu'&&p2cOnSlider(pl,p.x,p.y)){p2SensDrag={pl:pl};p2SetSens(pl,p.x);e.preventDefault();return;}}
   }
+  if(phase==='p2settings'){
+    const rows=p2SettingsRows();
+    for(let i=0;i<rows.length;i++){if(rows[i].slider&&inR(p.x,p.y,p2SetRowRect(i))){p2SetSliderDrag={i:i};p2SetSliderVal(i,p.x);sfx('click');e.preventDefault();return;}}
+  }
   if(inSlider(p.x,p.y)){sliderMouseDrag=true;applySlider(p.x);e.preventDefault();return;}
   {const _id=curDrv().id;if((holoMode||['botSwerve','fieldSwerve','carSteer','rearSteer'].includes(_id))&&inR(p.x,p.y,SWAP_BTN)){stickSwap=!stickSwap;}}
 });
 C.addEventListener('mousemove',e=>{
   if(phase==='cpuSettings'&&cpuSettingsDrag){const p=toCanvasMouse(e);const tt=Math.max(0,Math.min(1,(p.x-cpuSettingsDrag.x)/cpuSettingsDrag.w));applyCpuSlider(cpuSettingsDrag.id,tt);return;}
   if(p2SensDrag){p2SetSens(p2SensDrag.pl,toCanvasMouse(e).x);return;}
+  if(p2SetSliderDrag){p2SetSliderVal(p2SetSliderDrag.i,toCanvasMouse(e).x);return;}
   if(sliderMouseDrag){applySlider(toCanvasMouse(e).x);}
 });
-C.addEventListener('mouseup',()=>{sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;});
-C.addEventListener('mouseleave',()=>{sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;});
+C.addEventListener('mouseup',()=>{sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;});
+C.addEventListener('mouseleave',()=>{sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;});
 
 const BALL_STARTS=[
   {x:55,  y:175},{x:165, y:158},{x:290, y:172},
@@ -1111,11 +1125,13 @@ function updateGamepad(){
         const R=just(15)||(gpAxis.lx>0.55&&rep),L=just(14)||(gpAxis.lx<-0.55&&rep);
         const setRows=(phase==='p2settings')?p2SettingsRows().length:0;
         if((D||U||L||R)&&phase==='p2settings')setDropdown=null; // gamepad doesn't use the pointer dropdown
-        if((L||R)&&phase==='p2settings'&&p2GpIdx<setRows){p2CycleSet(p2GpIdx,R?1:-1);gpNavLast=now;} // ◀▶ cycle the focused option in place
+        if((L||R)&&phase==='p2settings'&&p2GpIdx<setRows){const _r=p2SettingsRows()[p2GpIdx]; // ◀▶ cycle the focused option (or nudge a slider row)
+          if(_r&&_r.slider){const _st=_r.step||0.05;m2.set[_r.k]=clamp(Math.round((m2.set[_r.k]+(R?_st:-_st))/_st)*_st,_r.min,_r.max);sfx('click');}
+          else p2CycleSet(p2GpIdx,R?1:-1);gpNavLast=now;}
         else if(D||U||L||R){p2GpIdx=gpDirNav(items,p2GpIdx,U?'u':D?'d':L?'l':'r');gpNavLast=now;} // spatial: real up/down + left/right
         p2GpIdx=Math.min(p2GpIdx,items.length-1);
         if(just(0)){
-          if(phase==='p2settings'&&p2GpIdx<setRows)p2CycleSet(p2GpIdx,1); // A also advances a row (no dropdown needed on gamepad)
+          if(phase==='p2settings'&&p2GpIdx<setRows){const _r=p2SettingsRows()[p2GpIdx];if(!(_r&&_r.slider))p2CycleSet(p2GpIdx,1);} // A advances a row (sliders use ◀▶ instead)
           else{const it=items[p2GpIdx];p2Click(it.x+it.w/2,it.y+it.h/2);}
         }
         if(just(1))p2Back();
@@ -1694,8 +1710,8 @@ function b2SpawnCpus(){
 }
 function b2CpuUpdate(dt){
   if(!b2.cpus.length)return;
-  const _at=(m2&&m2.set&&typeof m2.set.allyTier==='number')?m2.set.allyTier:2;
-  const spd=SPD*[0.55,0.68,0.80,0.92,1.05][_at]; // v5.1: alliance support bots scale with the ALLIANCE SKILL setting (tier 2 ~= the old 0.8x)
+  const allySpd=(m2&&m2.set&&typeof m2.set.allySpd==='number')?m2.set.allySpd:0.8;
+  const spd=SPD*allySpd; // v5.1.10: alliance support bots run at the ALLIANCE CPU SPEED slider value (fraction of the player's drive speed; default 0.8)
   for(const c of b2.cpus){
     c.roleT-=dt;
     if(c.roleT<=0){
@@ -1785,7 +1801,7 @@ function b2CpuUpdate(dt){
 const CPU_ADLO={spd:0.60,turn:0.72,react:0.60,aim:0.35,defBias:0.15,shootR:140,lapse:0.18};
 const CPU_ADHI={spd:1.02,turn:1.02,react:0.12,aim:0.08,defBias:0.75,shootR:200,lapse:0.04};
 const CPU_TIERS=[
-  {name:'ROOKIE',  spd:0.42,turn:0.60,react:0.80,aim:0.45,defBias:0.10,shootR:130,lapse:0.25,ease:{at:-4,floor:3}}, // v5.1.9 rubberband: plays until it scores ~3 (a small floor so it isn't totally idle), then eases off unless the PLAYER is already up ~4 — kids still get a comfortable lead
+  {name:'ROOKIE',  spd:0.42,turn:0.60,react:0.80,aim:0.45,defBias:0.10,shootR:130,lapse:0.25,ballSpd:0.55,ease:{at:-4,floor:3}}, // v5.1.10 ballSpd 0.42->0.55 (ball ROOKIE was a touch too easy; race/tank ROOKIE keep spd 0.42 to preserve the race invariant); rubberband: plays until it scores ~3, then eases off unless the PLAYER is up ~4
   {name:'VETERAN', adaptive:true,target:1.2,ease:{at:2}}, // rubber-band: player stays ~1 goal ahead; if the CPU goes up by 2+ it eases off so the player catches up (back-and-forth)
   {name:'FINALIST',adaptive:true,target:0},   // rubber-band: dead even, coin-flip endings (no hard ease — playtest first)
   {name:'WINNER',  spd:0.96,turn:0.99,react:0.12,aim:0.07,defBias:0.80,shootR:200,lapse:0.05},
@@ -2046,7 +2062,7 @@ function cpuBallUpdate(dt){
     const dx=tx-bo.x,dy=ty-bo.y,d=Math.hypot(dx,dy);
     let vx=0,vy=0;
     // v5.1: cap CPU translate at the human's drive speed — tier multipliers above 1 (CHAMPION 1.06) are clamped to 1
-    const _spF=Math.min(1,T.spd); // every tier (incl. CHAMPION) is clamped to the player's drive speed — no CPU outruns a human
+    const _spF=Math.min(1,T.ballSpd||T.spd); // every tier (incl. CHAMPION) is clamped to the player's drive speed — no CPU outruns a human (ROOKIE uses a ball-only ballSpd so race/tank stay slower)
     if(d>4){const sp=SPD*_spF*oS*Math.min(1,d/36);vx=dx/d*sp;vy=dy/d*sp;}
     const hT=aimH!==null?aimH:(d>4?Math.atan2(dy,dx):bo.h);
     let dh=hT-bo.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
@@ -3211,9 +3227,10 @@ function drawP2Tag(p,b){
 // bold red/blue (or egg) alliance halo + ring so each main bot's side reads at a glance, even when both pick the same drive. Call within a translate to the bot center.
 function p2AllianceRing(p){
   const k=eggKind(m2.name&&m2.name[p]),col=k?EGG_COLS[k]:M2_COLS[p];
-  ctx.beginPath();ctx.arc(0,0,RR+8,0,Math.PI*2);ctx.fillStyle=col+'33';ctx.fill(); // halo
+  const R=RR+44; // big enough to encircle the bot AND its plow (the scoop tips reach ~RR+26 fwd / ~RR+20 lateral, ~57px diagonal)
+  ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.fillStyle=col+'22';ctx.fill(); // team halo
   ctx.strokeStyle=col;ctx.lineWidth=3;
-  ctx.beginPath();ctx.arc(0,0,RR+6,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.stroke();
 }
 function r2StartPos(p){return{x:OC_START.x,y:OC_START.y,h:OC_START.h};}
 // ── v3.8: H2H CPU — race brain. Gap-seeking climb with predictive hazard gates. ──
@@ -3432,7 +3449,7 @@ const M2_MODES=[
 ];
 const M2_COLS=['#ff5555','#5599ff']; // red / blue alliance
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
-  set:{format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,allyTier:2,ballN:'auto',pow:true,hpk:true,haz:true}};
+  set:{format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,allySpd:0.8,ballN:'auto',pow:true,hpk:true,haz:true}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];}
 function p2Exit(){tour=null;tfObs=null;b2Teardown();resetBinds();applyLayout('legacy');phase='menu';} // resetBinds: restore single-player input routing (else SP reads the stale 2P bind and ignores gamepad sticks)
 // ═══ PHASE 11: TOURNAMENT ═══
@@ -3817,11 +3834,15 @@ function p2SettingsRows(){
     {k:'layout', lab:'FIELD LAYOUT',     vals:['mirrored','shared'],show:v=>v==='shared'?'SHARED GAP':'MIRRORED — defend your own'},
     {k:'contact',lab:'CONTACT RULE',     vals:['full','pin'],     show:v=>v==='full'?'FULL CONTACT':'PIN PENALTY (~3s)'},
     {k:'cpus',   lab:'CPU BOTS PER SIDE',vals:[0,1,2],            show:v=>v===0?'NONE':'×'+v},
-    {k:'allyTier',lab:'ALLIANCE SKILL',  vals:[0,1,2,3,4],        show:v=>(CPU_TIERS[v]||CPU_TIERS[2]).name},
+    {k:'allySpd', lab:'ALLIANCE CPU SPEED',slider:true,min:0.4,max:1.2,step:0.05, show:v=>Math.round(v*100)+'%'},
     {k:'ballN',  lab:'BALLS IN PLAY',    vals:['auto',4,6,8,10,12], show:v=>v==='auto'?'AUTO — scales with bots':v},
   ];
 }
 function p2SetRowRect(i){return{x:CW/2-330,y:140+i*62,w:660,h:48};}
+// slider rows (e.g. ALLIANCE CPU SPEED): a draggable track on the right of the row, click or drag to set — matches the claim-screen sensitivity slider
+function p2SetSliderGeom(i){const rc=p2SetRowRect(i);return{x1:rc.x+rc.w*0.42,x2:rc.x+rc.w-72,y:rc.y+rc.h/2};}
+function p2SetSliderVal(i,mx){const r=p2SettingsRows()[i];if(!r||!r.slider)return;const g=p2SetSliderGeom(i),st=r.step||0.05;
+  const t=clamp((mx-g.x1)/(g.x2-g.x1),0,1);m2.set[r.k]=clamp(Math.round((r.min+t*(r.max-r.min))/st)*st,r.min,r.max);}
 // option rows: cycle a row's value (gamepad ◀▶ / A), and a click-dropdown to pick directly
 let setDropdown=null; // index of the settings row whose dropdown is open (pointer UI), else null
 function p2CycleSet(i,dir){const rows=p2SettingsRows(),r=rows[i];if(!r)return;
@@ -3883,7 +3904,9 @@ function p2Click(mx,my){
       setDropdown=null;return; // click outside closes it
     }
     for(let i=0;i<rows.length;i++){if(inR(mx,my,p2SetRowRect(i))){
-      const r=rows[i];if(!(r.k in m2.set)){m2.set[r.k]=r.vals[0];}
+      const r=rows[i];
+      if(r.slider){p2SetSliderVal(i,mx);sfx('click');return;} // slider row: set the value at the click x (drag handled in mousedown/touch)
+      if(!(r.k in m2.set)){m2.set[r.k]=r.vals[0];}
       setDropdown=i;sfx('click');return;}} // open the dropdown to choose
     if(p2ShowCpuCfg()&&inR(mx,my,p2CpuCfgBtnRect())){cpuSettingsReturn='p2settings';cpuGpIdx=0;phase='cpuSettings';sfx('click');return;}
     if(inR(mx,my,p2StartBtnRect())){p2cEnsureDrives();if(!(m2.claim[0]&&m2.claim[1])){m2.claim=[null,null];m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);}phase='p2claim';return;}
@@ -4096,13 +4119,20 @@ function p2Draw(){
       ctx.strokeStyle=foc?'#ffd740':'#3a3a5a';ctx.lineWidth=foc?2:1.5;rr(rc.x,rc.y,rc.w,rc.h,10);ctx.stroke();
       ctx.font='bold 13px Courier New';ctx.textAlign='left';ctx.fillStyle='#8888aa';
       ctx.fillText(r.lab,rc.x+22,rc.y+30);
-      const valStr=String(r.show(m2.set[r.k]))+' ▾',valRight=rc.x+rc.w-44;
-      ctx.font='bold 13px Courier New';ctx.textAlign='right';ctx.fillStyle='#ffd740';
-      ctx.fillText(valStr,valRight,rc.y+30);
-      const vw=ctx.measureText(valStr).width;            // place ◀ just left of the value text so it's never covered
-      ctx.font='13px Courier New';ctx.fillStyle='#55557a';
-      ctx.textAlign='right';ctx.fillText('◀',valRight-vw-14,rc.y+30);
-      ctx.textAlign='left';ctx.fillText('▶',rc.x+rc.w-30,rc.y+30);}
+      if(r.slider){                                       // draggable speed track (click or drag), value shown at the right
+        const g=p2SetSliderGeom(i),v=m2.set[r.k];
+        ctx.strokeStyle='#44446a';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(g.x1,g.y);ctx.lineTo(g.x2,g.y);ctx.stroke();
+        const tx=g.x1+(v-r.min)/(r.max-r.min)*(g.x2-g.x1);
+        ctx.fillStyle=foc?'#ffd740':'#7a7adf';ctx.beginPath();ctx.arc(tx,g.y,8,0,7);ctx.fill();
+        ctx.font='bold 13px Courier New';ctx.textAlign='right';ctx.fillStyle='#ffd740';ctx.fillText(r.show(v),rc.x+rc.w-22,rc.y+30);
+      }else{
+        const valStr=String(r.show(m2.set[r.k]))+' ▾',valRight=rc.x+rc.w-44;
+        ctx.font='bold 13px Courier New';ctx.textAlign='right';ctx.fillStyle='#ffd740';
+        ctx.fillText(valStr,valRight,rc.y+30);
+        const vw=ctx.measureText(valStr).width;            // place ◀ just left of the value text so it's never covered
+        ctx.font='13px Courier New';ctx.fillStyle='#55557a';
+        ctx.textAlign='right';ctx.fillText('◀',valRight-vw-14,rc.y+30);
+        ctx.textAlign='left';ctx.fillText('▶',rc.x+rc.w-30,rc.y+30);}}
     const sb=p2StartBtnRect();
     ctx.fillStyle='rgba(20,60,30,0.7)';rr(sb.x,sb.y,sb.w,sb.h,12);ctx.fill();
     ctx.strokeStyle='#44ffaa';ctx.lineWidth=2;rr(sb.x,sb.y,sb.w,sb.h,12);ctx.stroke();
@@ -6364,6 +6394,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.10 (2026-06-14): ALLIANCE CPU SPEED SLIDER + BIGGER TEAM RINGS + ROOKIE BALL SPEED. (1) ALLIANCE SKILL (a tier-name stepper that only changed speed) is replaced by an ALLIANCE CPU SPEED slider on the MATCH SETTINGS screen — a real draggable track (click anywhere on it or grab-and-drag), mouse + touch + gamepad ◀▶, 40%–120% of the player's drive speed in 5% steps (default 80%), matching the claim-screen sensitivity slider. It sets m2.set.allySpd directly (the alliance support bots run at that fraction). (2) The red/blue team rings on the two MAIN H2H bots (human and CPU alike) are much bigger — radius RR+44, large enough to encircle the bot AND its plow/scoop — so it's always clear which side a robot is on. (Alliance support bots keep their small dashed ring.) (3) ROOKIE ball speed 0.42->0.55 (it was a touch too easy); scoped to ball mode via a new ballSpd field so race/tank ROOKIE keep 0.42 and the race ROOKIE-is-slower invariant holds. smoke52 +5 (slider: row type, drag-to-set, min/max clamp, click-sets-no-dropdown). Full battery green; own goals zero at every tier. Single file, no assets.
   v5.1.9 (2026-06-14): ROOKIE SCORING FLOOR + ALLIANCE CPU AI LINK. (1) ROOKIE rubberband now has a small scoring FLOOR: it plays normal (weak) offense until it has scored ~3 goals, THEN eases off (the v5.1.8 ease-off otherwise left it fully idle and a 0-0 game possible if the kid also did nothing). It still eases as soon as it's past the floor and not behind by ~4, so kids still build a comfortable lead — it's just no longer completely passive. (2) ALLIANCE CPU AI now reachable from 2P: a new "⚙ ALLIANCE CPU AI" button on the MATCH SETTINGS screen (ball modes only, where alliance support bots exist) opens the shared CPU-behavior settings (disrupt/guard balance, standoff, speed, presets) and the Back button returns you to MATCH SETTINGS instead of the SP menu; gamepad-navigable (it joins the settings focus ring, B/Back returns too). Note: ALLIANCE SKILL stays as-is — it scales the alliance bots' drive speed; the new link is where you tune their brain. smoke52 +4 asserts (open/return nav, ball-mode gating); smoke53 ROOKIE asserts re-baselined for the floor (11). Full battery green; own goals zero at every tier. Single file, no assets.
   v5.1.8 (2026-06-14): GAMEPAD KONAMI (JOYSTICK) + CHAMPION SPEED CLAMP + RUBBERBAND. (1) The gamepad Konami code now reads directions from the LEFT STICK and the 8-way hat axis, not just the D-pad buttons (12-15) — it was only watching the D-pad, so entering it on the joystick did nothing. A(0)/B(1) unchanged; works on Xbox/PlayStation under the standard mapping regardless of how the pad reports the D-pad. (2) CHAMPION speed/turn edge REMOVED: spd/turn 1.12 -> 1.00, clamped to the player like every other tier (the edge read as obviously unfair). Difficulty now rests on reactions, aim, the 5-ball carry, and zero lapses — hands-off CHAMPION still clears ~35 goals/90s vs a passive opponent, zero own goals. (3) RUBBERBANDING via ease-off (adaptive low tiers): ROOKIE eases off — retreats to its own half clear of its gap and stops scoring — UNLESS the player is already up ~4 goals, so kids reliably build a comfortable lead and win; VETERAN eases off whenever IT goes up by 2+, letting the player catch up for a back-and-forth game. The eased bot hugs a side wall away from its gap mouth so it NEVER blocks the opponent (that would defeat the catch-up). FINALIST/WINNER/CHAMPION never ease (FINALIST left alone pending playtest). New suite smoke53 (rubberband, 10 asserts: ROOKIE/VETERAN ease thresholds + clear-of-gap + FINALIST/CHAMPION never ease); smoke40 re-baselined for the CHAMPION clamp. Full battery green; own goals zero at every tier. Single file, no assets.
   v5.1.7 (2026-06-14): KONAMI-ANYWHERE + RAMMING TUNING + BOUNCY FAIRNESS. (1) The Konami code now opens the cheat menu from ANY screen (menu, 2P setup, mid-match) — keyboard sequence is tracked in every phase, the menu renders as a top overlay, gameplay FREEZES while it's open, and closing it returns you exactly where you were (phase never changes). Gamepad already worked anywhere. (2) ARCADE MODE renamed RAMMING, and it's now HUMAN-ONLY — the CPU never rams (it was too effective); tackle stun trimmed 2.0s->1.2s. (3) BOUNCY BALLS fairness: the CPU loses its sticky plow (push-only) and cannot ram in bouncy mode, so it no longer hoards balls in the chaos. (4) MATCH SETTINGS rows: the ◀ cycle hint is now positioned by the value's text width, so long values (e.g. 'AUTO — scales with bots') no longer cover it. smoke51 now also asserts the CPU never rams (10 asserts). Full battery green. Single file, no assets.
