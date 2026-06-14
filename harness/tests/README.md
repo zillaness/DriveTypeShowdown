@@ -23,8 +23,9 @@ balance (req'd every version) · 9 formats/series/pin · 10 courses/hazards · 8
 interpolation, seeded ball/tank/race brain matches, LoS fire gating, hazard-run bounds, SFX safety +
 mute persistence — 44 asserts, deterministic) · 39 ghost export/import (bundle/merge pure fns, key
 labels, imported tagging, GHOSTS submenu nav, malformed-file reject, CLEAR ALL purge — 26 asserts) ·
-40 H2H CPU v3.10 — ball-mode speed+turn coupling to player sens (all tiers), CHAMPION edge, intake denial,
-shot-block/screen bias, anti-double-team, alliance directed scoring + own-goal guard — 8 asserts, deterministic.
+40 H2H CPU v3.10 — ball-mode speed+turn coupling to player sens (all tiers), intake denial,
+shot-block/screen bias, anti-double-team, alliance directed scoring + own-goal guard, plus v5.1 speed cap (CHAMPION
+capped to the player drive speed) and drive kinematics (arcade drives along heading, swerve strafes) — 10 asserts, deterministic.
 41 H2H shot-block v3.10.1 — projectile-vs-robot collision in H2H shooter: front-face catch (with magazine room),
 motion-scaled block (parked dead-stops, moving carries), alliance-CPU soft-wall + alliance credit, no self-collision
 at the fire spawn — 9 asserts, deterministic (calls b2ProjBlock directly on hand-placed state, no seed).

@@ -1698,7 +1698,7 @@ function cpuBallGoals(p){ // mirrored: enemy plane ex, own plane ox, gap span. S
 function b2ScoreCycle(p,br,bo,G,T,dt){
   // v4.0 scoring cycle for a main CPU bot: gather a load, drive it through the opponent gap.
   // Pure offense, never routes toward its own gap, so it cannot own-goal.
-  const cap=[1,2,3,4,6][playerBind[p].tier|0]||1;
+  const cap=[1,2,3,4,4][playerBind[p].tier|0]||1;
   const load=bo.load?bo.load.length:0;
   const dirScore=Math.sign(G.ex-G.ox)||1;                 // +x = score right (p0), -x = left (p1)
   const gcy=(G.gt+G.gb)/2, opp=b2.bots[1-p];
@@ -1905,11 +1905,25 @@ function cpuBallUpdate(dt){
     const oS=(m2.sens&&typeof m2.sens[1-p]==='number')?m2.sens[1-p]:1;
     const dx=tx-bo.x,dy=ty-bo.y,d=Math.hypot(dx,dy);
     let vx=0,vy=0;
-    if(d>4){const sp=SPD*T.spd*oS*Math.min(1,d/36);vx=dx/d*sp;vy=dy/d*sp;}
+    // v5.1: cap CPU translate at the human's drive speed — tier multipliers above 1 (CHAMPION 1.06) are clamped to 1
+    if(d>4){const sp=SPD*Math.min(1,T.spd)*oS*Math.min(1,d/36);vx=dx/d*sp;vy=dy/d*sp;}
     const hT=aimH!==null?aimH:(d>4?Math.atan2(dy,dx):bo.h);
     let dh=hT-bo.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
+    let vrCap=TSP*T.turn*oS;
+    // v5.1: CPU honors its drive kinematics — only swerve/holonomic strafe; tank/arcade pivot+drive, steer must roll to turn
+    const _drv=m2.drive&&m2.drive[p],_did=(typeof p2cDriveDef!=='undefined'&&_drv)?p2cDriveDef(p).id:null;
+    const _canStrafe=_drv&&(_drv.kind==='holo'||_did==='botSwerve'||_did==='fieldSwerve');
+    if(_drv&&!_canStrafe&&aimH===null&&(vx||vy)){
+      const desSp=Math.hypot(vx,vy);
+      let adh=Math.atan2(vy,vx)-bo.h;while(adh>Math.PI)adh-=2*Math.PI;while(adh<-Math.PI)adh+=2*Math.PI;
+      const align=Math.cos(adh),steerClass=_drv.kind==='steer',k=0.34; // forward floor: arc toward the target instead of stalling while it turns
+      // motion is always along the heading (never sideways) — tank/arcade may reverse when the target is well behind; cars roll forward to steer
+      const fwd=steerClass?desSp*Math.max(k,align):desSp*clamp(k+(1-k)*align,-0.55,1);
+      vx=Math.cos(bo.h)*fwd;vy=Math.sin(bo.h)*fwd;
+      if(steerClass)vrCap*=clamp(Math.abs(fwd)/(SPD*0.45),0.2,1);
+    }
     br.inp.vx=vx;br.inp.vy=vy;
-    br.inp.vr=clamp(dh*6,-TSP*T.turn*oS,TSP*T.turn*oS);
+    br.inp.vr=clamp(dh*6,-vrCap,vrCap);
   }
 }
 function startP2Ball(){
@@ -1991,7 +2005,7 @@ function b2StickyCarriers(){
   const out=[];
   for(let p=0;p<2;p++){
     const isCpu=m2.claim&&m2.claim[p]&&m2.claim[p].type==='cpu';
-    if(isCpu){const tier=playerBind[p].tier|0;const cap=[1,2,3,4,6][tier]||1;out.push({bot:b2.bots[p],al:p,cap:cap,tier:tier});}
+    if(isCpu){const tier=playerBind[p].tier|0;const cap=[1,2,3,4,4][tier]||1;out.push({bot:b2.bots[p],al:p,cap:cap,tier:tier});}
   }
   return out;
 }

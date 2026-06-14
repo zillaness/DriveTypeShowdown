@@ -12,19 +12,34 @@ src+=`
   };
   const clearBalls=()=>{balls.forEach(b=>{b.sc=true;b.intaken=false;b.proj=false;b.golden=false;b.vx=0;b.vy=0;});};
 
-  // ── A: speed couples to the opponent's sensitivity; CHAMPION edges the player ──
+  // ── A: speed couples to the opponent's sensitivity and is CAPPED at the player's drive speed (v5.1) ──
   startMatch('normal',0,4); // CHAMPION at slot 1
   clearBalls();
   balls[0].sc=false;balls[0].x=B2M_WX+100;balls[0].y=120;balls[0].vx=0;balls[0].vy=0;
   b2.bots[1].x=FW-B2M_WX-100;b2.bots[1].y=FH-120;b2.bots[1].h=0;
   const setup=()=>{cpuH2H[1].obj='intake';cpuH2H[1].tgt=balls[0];cpuH2H[1].objT=5;cpuH2H[1].orb=undefined;cpuH2H[1].commit=false;};
-  setup();m2.sens[0]=1.0;cpuBallUpdate(1/60);const s1=Math.hypot(cpuH2H[1].inp.vx,cpuH2H[1].inp.vy);
-  setup();m2.sens[0]=2.0;cpuBallUpdate(1/60);const s2=Math.hypot(cpuH2H[1].inp.vx,cpuH2H[1].inp.vy);
+  const faceBall=()=>{b2.bots[1].h=Math.atan2(balls[0].y-b2.bots[1].y,balls[0].x-b2.bots[1].x);}; // face target so heading-locked motion runs at full speed (isolates the cap)
+  setup();faceBall();m2.sens[0]=1.0;cpuBallUpdate(1/60);const s1=Math.hypot(cpuH2H[1].inp.vx,cpuH2H[1].inp.vy);
+  setup();faceBall();m2.sens[0]=2.0;cpuBallUpdate(1/60);const s2=Math.hypot(cpuH2H[1].inp.vx,cpuH2H[1].inp.vy);
   ok('ball speed scales ~2x with opponent sens (s1='+s1.toFixed(0)+' s2='+s2.toFixed(0)+')',s2>s1*1.9&&s2<s1*2.1);
-  ok('CHAMPION edges the 2.0x player (cpu='+s2.toFixed(0)+' > player='+(SPD*2).toFixed(0)+')',s2>SPD*2);
-  setup();m2.sens[0]=2.0;cpuBallUpdate(1/60);const r2=Math.abs(cpuH2H[1].inp.vr);
-  setup();m2.sens[0]=1.0;cpuBallUpdate(1/60);const r1=Math.abs(cpuH2H[1].inp.vr);
+  ok('CHAMPION speed is capped at the player drive speed (cpu='+s2.toFixed(0)+' ~= player='+(SPD*2).toFixed(0)+')',Math.abs(s2-SPD*2)<3);
+  // turn rate couples to sens (bot faces east, target up-left -> large heading error so the turn saturates at the sens-scaled cap)
+  b2.bots[1].h=0;setup();m2.sens[0]=2.0;cpuBallUpdate(1/60);const r2=Math.abs(cpuH2H[1].inp.vr);
+  b2.bots[1].h=0;setup();m2.sens[0]=1.0;cpuBallUpdate(1/60);const r1=Math.abs(cpuH2H[1].inp.vr);
   ok('turn rate also couples to sens (r1='+r1.toFixed(2)+' r2='+r2.toFixed(2)+')',r2>r1*1.5);
+
+  // ── A2: drive kinematics — tank/arcade move only along their heading (no strafe); swerve can strafe (v5.1) ──
+  startMatch('normal',0,4);
+  clearBalls();
+  balls[0].sc=false;balls[0].x=B2M_WX+100;balls[0].y=FH/2;balls[0].vx=0;balls[0].vy=0;
+  b2.bots[1].x=balls[0].x;b2.bots[1].y=FH/2+200;b2.bots[1].h=0; // facing east, target straight north -> 90 deg abeam
+  const latFrac=()=>{const bo=b2.bots[1],ch=Math.cos(bo.h),sh=Math.sin(bo.h),ip=cpuH2H[1].inp;return Math.abs(-sh*ip.vx+ch*ip.vy)/(Math.hypot(ip.vx,ip.vy)||1);};
+  m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'}; // arcade
+  cpuH2H[1].obj='intake';cpuH2H[1].tgt=balls[0];cpuH2H[1].objT=5;cpuBallUpdate(1/60);const latArc=latFrac();
+  m2.drive[1]={kind:'main',idx:2,name:'S',c:'#fa0'}; // bot-centric swerve
+  cpuH2H[1].obj='intake';cpuH2H[1].tgt=balls[0];cpuH2H[1].objT=5;cpuBallUpdate(1/60);const latSw=latFrac();
+  ok('kinematics: arcade drives along its heading, no strafe (lat='+latArc.toFixed(2)+')',latArc<0.05);
+  ok('kinematics: swerve can strafe sideways (lat='+latSw.toFixed(2)+')',latSw>0.7);
 
   // ── B: intake denial — sharp CPU contests the ball the foe is about to grab, even if a closer free ball exists ──
   startMatch('shooter',0,4);
@@ -51,8 +66,8 @@ src+=`
     balls[1].sc=false;balls[1].x=G.ox-200;balls[1].y=foeY;balls[1].vx=0;balls[1].vy=0;
     cpuH2H[1].obj='defend';cpuH2H[1].tgt=balls[1];cpuH2H[1].objT=5;
     cpuBallUpdate(1/60);
-    // step toward the computed target a few frames and read the bot's settled y
-    for(let i=0;i<40;i++){cpuH2H[1].objT=5;cpuH2H[1].obj='defend';cpuH2H[1].tgt=balls[1];cpuBallUpdate(1/60);b2.bots[1].x+=cpuH2H[1].inp.vx/60;b2.bots[1].y+=cpuH2H[1].inp.vy/60;}
+    // step toward the computed target a few frames and read the bot's settled y (apply heading too, as the real movement path does)
+    for(let i=0;i<60;i++){cpuH2H[1].objT=5;cpuH2H[1].obj='defend';cpuH2H[1].tgt=balls[1];cpuBallUpdate(1/60);const ip=cpuH2H[1].inp;b2.bots[1].h+=ip.vr/60;b2.bots[1].x+=ip.vx/60;b2.bots[1].y+=ip.vy/60;}
     return b2.bots[1].y;
   };
   const yTop=trackY(b2mGT()+20), yBot=trackY(b2mGB()-20);

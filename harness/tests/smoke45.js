@@ -18,11 +18,11 @@ src+=`
   b2Sticky(1/60);
   ok('capture: front-contact ball becomes held',cb.held===true&&bo.load.length===1);
 
-  // CAPACITY by tier: CHAMPION caps at 6, ROOKIE at 1
+  // CAPACITY by tier: CHAMPION caps at 4, ROOKIE at 1
   start(4);bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};
   for(let i=0;i<8;i++)freeBall(i,bo.x-(RR+BR),FH/2-8+i*2);
   for(let f=0;f<30;f++)b2Sticky(1/60);
-  ok('capacity: CHAMPION holds at most 6 ('+bo.load.length+')',bo.load.length===6);
+  ok('capacity: CHAMPION holds at most 4 ('+bo.load.length+')',bo.load.length===4);
   start(0);bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};
   for(let i=0;i<8;i++)freeBall(i,bo.x-(RR+BR),FH/2-8+i*2);
   for(let f=0;f<30;f++)b2Sticky(1/60);
