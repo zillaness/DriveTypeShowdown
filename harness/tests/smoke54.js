@@ -106,6 +106,13 @@ src+=`
    rs.set(0.5);ok('ROBOT SIZE 0.5× shrinks RR (='+RR.toFixed(0)+', ≥8)',RR<17&&RR>=8);
    rs.set(1);ok('ROBOT SIZE 1× restores RR=17 + plow',RR===17&&Math.abs(SC_TX-tx0)<0.01);}
 
+  // ── BALL POWER-UPS cheat: SPEED pickup grants a boost on contact ──
+  startBall('normal');ballPups=true;
+  b2.pups=[{x:600,y:320,type:{id:'speed',icon:'»',col:'#40c4ff'},age:0}];b2.bots[0].x=600;b2.bots[0].y=320;b2.bots[0].speedT=0;
+  b2PupTick(1/60);
+  ok('BALL POWER-UPS: SPEED pickup boosts the bot + is consumed',b2.bots[0].speedT===8&&b2.pups.length===0);
+  ballPups=false;b2PupTick(1/60);ok('BALL POWER-UPS off: pickups cleared',b2.pups.length===0);
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.28.html
-  version: 5.1.28
+  file: frc_drive_showdown_v5.1.29.html
+  version: 5.1.29
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-14
@@ -213,7 +213,7 @@ const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRigh
 let konamiIdx=0,_gpKonamiIdx=0,_gpKonPrev={},konamiActive=false,frisbeeMode=false;
 // konami cheat menu: toggleable fun modes (replaces the old auto-frisbee flip). arcadeMode adds the LT boost-tackle in 2P H2H ball+tank.
 let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides
-let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,driftMode=false,ballScale=1,robotScale=1; // more cheats
+let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,driftMode=false,ballScale=1,robotScale=1,ballPups=false; // more cheats
 const B2_BALL_CAP=72; // hard cap on balls in play (shared by EXTRA BALLS + MULTIBALL)
 function mgOn(p){return machineGun===2||(machineGun===1&&m2.claim&&m2.claim[p]&&m2.claim[p].type!=='cpu');} // does side p get full-auto?
 // all cheats are independent — they mix and stack freely (e.g. machine-gun + bouncy + ultimate-ascent + extra-balls)
@@ -230,6 +230,7 @@ const CHEATS=[
   {name:'DRIFT',          desc:'Slides out on turns — grippy throttle, slippery sideways (best on tank/arcade/steer)',get:()=>driftMode,tog:()=>{driftMode=!driftMode;if(driftMode)iceMode=false;clearMomentum();}},
   {name:'BALL SIZE',      desc:'Giant or tiny balls — ◀ ▶ or drag the track to set',                            slider:true,min:0.5,max:2,step:0.1,get:()=>ballScale,set:v=>{ballScale=clamp(Math.round(v*10)/10,0.5,2);BR=clamp(BR0*ballScale,4,18);},show:v=>v.toFixed(1)+'×'},
   {name:'ROBOT SIZE',     desc:'Giant or tiny robots — ◀ ▶ or drag (big bots may not fit the race course)',      slider:true,min:0.5,max:1.5,step:0.1,get:()=>robotScale,set:v=>setRobotScale(v),show:v=>v.toFixed(1)+'×'},
+  {name:'BALL POWER-UPS', desc:'SPEED » pickups spawn on the field in 2P ball + shooter — grab to boost 8s',     get:()=>ballPups,    tog:()=>{ballPups=!ballPups;}},
 ];
 function cheatMove(d){cheatIdx=(cheatIdx+d+CHEATS.length)%CHEATS.length;sfx('click');}
 function cheatToggle(){const c=CHEATS[cheatIdx];if(c.slider){c.set(c.get()>=c.max?c.min:c.get()+c.step);}else c.tog();sfx('claim');}
@@ -2177,8 +2178,8 @@ function startP2Ball(){
   const sp=b2Mirrored()
     ?[{x:B2M_WX+68,y:FH/2,h:0},{x:FW-B2M_WX-68,y:FH/2,h:Math.PI}]   // red defends left, blue right
     :[{x:480,y:FH-58,h:-Math.PI/2},{x:720,y:FH-58,h:-Math.PI/2}];
-  b2={t:0,cd:3,result:null,score:[0,0],sudden:false,pinT:[0,0],toast:null,repd:false,btTouch:false,
-    bots:sp.map((q,i)=>({x:q.x,y:q.y,h:q.h,al:(q.al!=null?q.al:i),spot:i,_inp:{vx:0,vy:0,vr:0},intk:[],shootCd:0}))};
+  b2={t:0,cd:3,result:null,score:[0,0],sudden:false,pinT:[0,0],toast:null,repd:false,btTouch:false,pups:[],pupTimer:5,
+    bots:sp.map((q,i)=>({x:q.x,y:q.y,h:q.h,al:(q.al!=null?q.al:i),spot:i,_inp:{vx:0,vy:0,vr:0},intk:[],shootCd:0,speedT:0}))};
   b2.ballStarts=starts;
   b2.cpus=b2SpawnCpus();
   cpuH2HInit();
@@ -2186,6 +2187,21 @@ function startP2Ball(){
 function b2Teardown(){
   if(b2SavInv!==null){inverted=b2SavInv;b2SavInv=null;}
   b2=null;balls=[];cpuH2H=null;
+}
+function b2SpawnPup(){ // BALL POWER-UPS cheat: drop a SPEED pickup at a free field spot
+  const cands=[[FW*0.5,FH*0.5],[FW*0.5,FH*0.28],[FW*0.5,FH*0.72],[FW*0.32,FH*0.5],[FW*0.68,FH*0.5]];
+  const free=cands.filter(c=>!b2.pups.some(u=>Math.hypot(u.x-c[0],u.y-c[1])<40));
+  if(!free.length)return;
+  const c=free[Math.floor(Math.random()*free.length)];
+  b2.pups.push({x:c[0],y:c[1],type:{id:'speed',icon:'»',col:'#40c4ff'},age:0});
+}
+function b2PupTick(dt){ // spawn + collect SPEED pickups (cheat)
+  if(!ballPups){if(b2.pups.length)b2.pups.length=0;return;}
+  b2.pupTimer-=dt;
+  if(b2.pupTimer<=0){b2SpawnPup();b2.pupTimer=5+Math.random()*4;}
+  for(const u of b2.pups){u.age=(u.age||0)+dt;if(u.age>10){u.dead=true;continue;}
+    for(let p=0;p<2;p++){const bo=b2.bots[p];if(!u.dead&&Math.hypot(u.x-bo.x,u.y-bo.y)<RR+12){u.dead=true;bo.speedT=8;sfx('pickup');}}}
+  b2.pups=b2.pups.filter(u=>!u.dead);
 }
 function b2AddBalls(n){ // MULTIBALL: drop fresh balls near center (capped)
   for(let k=0;k<n&&balls.length<B2_BALL_CAP;k++)
@@ -2327,11 +2343,14 @@ function updateP2Ball(dt){
   b2.t+=dt;
   if(m2.set.format==='timed'){const ri=Math.ceil(m2.set.timeSec-b2.t);if(ri>=1&&ri<=5&&ri!==b2._endCount){b2._endCount=ri;sfx('count');}} // v4.1: final 5s countdown beeps
   cpuBallUpdate(dt);
+  b2PupTick(dt); // BALL POWER-UPS cheat
   // bots move
   for(let p=0;p<2;p++){
     const bo=b2.bots[p];
+    bo.speedT=Math.max(0,(bo.speedT||0)-dt); // BALL POWER-UPS: SPEED boost decay
     withBot(p,bo,()=>{
       let inp=getInp(playerBind[p]);
+      if(bo.speedT>0){inp.vx*=1.4;inp.vy*=1.4;}
       if(arcadeMode)inp=arcadeStep(p,bo,inp,dt,ballFoes(p));
       bo._inp=inp;
       bo.h+=inp.vr*dt;{const _m=momModeFor(bo,p);if(_m)applyMomentum(bo,inp,dt,_m);else{bo.x+=inp.vx*dt;bo.y+=inp.vy*dt;}}
@@ -2566,6 +2585,11 @@ function drawP2Ball(){
   }
   // balls
   ctx.save();ctx.translate(FX,FY);
+  if(b2.pups)for(const u of b2.pups){ // BALL POWER-UPS pickups
+    ctx.beginPath();ctx.arc(u.x,u.y,12,0,Math.PI*2);ctx.fillStyle=u.type.col+'33';ctx.fill();
+    ctx.strokeStyle=u.type.col;ctx.lineWidth=2;ctx.stroke();
+    ctx.font='bold 14px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=u.type.col;ctx.fillText(u.type.icon,u.x,u.y);ctx.textBaseline='alphabetic';
+  }
   for(const b of balls){
     if(b.intaken)continue; // held inside a robot
     ctx.beginPath();ctx.arc(b.x,b.y,BR,0,Math.PI*2);
@@ -6577,6 +6601,7 @@ requestAnimationFrame(loop);
   v5.1-wip fix pass (2026-06-14): playtest fixes on the resume base, ahead of the 3v3 wiring. (1) Post-match nav rewired for the v5.0 merged setup: the dead "DRIVES" button (old p2drive stub) is now "SETUP" -> the unified p2claim screen; the SETTINGS round-trip preserves controller claims so it no longer dumps you back to a full re-claim. (2) CPU translate speed is capped at the player's drive speed (tier multipliers above 1, e.g. CHAMPION 1.06, clamped to 1) so a CPU never outruns a human. (3) CPU now honors its drive kinematics: only swerve/holonomic strafe; tank/arcade and steer drive along their heading (arc toward targets, no instant sideways slide) -- a forward-floor arc keeps CHAMPION scoring 30+/90s. (4) Setup card renders the actual drive (body + per-drive wheels + scoop) instead of a generic box. (5) In-match name tag over each robot shows the custom name, not RED/BLUE. (6) 2P sensitivity slider supports grab-and-drag (mouse + touch) in addition to click-to-jump. (7) 2P gamepad nav is spatial (real up/down + left/right via nearest-in-direction) instead of flat sequential. (8) On the setup screen each claimed gamepad sets up its own card (dpad cycles drive/group, LB/RB sensitivity). (9) Sticky plow rebalanced: capacity [1,2,3,4,4]->[1,2,2,3,3] (CHAMPION carries 3, fits within the plow arms), plus a tier-scaled movement-drop while driving (CHAMPION 0/perfect, WINNER .10, FINALIST .28, VETERAN .45, ROOKIE .70 per sec) released sideways so own goals stay zero; shooter mode untouched. Battery green (smoke40 10 asserts, smoke45 14). Single file, no assets.
   v5.1-wip fix pass 2 (2026-06-14): more playtest fixes. (1) SP CPU-settings screen is now gamepad-navigable (dashed cursor over back/reset/count/sliders/presets; left-right adjusts the focused slider; A activates; B backs out). (2) Setup screen: each claimed gamepad already drove its own card; added on-screen hints, plus release/unclaim (click a claimed controller box or press B on a claimed pad) so an accidental keyboard claim can be swapped to a pad. (3) Custom names commit live as you type (no Enter needed; Esc reverts; clicking away closes) -- fixes names not showing when you did not press Enter; tank/race result screens now use the custom name too. (4) ALLIANCE SKILL setting (ROOKIE..CHAMPION) scales the alliance support bots; default tier 2 == the old speed. (5) Default CPU BOTS PER SIDE 0->2 (each alliance fields 3 robots). (6) Post-game nav order: SETUP before SETTINGS. (7) Clickable mute toggle in the corner of the menu and 2P setup screens. Battery green (smoke50 23). Single file, no assets.
   v5.1 (2026-06-14): RELEASE. Promotes the resume-base line to a playable release: v5.0.1 plus the two playtest fix passes above (post-game nav rewire for the merged setup; CPU speed capped to the player and drive-type kinematics so tank/arcade/steer no longer strafe like swerve; sticky-plow rebalance with tier-scaled movement-drop and a plow-fitting capacity; setup card renders the real drive; custom names commit live and show in-match and on tank/race results; 2P sensitivity grab-drag; spatial 2P gamepad nav; controller-only game setup including the CPU opponent; gamepad nav on the SP CPU-settings screen; controller release/unclaim; default 2 alliance bots per side with an ALLIANCE SKILL setting; a small corner mute icon). The Phase-7 3v3 foundation (alliance helpers + b2Roster) remains staged but inert and behavior-preserving. The full always-three-per-side 3v3 head-to-head is deferred to v5.2. Full battery green; own goals zero at every tier; CHAMPION clears 30+ goals/90s. Single file, no assets.
+  v5.1.29 (2026-06-14): BALL POWER-UPS cheat (pickups in ball modes). A Konami toggle spawns SPEED » pickups on the field in 2P ball + shooter (there was no pickup substrate in ball mode before): a fresh pickup every ~5-9s at free field spots, grabbed on contact for an 8s 1.4x speed boost, rendered on the field. Scoped to SPEED for now (the cleanest effect that maps to ball mode; shield/rapid can follow). smoke54 +2 (grant+consume, off-clears). Full battery green. Single file, no assets.
   v5.1.28 (2026-06-14): ROBOT SIZE cheat (giant/tiny robots). A Konami slider scales the robot radius live (0.5×–1.5×, clamped RR 8–26) — RR is now a live let and the plow geometry SC_* is recomputed proportionally so the arms scale with the body (offsets ×RR/RR0). Every physics/AI/render site reads RR live (wheelbase, capture cone, collisions, race obstacle inflation, name tags, rings). Pairs with BALL SIZE to totally change the feel. Range kept conservative because a giant robot inflates the race obstacle math (the cheat warns big bots may not fit the course); the scoring gap still fits. smoke54 +3 (grow/shrink/restore RR + plow). Full battery green. Single file, no assets.
   v5.1.27 (2026-06-14): BALL SIZE cheat (giant/tiny balls). A Konami slider scales the ball radius live (0.5×–2.0×, clamped to BR 4–18 so giant balls still fit the gap and the plow). BR is now a live let (no load-time const baked it in — only RR feeds the plow geometry, so robots are untouched); every physics + render site reads BR live, so balls resize everywhere consistently. The cheat-menu slider click/drag now honors a fractional step (was int-only for EXTRA BALLS). smoke54 +3 (grow/shrink/restore, clamped). Full battery green. Single file, no assets.
   v5.1.26 (2026-06-14): ICE SKATING + DRIFT cheats (movement momentum). Adds a momentum layer (robots normally move by instant integration): ICE SKATING = low uniform friction so you glide and brakes barely work; DRIFT = grippy along the heading but slippery sideways, so turning the chassis slides the body wide (best on tank/arcade/steer). Both are HUMAN-ONLY (CPU brains assume instant control, so they stay instant) and mutually exclusive; toggling clears any stored velocity. Applied at all six movement sites (SP play/tank/obstacle + 2P ball/tank/race). obsCheck now damps velocity into obstacles so ice bots do not stick/jitter; wall bounce comes for free via the existing wall handlers. smoke54 +4 (momentum builds/glides, human-only gating, mode select). Full battery green. Single file, no assets.
