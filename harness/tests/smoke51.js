@@ -34,6 +34,13 @@ src+=`
   for(let f=0;f<140;f++)updateP2Ball(1/60);
   ok('stun wears off after ~2s',(c.stunT||0)===0);
 
+  // CPU never rams (ramming is human-only)
+  setup();a=b2.bots[0];c=b2.bots[1]; // p1 is the CPU
+  a.x=420;a.y=FH/2;a.h=0;c.x=420+RR*2+4;c.y=FH/2;c.h=Math.PI; // human + CPU facing each other, point blank
+  kbBoostHeld=false; let cpuBoosted=false;
+  for(let f=0;f<60;f++){updateP2Ball(1/60);if((c.boostT||0)>0||(c.boostCd||0)>0)cpuBoosted=true;}
+  ok('CPU never rams (human-only)',!cpuBoosted);
+
   // arcadeMode OFF -> no boost
   arcadeMode=false;setup();arcadeMode=false;a=b2.bots[0];a.boostT=0;a.boostCd=0;
   kbBoostHeld=true;updateP2Ball(1/60);kbBoostHeld=false;
