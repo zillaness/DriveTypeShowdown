@@ -43,6 +43,11 @@ src+=`
   ok('ULTIMATE ASCENT+BOUNCY: shot ricochets and survives ('+alive+'f, '+flips+' flips, proj='+b.proj+')',alive>=200&&flips>=1);
   frisbeeMode=false;bouncyMode=false;
 
+  // ── PER-MODE tables (v5.1.15): shooter CHAMPION keeps a speed edge; normal CHAMPION stays clamped ──
+  startBall('shooter');playerBind[1].tier=3;const sSh=cpuTierParams(1,0).spd;
+  startBall('normal');playerBind[1].tier=3;const sNo=cpuTierParams(1,0).spd;
+  ok('per-mode: shooter CHAMPION has a speed edge but normal is clamped (shooter '+sSh.toFixed(2)+' > normal '+sNo.toFixed(2)+')',sSh>1.0&&sNo<=1.0);
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;
