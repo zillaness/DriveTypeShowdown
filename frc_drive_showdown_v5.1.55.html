@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.54.html
-  version: 5.1.54
+  file: frc_drive_showdown_v5.1.55.html
+  version: 5.1.55
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -294,10 +294,12 @@ function applyKonamiSlider(i,mx){ // set CHEATS[i]'s slider value from a canvas 
 let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides
 let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,ballScale=1,robotScale=1,ballPups=false,ramCdMult=1; // more cheats (ramCdMult scales the RAM dash cooldown; SENS_MAX cheat lives by the sensitivity consts)
 let iceSlip=1; // ICE SKATING slider: 1 = OFF (no ice), >1 = ice on, higher = more slip. Drives iceMode (=slip>1) + MOM.ice.fri = 0.4/iceSlip.
+let capCpuSpeed=false; // CAP CPU SPEED cheat: with MAX SENSITIVITY cranked, true = CPUs stay at base speed (only you go fast); false = CPUs keep pace (chaos). Ball/shooter only — tank/race CPUs never inherit sensitivity.
 let cheatedRun=false;paused=false; // set true while any cheat is active during a run/match; gates records + high scores
 const B2_BALL_CAP=72; // hard cap on balls in play (shared by EXTRA BALLS + MULTIBALL)
 function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1;}
 function cheated(){return anyCheat()||cheatedRun;} // a run is "tainted" if a cheat is on now OR was on at any point this run
+function cpuPaceSens(p){const s=(m2.sens&&typeof m2.sens[1-p]==='number')?m2.sens[1-p]:1;return capCpuSpeed?Math.min(s,SENS_MAX_BASE):s;} // ball/shooter CPU "keep pace" sensitivity — CAP CPU SPEED clamps it so MAX SENSITIVITY doesn't turbo the CPU
 function mgOn(p){return machineGun===2||(machineGun===1&&m2.claim&&m2.claim[p]&&m2.claim[p].type!=='cpu');} // does side p get full-auto?
 // all cheats are independent — they mix and stack freely (e.g. machine-gun + bouncy + ultimate-ascent + extra-balls)
 const CHEATS=[
@@ -310,6 +312,7 @@ const CHEATS=[
   {name:'STICKY PLOW',    desc:'[2P] Your bot gets the CHAMPION sticky plow — carry up to 5 (normal ball)',      get:()=>stickyPlow,  tog:()=>{stickyPlow=!stickyPlow;}},
   {name:'NO-CLIP',        desc:'[2P] Phase through robots & obstacles (balls still collide) — ball/tank/race',   get:()=>noClip,      tog:()=>{noClip=!noClip;}},
   {name:'BALL POWER-UPS', desc:'[2P] SPEED » pickups spawn on the field (ball + shooter) — grab to boost 8s',   get:()=>ballPups,    tog:()=>{ballPups=!ballPups;}},
+  {name:'CAP CPU SPEED',  desc:'[2P] With MAX SENSITIVITY on: ON keeps CPUs at normal speed (only YOU go super-fast); OFF = CPUs keep pace (chaos). Ball/shooter only.', get:()=>capCpuSpeed,  tog:()=>{capCpuSpeed=!capCpuSpeed;}},
   // ── sliders (right column) ──
   {name:'EXTRA BALLS',    desc:'[2P] Multiply the balls in play (ball + shooter) — ◀ ▶ or drag to set',         slider:true,min:1,max:6,step:1,get:()=>ballMult,set:v=>{ballMult=clamp(Math.round(v),1,6);},show:v=>v+'×'},
   {name:'ICE SKATING',    desc:'[SP+2P] Low-friction gliding — 1.0× = OFF, higher = more slide / less control (all modes)', slider:true,min:1,max:5,step:0.5,get:()=>iceSlip,set:v=>{iceSlip=clamp(Math.round(v*2)/2,1,5);iceMode=iceSlip>1;MOM.ice.fri=0.4/iceSlip;clearMomentum();},show:v=>v<=1?'OFF':v.toFixed(1)+'×'},
@@ -322,7 +325,7 @@ function cheatMove(d){cheatIdx=(cheatIdx+d+CHEATS.length)%CHEATS.length;sfx('cli
 function cheatToggle(){const c=CHEATS[cheatIdx];if(c.slider){c.set(c.get()>=c.max?c.min:c.get()+c.step);}else c.tog();sfx('claim');}
 function cheatAdjust(d){const c=CHEATS[cheatIdx];if(c.slider){c.set(clamp(c.get()+d*c.step,c.min,c.max));sfx('click');}else{const nT=CHEATS.filter(z=>!z.slider).length;cheatIdx=(cheatIdx+(d>0?nT:-nT)+CHEATS.length)%CHEATS.length;sfx('click');}} // ◀▶: nudge a slider, else jump to the slider column
 function cheatsAllOff(){ // ⟲ TURN OFF ALL CHEATS button — reset every cheat to its default
-  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;
+  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;
   ballMult=1;iceSlip=1;iceMode=false;MOM.ice.fri=0.4;clearMomentum();
   SENS_MAX=SENS_MAX_BASE;ramCdMult=1;ballScale=1;BR=clamp(BR0,4,18);robotScale=1;setRobotScale(1);
   sfx('claim');}
@@ -2380,7 +2383,7 @@ function cpuBallUpdate(dt){
     if(br.obj!=='shoot')br.fire=false;
     if(m2.mode==='shooter'&&br.escapeT>0){tx=FW/2;ty=FH/2;aimH=null;br.fire=false;} // unstick: drive to open center, then re-pick
     // v3.10: ball-mode speed+turn couple to the human opponent's sensitivity so the CPU keeps pace at any sens setting
-    const oS=(m2.sens&&typeof m2.sens[1-p]==='number')?m2.sens[1-p]:1;
+    const oS=cpuPaceSens(p); // CAP CPU SPEED cheat can clamp this so MAX SENSITIVITY only turbos YOU, not the CPU
     const dx=tx-bo.x,dy=ty-bo.y,d=Math.hypot(dx,dy);
     let vx=0,vy=0;
     // v5.1: cap CPU translate at the human's drive speed — tier multipliers above 1 (CHAMPION 1.06) are clamped to 1
@@ -7169,6 +7172,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.55 (2026-06-15): CAP CPU SPEED cheat — choose who the MAX SENSITIVITY boost applies to. The ball/shooter CPU couples its drive speed to the human opponent's sensitivity so it keeps pace at any setting — which meant cranking MAX SENSITIVITY also turbo-charged the CPU. New CAP CPU SPEED toggle: ON clamps the CPU's inherited sensitivity to the normal 2× ceiling so only YOU go super-fast; OFF (default) lets the CPU keep pace for everyone-is-fast chaos. (Tank/race/BattleBots CPUs never inherited the boost — they already stay at normal speed regardless of MAX SENSITIVITY.) Wired through a new cpuPaceSens(p) helper at the ball CPU pace site; TURN OFF ALL resets it. smoke54 +3 (chaos vs cap clamp, all-off resets it). Full battery green. Single file, no assets.
   v5.1.54 (2026-06-15): FIX — gamepad B on the PAUSE screen now RESUMES instead of quitting to the main menu. Pressing B while paused called pauseToMenu() (all the way back to the menu), an easy way to lose a match by accident; B is the universal back/cancel and the natural read is "close this overlay." B now just unpauses (same as Start); the MENU action is still available as an explicit item in the pause list (and on the endgame nav). Logic-only one-liner. Full battery green. Single file, no assets.
   v5.1.53 (2026-06-15): FIX — beating single-player with cheats on froze the game. On an SP course completion the done screen drew the saved best time, but a cheated run never saves a best (records are disabled), so best[k] was undefined and fmt(undefined) threw inside drawDone — and the rAF loop had no try/catch, so the thrown frame never re-armed requestAnimationFrame and the whole game locked up. (1) drawDone now falls back to THIS run's time (playT) when there's no saved best, and shows "⚠ cheats on — not recorded" instead of "Best time saved." (2) Hardened the main loop: update()/draw() run in a try/catch so a single bad frame can never hard-freeze the game again (it logs and re-arms rAF). smoke54 +1 (cheated SP completion: drawDone doesn't throw). Full battery green. Single file, no assets.
   v5.1.52 (2026-06-15): CHEAT MENU — EXIT + TURN-OFF-ALL BUTTONS, ICE MERGE, SLIDERS GROUPED. The Konami cheat panel now does a lot (sliders, multi-state toggles), so click-away alone felt risky. (1) Added a visible ✕ EXIT button (top-right) that closes the panel — Esc and gamepad B already closed it and tap-away still works; this is just an explicit affordance. (2) Added a ⟲ TURN OFF ALL CHEATS button (top-left, greens up when any cheat is on) that resets every cheat to default in one tap, leaving the panel open so you watch them clear. (3) Merged the old ICE SKATING toggle + ICE SLIP slider into ONE 'ICE SKATING' slider where 1.0× = OFF (no ice) and higher = more slide / less control (iceMode is now derived: on iff slip>1, fri=0.4/slip) — one control instead of two. (4) Re-laid the panel so all TOGGLE cheats sit in the LEFT column and all SLIDER cheats in the RIGHT column (was split by index), grouped by type for a cleaner read. smoke54 updated (ICE-merge + 1.0×=off, type-grouped fits check, EXIT closes, TURN-OFF-ALL clears every cheat). Full battery green. Single file, no assets.

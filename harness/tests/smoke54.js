@@ -95,6 +95,11 @@ src+=`
   {const ms=CHEATS.find(c=>c.name==='MAX SENSITIVITY');
    ms.set(6);ok('MAX SENSITIVITY raises SENS_MAX (='+SENS_MAX+') + taints records',SENS_MAX===6&&anyCheat());
    ms.set(2);ok('MAX SENSITIVITY back to 2× restores the base cap',SENS_MAX===2&&SENS_MAX===SENS_MAX_BASE);}
+  // ── CAP CPU SPEED: clamp the ball/shooter CPU's inherited sensitivity so MAX SENSITIVITY only turbos YOU ──
+  {const sv=m2.sens;m2.sens=[5,5];
+   capCpuSpeed=false;ok('CPU keeps pace: oS = full human sensitivity (chaos)',cpuPaceSens(0)===5&&cpuPaceSens(1)===5);
+   capCpuSpeed=true;ok('CAP CPU SPEED on: ball CPU sens clamped to base 2.0',cpuPaceSens(0)===SENS_MAX_BASE&&cpuPaceSens(1)===SENS_MAX_BASE);
+   capCpuSpeed=false;m2.sens=sv;}
   // ── RAM COOLDOWN cheat: scales the dash cooldown ──
   {const rc=CHEATS.find(c=>c.name==='RAM COOLDOWN');
    rc.set(0.2);ok('RAM COOLDOWN shortens the dash cooldown (mult='+ramCdMult+')',ramCdMult===0.2&&anyCheat());
@@ -145,10 +150,10 @@ src+=`
    CHEATS[gi].set(1);ok('setting ICE SKATING to 1.0× turns ice OFF',iceSlip===1&&iceMode===false);MOM.ice.fri=0.4;
    const ti=CHEATS.findIndex(c=>!c.slider);const tv=CHEATS[ti].get();applyKonamiSlider(ti,drawKonami._rows[ti].x);ok('applyKonamiSlider ignores non-slider rows',CHEATS[ti].get()===tv);}
   // ── ⟲ TURN OFF ALL CHEATS button clears every cheat (panel stays open) ──
-  {iceSlip=3;iceMode=true;SENS_MAX=6;ramCdMult=0.3;ballMult=4;arcadeMode=true;bouncyMode=true;machineGun=2;multiBall=true;stickyPlow=true;noClip=true;ballPups=true;ballScale=2;robotScale=1.5;
+  {iceSlip=3;iceMode=true;SENS_MAX=6;ramCdMult=0.3;ballMult=4;arcadeMode=true;bouncyMode=true;machineGun=2;multiBall=true;stickyPlow=true;noClip=true;ballPups=true;ballScale=2;robotScale=1.5;capCpuSpeed=true;
    ok('cheats on before TURN OFF ALL',anyCheat());
    const ao=drawKonami._alloff;konamiActive=true;click(ao.x+ao.w/2,ao.y+ao.h/2);
-   ok('⟲ TURN OFF ALL clears every cheat',!anyCheat()&&!iceMode&&iceSlip===1&&SENS_MAX===SENS_MAX_BASE&&ramCdMult===1&&ballMult===1&&!arcadeMode&&!machineGun&&ballScale===1&&robotScale===1);
+   ok('⟲ TURN OFF ALL clears every cheat',!anyCheat()&&!iceMode&&iceSlip===1&&SENS_MAX===SENS_MAX_BASE&&ramCdMult===1&&ballMult===1&&!arcadeMode&&!machineGun&&ballScale===1&&robotScale===1&&capCpuSpeed===false);
    ok('TURN OFF ALL keeps the cheat panel open',konamiActive===true);}
   // ── ✕ EXIT button closes the panel (click) ──
   {const ex=drawKonami._exit;konamiActive=true;click(ex.x+ex.w/2,ex.y+ex.h/2);ok('clicking ✕ EXIT closes the cheat menu',konamiActive===false);}
