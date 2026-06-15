@@ -60,6 +60,13 @@ src+=`
   tf2.bullets.length=0;t.explAmmo=0;t.aimT=8;t.h=0;t.x=600;t.y=300;const foeT=tf2.tanks[1];foeT.x=600;foeT.y=120; // foe straight up
   tf2Shoot(0);const bAim=tf2.bullets[tf2.bullets.length-1];const wantA=Math.atan2(foeT.y-t.y,foeT.x-t.x),gotA=Math.atan2(bAim.vy,bAim.vx);
   ok('AUTO-AIM snaps to the foe (Δang='+Math.abs(gotA-wantA).toFixed(3)+')',Math.abs(gotA-wantA)<0.02);
+  // v5.1.72 CANNON/TURRET: shot snaps the turret to its angle; turret eases to the foe under auto-aim; locks to the chassis otherwise
+  ok('tf2Shoot snaps the turret (cannonAng) to the shot',Math.abs(t.cannonAng-wantA)<1e-6);
+  t.cannonAng=0;t.aimT=8;for(let i=0;i<60;i++)tankAimCannon(t,0,1/60);
+  ok('AUTO-AIM: turret swings onto the foe (cannonAng→'+t.cannonAng.toFixed(2)+')',Math.abs(t.cannonAng-wantA)<1e-6);
+  t.aimT=0;t.h=0.7;t.cannonAng=2.0;tankAimCannon(t,0,1/60);
+  ok('no auto-aim: turret locks to the chassis heading',Math.abs(t.cannonAng-t.h)<1e-9);
+  {let dThrew=false;try{phase='p2tank';drawP2Tank();}catch(e){dThrew=true;console.log('   drawP2Tank err:',e.message);}ok('drawP2Tank renders the turret without throwing',!dThrew);}
   t.aimT=0;
 
   // ── EXPLOSION AoE damages a nearby foe, owner-immune ──

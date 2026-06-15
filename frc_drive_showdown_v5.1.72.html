@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.71.html
-  version: 5.1.71
+  file: frc_drive_showdown_v5.1.72.html
+  version: 5.1.72
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -3191,11 +3191,11 @@ function startP2Tank(){cheatedRun=false;paused=false;
       if(gridOn){const _gs=m2.tseats[r.bind];ctl.name=(r.type==='cpu')?((r.side===0?'RED':'BLUE')+' '+(si+1)):((_gs&&_gs.name)||('PLAYER '+(si+1)));} // grid: humans use their (renameable) seat name, CPUs use side+slot — all distinct
       return{x:sp.x,y:sp.y,h:sp.h,sx:sp.x,sy:sp.y,sh:sp.h,hp:3,reload:0,lives:timed?Infinity:m2.set.lives,inv:0,
         side:r.side,col:col,kills:0,dead:false,ctl:ctl,
-        rapidT:0,speedT:0,shield:false,explAmmo:0,pierceAmmo:0,aimT:0,explBurstT:0,pierceBurstT:0,_inp:{vx:0,vy:0,vr:0},_csv:null};})};
+        rapidT:0,speedT:0,shield:false,explAmmo:0,pierceAmmo:0,aimT:0,explBurstT:0,pierceBurstT:0,cannonAng:sp.h,_inp:{vx:0,vy:0,vr:0},_csv:null};})};
   cpuH2H=null; // tank mode uses per-tank ctl.brain (the 2-slot cpuH2H store is ball/race only)
   cpuTankBrainsInit(); // one brain per CPU tank
 }
-function tf2Respawn(p){const t=tf2.tanks[p];t.x=t.sx;t.y=t.sy;t.h=t.sh;t.hp=3;t.inv=1.5;t.reload=0.5;t.rapidT=0;t.speedT=0;t.shield=false;t.aimT=0;t.explBurstT=0;t.pierceBurstT=0;} // back to its own spawn; ammo (expl/pierce) persists across respawns; timed buffs reset
+function tf2Respawn(p){const t=tf2.tanks[p];t.x=t.sx;t.y=t.sy;t.h=t.sh;t.hp=3;t.inv=1.5;t.reload=0.5;t.rapidT=0;t.speedT=0;t.shield=false;t.aimT=0;t.explBurstT=0;t.pierceBurstT=0;t.cannonAng=t.sh;} // back to its own spawn; ammo (expl/pierce) persists across respawns; timed buffs reset
 let p2TFire=[false,false],p2TFireId=[-1,-1];
 let p2Strip=[{id:-1,v:0},{id:-1,v:0}]; // optional 2nd touch channel (right-stick Y) per side
 function p2StripRect(sd){return sd===0?{x:CW/2-78,y:CH/2-110,w:48,h:220}:{x:CW/2+30,y:CH/2-110,w:48,h:220};}
@@ -3366,11 +3366,21 @@ function drawP2SensToasts(){
     ctx.globalAlpha=1;
   }
 }
+const TF2_TURRET_SLEW=9; // turret slew rate (rad/s) when swinging onto an AUTO-AIM target
+function tankAimCannon(t,p,dt){ // v5.1.72 turret: locked to the chassis heading; under AUTO-AIM it eases onto the nearest foe
+  if(t.cannonAng==null)t.cannonAng=t.h;
+  if(t.aimT>0){
+    const foe=tankNearestFoe(p),tgt=foe?Math.atan2(foe.y-t.y,foe.x-t.x):t.h;
+    let dA=tgt-t.cannonAng;while(dA>Math.PI)dA-=2*Math.PI;while(dA<-Math.PI)dA+=2*Math.PI;
+    t.cannonAng+=Math.sign(dA)*Math.min(Math.abs(dA),TF2_TURRET_SLEW*dt);
+  }else t.cannonAng=t.h; // no auto-aim: the turret rides rigid with the chassis
+}
 function tf2Shoot(p){
   const t=tf2.tanks[p];
   // AUTO-AIM: snap the launch angle to the foe's CURRENT position (no lead/curve). Firing is already gated to "pointed at the foe".
   let ang=t.h;
   if(t.aimT>0){const foe=tankNearestFoe(p);if(foe)ang=Math.atan2(foe.y-t.y,foe.x-t.x);}
+  t.cannonAng=ang; // snap the visual turret to the round it just fired
   let expl=false,pierce=false;
   if(mgOn(tankCtl(p).bind)){ // MACHINE GUN: a banked stack becomes a TIMED full-auto barrage (chaos), not one round per shot
     if(t.explBurstT>0)expl=true; else if(t.explAmmo>0){t.explBurstT=t.explAmmo*MG_BURST_PER;t.explAmmo=0;expl=true;}
@@ -3443,6 +3453,7 @@ function updateP2Tank(dt){
       t.h+=inp.vr*dt;{const _m=momModeFor(t,bind);if(_m)applyMomentum(t,inp,dt,_m);else{t.x+=inp.vx*dt;t.y+=inp.vy*dt;}}
       if(!noClip)obsCheck(t,RR); // NO-CLIP: phase through obstacles
     });
+    tankAimCannon(t,p,dt); // turret aim — locked to the chassis, swings onto the foe under AUTO-AIM
     t.reload-=dt;
     if(tankFire(p)&&t.reload<=0&&!(t.stunT>0)){const _mg=tankMgOn(p);tf2Shoot(p);t.reload=_mg?0.05:(t.rapidT>0?0.16:0.32);if(_mg)p2Rumble(bind,0.3);} // MACHINE GUN: full-auto + rumble
   }
@@ -3508,6 +3519,18 @@ function updateP2Tank(dt){
   tf2.bullets=tf2.bullets.filter(b=>!b.dead);
   for(const bl of tf2.blasts)bl.t-=dt; tf2.blasts=tf2.blasts.filter(bl=>bl.t>0);
 }
+function drawTankCannon(t,col){ // v5.1.72 a basic cannon/turret on the tank chassis — points along cannonAng (chassis heading, or the foe under AUTO-AIM)
+  const ca=(t.cannonAng!=null)?t.cannonAng:t.h, aim=t.aimT>0;
+  ctx.save();ctx.translate(FX+t.x,FY+t.y);ctx.rotate(ca);
+  ctx.beginPath();ctx.arc(0,0,RR*0.52,0,Math.PI*2);ctx.fillStyle='#14161ce6';ctx.fill(); // turret base
+  ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();
+  ctx.lineCap='round';
+  ctx.strokeStyle=aim?'#ffd240':col;ctx.lineWidth=5.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(RR+13,0);ctx.stroke(); // barrel (glows gold under AUTO-AIM)
+  ctx.strokeStyle='#0a0a12';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(RR*0.5,0);ctx.lineTo(RR+12,0);ctx.stroke(); // bore
+  ctx.lineCap='butt';
+  ctx.beginPath();ctx.arc(RR+13,0,3,0,Math.PI*2);ctx.fillStyle=aim?'#ffd240':col;ctx.fill(); // muzzle
+  ctx.restore();
+}
 function drawP2Tank(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
   drawTFField();drawTFObstacles();
@@ -3567,6 +3590,7 @@ function drawP2Tank(){
     ctx.save();ctx.translate(FX+t.x,FY+t.y);p2AllianceRing(p,cov);ctx.restore(); // ring on top so it's never buried by the swerve modules
     if(arcadeMode)drawStun(t);
     drawP2Tag(p,t,tankLabel(p),cov); // show each bot's name (custom rename / PLAYER N / CPU) above it, humans included
+    drawTankCannon(t,tankCol(p)); // basic cannon/turret on top of the chassis
     ctx.globalAlpha=1;
   }
   // HUD cards — players stack down the LEFT, CPU tanks down the RIGHT (compact, two lines each)
@@ -7281,6 +7305,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.72 (2026-06-15): TANK CANNON — the 2P TANK FIGHT bots now carry a visible turret/cannon (they were drawn as bare robots before, no barrel). The turret rides locked to the chassis heading; when AUTO-AIM (🎯 pickup) is active it eases onto the nearest foe at ~9 rad/s and the barrel glows gold. tf2Shoot still fires exactly at the foe under auto-aim (unchanged — smoke55's angle assert holds) and now snaps the turret to the shot so the barrel always matches the round. New tankAimCannon(t,p,dt) per-tank each tick + drawTankCannon(t,col) (turret base + barrel + bore + muzzle, drawn over the chassis). cannonAng added to the tank struct + reset in tf2Respawn. smoke55 +4 (shot snaps turret / swings onto foe under aim / locks to chassis without aim / drawP2Tank no-throw) → 30. Full battery green. Single file, no assets.
   v5.1.71 (2026-06-15): Ball 3v3 — PLAYABLE. NORMAL ball + SHOOTER now support up to 3v3 via the MULTI grid, exactly like TANK/BB. TEAM FORMAT row added to ball settings (1v1 = classic 2-card claim, MULTI = the 6-seat grid); tankGridMode/tankGridStart include normal/shooter; startP2Ball builds its roster from b2SpawnDescs — legacy 2 mains (2-card) OR N mains/side from the grid (b2SpawnDescs/b2LaneYs spread vertical lanes at the goal mouth, reusing tf2SpawnYs). The draw loop, the b2CpuUpdate all-pairs (i<2 → i<bots.length, _tch sizing, ctl-tier shove), and the PIN-PENALTY block are all generalized to N mains — byte-identical at 1v1. Settings rows compress their pitch when a mode has >8 rows so they never overlap START/RESET (fixes the ball-MULTI overflow). NEW smoke58 (21 asserts): 3v3 spawn/roster, a brain per CPU bind, b2Foes/b2OppMain, a 40s CPU-vs-CPU sim (no NaN, balanced 31–31 scoring, draw renders 6 bots), mixed 3-human-vs-3-CPU, shooter 3v3, and the 1v1 fallthrough (still exactly 2 mains). Full battery green. Single file, no assets.
   v5.1.70 (2026-06-15): Ball 3v3 — step 3: CPU brain generalized to N mains/side (BEHAVIOR-PRESERVING). cpuH2HInit now allocates one brain per CPU MAIN indexed by bind (length-6, was length-2 by slot). cpuBallUpdate iterates b2.bots and, per CPU main, separates BIND semantics (drive/tier/input/pace via bo.bind) from ALLIANCE semantics (score/goals/own-gap + own-half geometry via bo.al); the single opposing main (b2.bots[1-p]) becomes b2OppMain(bo) = nearest opposing main; anti-double-team now also avoids a ball a teammate MAIN is on. b2ScoreCycle takes the bot (al/bind/opp derived inside). At 1v1 bind==al==index so byte-identical — full ball battery green (smoke38/46/53). N-mains correctness gets verified next by the 3v3 spawn + smoke test (step 4). Single file, no assets.
   v5.1.69 (2026-06-15): Ball 3v3 — step 2: per-bot loop routing (BEHAVIOR-PRESERVING). updateP2Ball's per-bot loops (move/input, shooter intake+shoot, arcade tackle, body-push + plow-arm scoring) and b2PupTick now iterate b2.bots (ANY count) and route input/fire/rumble through each bot's bind: withBot(bo.bind), getInp(playerBind[bo.bind]), p2FireHeld(bo.bind), mgOn(bo.bind), arcadeStep(bo.bind), momModeFor(bo,bo.bind). Touch attribution corrected to the bot's ALLIANCE (b.lastT=bo.al, not the bind index) so scoring stays alliance-keyed once a side has multiple mains. getInp's CPU branch resolves the bind's index via playerBind.indexOf (was: only slot 0 vs 1). At 1v1 bind==al==index so every path is byte-identical — full ball battery green. DEFERRED to step 4 (lands with N-main spawn): the b2CpuUpdate all-pairs 'i<2' main test + the pin-block main-vs-main unification. Next (step 3): cpuH2H length-6-by-bind + generalize the cpuBallUpdate/b2ScoreCycle brain to N CPU mains. Full battery green. Single file, no assets.
