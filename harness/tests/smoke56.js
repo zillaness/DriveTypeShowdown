@@ -229,7 +229,8 @@ src+=`
    ok('grid 3v3: RED 3 humans in seats 0-2',tankGridSideCount(0)===3&&[0,1,2].every(i=>m2.tseats[i]&&m2.tseats[i].type==='human'));
    startP2Tank();
    ok('grid → 3v3 builds 6 tanks (3 vs 3)',tf2.tanks.length===6&&tf2.tanks.filter(t=>t.side===0).length===3&&tf2.tanks.filter(t=>t.side===1).length===3);
-   ok('grid → 3 humans vs 3 CPU',tf2.tanks.filter(t=>t.ctl.type!=='cpu').length===3&&tf2.tanks.filter(t=>t.ctl.type==='cpu').length===3);}
+   ok('grid → 3 humans vs 3 CPU',tf2.tanks.filter(t=>t.ctl.type!=='cpu').length===3&&tf2.tanks.filter(t=>t.ctl.type==='cpu').length===3);
+   ok('grid → all 6 tanks have distinct HUD labels',new Set(tf2.tanks.map((t,i)=>tankLabel(i))).size===6);}
   {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;                       // uneven 1v3
    tankGridClaimDev({type:'kb'});m2.tsel=3;tankGridSetCpu(3);tankGridSetCpu(4);tankGridSetCpu(5);
    startP2Tank();

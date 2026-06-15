@@ -1,7 +1,7 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: 2026-06-15, at **v5.1.58**.
+**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: 2026-06-15, at **v5.1.59**.
 
 ---
 
@@ -14,13 +14,14 @@ Self-contained context for continuing this project in a fresh thread.
 
 ## 1. Project basics
 - **Single-file HTML5 canvas game.** Everything lives in one `frc_drive_showdown_vX.Y.Z.html` (game code + inline `<script>` + changelog comment block near the end). No external assets.
-- **Current build:** `frc_drive_showdown_v5.1.58.html` (also a legacy `frc_drive_showdown_v5.0.1.html` is in the tree; ignore it).
+- **Current build:** `frc_drive_showdown_v5.1.59.html` (also a legacy `frc_drive_showdown_v5.0.1.html` is in the tree; ignore it).
 - **Branch:** `claude/eager-sagan-5wehy1` — see §0.
 - **Repo scope:** `zillaness/driveshowdown` (GitHub via `mcp__github__*` tools only; no `gh` CLI). Everything committed + pushed; battery ALL GREEN.
 - **Who:** Sam Cao, FRC Team 2204 Rambots. He playtests on desktop + phone, often steps away and asks for autonomous build sessions ("go as far as you can, pivot/table if blocked"). He likes terse status, real test results, and concrete shippable increments.
 - **Modes:** 2P H2H — NORMAL ball, SHOOTER, TANK FIGHT, **BATTLEBOTS** (new, P1), OBSTACLE RACE — plus single-player drive practice. Claimable CPU opponent, 4 skill tiers (ROOKIE/VETERAN/WINNER/CHAMPION).
 
 ## 1b. Recent version history (newest first — what shipped lately)
+- **v5.1.59** — Tank 3v3 grid labels: claimed human seats read "👤 PLAYER" (device shown as a small tag), not the device name; every grid tank gets a per-seat name (RED 1..BLUE 3) so all 6 are distinct in the HUD (`tankLabel` prefers `ctl.name`). smoke56 → 91.
 - **v5.1.58** — Tank 3v3 grid fixes: seats render their ACTUAL drive (`p2cDrawDrivePreview` per seat) + ◀▶ cycles ALL 13 drives (classic→holo→steer), not just classic. smoke56 → 90.
 - **v5.1.57** — Tank **3v3 claim grid**: 2×3 seat grid (RED/BLUE), each EMPTY/HUMAN(device)/CPU(+tier) + per-seat DRIVE; per-side 1–3 (uneven OK), up to 6 device binds, ENEMY/ALLY rows removed. `m2.tseats[6]`/`drawTankGrid`/`tankGridClick`/`tankGridKb`/`tankGridGpNav`/`tankGridGpPoll`/`tankGridToSeats`; `startP2Tank` maps seats→`playerBind`/`m2.drive`. Grid = eyeball-only. smoke56 → 89.
 - **v5.1.56** — Tank 3v3 step 1: seat model behind the roster (`tankSeatsFromClaim`/`tankRosterFromSeats` near `startP2Tank`), behavior-preserving; already supports uneven sides + mixed human/CPU per side. smoke56 → 77.
