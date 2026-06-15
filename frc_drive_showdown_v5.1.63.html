@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.62.html
-  version: 5.1.62
+  file: frc_drive_showdown_v5.1.63.html
+  version: 5.1.63
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -4891,7 +4891,7 @@ function p2Overlays(){
     ctx.font='bold 26px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffd740';
     ctx.fillText('📱 ↻ ROTATE YOUR DEVICE',CW/2,CH/2-12);
     ctx.font='13px Courier New';ctx.fillStyle='#8888aa';
-    ctx.fillText('2-player mode needs landscape',CW/2,CH/2+22);
+    ctx.fillText('Multiplayer needs landscape',CW/2,CH/2+22);
   }
 }
 function p2Draw(){
@@ -4906,7 +4906,7 @@ function p2Draw(){
   if(phase==='p2ball'){drawP2Ball();return;}
   if(phase==='p2pupSettings'){drawP2PupSettings();return;}
   if(phase==='p2modes'){
-    p2Chrome('2 PLAYER — PICK A MODE','head to head · one machine');
+    p2Chrome('MULTIPLAYER — PICK A MODE','head to head · one machine');
     for(let i=0;i<M2_MODES.length;i++){const m=M2_MODES[i],r=p2ModeRect(i),sel=m2.mode===m.id;
       ctx.fillStyle='rgba(25,25,45,0.7)';rr(r.x,r.y,r.w,r.h,14);ctx.fill();
       ctx.strokeStyle=sel?m.col:m.col+'55';ctx.lineWidth=sel?2.5:1.5;rr(r.x,r.y,r.w,r.h,14);ctx.stroke();
@@ -6400,7 +6400,7 @@ function drawMenu(){
   ctx.fillStyle='rgba(35,15,35,0.7)';rr(10,58,380,24,10);ctx.fill();
   ctx.strokeStyle='#aa3388';ctx.lineWidth=1.5;rr(10,58,380,24,10);ctx.stroke();
   ctx.font='bold 10px Courier New';ctx.textAlign='center';ctx.fillStyle='#ee66bb';
-  ctx.fillText('👥  2 PLAYER — HEAD TO HEAD  →',CW/2,58+16);
+  ctx.fillText('👥  MULTIPLAYER — HEAD TO HEAD  →',CW/2,58+16);
 
   drawMiniField(20,88,360,82);
 
@@ -7237,6 +7237,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.63 (2026-06-15): UI — de-"2 PLAYER" labels → "MULTIPLAYER". The main-menu entry, the mode-pick header, and the portrait-rotate hint now read MULTIPLAYER / Multiplayer instead of "2 PLAYER" / "2-player" — a side can now field up to 3 bots (mixed humans/CPUs), so it's no longer a strictly-two-player mode. User-facing strings only (internal p2*/m2/"2P" code names unchanged). Render-only. Full battery green. Single file, no assets.
   v5.1.62 (2026-06-15): TANK 3v3 — DRIVE VARIETY toggle (final 3v3 pass). New tankfight setting DRIVE VARIETY: OFF (any drive, repeats OK — default) / NO REPEAT DRIVES (no two bots share a drive) / NO REPEAT PER TEAM (no repeats within a side) / ONE PER CATEGORY/TEAM (each side's bots come from different drive categories — classic / holonomic / steer). Enforced on the claim grid: the ◀▶ cycler skips disallowed drives, new seats default to a valid drive, and pre-existing conflicts auto-resolve (tankDriveAllowed / tankGridDefDriveFor / tankGridEnforceDrives, run from drawTankGrid + tankGridApply). smoke55 tankfight rows → 5; smoke56 +4 (norepeat / team / category enforce + cycler-skip) → 102. Full battery green. Single file, no assets.
   v5.1.61 (2026-06-15): TANK 3v3 grid polish — inline rename, per-player sensitivity, spacing, no stray compass. From playtest: (1) renaming a player is now INLINE (click the name, type, ENTER) instead of a browser prompt() — prompt() stays only as a touch/mobile fallback. (2) Each assigned PLAYER seat has its own SENSITIVITY slider (per-seat seat.sens → m2.sens at match start). (3) Re-laid each cell into 3 zones — preview (left, smaller) · info: name / device / tier / sens (middle, shifted well clear of the bot) · drive picker (right) — so the PLAYER/CPU labels, ✎ rename, and ROOKIE/VETERAN/WINNER/CHAMPION no longer crowd the rendered drive. (4) The field-centric compass + bot-centric strafe arrows no longer render inside the small drive previews (they were a stray N/S/E/W rose cut off at the screen edge); suppressed via a _drivePreview flag in p2cDrawDrivePreview. smoke56 +2 (sens slider → seat.sens → m2.sens) → 98. Full battery green. Single file, no assets.
   v5.1.60 (2026-06-15): TANK 3v3 grid — + PLAYER button, player names + rename, correct device labels. Reworked the seat claim per playtest: empty cells now offer + PLAYER and + CPU (dropped "+ TOUCH" — a touch player is still a human, the word read oddly). "+ PLAYER" makes a seat named "PLAYER N" awaiting a device; the device you then press (keyboard / gamepad / on-screen touch) is what its tag shows — so claiming with the keyboard reads "⌨ KEYBOARD", not "TOUCH". Each player name is editable (click the name to rename) and carries into the in-match HUD/results; CPUs read "CPU" + side/slot so all six stay distinct. Unassigned players get an amber border + a "👆 USE TOUCH" option and block START until every player has a controller. Wiring: seats carry {name, dev (null until assigned)}; tankGridAddPlayer/SetTouch/SeatReady/Unassigned; canStart needs ready seats + no unassigned. smoke56 +5 (+PLAYER, unassigned blocks start, keyboard→KEYBOARD label, rename→HUD) → 96. Grid is eyeball-only. Full battery green. Single file, no assets.
