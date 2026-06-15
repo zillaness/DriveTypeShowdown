@@ -151,6 +151,13 @@ side, the round is a **DRAW**. Extend `bbCheckResult` to return a draw state; HU
 handle "DRAW — double KO". (Cross-side only counts toward win/credit; a flame bot that
 suicides into the last enemy = a dramatic draw.)
 
+### E.1 Death FX (cosmetic, Sam-requested)
+Win = **knockout / destruction**. Make death **fun & animated**: on a KO, scatter
+**debris parts** (the weapon flies off, panels/wheels tumble out with random velocities +
+spin, fade) for a kinetic death; a **big explosion** for a flamethrower BLOW-UP. Reuse
+the existing blast/`fx` particle pattern. Pure cosmetic — gate behind the same draw
+guards (no-op canvas), keep it cheap (a handful of particles per death).
+
 ## F. Drag-and-drop loadout UI
 On the BattleBots claim card (1v1) **and** each grid seat (MULTI), add a **LOADOUT**
 panel:

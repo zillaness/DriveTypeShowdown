@@ -179,6 +179,18 @@ src+=`
   sfxToggle();
   ok('sfx toggle restores',sfxOn===true&&localStorage.getItem('frcds_sfx')==='1');
   ok('rumble path no-throw',(()=>{try{p2Rumble(0,0.5);p2Rumble(1,0.3);return true;}catch(e){return false;}})());
+  // ── v5.1.67: CPU vs CPU sims — the 2-card claim can hold TWO CPUs (tuning aid) ──
+  applyLayout('land2p');phase='p2claim';tour=null;m2.mode='normal';m2.set.cpus=0;m2.claim=[null,null];m2.sens=[1,1];
+  {const cb2=p2cCpuRect();
+   p2Click(cb2.x+5,cb2.y+5); // ADD CPU → slot 0
+   p2Click(cb2.x+5,cb2.y+5); // ADD CPU → slot 1 (now CPU vs CPU)
+   ok('CPUvsCPU: ADD CPU fills BOTH sides',m2.claim[0]&&m2.claim[0].type==='cpu'&&m2.claim[1]&&m2.claim[1].type==='cpu');
+   p2Click(cb2.x+5,cb2.y+5); // both full → drop one
+   ok('CPUvsCPU: ADD CPU when full drops a CPU',m2.claim.filter(c=>c&&c.type==='cpu').length===1);}
+  m2.claim=[{type:'cpu',tier:1},{type:'cpu',tier:2}];m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};
+  playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2Ball();
+  ok('CPUvsCPU ball: both mains are CPU-driven',!!cpuH2H&&!!cpuH2H[0]&&!!cpuH2H[1]);
+  updateP2Ball(0.1);ok('CPUvsCPU ball: a tick runs without throwing',phase==='p2ball'&&isFinite(b2.bots[0].x)&&isFinite(b2.bots[1].x));
   p2QuitMatch(false);p2Exit();console.log('done');
 })();
 

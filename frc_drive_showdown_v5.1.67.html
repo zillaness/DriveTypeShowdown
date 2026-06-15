@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.66.html
-  version: 5.1.66
+  file: frc_drive_showdown_v5.1.67.html
+  version: 5.1.67
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -1391,7 +1391,7 @@ function updateGamepad(){
         if(jb(1)){m2.claim[pl]=null;m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);sfx('claim');} // B: release this pad's side (swap controllers)
       }
       // global actions so a game can be set up with controllers only (no cursor): Y = add/remove a CPU opponent, X = cycle its tier
-      if(just(3)){const ci=m2.claim.findIndex(c=>c&&c.type==='cpu');if(ci>=0)m2.claim[ci]=null;else p2ClaimDevice({type:'cpu',tier:1});sfx('claim');}
+      if(just(3)){const empty=m2.claim.findIndex(c=>!c);if(empty>=0)m2.claim[empty]={type:'cpu',tier:1};else{const ci=m2.claim.findIndex(c=>c&&c.type==='cpu');if(ci>=0)m2.claim[ci]=null;}sfx('claim');} // Y: add a CPU to the open side (CPU vs CPU sims), or drop one when full
       if(just(2)){const cc=m2.claim.find(c=>c&&c.type==='cpu');if(cc){cc.tier=((cc.tier|0)+1)%CPU_TIERS.length;sfx('click');}}
       if(m2.claim[0]&&m2.claim[1]&&just(9)){const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);}}
     }else if(!p2LiveMatch()){
@@ -3121,6 +3121,12 @@ function tankSeatsFromClaim(){ // legacy claim + ENEMY/ALLY levers → per-side 
   const allies=clamp(m2.set.tallies|0,0,2);
   const allyTier=clamp((m2.set.allyTier!=null?m2.set.allyTier:1)|0,0,(modeTiers().length-1));
   const enemyTier=(cpuBind>=0&&m2.claim[cpuBind])?(m2.claim[cpuBind].tier|0):1;
+  if(m2.claim[0]&&m2.claim[0].type==='cpu'&&m2.claim[1]&&m2.claim[1].type==='cpu'){ // CPU vs CPU sim — one full CPU per side (+ optional ally CPUs)
+    seats[0].push({type:'cpu',bind:0,tier:m2.claim[0].tier|0});seats[1].push({type:'cpu',bind:1,tier:m2.claim[1].tier|0});
+    for(let k=0;k<allies;k++)seats[0].push({type:'cpu',bind:0,tier:allyTier});
+    for(let k=0;k<allies;k++)seats[1].push({type:'cpu',bind:1,tier:allyTier});
+    return seats;
+  }
   if(cpuBind<0){ // human vs human (+ CPU teammates each)
     seats[0].push({type:'human',bind:0});seats[1].push({type:'human',bind:1});
     for(let k=0;k<allies;k++)seats[0].push({type:'cpu',bind:0,tier:allyTier});
@@ -3697,11 +3703,13 @@ function startP2BB(){cheatedRun=false;paused=false;
   // roster: the 6-seat grid when set (up to 3/side, mixed human/CPU rumble), else the legacy 1v1 / vs-CPU claim (tournaments/tests)
   const gridOn=tankGridActive();let roster;
   if(gridOn){tankGridApply();roster=tankRosterFromSeats(tankGridToSeats());}
-  else{const cpuBind=(m2.claim[0]&&m2.claim[0].type==='cpu')?0:((m2.claim[1]&&m2.claim[1].type==='cpu')?1:-1);roster=[];
-    if(cpuBind<0)roster.push({side:0,bind:0,type:'human',tier:0},{side:1,bind:1,type:'human',tier:0});
-    else{for(let b=0;b<2;b++)if(m2.claim[b]&&m2.claim[b].type!=='cpu')roster.push({side:0,bind:b,type:'human',tier:0});
-      if(!roster.length)roster.push({side:0,bind:1-cpuBind,type:'human',tier:0});
-      roster.push({side:1,bind:cpuBind,type:'cpu',tier:(m2.claim[cpuBind].tier|0)});}}
+  else{const c0=!!(m2.claim[0]&&m2.claim[0].type==='cpu'),c1=!!(m2.claim[1]&&m2.claim[1].type==='cpu');roster=[];
+    if(c0&&c1)roster.push({side:0,bind:0,type:'cpu',tier:m2.claim[0].tier|0},{side:1,bind:1,type:'cpu',tier:m2.claim[1].tier|0}); // CPU vs CPU sim — one CPU per side
+    else{const cpuBind=c0?0:(c1?1:-1);
+      if(cpuBind<0)roster.push({side:0,bind:0,type:'human',tier:0},{side:1,bind:1,type:'human',tier:0});
+      else{for(let b=0;b<2;b++)if(m2.claim[b]&&m2.claim[b].type!=='cpu')roster.push({side:0,bind:b,type:'human',tier:0});
+        if(!roster.length)roster.push({side:0,bind:1-cpuBind,type:'human',tier:0});
+        roster.push({side:1,bind:cpuBind,type:'cpu',tier:(m2.claim[cpuBind].tier|0)});}}}
   const nSide=[roster.filter(r=>r.side===0).length,roster.filter(r=>r.side===1).length];
   const ys=[tf2SpawnYs(nSide[0]),tf2SpawnYs(nSide[1])],yIdx=[0,0],seat=[0,0];
   bb2={t:0,cd:3,result:null,repd:false,map:mp,fx:[],
@@ -4714,9 +4722,10 @@ function p2Click(mx,my){
         const sd=cbd.type==='touchL'?0:1;m2.tstrip[sd]=!m2.tstrip[sd];sfx('click');return;}
       if(cbd&&inR(mx,my,{x:p2cCol(pl)-180,y:484,w:360,h:40})){sfx('claim');m2.claim[pl]=null;return;} // click a claimed controller box to release it (swap devices)
     }
-    if(inR(mx,my,p2cCpuRect())){
-      const ci=m2.claim.findIndex(c=>c&&c.type==='cpu');
-      sfx('claim');if(ci>=0)m2.claim[ci]=null;else p2ClaimDevice({type:'cpu',tier:1});return;}
+    if(inR(mx,my,p2cCpuRect())){ // fill the next open side with a CPU (enables CPU vs CPU sims); if both sides are filled, drop a CPU
+      const empty=m2.claim.findIndex(c=>!c);sfx('claim');
+      if(empty>=0)m2.claim[empty]={type:'cpu',tier:1};
+      else{const ci=m2.claim.findIndex(c=>c&&c.type==='cpu');if(ci>=0)m2.claim[ci]=null;}return;}
     if(inR(mx,my,p2cSwapRect())){const t=m2.claim[0];m2.claim[0]=m2.claim[1];m2.claim[1]=t;const tn=m2.name[0];m2.name[0]=m2.name[1];m2.name[1]=tn;const td=m2.drive[0];m2.drive[0]=m2.drive[1];m2.drive[1]=td;const ts=m2.sens[0];m2.sens[0]=m2.sens[1];m2.sens[1]=ts;sfx('click');return;}
     if(m2.claim[0]&&m2.claim[1]&&inR(mx,my,p2StartBtnRect())){
       playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];
@@ -5073,10 +5082,10 @@ function p2Draw(){
       }
     }
     // bottom bar: ADD/REMOVE CPU · SWAP · START
-    {const cb=p2cCpuRect(),hasCpu=m2.claim.some(c=>c&&c.type==='cpu');
+    {const cb=p2cCpuRect(),hasCpu=m2.claim.some(c=>c&&c.type==='cpu'),canAdd=m2.claim.some(c=>!c);
      ctx.fillStyle=hasCpu?'rgba(70,45,15,0.8)':'rgba(25,25,45,0.7)';rr(cb.x,cb.y,cb.w,cb.h,8);ctx.fill();
      ctx.strokeStyle=hasCpu?'#ffaa44':'#3a3a5a';ctx.lineWidth=1.5;rr(cb.x,cb.y,cb.w,cb.h,8);ctx.stroke();
-     ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillStyle=hasCpu?'#ffaa44':'#8888aa';ctx.fillText(hasCpu?'🤖 REMOVE CPU':'🤖 ADD CPU',cb.x+cb.w/2,cb.y+22);}
+     ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillStyle=hasCpu?'#ffaa44':'#8888aa';ctx.fillText(canAdd?'🤖 ADD CPU':'🤖 REMOVE CPU',cb.x+cb.w/2,cb.y+22);}
     {const sw=p2cSwapRect();ctx.fillStyle='rgba(40,40,60,0.5)';rr(sw.x,sw.y,sw.w,sw.h,8);ctx.fill();
      ctx.strokeStyle='#3a3a5a';rr(sw.x,sw.y,sw.w,sw.h,8);ctx.stroke();
      ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillStyle='#8888aa';ctx.fillText('⇄ SWAP SIDES',sw.x+sw.w/2,sw.y+22);}
@@ -7246,6 +7255,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.67 (2026-06-15): CPU vs CPU sims — the classic 2-card claim can now hold TWO CPUs (a difficulty-tuning aid). The 🤖 ADD CPU button (and gamepad Y) now fills the next OPEN side with a CPU instead of toggling a single one, so you can set up CPU-vs-CPU at 1v1 in every mode; when both sides are filled it drops a CPU (the label flips ADD/REMOVE based on whether a slot is open). Ball needed no engine change — no human is required (cpuH2HInit gives each CPU main a brain). tankSeatsFromClaim + startP2BB's legacy roster gained a both-CPU branch (one full CPU per side, + optional ally CPUs) so tank/BB 1v1 build CPU-vs-CPU instead of force-spawning a human. (3v3+ CPU sims already work via the MULTI grid.) Tests: smoke38 +3 (button fills both / drops when full / both mains CPU-driven + tick), smoke56 +1 (tank 1 CPU/side), smoke57 +1 (BB 1 CPU/side). Full battery green. Single file, no assets.
   v5.1.66 (2026-06-15): TEAM FORMAT choice (TANK + BATTLEBOTS) — pick 1v1 vs MULTI before the claim. New MATCH SETTINGS row 'TEAM FORMAT' (m2.set.tfmt, default '1v1'): 1v1 routes to the original 2-card "SET UP YOUR ROBOTS/BOTS" claim (Sam prefers it for simple head-to-head); MULTI routes to the 6-seat grid (up to 3v3, uneven sides, mixed humans/CPUs, per-seat drive/sens). tankGridMode() AND tankGridActive() now both require tfmt==='multi' (single switch: the claim screen AND the match-start roster source agree; a stale grid never leaks into a 1v1 start, and tournaments always use the legacy claim). smoke55/56/57 row-count asserts +1; smoke56 +5 (TEAM FORMAT gating: 1v1 grid OFF/legacy start, multi grid ON/grid start, 1v1 builds exactly 2 tanks) → 108. Step 1 of the v5.2 goal: 3v3 for all modes except obstacle course + dual 1v1/grid setup for each. Full battery green. Single file, no assets.
   v5.1.65 (2026-06-15): TANK/BB GRID polish — names above bots, sens click-drag, drive-group cycling. (1) The in-match name above each bot now shows that bot's name (custom rename / PLAYER N / CPU) for humans too — drawP2Tag was falling back to RED/BLUE for human seats. (2) The per-player SENSITIVITY slider on the grid is now click-AND-drag (mouse), not just click-to-set. (3) Drive picking: ◀▶ cycles WITHIN the current group (classic/holo/steer); a clickable GROUP cycler (⟳ tab) + gamepad D-pad up/down switches category, so you don't scroll all 13; claimed-pad LB/RB adjusts that seat's sensitivity. smoke56 +1 (within-group cycle + group cycle reaches all categories) → 103. Full battery green. Single file, no assets.
   v5.1.64 (2026-06-15): BATTLEBOTS 3v3 — the 6-seat claim grid now drives BattleBots too (rumble). BattleBots was already structurally N-bot (bb2.bots[] array, all-pairs ram damage, last-side-standing KO, per-side HUD) — only its roster was hardcoded 1v1. Wired startP2BB to the shared grid (tankGridMode/tankGridStart include battlebots): up to 3 bots/side, mixed humans/CPUs, per-seat drive/sens/name, distinct warm/cool shades + HUD names, each CPU gets a brain. Grid title reads "SET UP YOUR BOTS" in battlebots. Legacy 1v1/vs-CPU claim kept for tournaments/tests. smoke57 +4 (grid 3v3 build, brains, distinct shades/names, runs-no-throw) → 29. Also added frcds_online_prd_v1.0.md (concept/plan for playing online — not built). Full battery green. Single file, no assets.

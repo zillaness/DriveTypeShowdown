@@ -211,6 +211,10 @@ src+=`
    const seats=tankSeatsFromClaim();
    ok('tankSeatsFromClaim: RED = 1 human + 1 ally CPU',seats[0].length===2&&seats[0][0].type==='human'&&seats[0][1].type==='cpu');
    ok('tankSeatsFromClaim: BLUE = 2 enemy CPUs',seats[1].length===2&&seats[1].every(s=>s.type==='cpu'));}
+  // v5.1.67: CPU vs CPU sim — both claim cards CPU → one full CPU per side
+  {m2.claim=[{type:'cpu',tier:1},{type:'cpu',tier:3}];m2.set.tcpus=1;m2.set.tallies=0;m2.set.allyTier=1;
+   const seats=tankSeatsFromClaim();
+   ok('tank CPU-vs-CPU: one CPU per side (tiers preserved)',seats[0].length===1&&seats[0][0].type==='cpu'&&seats[0][0].tier===1&&seats[1].length===1&&seats[1][0].type==='cpu'&&seats[1][0].tier===3);}
 
   // ── v5.1.57: the 6-seat claim GRID drives the roster (3v3 humans + mixed CPU + uneven sides) ──
   m2.set.tfmt='multi'; // v5.1.66: the grid claim is MULTI-only (1v1 routes to the legacy 2-card claim)

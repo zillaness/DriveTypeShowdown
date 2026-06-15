@@ -78,6 +78,13 @@ src+=`
    ok('grid BB 3v3 runs without throwing + result still open',phase==='p2bb'&&bb2.result===null);
    m2.tseats=null;m2.tsel=0;}
 
+  // v5.1.67: CPU vs CPU sim — both claim cards CPU → one CPU per side (legacy 1v1)
+  {m2.mode='battlebots';tour=null;m2.tseats=null;m2.set.tfmt='1v1';m2.set.map=0;
+   m2.claim=[{type:'cpu',tier:1},{type:'cpu',tier:2}];playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];
+   m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};
+   startP2BB();
+   ok('BB CPU-vs-CPU: 2 bots, one per side, both CPU',bb2.bots.length===2&&bb2.bots.filter(b=>b.side===0).length===1&&bb2.bots.filter(b=>b.side===1).length===1&&bb2.bots.every(b=>b.ctl.type==='cpu'));
+   m2.tseats=null;m2.tsel=0;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
