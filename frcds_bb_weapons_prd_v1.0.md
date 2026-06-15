@@ -183,7 +183,7 @@ panel:
   heat (per-foe), burn, spin` as needed.
 
 ## H. Suggested phases (battery-green each; lowest-risk first)
-1. **P2.1 — Loadout DATA + weight/speed/mobility effects (no UI yet).** Add
+1. **P2.1 — Loadout DATA + weight/speed/mobility effects (no UI yet). ✅ SHIPPED v5.1.73** (smoke57 +14, P1 byte-identical, default loadout neutral). Add
    `BB_WEAPONS`/`BB_ARMOR`/`BB_RPS`, `m2.bbLoadout` defaults, wire weight→speed/mob/turn
    + `deal`/`take`/`zoneMul`/`rpsFactor` into `bbApplyHit`/`updateBB`. Default loadout =
    today's behavior (RAM only, balanced) so P1 stays byte-identical. Heavy unit tests.
@@ -216,6 +216,7 @@ panel:
 - Model id never in committed artifacts. Author = Sam Cao.
 
 ## CHANGELOG
+- **P2.1 SHIPPED in build v5.1.73 (2026-06-15):** `BB_WEAPONS`/`BB_ARMOR`/`BB_RPS` data, `bbResolveLoadout`/`bbLoadoutForBind`, weight→speed/turn/mob + deal/take/zone/RPS wired into `bbSpeed`/`updateBB`/`bbApplyHit`. Default loadout fully neutral → P1 byte-identical. 14 new unit tests (smoke57 → 44). Tuning numbers are first-pass. Next: P2.2 weapon fire behaviors.
 - v1.0 (2026-06-15): Initial spec from Sam's 2026-06-15 direction — weight-based pure
   tradeoffs, drive synergies, damage-vs-susceptibility, weapon/armor RPS, flamethrower
   heat-up + front-armor bypass, per-wheel health → handling faults, mutual-destruction
