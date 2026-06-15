@@ -112,6 +112,45 @@ src+=`
    ok('default loadout → RAW damage (P1 unchanged)',v2.hp===BB.HP-30);}
   startBB(0,2);
   ok('spawned bots carry a neutral loadout (mob=MOB, ld present)',bb2.bots.every(b=>!!b.ld&&b.mob===BB.MOB&&b.ld.weapon==='none'&&b.ld.armor==='balanced'));
+  // ── v5.1.76 P2.2: weapon FIRE behavior (SPINNER / PISTON / FLAMETHROWER / WEDGE) ──
+  const bbBotWith=(weapon,armor,side,bind,cpu)=>{const ld=bbResolveLoadout({weapon:weapon,armor:armor});
+    return {x:0,y:0,h:0,side:side|0,col:'#fff',mob:ld.mobMax,hp:BB.HP,inv:0,dead:false,dmgDealt:0,boostT:0,boostCd:0,
+      ctl:{bind:bind|0,type:cpu?'cpu':'human',brain:cpu?{inp:{vx:0,vy:0,vr:0},fire:false}:null},ld:ld,spin:0,pistCd:0,pinT:0,burn:0,heat:{},firing:false,_inp:{vx:0,vy:0,vr:0},_vis:null};};
+  {const a=bbBotWith('spinner','balanced',0,0,false);playerBind[0]={type:'kb'};
+   kbSpaceHeld=true;ok('FIRE: keyboard Space fires the weapon',bbWeaponFiring(a)===true);
+   kbSpaceHeld=false;fireBtnPressed=false;ok('FIRE: released = not firing',bbWeaponFiring(a)===false);
+   const cpu=bbBotWith('spinner','balanced',0,1,true);cpu.ctl.brain.fire=true;ok('FIRE: CPU fires via brain.fire',bbWeaponFiring(cpu)===true);}
+  {const a=bbBotWith('spinner','balanced',0,0,true);a.ctl.brain.fire=true;bb2.bots=[a];bb2.result=null;
+   for(let i=0;i<60;i++)bbWeaponPre(1/60);ok('SPINNER spins up to full while firing ('+a.spin.toFixed(2)+')',a.spin>0.95);
+   a.ctl.brain.fire=false;for(let i=0;i<60;i++)bbWeaponPre(1/60);ok('SPINNER spins down when released',a.spin<0.05);
+   a.spin=1;ok('spun-up SPINNER bites on contact (≈spinDmg, ignores closing speed)',Math.abs(bbContactDmg(a,5)-BB_W.spinDmg)<1e-9);
+   a.spin=0;ok('idle SPINNER deals only RAM damage',bbContactDmg(a,5)===5);}
+  {const a=bbBotWith('piston','balanced',0,0,true);a.ctl.brain.fire=true;a.x=100;a.y=100;a.h=0;a.pistCd=0;
+   const c=bbBotWith('none','balanced',1,1,true);c.x=100+RR*1.5;c.y=100;c.h=0;c.hp=BB.HP;c.inv=0;
+   bb2.bots=[a,c];bb2.result=null;bbWeaponPre(1/60);bbWeaponFire(1/60);
+   ok('PISTON strikes a foe in its front arc (hp '+BB.HP+'→'+c.hp.toFixed(0)+', cd set)',c.hp<BB.HP&&a.pistCd>0.5);
+   const hp1=c.hp;bbWeaponPre(1/60);bbWeaponFire(1/60);ok('PISTON respects its cooldown (no 2nd hit yet)',c.hp===hp1);
+   const a2=bbBotWith('piston','balanced',0,0,true);a2.ctl.brain.fire=true;a2.x=100;a2.y=100;a2.h=0;a2.pistCd=0;
+   const c2=bbBotWith('none','balanced',1,1,true);c2.x=100;c2.y=100-RR*1.5;c2.hp=BB.HP;c2.inv=0;
+   bb2.bots=[a2,c2];bbWeaponPre(1/60);bbWeaponFire(1/60);ok('PISTON misses a foe outside the front arc',c2.hp===BB.HP);}
+  {const a=bbBotWith('flame','balanced',0,0,true);a.ctl.brain.fire=true;a.x=100;a.y=100;a.h=0;a.heat={};
+   const c=bbBotWith('none','hardplate',1,1,true);c.x=100+RR*1.5;c.y=100;c.hp=BB.HP;c.inv=0;
+   bb2.bots=[a,c];bb2.result=null;bbWeaponPre(1/60);bbWeaponFire(0.3);
+   ok('FLAME: below dwell does NO damage yet (heat '+(a.heat[1]||0).toFixed(2)+')',c.hp===BB.HP&&a.heat[1]>0&&a.heat[1]<BB_W.flameDwell);
+   bbWeaponFire(0.4);ok('FLAME: after heat-up it BURNS (hp '+BB.HP+'→'+c.hp.toFixed(1)+', burn>0)',c.hp<BB.HP&&(c.burn||0)>0);
+   c.x=900;bbWeaponFire(1.0);ok('FLAME: heat decays when the foe leaves the cone',a.heat[1]<0.2);
+   c.x=100+RR*1.5;c.hp=BB.HP;c.inv=0;bbApplyHit(c,'front',30,0);ok('kinetic FRONT hit is immune',c.hp===BB.HP);
+   c.inv=0;bbApplyFlame(c,30,0);ok('FLAME ignores front armor (burns through)',c.hp<BB.HP);}
+  {const a=bbBotWith('wedge','balanced',0,0,true);
+   ok('WEDGE softens its own ram damage (control, not damage)',Math.abs(bbContactDmg(a,20)-20*BB_W.wedgeDmg)<1e-9);
+   const c=bbBotWith('none','balanced',1,1,true),free=bbBotWith('none','balanced',1,2,true);c.pinT=0.25;free.pinT=0;
+   ok('a WEDGE-pinned bot drives slower than a free one',bbSpeed(c)<bbSpeed(free));}
+  ok('default-weapon contact damage = raw ram (P1 unchanged)',bbContactDmg(bbBotWith('none','balanced',0,0,true),17)===17);
+  {startBB(0,2);for(let i=0;i<4;i++)m2.drive[i]={kind:'main',idx:1,name:'A',c:'#0ff'};
+   bb2.bots=[bbBotWith('spinner','balanced',0,0,true),bbBotWith('piston','balanced',1,1,true),bbBotWith('flame','balanced',0,2,true),bbBotWith('wedge','balanced',1,3,true)];
+   bb2.bots[2].firing=true;bb2.bots[0].spin=1;bb2.bots[1]._pistFx=0.1;bb2.cd=0;bb2.result=null;
+   let dThrew=false;try{drawBB();}catch(e){dThrew=true;console.log('   drawBB weapon err:',e.message);}
+   ok('drawBB renders all 4 weapons without throwing',!dThrew);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
