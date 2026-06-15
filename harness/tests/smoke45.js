@@ -104,7 +104,7 @@ src+=`
   ok('capture-immunity: a freshly stripped ball is not instantly re-grabbed',cb2.held===false&&bo.load.length===0);
 
   // HUMAN main bot does NOT capture
-  start(3);m2.claim[1].type='kb';bo=b2.bots[1];bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};bo.load=[];
+  start(3);m2.claim[1].type='kb';bo=b2.bots[1];bo.ctl.type='human';bo.x=400;bo.y=FH/2;bo.h=Math.PI;bo._inp={vx:0,vy:0,vr:0};bo.load=[]; // v5.1.68: ctl is the live source of truth for carrier type (per-bot roster); claims don't change mid-match in real play
   freeBall(0,bo.x-(RR+BR),FH/2);b2Sticky(1/60);
   ok('human main bot has no sticky plow',bo.load.length===0);
 

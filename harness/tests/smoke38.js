@@ -190,6 +190,7 @@ src+=`
   m2.claim=[{type:'cpu',tier:1},{type:'cpu',tier:2}];m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};
   playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2Ball();
   ok('CPUvsCPU ball: both mains are CPU-driven',!!cpuH2H&&!!cpuH2H[0]&&!!cpuH2H[1]);
+  ok('v5.1.68: ball bots carry roster fields (bind/role/ctl)',b2.bots[0].bind===0&&b2.bots[0].role==='main'&&b2.bots[0].ctl.type==='cpu'&&b2.bots[1].al===1&&b2.bots[1].ctl.tier===2);
   updateP2Ball(0.1);ok('CPUvsCPU ball: a tick runs without throwing',phase==='p2ball'&&isFinite(b2.bots[0].x)&&isFinite(b2.bots[1].x));
   p2QuitMatch(false);p2Exit();console.log('done');
 })();

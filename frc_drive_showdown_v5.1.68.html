@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.67.html
-  version: 5.1.67
+  file: frc_drive_showdown_v5.1.68.html
+  version: 5.1.68
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -2429,7 +2429,9 @@ function startP2Ball(){cheatedRun=false;paused=false;
     ?[{x:B2M_WX+68,y:FH/2,h:0},{x:FW-B2M_WX-68,y:FH/2,h:Math.PI}]   // red defends left, blue right
     :[{x:480,y:FH-58,h:-Math.PI/2},{x:720,y:FH-58,h:-Math.PI/2}];
   b2={t:0,cd:3,result:null,score:[0,0],sudden:false,pinT:[0,0],toast:null,repd:false,btTouch:false,pups:[],pupTimer:5,
-    bots:sp.map((q,i)=>({x:q.x,y:q.y,h:q.h,al:(q.al!=null?q.al:i),spot:i,_inp:{vx:0,vy:0,vr:0},intk:[],shootCd:0,speedT:0}))};
+    bots:sp.map((q,i)=>({x:q.x,y:q.y,h:q.h,al:(q.al!=null?q.al:i),spot:i,bind:(q.bind!=null?q.bind:i),role:'main', // v5.1.68: per-bot roster fields (bind/role/ctl) — the spine for N mains/side; at 1v1 bind==al==i so behavior is unchanged
+      ctl:{type:(m2.claim&&m2.claim[i]&&m2.claim[i].type==='cpu')?'cpu':'human',tier:(m2.claim&&m2.claim[i]&&m2.claim[i].tier|0)||0},
+      _inp:{vx:0,vy:0,vr:0},intk:[],shootCd:0,speedT:0}))};
   b2.ballStarts=starts;
   b2.cpus=b2SpawnCpus();
   cpuH2HInit();
@@ -2513,10 +2515,10 @@ function b2ProjBlock(b){ // v3.10.1: a live projectile contacts a robot body. Fr
 function b2StickyCarriers(){
   // v4.1: MAIN CPU bots only — alliance teammates no longer carry (their stickiness was removed).
   const out=[];
-  for(let p=0;p<2;p++){
-    const isCpu=m2.claim&&m2.claim[p]&&m2.claim[p].type==='cpu';
-    if(isCpu){const tier=playerBind[p].tier|0;const cap=CARRY_CAP[tier]||1;out.push({bot:b2.bots[p],al:p,cap:cap,tier:tier});}
-    else if(stickyPlow&&m2.claim&&m2.claim[p]){out.push({bot:b2.bots[p],al:p,cap:CARRY_CAP[3],tier:3});} // STICKY PLOW cheat: human bots get CHAMPION-grade sticky
+  for(const bo of b2.bots){ // iterate the roster (any count); a main is a carrier if it's a CPU, or a human under the STICKY PLOW cheat
+    const isCpu=bo.ctl&&bo.ctl.type==='cpu';
+    if(isCpu){const tier=bo.ctl.tier|0;const cap=CARRY_CAP[tier]||1;out.push({bot:bo,al:bo.al,cap:cap,tier:tier});}
+    else if(stickyPlow){out.push({bot:bo,al:bo.al,cap:CARRY_CAP[3],tier:3});} // STICKY PLOW cheat: human bots get CHAMPION-grade sticky
   }
   return out;
 }
@@ -2533,9 +2535,7 @@ function b2Sticky(dt){
     bo._stripCd=(bo._stripCd||0)-dt;
     const ch=Math.cos(bo.h),sh=Math.sin(bo.h);
     // opposing bots that can contest this carrier (main human + alliance support); pressure suppresses the carrier's stickiness
-    const om=1-car.al,foes=[];
-    if(b2.bots[om])foes.push(b2.bots[om]);
-    if(b2.cpus)for(const c of b2.cpus)if(c.al===om)foes.push(c);
+    const foes=b2Foes(car.al); // opposing mains + opposing alliance support (any count) — identical to the old [opposing main, opposing cpus] at 1v1
     const contested=foes.some(o=>Math.hypot(o.x-bo.x,o.y-bo.y)<RR*2+12); // an opponent pressed up against us: no new captures while contested
     // 1) capture one free ball in the plow's front cone if there's room (higher tier = a little more reach = stickier)
     if(car.load.length<car.cap&&!bo.captureOff&&!contested){
@@ -3228,7 +3228,7 @@ function p2BoostHeld(p){
 }
 // ── RAMMING: boost-tackle ──
 const BOOST={dur:0.30,cd:1.4,mul:3.2,stun:1.2,knock:56}; // v5.1.19: dash faster (mul 2.6->3.2) & farther (dur 0.22->0.30), ram hits harder (knock 44->56); stun stays 1.2
-function ballFoes(p){const f=[b2.bots[1-p]];if(b2.cpus)for(const c of b2.cpus)if(c.al!==p)f.push(c);return f;}
+function ballFoes(p){const bo=b2&&b2.bots&&b2.bots[p];return bo?b2Foes(bo.al):[];} // opposing mains + opposing alliance cpus, by the bot's alliance (generalizes the old single-opposing-main list; identical at 1v1)
 // advance a bot's boost/stun timers and return its input for the frame (a lunge while boosting, frozen while stunned)
 function arcadeStep(p,bo,inp,dt,foes){
   bo.stunT=Math.max(0,(bo.stunT||0)-dt);
@@ -7255,6 +7255,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.68 (2026-06-15): Ball 3v3 — step 1: per-bot roster model + alliance-routed helpers (BEHAVIOR-PRESERVING). The 2P ball engine (b2) hard-assumed two mains (b2.bots[0]=RED, [1]=BLUE) with a single opposing main; this lands the spine for N mains/side without changing 1v1. Each ball bot now carries bind/role/ctl{type,tier} (the same shape tank/BB roster bots use), and the staged alliance helpers go live: ballFoes(p) → b2Foes(bo.al) (all opposing mains + opposing alliance support), b2StickyCarriers iterates the roster by ctl (not m2.claim), b2Sticky's foe list → b2Foes(car.al). At 1v1 bind==al==index so every path is byte-identical — full ball battery green. Next steps: route the per-bot move/shoot/arcade loops + the CPU brain (cpuH2H) to N mains, then roster-driven spawn + the MULTI grid claim + the legacy 2-card for 1v1. smoke45 updated (ctl is the live carrier-type source); smoke38 +1 (roster fields). Full battery green. Single file, no assets.
   v5.1.67 (2026-06-15): CPU vs CPU sims — the classic 2-card claim can now hold TWO CPUs (a difficulty-tuning aid). The 🤖 ADD CPU button (and gamepad Y) now fills the next OPEN side with a CPU instead of toggling a single one, so you can set up CPU-vs-CPU at 1v1 in every mode; when both sides are filled it drops a CPU (the label flips ADD/REMOVE based on whether a slot is open). Ball needed no engine change — no human is required (cpuH2HInit gives each CPU main a brain). tankSeatsFromClaim + startP2BB's legacy roster gained a both-CPU branch (one full CPU per side, + optional ally CPUs) so tank/BB 1v1 build CPU-vs-CPU instead of force-spawning a human. (3v3+ CPU sims already work via the MULTI grid.) Tests: smoke38 +3 (button fills both / drops when full / both mains CPU-driven + tick), smoke56 +1 (tank 1 CPU/side), smoke57 +1 (BB 1 CPU/side). Full battery green. Single file, no assets.
   v5.1.66 (2026-06-15): TEAM FORMAT choice (TANK + BATTLEBOTS) — pick 1v1 vs MULTI before the claim. New MATCH SETTINGS row 'TEAM FORMAT' (m2.set.tfmt, default '1v1'): 1v1 routes to the original 2-card "SET UP YOUR ROBOTS/BOTS" claim (Sam prefers it for simple head-to-head); MULTI routes to the 6-seat grid (up to 3v3, uneven sides, mixed humans/CPUs, per-seat drive/sens). tankGridMode() AND tankGridActive() now both require tfmt==='multi' (single switch: the claim screen AND the match-start roster source agree; a stale grid never leaks into a 1v1 start, and tournaments always use the legacy claim). smoke55/56/57 row-count asserts +1; smoke56 +5 (TEAM FORMAT gating: 1v1 grid OFF/legacy start, multi grid ON/grid start, 1v1 builds exactly 2 tanks) → 108. Step 1 of the v5.2 goal: 3v3 for all modes except obstacle course + dual 1v1/grid setup for each. Full battery green. Single file, no assets.
   v5.1.65 (2026-06-15): TANK/BB GRID polish — names above bots, sens click-drag, drive-group cycling. (1) The in-match name above each bot now shows that bot's name (custom rename / PLAYER N / CPU) for humans too — drawP2Tag was falling back to RED/BLUE for human seats. (2) The per-player SENSITIVITY slider on the grid is now click-AND-drag (mouse), not just click-to-set. (3) Drive picking: ◀▶ cycles WITHIN the current group (classic/holo/steer); a clickable GROUP cycler (⟳ tab) + gamepad D-pad up/down switches category, so you don't scroll all 13; claimed-pad LB/RB adjusts that seat's sensitivity. smoke56 +1 (within-group cycle + group cycle reaches all categories) → 103. Full battery green. Single file, no assets.
