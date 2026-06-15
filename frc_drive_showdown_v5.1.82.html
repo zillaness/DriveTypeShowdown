@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.81.html
-  version: 5.1.81
+  file: frc_drive_showdown_v5.1.82.html
+  version: 5.1.82
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -4047,7 +4047,7 @@ function drawBB(){
   drawTFField();drawTFObstacles();
   for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
     const blink=b.inv>0&&Math.floor(b.inv*12)%2===0;ctx.globalAlpha=blink?0.45:1;
-    withBot(b.ctl.bind,b,()=>{drawRobot();});
+    _noScoop=true;withBot(b.ctl.bind,b,()=>{drawRobot();});_noScoop=false; // BattleBots: a weapon replaces the ball plow
     ctx.save();ctx.translate(FX+b.x,FY+b.y);
     p2AllianceRing(p,b.col);
     ctx.strokeStyle='#ffffffcc';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,RR+13,b.h-BB.frontCone/2,b.h+BB.frontCone/2);ctx.stroke(); // FRONT-armor arc
@@ -4469,7 +4469,7 @@ const TF2_CPU_COLS=TF2_BLUE_COLS; // back-compat alias
 const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,tdrv:'open',tfmt:'1v1',ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
-function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];m2.tseats=null;m2.tsel=0;}
+function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];m2.tseats=null;m2.tsel=0;m2.bbLoadout=[null,null];}
 function p2Exit(){tour=null;tf2=null;bb2=null;r2=null;tfObs=null;b2Teardown();resetBinds();applyLayout('legacy');phase='menu';} // resetBinds: restore single-player input routing (else SP reads the stale 2P bind and ignores gamepad sticks)
 // ═══ PHASE 11: TOURNAMENT ═══
 // 4–16 typed entrants, generic double elimination (byes to the next power of two),
@@ -4992,6 +4992,12 @@ function p2Click(mx,my){
       for(let g=0;g<3;g++){if(inR(mx,my,p2cTabRect(pl,g))){if(p2cGroupIdx(pl)!==g){sfx('click');p2cSetDrive(pl,g,0);}return;}}
       if(inR(mx,my,p2cArrowRect(pl,-1))){sfx('click');const d=m2.drive[pl];p2cSetDrive(pl,p2cGroupIdx(pl),d.idx-1);return;}
       if(inR(mx,my,p2cArrowRect(pl, 1))){sfx('click');const d=m2.drive[pl];p2cSetDrive(pl,p2cGroupIdx(pl),d.idx+1);return;}
+      if(m2.mode==='battlebots'){const lr=bbClaimLoadRects(pl); // BattleBots "layout" — weapon/armor cyclers + AUTOBUILD (any side, human or CPU)
+        if(inR(mx,my,lr.w.l)){bbCycleField(bbClaimEnsure(pl),'weapon',-1);return;}
+        if(inR(mx,my,lr.w.r)){bbCycleField(bbClaimEnsure(pl),'weapon',1);return;}
+        if(inR(mx,my,lr.a.l)){bbCycleField(bbClaimEnsure(pl),'armor',-1);return;}
+        if(inR(mx,my,lr.a.r)){bbCycleField(bbClaimEnsure(pl),'armor',1);return;}
+        if(inR(mx,my,lr.auto)){bbClaimAutobuild(pl);return;}}
       const cbd=m2.claim[pl],isCpu=cbd&&cbd.type==='cpu';
       if(isCpu&&inR(mx,my,p2cTierRect(pl,-1))){sfx('click');cbd.tier=((cbd.tier|0)+CPU_TIERS.length-1)%CPU_TIERS.length;return;}
       if(isCpu&&inR(mx,my,p2cTierRect(pl, 1))){sfx('click');cbd.tier=((cbd.tier|0)+1)%CPU_TIERS.length;return;}
@@ -5004,7 +5010,7 @@ function p2Click(mx,my){
       const empty=m2.claim.findIndex(c=>!c);sfx('claim');
       if(empty>=0)m2.claim[empty]={type:'cpu',tier:1};
       else{const ci=m2.claim.findIndex(c=>c&&c.type==='cpu');if(ci>=0)m2.claim[ci]=null;}return;}
-    if(inR(mx,my,p2cSwapRect())){const t=m2.claim[0];m2.claim[0]=m2.claim[1];m2.claim[1]=t;const tn=m2.name[0];m2.name[0]=m2.name[1];m2.name[1]=tn;const td=m2.drive[0];m2.drive[0]=m2.drive[1];m2.drive[1]=td;const ts=m2.sens[0];m2.sens[0]=m2.sens[1];m2.sens[1]=ts;sfx('click');return;}
+    if(inR(mx,my,p2cSwapRect())){const t=m2.claim[0];m2.claim[0]=m2.claim[1];m2.claim[1]=t;const tn=m2.name[0];m2.name[0]=m2.name[1];m2.name[1]=tn;const td=m2.drive[0];m2.drive[0]=m2.drive[1];m2.drive[1]=td;const ts=m2.sens[0];m2.sens[0]=m2.sens[1];m2.sens[1]=ts;if(m2.bbLoadout){const tl=m2.bbLoadout[0];m2.bbLoadout[0]=m2.bbLoadout[1];m2.bbLoadout[1]=tl;}sfx('click');return;}
     if(m2.claim[0]&&m2.claim[1]&&inR(mx,my,p2StartBtnRect())){
       playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];
       if(tour&&tour.cur)p2Series=null;else p2SeriesStart();
@@ -5037,6 +5043,21 @@ function p2SetSens(pl,mx){const sl=p2cSlider(pl);m2.sens[pl]=Math.round(clamp(SE
 function p2cTouchRect(pl){const cx=p2cCol(pl);return{x:cx-150,y:584,w:300,h:26};}
 function p2cCpuRect(){return{x:120,y:CH-78,w:180,h:34};}
 function p2cSwapRect(){return{x:CW-300,y:CH-78,w:180,h:34};}
+// ── BattleBots 1v1 claim "layout": weapon/armor cyclers + AUTOBUILD, per side in m2.bbLoadout (read by bbLoadoutForBind). Sits where the drive stat bars go in other modes. ──
+function bbClaimLoadRects(pl){const cx=p2cCol(pl);return{w:{l:{x:cx-150,y:356,w:26,h:26},r:{x:cx+124,y:356,w:26,h:26}},a:{l:{x:cx-150,y:392,w:26,h:26},r:{x:cx+124,y:392,w:26,h:26}},auto:{x:cx-100,y:424,w:200,h:28}};}
+function bbClaimLd(pl){return (m2.bbLoadout&&m2.bbLoadout[pl])||null;} // null = "default" (CPU auto-arms at spawn, human stays RAM/neutral — see startP2BB)
+function bbClaimEnsure(pl){if(!m2.bbLoadout)m2.bbLoadout=[null,null];if(!m2.bbLoadout[pl])m2.bbLoadout[pl]={weapon:'none',armor:'balanced'};return m2.bbLoadout[pl];}
+function bbClaimAutobuild(pl){if(!m2.bbLoadout)m2.bbLoadout=[null,null];const c=m2.claim&&m2.claim[pl],tier=(c&&c.type==='cpu')?(c.tier|0):2;m2.bbLoadout[pl]=bbCpuPickLoadout(tier);sfx('click');} // roll a concrete weapon+armor you can then tweak
+function bbDrawClaimLoadout(pl,isCpu){const cx=p2cCol(pl),col=M2_COLS[pl],r=bbClaimLoadRects(pl),ld=bbClaimLd(pl);
+  ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillStyle='#888aa8';ctx.fillText(isCpu&&!ld?'⚙ LAYOUT — auto-armed at start · tap to customize':'⚙ LAYOUT — weapon & armor',cx,340);
+  const rows=[{ic:'⚔',name:ld?bbWeaponById(ld.weapon).name:(isCpu?'AUTO':bbWeaponById('none').name),lr:r.w},
+              {ic:'🛡',name:ld?bbArmorById(ld.armor).name:(isCpu?'AUTO':bbArmorById('balanced').name),lr:r.a}];
+  for(const row of rows){
+    ctx.font='14px Courier New';ctx.textAlign='left';ctx.fillStyle='#cfc0a0';ctx.fillText(row.ic,row.lr.l.x-28,row.lr.l.y+19);
+    for(const ar of [row.lr.l,row.lr.r]){ctx.fillStyle='rgba(40,40,62,0.7)';rr(ar.x,ar.y,ar.w,ar.h,6);ctx.fill();ctx.strokeStyle='#4a4a6a';ctx.lineWidth=1;rr(ar.x,ar.y,ar.w,ar.h,6);ctx.stroke();ctx.fillStyle='#aab';ctx.textAlign='center';ctx.font='bold 15px Courier New';ctx.fillText(ar===row.lr.l?'◀':'▶',ar.x+ar.w/2,ar.y+19);}
+    ctx.fillStyle=(row.name==='AUTO')?'#ffcf6a':'#eaeaff';ctx.textAlign='center';ctx.font='bold 14px Courier New';ctx.fillText(row.name,cx,row.lr.l.y+18);}
+  ctx.fillStyle='rgba(70,55,20,0.7)';rr(r.auto.x,r.auto.y,r.auto.w,r.auto.h,8);ctx.fill();ctx.strokeStyle='#caa23a';ctx.lineWidth=1.2;rr(r.auto.x,r.auto.y,r.auto.w,r.auto.h,8);ctx.stroke();
+  ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffcf6a';ctx.fillText('🎲 AUTOBUILD',cx,r.auto.y+19);}
 // ═══ TANK 3v3 CLAIM GRID (v5.1.57) — 2 sides × up to 3 seats; each EMPTY / HUMAN(device) / CPU(+tier), per-seat drive. Replaces the 2-card claim for TANK FIGHT. ═══
 function tankGridMode(){return phase==='p2claim'&&(m2.mode==='tankfight'||m2.mode==='battlebots'||m2.mode==='normal'||m2.mode==='shooter')&&m2.set.tfmt==='multi'&&!tour;} // grid claim screen — TANK/BB/BALL in MULTI (up to 3v3); 1v1 + tournaments fall through to the legacy 2-card claim
 function tankGridInit(){if(!Array.isArray(m2.tseats)||m2.tseats.length!==6)m2.tseats=[null,null,null,null,null,null];if(typeof m2.tsel!=='number')m2.tsel=0;}
@@ -5090,7 +5111,7 @@ function drawTankGrid(){tankGridInit();tankGridEnforceDrives();p2Chrome('SET UP 
 // v5.1: render the actual drive type (body + wheels + scoop) on the setup card, so each drive looks distinct
 let _drivePreview=false; // suppresses the field-compass / strafe-arrow overlays inside the small drive previews
 function p2cDrawDrivePreview(pl,cx,cy,scale){
-  const sav={robot,holoMode,steerMode,curD,curHD,curSD,lastRobotInp,egg:eggOverride,vis:visSnapshot()};_drivePreview=true;_noScoop=(m2.mode==='tankfight'||m2.mode==='race'); // tank/race previews match the plow-less match chassis
+  const sav={robot,holoMode,steerMode,curD,curHD,curSD,lastRobotInp,egg:eggOverride,vis:visSnapshot()};_drivePreview=true;_noScoop=(m2.mode==='tankfight'||m2.mode==='race'||m2.mode==='battlebots'); // tank/race/BB previews match the plow-less match chassis
   const c=p2DriveCtx(pl);
   holoMode=c.holoMode;steerMode=c.steerMode;
   if(c.curD!==undefined)curD=c.curD;if(c.curHD!==undefined)curHD=c.curHD;if(c.curSD!==undefined)curSD=c.curSD;
@@ -5321,11 +5342,12 @@ function p2Draw(){
         ctx.strokeStyle='#4a4a6a';ctx.lineWidth=1;rr(ar.x,ar.y,ar.w,ar.h,8);ctx.stroke();
         ctx.font='bold 16px Courier New';ctx.textAlign='center';ctx.fillStyle='#aab';ctx.fillText(dir<0?'◀':'▶',ar.x+ar.w/2,ar.y+21);}
       ctx.font='bold 15px Courier New';ctx.textAlign='center';ctx.fillStyle=def.c;ctx.fillText(def.name,cx,320);
-      // stat bars
-      const bx=cx-150,bw=300;
+      // stat bars (BattleBots swaps this zone for the weapon/armor "layout" picker)
+      if(m2.mode==='battlebots'){bbDrawClaimLoadout(pl,isCpu);}
+      else{const bx=cx-150,bw=300;
       p2DrawStat(bx,352,bw,'PUSH',mob.p/2.2,'#ff7a59');
       p2DrawStat(bx,384,bw,'MANEUVER',mob.s,'#59c2ff');
-      p2DrawStat(bx,416,bw,'GRIP',mob.f,'#7ee787');
+      p2DrawStat(bx,416,bw,'GRIP',mob.f,'#7ee787');}
       // description (h3), wrapped to 2 lines
       ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillStyle='#8888aa';
       {const words=(def.h3||'').split(' ');let line='',ly=446;for(const w of words){const t=line?line+' '+w:w;if(ctx.measureText(t).width>360&&line){ctx.fillText(line,cx,ly);ly+=14;line=w;}else line=t;}if(line)ctx.fillText(line,cx,ly);}
@@ -7534,6 +7556,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.82 (2026-06-15): BATTLEBOTS — LOADOUT PICKER on the 1v1 card + no plow on BB. The weapon/armor picker existed only on the MULTI (3v3) grid, never on the default 1v1 2-card claim — so a 1v1 BattleBots player had no way to pick a weapon. The 1v1 card now shows a "⚙ LAYOUT" picker (in place of the drive PUSH/MANEUVER/GRIP bars, which matter less in a duel): ⚔ WEAPON ◀▶ and 🛡 ARMOR ◀▶ tap-cyclers + a 🎲 AUTOBUILD button that rolls a concrete loadout you can then tweak — on BOTH cards, human or CPU (a CPU card you might swap to a human). Choices store per side in m2.bbLoadout and ROUND-TRIP to the spawned bot through the existing bbLoadoutForBind path; a side left untouched keeps today's behavior (human = RAM/neutral, CPU = auto-armed, shown as "AUTO"). Works on mouse + touch (routes through p2Click); SWAP SIDES carries the loadout with its side. ALSO: the ball scoop/plow is no longer auto-rendered on BattleBots bots (joining tank + race) — a weapon takes its place; bare chassis for RAM-only. smoke57 +6 → 108 (1v1 draw no-throw, weapon-▶ click cycles m2.bbLoadout, AUTOBUILD arms, bbLoadoutForBind round-trip, human-picked loadout reaches the bot, un-picked CPU still auto-arms). Render eyeball-only (no-op canvas) — build sent. Full battery green. Single file, no assets.
   v5.1.81 (2026-06-15): SETUP-GRID + RENDER FIXES — BB human loadout picker un-buried; no ball plow on tank/race chassis. (1) In the BattleBots MULTI grid the v5.1.79 weapon/armor cyclers (loadout row at c.y+122) overlapped a HUMAN seat's SENS slider (was c.y+116) and USE-TOUCH button (was c.y+100), burying the picker ("no weapon picker for the human player"). tankCellSub's sens.y/touch.y are now BB-AWARE — they ride up to c.y+100 / c.y+88 only when m2.mode==='battlebots' (tankfight keeps c.y+116/+100, so the tank grid is byte-identical), and bbDrawSeatLoadout draws a faint background BAR so the loadout reads as one control. Now clear on claimed + unclaimed human seats and CPU alike. (2) The ball SCOOP/PLOW arms (drawRobot) are suppressed on COMBAT/RACE chassis via a new _noScoop flag set around those draws: tank-fight bots (a tank carries a cannon, not a ball plow) and the 2P obstacle-RACE bots (SP obstacle course already hid it); the tank/race setup-grid previews drop the plow too so they match the match. Ball/shooter keep the plow (it IS the scoring mechanic); BattleBots unchanged. Render not headless-verifiable (no-op canvas) — build sent for eyeball. Full battery green. Single file, no assets.
   v5.1.80 (2026-06-15): BATTLEBOTS WEAPONS P2.6 — CPU auto-arms + uses its weapon (COMPLETES P2.1–P2.6). A CPU BattleBot with no explicitly-chosen loadout now picks one at spawn (bbCpuPickLoadout — higher tiers armor with intent: spinner/wedge→hardplate, flame→heatshield), so a CPU opponent fights with a weapon instead of RAM-only; a user-set loadout (grid picker) is always respected. The brain (bbCpuUpdate) sets brain.fire per weapon, tier-scaled: SPINNER keeps spun up near a foe, PISTON/FLAME fire when the foe is in the front arc + range (reliability scales with tier), WEDGE pins on contact — and holds fire when the foe is behind it. Human bots stay neutral (RAM-only) unless you load them out. smoke57 +7 → 102. Full battery green. Single file, no assets.
   v5.1.79 (2026-06-15): BATTLEBOTS WEAPONS P2.5 — the LOADOUT PICKER (weapons are now EQUIPPABLE). Each BattleBots grid seat (MULTI, 1v1→3v3) has ⚔ WEAPON ◀▶ and 🛡 ARMOR ◀▶ tap-cyclers (bbDrawSeatLoadout/bbSeatLoadRects wired into drawTankGrid + tankGridClick); the choice stores on m2.tseats[i].loadout and ROUND-TRIPS to the spawned bot through the P2.1 bbLoadoutForBind path. New bbSeatLoadout/bbCycleField + a testable bbStatBars (SPEED/MOBILITY/DAMAGE/TOUGHNESS, 0..1). In-match each bot renders its weapon (P2.2 cosmetics) + dead-wheel marks. smoke57 +12. (The legacy 2-card 1v1 BB still defaults RAM-only — use MULTI for loadouts; drag-and-drop + per-seat stat bars are polish TODO.) Full battery green. Single file, no assets.

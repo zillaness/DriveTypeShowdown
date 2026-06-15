@@ -226,6 +226,20 @@ src+=`
   {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tour=null;tankGridSetCpu(0);tankGridSetCpu(3);
    m2.tseats[0].loadout={weapon:'wedge',armor:'light'};startP2BB();const seat0=bb2.bots.find(b=>b.ctl.bind===0);
    ok('P2.6: a USER-set CPU loadout is RESPECTED (not auto-overridden)',!!seat0&&seat0.ld.weapon==='wedge'&&seat0.ld.armor==='light');m2.tseats=null;}
+  // ── v5.1.82: the 1v1 2-card claim gets the loadout "layout" picker (weapon/armor cyclers + AUTOBUILD) ──
+  {m2.mode='battlebots';m2.set.tfmt='1v1';m2.tseats=null;tour=null;phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:2}];m2.bbLoadout=[null,null];m2.drive=[{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'}];
+   let cThrew=false;try{bbDrawClaimLoadout(0,false);bbDrawClaimLoadout(1,true);}catch(e){cThrew=true;console.log('   1v1 loadout draw err:',e.message);}
+   ok('1v1 claim loadout draws without throwing (human + CPU card)',!cThrew);
+   const wr=bbClaimLoadRects(0).w.r;p2Click(wr.x+13,wr.y+13);
+   ok('clicking the 1v1 card weapon ▶ sets + cycles m2.bbLoadout',!!m2.bbLoadout[0]&&m2.bbLoadout[0].weapon!=='none');
+   bbClaimAutobuild(1);
+   ok('AUTOBUILD fills a concrete armed loadout',!!m2.bbLoadout[1]&&m2.bbLoadout[1].weapon!=='none'&&BB_WEAPONS.some(w=>w.id===m2.bbLoadout[1].weapon)&&BB_ARMOR.some(a=>a.id===m2.bbLoadout[1].armor));
+   m2.bbLoadout=[{weapon:'wedge',armor:'light'},null];
+   ok('bbLoadoutForBind reads the 1v1 claim loadout',JSON.stringify(bbLoadoutForBind(0))===JSON.stringify({weapon:'wedge',armor:'light'}));
+   m2.claim=[{type:'kb'},{type:'cpu',tier:3}];playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];m2.bbLoadout=[{weapon:'piston',armor:'hardplate'},null];startP2BB();
+   const h=bb2.bots.find(b=>b.ctl.type!=='cpu');ok('1v1: a human-picked loadout flows to the spawned bot',!!h&&h.ld.weapon==='piston'&&h.ld.armor==='hardplate');
+   const c=bb2.bots.find(b=>b.ctl.type==='cpu');ok('1v1: an un-picked CPU still auto-arms (weapon ≠ none)',!!c&&c.ld.weapon!=='none');
+   m2.bbLoadout=[null,null];}
   {const me=bbBotWith('spinner','balanced',0,0,true);me.x=300;me.y=300;me.h=0;
    const foe=bbBotWith('none','balanced',1,1,true);foe.x=300+RR*3;foe.y=300;bb2.bots=[me,foe];bb2.result=null;
    bbCpuUpdate(1/60);ok('CPU SPINNER spins up (brain.fire) when a foe is near',me.ctl.brain.fire===true);
