@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.69.html
-  version: 5.1.69
+  file: frc_drive_showdown_v5.1.70.html
+  version: 5.1.70
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -2162,24 +2162,27 @@ function cpuTierParams(p,diff){return tierParamsByIdx(playerBind[p].tier|0,diff)
 let cpuH2H=null;
 function cpuH2HInit(){
   cpuH2H=null;
-  for(let p=0;p<2;p++){
-    if(playerBind[p]&&playerBind[p].type==='cpu'){
-      cpuH2H=cpuH2H||[null,null];
-      cpuH2H[p]={inp:{vx:0,vy:0,vr:0},fire:false,obj:'idle',objT:0,tgt:null,aimJ:0,aimT:0};
-    }
+  // one brain per CPU MAIN, indexed by its bind (0–5) so >2 mains/side each get their own (getInp/p2FireHeld look up cpuH2H[bind]).
+  // In ball, derive the CPU binds from the spawned roster; elsewhere (race) fall back to the legacy 2-card binds.
+  const ballOn=(phase==='p2ball'&&b2&&b2.bots);
+  const binds=ballOn?b2.bots.filter(b=>b&&b.ctl&&b.ctl.type==='cpu').map(b=>b.bind):[0,1].filter(p=>playerBind[p]&&playerBind[p].type==='cpu');
+  for(const bind of binds){
+    cpuH2H=cpuH2H||[null,null,null,null,null,null];
+    cpuH2H[bind]={inp:{vx:0,vy:0,vr:0},fire:false,obj:'idle',objT:0,tgt:null,aimJ:0,aimT:0};
   }
 }
 function cpuBallGoals(p){ // mirrored: enemy plane ex, own plane ox, gap span. Shared: null.
   if(!b2Mirrored())return null;
   return{ex:p===0?FW-B2M_WX:B2M_WX,ox:p===0?B2M_WX:FW-B2M_WX,gt:b2mGT(),gb:b2mGB()};
 }
-function b2ScoreCycle(p,br,bo,G,T,dt){
+function b2ScoreCycle(bo,br,G,T,dt){
   // v4.0 scoring cycle for a main CPU bot: gather a load, drive it through the opponent gap.
   // Pure offense, never routes toward its own gap, so it cannot own-goal.
-  const cap=CARRY_CAP[playerBind[p].tier|0]||1;
+  const al=bo.al, opp=b2OppMain(bo)||bo;                   // the nearest opposing main (was the single b2.bots[1-p])
+  const cap=CARRY_CAP[bo.ctl.tier|0]||1;
   const load=bo.load?bo.load.length:0;
-  const dirScore=Math.sign(G.ex-G.ox)||1;                 // +x = score right (p0), -x = left (p1)
-  const gcy=(G.gt+G.gb)/2, opp=b2.bots[1-p];
+  const dirScore=Math.sign(G.ex-G.ox)||1;                 // +x = score toward the opponent gap
+  const gcy=(G.gt+G.gb)/2;
   if(!br.cyc)br.cyc='gather';
   br.cycT=(br.cycT||0)-dt;
   const nearGap=Math.abs(bo.x-G.ex)<260;
@@ -2198,7 +2201,7 @@ function b2ScoreCycle(p,br,bo,G,T,dt){
   if(br.escapeT2>0){
     bo.captureOff=true;br.obj='unstick';
     let oxx=bo.x,oyy=bo.y,nd=1e9,found=false;
-    const foes=[b2.bots[1-p]]; if(b2.cpus)for(const c of b2.cpus)if(c.al!==p)foes.push(c);
+    const foes=b2Foes(al); // opposing mains + opposing alliance support (any count)
     for(const o of foes){if(!o)continue;const d=Math.hypot(o.x-bo.x,o.y-bo.y);if(d<nd){nd=d;oxx=o.x;oyy=o.y;found=true;}}
     let ax=bo.x-oxx,ay=bo.y-oyy;const am=Math.hypot(ax,ay)||1;ax/=am;ay/=am;
     if(!found){ax=Math.sign(FW/2-bo.x)||1;ay=0;}
@@ -2215,8 +2218,8 @@ function b2ScoreCycle(p,br,bo,G,T,dt){
   // v5.1.8 RUBBERBAND (v5.1.11: ROOKIE only): a tier with an ease config backs off once it has scored its floor and isn't behind by its margin —
   // it retreats and stops scoring so the opponent catches up and ultimately wins. ROOKIE = old FINALIST brain + ease{at:-1,floor:3}: scores ~3, then
   // eases unless the player is up by 2+. It retreats into its OWN half but hugs a side wall, clear of its gap mouth, so it never blocks the opponent.
-  const _baseT=CPU_TIERS[playerBind[p].tier|0];
-  if(_baseT.ease&&b2.score[p]>=(_baseT.ease.floor||0)&&(b2.score[p]-b2.score[1-p])>=_baseT.ease.at){
+  const _baseT=CPU_TIERS[bo.ctl.tier|0];
+  if(_baseT.ease&&b2.score[al]>=(_baseT.ease.floor||0)&&(b2.score[al]-b2.score[1-al])>=_baseT.ease.at){
     bo.captureOff=true;br.obj='ease';br.cyc='gather';
     br._ctx=clamp(G.ox+dirScore*200,RR+2,FW-RR-2);
     br._cty=bo.y<FH/2?RR+80:FH-RR-80;
@@ -2233,7 +2236,7 @@ function b2ScoreCycle(p,br,bo,G,T,dt){
     for(const b of balls){ if(b.sc||b.intaken||b.proj||b.held)continue;
       if(b.y<BR+22||b.y>FH-BR-22)continue;                                   // wall-pinned
       if(Math.abs(b.x-G.ox)<95)continue;                                    // near our own gap: leave it for the alliance guard
-      if(b2.cpus&&b2.cpus.some(c=>c.al===p&&Math.hypot(c.x-b.x,c.y-b.y)<RR*3))continue; // anti-double-team: a teammate is already on it
+      if((b2.cpus&&b2.cpus.some(c=>c.al===al&&Math.hypot(c.x-b.x,c.y-b.y)<RR*3))||b2.bots.some(o=>o!==bo&&o.al===al&&Math.hypot(o.x-b.x,o.y-b.y)<RR*3))continue; // anti-double-team: a teammate (alliance cpu or another main on my side) is already on it
       const progress=(b.x-bo.x)*dirScore;
       if(progress<-60)continue;                                              // behind toward our own gap: no backtracking
       const d=Math.hypot(b.x-bo.x,b.y-bo.y)+Math.max(0,-progress)*1.2;
@@ -2247,19 +2250,19 @@ function b2ScoreCycle(p,br,bo,G,T,dt){
 }
 function cpuBallUpdate(dt){
   if(!cpuH2H||!b2)return;
-  for(let p=0;p<2;p++){
-    const br=cpuH2H[p];if(!br)continue;
-    const bo=b2.bots[p],T=cpuTierParams(p,b2.score[1-p]-b2.score[p]);
-    const G=cpuBallGoals(p);
+  for(const bo of b2.bots){
+    const p=bo.bind,al=bo.al,br=cpuH2H[p];if(!br)continue; // p = this main's bind (drive/tier/input); al = its alliance (score/goals/geometry)
+    const T=cpuTierParams(p,b2.score[1-al]-b2.score[al]);
+    const G=cpuBallGoals(al);
     const free=balls.filter(b=>!b.sc&&!b.intaken&&!b.proj&&!b.held);
     const golden=free.find(b=>b.golden);
     const fSharp=T.react<0.13; // v3.10 high-tier behavior gate (WINNER/CHAMPION/pushing-adaptive)
-    const fFoe=b2.bots[1-p];
-    const mateNear=(mx,my)=>!!(b2.cpus&&b2.cpus.some(c=>c.al===p&&Math.hypot(c.x-mx,c.y-my)<RR*3)); // anti-double-team helper
+    const fFoe=b2OppMain(bo)||bo; // nearest opposing main (was the single b2.bots[1-p])
+    const mateNear=(mx,my)=>!!((b2.cpus&&b2.cpus.some(c=>c.al===al&&Math.hypot(c.x-mx,c.y-my)<RR*3))||b2.bots.some(o=>o!==bo&&o.al===al&&Math.hypot(o.x-mx,o.y-my)<RR*3)); // anti-double-team: alliance cpu OR another main on my side
     br.objT-=dt;br.aimT-=dt;
     if(br.aimT<=0){br.aimJ=(Math.random()*2-1)*T.aim;br.aimT=0.6;}
-    const cycActive=m2.mode!=='shooter'&&m2.claim&&m2.claim[p]&&m2.claim[p].type==='cpu';
-    if(cycActive)b2ScoreCycle(p,br,bo,G,T,dt);
+    const cycActive=m2.mode!=='shooter'&&bo.ctl&&bo.ctl.type==='cpu';
+    if(cycActive)b2ScoreCycle(bo,br,G,T,dt);
     if(m2.mode==='shooter'){ // v4.0: shooter-mode unstick — 2.5s without progress breaks the bot free toward center
       if(br._spx===undefined){br._spx=bo.x;br._spy=bo.y;br.stuckT=0;}
       if(Math.hypot(bo.x-br._spx,bo.y-br._spy)>34){br._spx=bo.x;br._spy=bo.y;br.stuckT=0;}
@@ -2278,7 +2281,7 @@ function cpuBallUpdate(dt){
       }else{
       if(G){ // defend roll: a ball is a threat only if it MOVES at the goal or the opponent contests it
         let threat=null,td=1e9;
-        const foe=b2.bots[1-p],towardOwn=p===0?-1:1; // own wall: red left (-x), blue right (+x)
+        const foe=fFoe,towardOwn=al===0?-1:1; // own wall: red left (-x), blue right (+x)
         for(const b of free){
           const d=Math.abs(b.x-G.ox)+Math.abs(b.y-FH/2)*0.3;
           const moving=b.vx*towardOwn>12;
@@ -2323,12 +2326,12 @@ function cpuBallUpdate(dt){
     }
     let tx=bo.x,ty=bo.y,aimH=null;
     if(cycActive){tx=br._ctx;ty=br._cty;aimH=null;}else if(br.obj==='patrol'){
-      tx=G?G.ox+(p===0?190:-190):FW/2;ty=FH/2; // hold mid-own-half until a ball is playable
+      tx=G?G.ox+(al===0?190:-190):FW/2;ty=FH/2; // hold mid-own-half until a ball is playable
     }else if(br.obj==='defend'&&G){
-      tx=G.ox+(p===0?42:-42);
+      tx=G.ox+(al===0?42:-42);
       let dy0=br.tgt?br.tgt.y:FH/2;
       // v3.10 shot-block/screen: anticipate only a GENUINE incoming threat (shooter foe holding intake, or a ball moving at our goal); static point-blank balls fall through to be cleared normally
-      const towardOwn=p===0?-1:1;
+      const towardOwn=al===0?-1:1;
       const shooterThreat=m2.mode==='shooter'&&fFoe.intk&&fFoe.intk.length;
       const incoming=br.tgt&&br.tgt.vx*towardOwn>20;
       if(fSharp&&(shooterThreat||incoming)){
@@ -2341,10 +2344,10 @@ function cpuBallUpdate(dt){
       const dx=br.tgt.x-bo.x,dy=br.tgt.y-bo.y,d=Math.hypot(dx,dy)||0.01;
       tx=br.tgt.x+dx/d*18;ty=br.tgt.y+dy/d*18; // drive THROUGH the ball so fwdSpd>20 at contact
     }else if(br.obj==='shoot'){
-      const foe=b2.bots[1-p],camped=G&&Math.abs(foe.x-G.ex)<120&&foe.y>G.gt-40&&foe.y<G.gb+40;
+      const foe=fFoe,camped=G&&Math.abs(foe.x-G.ex)<120&&foe.y>G.gt-40&&foe.y<G.gb+40;
       const gx=G?G.ex:clamp(bo.x,GAP_L+24,GAP_R-24);
       const gy=G?(camped?(foe.y>FH/2?G.gt+14:G.gb-14):clamp(bo.y,G.gt+14,G.gb-14)):WALL_Y;
-      tx=G?gx+(p===0?-T.shootR:T.shootR):gx;ty=G?gy:WALL_Y+T.shootR;
+      tx=G?gx+(al===0?-T.shootR:T.shootR):gx;ty=G?gy:WALL_Y+T.shootR;
       aimH=Math.atan2(gy-bo.y,gx-bo.x)+br.aimJ;
       const distSpot=Math.hypot(tx-bo.x,ty-bo.y);
       let dh=aimH-bo.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
@@ -2353,7 +2356,7 @@ function cpuBallUpdate(dt){
       if(distSpot<26){tx=bo.x;ty=bo.y;}
     }else if(br.tgt){ // push/clear: get into the behind CONE relative to the aim, then drive through
       const b=br.tgt;
-      const foe=b2.bots[1-p],camped=G&&Math.abs(foe.x-G.ex)<120&&foe.y>G.gt-40&&foe.y<G.gb+40;
+      const foe=fFoe,camped=G&&Math.abs(foe.x-G.ex)<120&&foe.y>G.gt-40&&foe.y<G.gb+40;
       let gx,gy;
       const funnel=G&&b.y>G.gt+BR+4&&b.y<G.gb-BR-4&&Math.abs(b.x-G.ex)<150; // in-span and close: unmissable
       if(br.obj==='clear'&&G){gx=b.x;gy=b.y>=FH/2?G.gb+90:G.gt-90;} // sweep along the wall, out of the gap span
@@ -7255,6 +7258,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.70 (2026-06-15): Ball 3v3 — step 3: CPU brain generalized to N mains/side (BEHAVIOR-PRESERVING). cpuH2HInit now allocates one brain per CPU MAIN indexed by bind (length-6, was length-2 by slot). cpuBallUpdate iterates b2.bots and, per CPU main, separates BIND semantics (drive/tier/input/pace via bo.bind) from ALLIANCE semantics (score/goals/own-gap + own-half geometry via bo.al); the single opposing main (b2.bots[1-p]) becomes b2OppMain(bo) = nearest opposing main; anti-double-team now also avoids a ball a teammate MAIN is on. b2ScoreCycle takes the bot (al/bind/opp derived inside). At 1v1 bind==al==index so byte-identical — full ball battery green (smoke38/46/53). N-mains correctness gets verified next by the 3v3 spawn + smoke test (step 4). Single file, no assets.
   v5.1.69 (2026-06-15): Ball 3v3 — step 2: per-bot loop routing (BEHAVIOR-PRESERVING). updateP2Ball's per-bot loops (move/input, shooter intake+shoot, arcade tackle, body-push + plow-arm scoring) and b2PupTick now iterate b2.bots (ANY count) and route input/fire/rumble through each bot's bind: withBot(bo.bind), getInp(playerBind[bo.bind]), p2FireHeld(bo.bind), mgOn(bo.bind), arcadeStep(bo.bind), momModeFor(bo,bo.bind). Touch attribution corrected to the bot's ALLIANCE (b.lastT=bo.al, not the bind index) so scoring stays alliance-keyed once a side has multiple mains. getInp's CPU branch resolves the bind's index via playerBind.indexOf (was: only slot 0 vs 1). At 1v1 bind==al==index so every path is byte-identical — full ball battery green. DEFERRED to step 4 (lands with N-main spawn): the b2CpuUpdate all-pairs 'i<2' main test + the pin-block main-vs-main unification. Next (step 3): cpuH2H length-6-by-bind + generalize the cpuBallUpdate/b2ScoreCycle brain to N CPU mains. Full battery green. Single file, no assets.
   v5.1.68 (2026-06-15): Ball 3v3 — step 1: per-bot roster model + alliance-routed helpers (BEHAVIOR-PRESERVING). The 2P ball engine (b2) hard-assumed two mains (b2.bots[0]=RED, [1]=BLUE) with a single opposing main; this lands the spine for N mains/side without changing 1v1. Each ball bot now carries bind/role/ctl{type,tier} (the same shape tank/BB roster bots use), and the staged alliance helpers go live: ballFoes(p) → b2Foes(bo.al) (all opposing mains + opposing alliance support), b2StickyCarriers iterates the roster by ctl (not m2.claim), b2Sticky's foe list → b2Foes(car.al). At 1v1 bind==al==index so every path is byte-identical — full ball battery green. Next steps: route the per-bot move/shoot/arcade loops + the CPU brain (cpuH2H) to N mains, then roster-driven spawn + the MULTI grid claim + the legacy 2-card for 1v1. smoke45 updated (ctl is the live carrier-type source); smoke38 +1 (roster fields). Full battery green. Single file, no assets.
   v5.1.67 (2026-06-15): CPU vs CPU sims — the classic 2-card claim can now hold TWO CPUs (a difficulty-tuning aid). The 🤖 ADD CPU button (and gamepad Y) now fills the next OPEN side with a CPU instead of toggling a single one, so you can set up CPU-vs-CPU at 1v1 in every mode; when both sides are filled it drops a CPU (the label flips ADD/REMOVE based on whether a slot is open). Ball needed no engine change — no human is required (cpuH2HInit gives each CPU main a brain). tankSeatsFromClaim + startP2BB's legacy roster gained a both-CPU branch (one full CPU per side, + optional ally CPUs) so tank/BB 1v1 build CPU-vs-CPU instead of force-spawning a human. (3v3+ CPU sims already work via the MULTI grid.) Tests: smoke38 +3 (button fills both / drops when full / both mains CPU-driven + tick), smoke56 +1 (tank 1 CPU/side), smoke57 +1 (BB 1 CPU/side). Full battery green. Single file, no assets.
