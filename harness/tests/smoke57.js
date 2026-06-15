@@ -85,6 +85,33 @@ src+=`
    startP2BB();
    ok('BB CPU-vs-CPU: 2 bots, one per side, both CPU',bb2.bots.length===2&&bb2.bots.filter(b=>b.side===0).length===1&&bb2.bots.filter(b=>b.side===1).length===1&&bb2.bots.every(b=>b.ctl.type==='cpu'));
    m2.tseats=null;m2.tsel=0;}
+  // ── v5.1.73 P2.1: weight-based loadout DATA + effects (neutral at default → P1 byte-identical) ──
+  ok('BB_WEAPONS/BB_ARMOR/BB_RPS exist + sized',Array.isArray(BB_WEAPONS)&&BB_WEAPONS.length>=5&&Array.isArray(BB_ARMOR)&&BB_ARMOR.length>=4&&!!BB_RPS);
+  ok('every weapon has id/cls/weight/deal/take',BB_WEAPONS.every(w=>w.id&&w.cls&&typeof w.weight==='number'&&typeof w.deal==='number'&&typeof w.take==='number'));
+  ok('every armor has id/rps/weight/take/zone',BB_ARMOR.every(a=>a.id&&a.rps&&typeof a.weight==='number'&&typeof a.take==='number'&&a.zone));
+  {const n=bbResolveLoadout(null);
+   ok('default loadout is NEUTRAL (weight 0, mults 1, mobMax=MOB)',n.weight===0&&n.speedMul===1&&n.turnMul===1&&n.mobMax===BB.MOB&&n.deal===1&&n.take===1&&n.zone.front===1&&n.zone.side===1&&n.zone.rear===1);
+   const h=bbResolveLoadout({weapon:'spinner',armor:'hardplate'});
+   ok('heavy loadout: slower + sluggish + bigger mob bar + more deal',h.weight>0&&h.speedMul<1&&h.turnMul<1&&h.mobMax>BB.MOB&&h.deal>1);
+   const l=bbResolveLoadout({weapon:'none',armor:'light'});
+   ok('light loadout: fragile (take>1) and not slowed',l.take>1&&l.speedMul===1&&l.mobMax===BB.MOB);}
+  ok('RPS: flame BEATS hardplate, FOLDS to heatshield',bbRps('thermal','hardplate')>1&&bbRps('thermal','heatshield')<1);
+  ok('RPS: kinetic FOLDS to hardplate, SHREDS light',bbRps('kineticSpin','hardplate')<1&&bbRps('kineticSpin','light')>1);
+  ok('RPS: neutral classes default to 1',bbRps('none','balanced')===1&&bbRps('control','hardplate')===1);
+  {const hl=bbResolveLoadout({weapon:'spinner',armor:'hardplate'});
+   ok('heavy bot (full mob) drives slower than default (full mob)',bbSpeed({mob:hl.mobMax,ld:hl})<bbSpeed({mob:BB.MOB}));
+   ok('bbSpeed byte-identical for a bot with no loadout',bbSpeed({mob:BB.MOB})===1&&bbSpeed({mob:0})===0);}
+  // bbApplyHit applies deal × take × zone × RPS — flame(deal .7) vs hardplate(take .7, rear zone .85, rps 1.5)
+  {const atk=Object.assign(mk(),{side:0,ld:bbResolveLoadout({weapon:'flame',armor:'balanced'})});
+   const vic=Object.assign(mk(),{side:1,ld:bbResolveLoadout({weapon:'none',armor:'hardplate'})});
+   bb2.bots=[atk,vic];bb2.result=null;vic.inv=0;vic.hp=BB.HP;
+   bbApplyHit(vic,'rear',20,0);const want=20*0.7*0.7*0.85*1.5;
+   ok('bbApplyHit scales by deal×take×zone×RPS (Δhp='+(BB.HP-vic.hp).toFixed(2)+'≈'+want.toFixed(2)+')',Math.abs((BB.HP-vic.hp)-want)<0.01);}
+  {const a2=Object.assign(mk(),{side:0,ld:bbResolveLoadout(null)}),v2=Object.assign(mk(),{side:1,ld:bbResolveLoadout(null)});
+   bb2.bots=[a2,v2];v2.inv=0;v2.hp=BB.HP;bbApplyHit(v2,'rear',30,0);
+   ok('default loadout → RAW damage (P1 unchanged)',v2.hp===BB.HP-30);}
+  startBB(0,2);
+  ok('spawned bots carry a neutral loadout (mob=MOB, ld present)',bb2.bots.every(b=>!!b.ld&&b.mob===BB.MOB&&b.ld.weapon==='none'&&b.ld.armor==='balanced'));
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

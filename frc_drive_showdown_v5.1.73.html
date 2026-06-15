@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.72.html
-  version: 5.1.72
+  file: frc_drive_showdown_v5.1.73.html
+  version: 5.1.73
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -3725,7 +3725,45 @@ function p2QuitMatch(toSettings){
 // and the per-bot team shades. P1 = the core duel; weapons/hazards/blow-up are later phases (see PRD_TABLED_MODES.md).
 const BB={MOB:100,HP:100,frontCone:Math.PI*0.55,rearCone:Math.PI*0.55,hitCd:0.22,dmgK:26,dmgMax:34,knock:0.9};
 let bb2=null;
-function bbSpeed(b){return b.mob<=0?0:0.3+0.7*(b.mob/BB.MOB);} // mobility% scales drive speed; 0 mobility = IMMOBILIZED (can't drive)
+// ── BattleBots P2.1: weight-based loadout DATA (pure tradeoffs, no points budget) — all numbers TUNABLE ──
+const BB_WEAPONS=[
+  {id:'none',   name:'RAM ONLY',     cls:'none',          weight:0.0, deal:1.00, take:1.00}, // default — P1 ram-only, fully neutral
+  {id:'spinner',name:'SPINNER',      cls:'kineticSpin',   weight:0.5, deal:1.60, take:1.40}, // glass cannon: big hits, fragile
+  {id:'piston', name:'PISTON',       cls:'kineticStrike', weight:0.5, deal:1.25, take:1.10},
+  {id:'flame',  name:'FLAMETHROWER', cls:'thermal',       weight:0.6, deal:0.70, take:0.85}, // low DPS, will ignore front armor (P2.2)
+  {id:'wedge',  name:'WEDGE',        cls:'control',       weight:0.3, deal:0.60, take:0.80}, // tanky control
+];
+const BB_ARMOR=[
+  {id:'balanced',  name:'BALANCED',  rps:'balanced',  weight:0.0, take:1.00, zone:{front:1,side:1,rear:1}}, // default neutral
+  {id:'hardplate', name:'HARDPLATE', rps:'hardplate', weight:0.6, take:0.70, zone:{front:1,side:1,rear:0.85}}, // kinetic-tough, thermal-weak
+  {id:'heatshield',name:'HEATSHIELD',rps:'heatshield',weight:0.4, take:0.90, zone:{front:1,side:1,rear:1}},     // thermal-tough, kinetic-weak
+  {id:'light',     name:'LIGHT',     rps:'light',     weight:0.0, take:1.30, zone:{front:1,side:1,rear:1}},     // fast + fragile
+];
+const BB_RPS={ // damage ×factor: weapon class vs armor RPS class (1 = neutral)
+  none:         {balanced:1, hardplate:1,   heatshield:1,   light:1},
+  kineticSpin:  {balanced:1, hardplate:0.6, heatshield:1.3, light:1.5},
+  kineticStrike:{balanced:1, hardplate:0.6, heatshield:1.3, light:1.5},
+  thermal:      {balanced:1, hardplate:1.5, heatshield:0.5, light:1.2}, // flame beats turtles, folds to heatshield
+  control:      {balanced:1, hardplate:1.0, heatshield:1.0, light:1.0},
+};
+const BB_kSpeed=0.28, BB_kTurn=0.30, BB_kMobHeavy=0.45; // weight → derived-stat coefficients (TUNABLE)
+function bbWeaponById(id){return BB_WEAPONS.find(w=>w.id===id)||BB_WEAPONS[0];}
+function bbArmorById(id){return BB_ARMOR.find(a=>a.id===id)||BB_ARMOR[0];}
+function bbRps(wcls,arps){const r=BB_RPS[wcls||'none'];return (r&&r[arps||'balanced'])||1;}
+function bbResolveLoadout(ld){ // → derived stats; a null/default loadout is fully NEUTRAL so P1 stays byte-identical
+  const w=bbWeaponById(ld&&ld.weapon),a=bbArmorById(ld&&ld.armor),weight=w.weight+a.weight;
+  return{weapon:w.id,armor:a.id,wcls:w.cls,arps:a.rps,weight:weight,
+    speedMul:clamp(1-weight*BB_kSpeed,0.45,1),    // heavier = slower top speed/accel
+    turnMul:clamp(1-weight*BB_kTurn,0.45,1),      // heavier = more sluggish turning
+    mobMax:Math.round(BB.MOB*(1+weight*BB_kMobHeavy)), // heavier = a bigger mobility bar (longer to immobilize)
+    deal:w.deal,take:a.take*w.take,zone:a.zone};  // weapon fragility folds into damage-taken
+}
+function bbLoadoutForBind(bind){ // MULTI grid seat loadout, else 1v1 claim loadout, else null (no loadout UI yet → neutral)
+  if(tankGridActive()&&m2.tseats&&m2.tseats[bind]&&m2.tseats[bind].loadout)return m2.tseats[bind].loadout;
+  if(m2.bbLoadout&&m2.bbLoadout[bind])return m2.bbLoadout[bind];
+  return null;
+}
+function bbSpeed(b){const mm=(b.ld&&b.ld.mobMax)||BB.MOB,sm=(b.ld&&b.ld.speedMul!=null)?b.ld.speedMul:1;return b.mob<=0?0:(0.3+0.7*(b.mob/mm))*sm;} // mobility% scales drive speed (× loadout speedMul); 0 mobility = IMMOBILIZED
 function bbHitLoc(victim,fromX,fromY){ // contact point (toward the other bot) classified by the VICTIM's heading
   let d=Math.atan2(fromY-victim.y,fromX-victim.x)-victim.h;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;d=Math.abs(d);
   if(d<=BB.frontCone/2)return'front';        // facing the hit = armored (kinetic immune)
@@ -3734,6 +3772,10 @@ function bbHitLoc(victim,fromX,fromY){ // contact point (toward the other bot) c
 }
 function bbApplyHit(victim,loc,dmg,owner){ // kinetic hit: front immune, rear→HP, side→mobility then spillover
   if(victim.dead||victim.inv>0||dmg<=0)return;
+  // P2.1 loadout factors (all neutral at default → P1 byte-identical): attacker damage-DEALT × victim damage-TAKEN × per-zone armor × weapon-vs-armor RPS
+  const atk=(owner!=null&&bb2&&bb2.bots[owner])?bb2.bots[owner]:null;
+  const deal=(atk&&atk.ld)?atk.ld.deal:1,take=(victim.ld)?victim.ld.take:1,zm=(victim.ld&&victim.ld.zone&&victim.ld.zone[loc]!=null)?victim.ld.zone[loc]:1;
+  dmg=dmg*deal*take*zm*bbRps(atk&&atk.ld?atk.ld.wcls:'none',victim.ld?victim.ld.arps:'balanced');
   if(loc==='front'){victim.inv=BB.hitCd;return;} // shrugged off (brief contact cd so it isn't a per-frame grind)
   if(loc==='rear')victim.hp-=dmg;
   else{const m=victim.mob;if(m>0){victim.mob=Math.max(0,m-dmg);const spill=dmg-m;if(spill>0)victim.hp-=spill;}else victim.hp-=dmg;} // SIDE: drain wheels, then finish on the flank
@@ -3767,7 +3809,8 @@ function startP2BB(){cheatedRun=false;paused=false;
       if(r.type==='cpu'){ctl.tier=r.tier;ctl.name='CPU'+(nSide[r.side]>1?' '+(si+1):'');}
       if(gridOn){const _gs=m2.tseats[r.bind];ctl.name=(r.type==='cpu')?((r.side===0?'RED':'BLUE')+' '+(si+1)):((_gs&&_gs.name)||('PLAYER '+(si+1)));} // grid: player name / CPU side+slot
       ctl.brain=(r.type==='cpu')?{inp:{vx:0,vy:0,vr:0}}:null;
-      return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:BB.MOB,hp:BB.HP,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,_inp:{vx:0,vy:0,vr:0},_vis:null};})};
+      const ld=bbResolveLoadout(bbLoadoutForBind(r.bind)); // P2.1: weight-based loadout stats (neutral until a loadout is picked — no UI yet)
+      return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:BB.HP,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,_inp:{vx:0,vy:0,vr:0},_vis:null};})};
   cpuH2H=null;
 }
 // BattleBots RAM/DASH is always available (no RAMMING cheat needed) — LT (gamepad) / Shift (keyboard). Human-only in P1.
@@ -3800,7 +3843,7 @@ function updateBB(dt){
     if(bbDashHeld(bind)&&b.boostCd<=0&&b.boostT<=0&&b.mob>0){b.boostT=BOOST.dur;b.boostCd=BOOST.cd*ramCdMult;sfx('thump');p2Rumble(bind,0.6);} // RAM dash: a burst that hits harder (more closing speed → more damage)
     withBot(bind,b,()=>{
       let inp=b.ctl.type==='cpu'?(b.ctl.brain?b.ctl.brain.inp:{vx:0,vy:0,vr:0}):getInp(playerBind[bind]);
-      const sc=bbSpeed(b),dash=b.boostT>0?BOOST.mul:1;inp={vx:inp.vx*sc*dash,vy:inp.vy*sc*dash,vr:inp.vr*sc};b._inp=inp; // slow as mobility drops; dash multiplies translation
+      const sc=bbSpeed(b),dash=b.boostT>0?BOOST.mul:1,tm=(b.ld&&b.ld.turnMul!=null)?b.ld.turnMul:1;inp={vx:inp.vx*sc*dash,vy:inp.vy*sc*dash,vr:inp.vr*sc*tm};b._inp=inp; // slow as mobility drops; dash multiplies translation; turnMul = the loadout's weight turn penalty
       b.h+=inp.vr*dt;b.x+=inp.vx*dt;b.y+=inp.vy*dt;
       if(!noClip)obsCheck(b,RR);
     });
@@ -7305,6 +7348,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.73 (2026-06-15): BATTLEBOTS WEAPONS P2.1 — weight-based loadout DATA + effects (no UI yet; per frcds_bb_weapons_prd_v1.0.md). New BB_WEAPONS (RAM-ONLY default + SPINNER/PISTON/FLAMETHROWER/WEDGE), BB_ARMOR (BALANCED default + HARDPLATE/HEATSHIELD/LIGHT), and the weapon-class-vs-armor-class BB_RPS triangle. bbResolveLoadout(ld) derives weight→speedMul/turnMul/mobMax + deal/take/zone; bbLoadoutForBind reads the (not-yet-built) per-seat/claim loadout. Wired into bbSpeed (× speedMul, mobMax-sized bar), updateBB turn (× turnMul), and bbApplyHit (damage × deal × take × zone × RPS). The DEFAULT loadout is fully NEUTRAL (weight 0, all mults 1) so BattleBots P1 stays byte-identical — every bot spawns neutral until a loadout is picked (P2.5 UI). smoke57 +14 (data shape, neutral default, heavy=slower/sluggish/bigger-bar/more-deal, RPS directions, bbApplyHit scaling, P1 raw-damage parity) → 44. Full battery green. Single file, no assets.
   v5.1.72 (2026-06-15): TANK CANNON — the 2P TANK FIGHT bots now carry a visible turret/cannon (they were drawn as bare robots before, no barrel). The turret rides locked to the chassis heading; when AUTO-AIM (🎯 pickup) is active it eases onto the nearest foe at ~9 rad/s and the barrel glows gold. tf2Shoot still fires exactly at the foe under auto-aim (unchanged — smoke55's angle assert holds) and now snaps the turret to the shot so the barrel always matches the round. New tankAimCannon(t,p,dt) per-tank each tick + drawTankCannon(t,col) (turret base + barrel + bore + muzzle, drawn over the chassis). cannonAng added to the tank struct + reset in tf2Respawn. smoke55 +4 (shot snaps turret / swings onto foe under aim / locks to chassis without aim / drawP2Tank no-throw) → 30. Full battery green. Single file, no assets.
   v5.1.71 (2026-06-15): Ball 3v3 — PLAYABLE. NORMAL ball + SHOOTER now support up to 3v3 via the MULTI grid, exactly like TANK/BB. TEAM FORMAT row added to ball settings (1v1 = classic 2-card claim, MULTI = the 6-seat grid); tankGridMode/tankGridStart include normal/shooter; startP2Ball builds its roster from b2SpawnDescs — legacy 2 mains (2-card) OR N mains/side from the grid (b2SpawnDescs/b2LaneYs spread vertical lanes at the goal mouth, reusing tf2SpawnYs). The draw loop, the b2CpuUpdate all-pairs (i<2 → i<bots.length, _tch sizing, ctl-tier shove), and the PIN-PENALTY block are all generalized to N mains — byte-identical at 1v1. Settings rows compress their pitch when a mode has >8 rows so they never overlap START/RESET (fixes the ball-MULTI overflow). NEW smoke58 (21 asserts): 3v3 spawn/roster, a brain per CPU bind, b2Foes/b2OppMain, a 40s CPU-vs-CPU sim (no NaN, balanced 31–31 scoring, draw renders 6 bots), mixed 3-human-vs-3-CPU, shooter 3v3, and the 1v1 fallthrough (still exactly 2 mains). Full battery green. Single file, no assets.
   v5.1.70 (2026-06-15): Ball 3v3 — step 3: CPU brain generalized to N mains/side (BEHAVIOR-PRESERVING). cpuH2HInit now allocates one brain per CPU MAIN indexed by bind (length-6, was length-2 by slot). cpuBallUpdate iterates b2.bots and, per CPU main, separates BIND semantics (drive/tier/input/pace via bo.bind) from ALLIANCE semantics (score/goals/own-gap + own-half geometry via bo.al); the single opposing main (b2.bots[1-p]) becomes b2OppMain(bo) = nearest opposing main; anti-double-team now also avoids a ball a teammate MAIN is on. b2ScoreCycle takes the bot (al/bind/opp derived inside). At 1v1 bind==al==index so byte-identical — full ball battery green (smoke38/46/53). N-mains correctness gets verified next by the 3v3 spawn + smoke test (step 4). Single file, no assets.
