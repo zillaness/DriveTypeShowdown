@@ -254,6 +254,12 @@ src+=`
    ok('renamed player shows as BOB in the HUD label',tf2.tanks.some((t,i)=>tankLabel(i)==='BOB'));
    m2.tseats=null;m2.tsel=0;}
 
+  {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridClaimDev({type:'kb'}); // v5.1.61: per-player sensitivity slider
+   const g=tankCellSub(0).sens;tankGridSetSens(0,g.x2);
+   ok('per-player SENS slider sets seat.sens to the cap',Math.abs(m2.tseats[0].sens-SENS_MAX)<1e-9);
+   m2.tsel=3;tankGridSetCpu(3);startP2Tank();
+   ok('seat.sens carries into m2.sens at match start',m2.sens[0]===SENS_MAX);m2.tseats=null;m2.tsel=0;}
+
   console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire + 3v3 allies): '+P+' pass, '+F+' fail ---');
 })();
 `;

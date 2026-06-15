@@ -1,7 +1,7 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: 2026-06-15, at **v5.1.60**.
+**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: 2026-06-15, at **v5.1.61**.
 
 ---
 
@@ -14,13 +14,14 @@ Self-contained context for continuing this project in a fresh thread.
 
 ## 1. Project basics
 - **Single-file HTML5 canvas game.** Everything lives in one `frc_drive_showdown_vX.Y.Z.html` (game code + inline `<script>` + changelog comment block near the end). No external assets.
-- **Current build:** `frc_drive_showdown_v5.1.60.html` (also a legacy `frc_drive_showdown_v5.0.1.html` is in the tree; ignore it).
+- **Current build:** `frc_drive_showdown_v5.1.61.html` (also a legacy `frc_drive_showdown_v5.0.1.html` is in the tree; ignore it).
 - **Branch:** `claude/eager-sagan-5wehy1` — see §0.
 - **Repo scope:** `zillaness/driveshowdown` (GitHub via `mcp__github__*` tools only; no `gh` CLI). Everything committed + pushed; battery ALL GREEN.
 - **Who:** Sam Cao, FRC Team 2204 Rambots. He playtests on desktop + phone, often steps away and asks for autonomous build sessions ("go as far as you can, pivot/table if blocked"). He likes terse status, real test results, and concrete shippable increments.
 - **Modes:** 2P H2H — NORMAL ball, SHOOTER, TANK FIGHT, **BATTLEBOTS** (new, P1), OBSTACLE RACE — plus single-player drive practice. Claimable CPU opponent, 4 skill tiers (ROOKIE/VETERAN/WINNER/CHAMPION).
 
 ## 1b. Recent version history (newest first — what shipped lately)
+- **v5.1.61** — Tank 3v3 grid polish: inline rename (click name, type; prompt() only as touch fallback), per-player **sensitivity slider** (seat.sens→m2.sens), 3-zone cell layout (labels shifted clear of the bot), and the stray field compass / strafe arrows suppressed in previews (`_drivePreview`). smoke56 → 98.
 - **v5.1.60** — Tank 3v3 grid: **+ PLAYER / + CPU** buttons (dropped the confusing + TOUCH); a player seat is named "PLAYER N" awaiting a device — the device you press is what shows (keyboard reads KEYBOARD, not touch); click a name to **rename**; names carry into the HUD; unassigned players block START. smoke56 → 96.
 - **v5.1.59** — Tank 3v3 grid labels: claimed human seats read "👤 PLAYER" (device shown as a small tag), not the device name; every grid tank gets a per-seat name (RED 1..BLUE 3) so all 6 are distinct in the HUD (`tankLabel` prefers `ctl.name`). smoke56 → 91.
 - **v5.1.58** — Tank 3v3 grid fixes: seats render their ACTUAL drive (`p2cDrawDrivePreview` per seat) + ◀▶ cycles ALL 13 drives (classic→holo→steer), not just classic. smoke56 → 90.
