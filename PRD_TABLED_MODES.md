@@ -12,6 +12,12 @@ Engine context lives in `MIGRATION.md` (architecture map, ship workflow).
 
 # A. BATTLEBOTS MODE
 
+> **STATUS (2026-06-15): P1 SHIPPED in v5.1.49–51.** Mode `battlebots`/phase `p2bb`/state `bb2`
+> on the tank arena: two bars (MOBILITY+HP), directional armor, ram-by-impact, mobility→speed,
+> KO last-standing, basic CPU, HUD, always-on RAM/DASH. Tests: `smoke57.js` (25). Code map +
+> constants in `MIGRATION.md §4b`. **Next: P2 weapons/loadouts** (needs a weapon picker on the
+> claim card — build live + `SendUserFile`, hard to verify headless). Confirm with Sam before building.
+
 A combat mode: drive a robot with a weapon in an arena, deal damage, KO or
 out-damage the opponent. Builds on the existing TANK FIGHT arena + RAMMING
 boost-tackle + the drive-kinematics system, but swaps "shoot bullets" for

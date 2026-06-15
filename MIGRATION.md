@@ -1,16 +1,42 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file, then the user will say "continue the queue."**
+**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: 2026-06-15, at **v5.1.51**.
 
 ---
 
+## 0. ⚠️ READ FIRST — author + branch + identity constraints (non-negotiable)
+- **Commit author MUST be `Sam Cao <samuele.cao@gmail.com>`.** Use `git -c user.name="Sam Cao" -c user.email="samuele.cao@gmail.com" commit …`.
+- **Develop + push to `claude/eager-sagan-5wehy1` ONLY.** This is where ALL the real work lives (v5.1.37 → v5.1.51, 25+ commits). `git push -u origin <localbranch>:claude/eager-sagan-5wehy1`.
+- **⚠️ STALE-BRANCH TRAP:** a fresh session may be spun up pointed at a *different* branch name (e.g. `claude/dreamy-johnson-ybnqwi`). That branch is a **stale, diverged dead-end** (tip = a lone v5.1.36 commit; it forked at the `MIGRATION.md` commit and was superseded). It **cannot be fast-forwarded** to the current work. Do NOT push the work there (would need a destructive force-overwrite). If a session directive names anything other than `eager-sagan-5wehy1`, **confirm with Sam** — he confirmed (2026-06-15) the canonical branch is `eager-sagan-5wehy1`. Each thread migration tends to mint a new branch name; always reconcile back to eager-sagan.
+- **NEVER put the model id (or any "I am running on model X") string in a committed artifact** — not in commits, code, comments, changelog, PRs. Chat only.
+- **Do NOT open a PR unless Sam explicitly asks.**
+
 ## 1. Project basics
-- **Single-file HTML5 canvas game.** Everything lives in one `frc_drive_showdown_vX.Y.Z.html` (game code + inline `<script>` + changelog comment block near the end).
-- **Current build:** `frc_drive_showdown_v5.1.50.html`
-- **Branch:** `claude/eager-sagan-5wehy1` (develop + push here ONLY; never push elsewhere).
-- **Repo scope:** `zillaness/driveshowdown`. Everything committed + pushed; battery ALL GREEN.
-- Built for FRC Team 2204 Rambots. Modes: 2P H2H (NORMAL ball, SHOOTER, TANK FIGHT, OBSTACLE RACE) + single-player drive practice. Claimable CPU opponent with 4 skill tiers (ROOKIE/VETERAN/WINNER/CHAMPION).
+- **Single-file HTML5 canvas game.** Everything lives in one `frc_drive_showdown_vX.Y.Z.html` (game code + inline `<script>` + changelog comment block near the end). No external assets.
+- **Current build:** `frc_drive_showdown_v5.1.51.html` (also a legacy `frc_drive_showdown_v5.0.1.html` is in the tree; ignore it).
+- **Branch:** `claude/eager-sagan-5wehy1` — see §0.
+- **Repo scope:** `zillaness/driveshowdown` (GitHub via `mcp__github__*` tools only; no `gh` CLI). Everything committed + pushed; battery ALL GREEN.
+- **Who:** Sam Cao, FRC Team 2204 Rambots. He playtests on desktop + phone, often steps away and asks for autonomous build sessions ("go as far as you can, pivot/table if blocked"). He likes terse status, real test results, and concrete shippable increments.
+- **Modes:** 2P H2H — NORMAL ball, SHOOTER, TANK FIGHT, **BATTLEBOTS** (new, P1), OBSTACLE RACE — plus single-player drive practice. Claimable CPU opponent, 4 skill tiers (ROOKIE/VETERAN/WINNER/CHAMPION).
+
+## 1b. Recent version history (newest first — what shipped lately)
+- **v5.1.51** — Mode-picker description word-wrap (fixed BattleBots desc spilling past its card now that the picker has 5 modes). Render-only.
+- **v5.1.50** — BattleBots RAM/DASH (LT/Shift burst, scaled by RAM COOLDOWN cheat; human-only; blocked when immobilized). Completes BattleBots **P1**.
+- **v5.1.49** — NEW MODE **BATTLEBOTS** (P1): `battlebots`/phase `p2bb`/`bb2`, two bars (MOBILITY+HP), directional armor, ram-by-impact, mobility→speed, KO last-standing, basic CPU, HUD. Mode picker made N-mode dynamic.
+- **v5.1.48** — Tank **3v3 phase 1**: ALLY TANKS ×0–2 lever (CPU teammates) + WARM/COOL per-bot ring shades (`teamShade`).
+- **v5.1.47** — Pause-menu overhaul (endgame-style nav: RESUME/RESTART/SETUP/MODE/SETTINGS/MENU) + TURN RATE ratio knob (`rotRatio`).
+- **v5.1.46** — Cheats: MAX SENSITIVITY (uncaps `SENS_MAX`) + RAM COOLDOWN (`ramCdMult`); retired DRIFT.
+- **v5.1.45** — FRIENDLY FIRE toggle (`friendlyFire`, ⚙ Settings).
+- **v5.1.44** — Swerve pods drawn ON TOP of body + bigger see-through alliance ring.
+- **v5.1.41–43** — Multi-tank phases 1–3 (roster model, ENEMY TANKS ×1–4, TIMED/most-kills).
+
+## 1c. Where things stand / likely next (ask Sam to confirm priority)
+The current queue (§5) is mostly DONE. The two remaining BIG items both hinge on **claim-screen UI that can't be verified headless** (the smoke harness uses a no-op canvas) — so build them live and `SendUserFile` the build for Sam to eyeball:
+1. **BattleBots P2 — weapons/loadouts** (SPINNER/PISTON/FLAMETHROWER/WEDGE + RAM): needs a WEAPON picker on the claim card. PRD §A.
+2. **Tank 3v3 phase 2 — true multi-human**: a TEAM SIZE lever (1v1/2v2/3v3) + per-seat type, **≥3 human device binds** (currently capped at 2, so "1 human + 1 fill-CPU vs 2 humans" isn't possible yet), short-side auto-fill with H2H *main* CPUs, and a **6-seat claim grid** (Sam: claiming/reassigning devices has always been fiddly — he explicitly wants it *visualized*: per-seat side×seat grid, press-to-claim/release, live feedback). Queue #10 phase 2.
+- **Tabled by Sam:** "Shooting" cheat in NORMAL ball (queue #3, mechanic TBD).
+- Sam tends to drop notes/queue items mid-session; capture them here. He values: terse status, real battery output, small shippable increments, and a `SendUserFile` of the build for playtesting now and then.
 
 ## 2. Ship workflow (every version)
 1. Edit the `.html`.
@@ -24,19 +50,43 @@ Self-contained context for continuing this project in a fresh thread.
 
 ## 3. Test harness
 - `harness/tests/smoke*.js`: each reads `/tmp/g.js`, appends an IIFE of asserts, mocks canvas/window/localStorage/navigator, `eval`s. Prints `--- name: N pass, M fail ---`.
-- Key suites: **smoke52** settings-rows/options, **smoke53** rubberband tiers, **smoke54** CHEATS + pause + mouse-aim + records-disable (biggest), **smoke55** tank pickups, smoke45 sticky-plow + shove, smoke38 2P integration (tank/race), smoke46 scoring/tiers.
+- Key suites: **smoke52** settings-rows/options (26), **smoke53** rubberband tiers (9), **smoke54** CHEATS + pause-nav + MAX SENSITIVITY + RAM COOLDOWN + rotRatio + mouse-aim + records-disable (53), **smoke55** tank pickups + per-pup sub-screen + settings rows (26), **smoke56** multi-tank roster + N-tanks + TIMED + friendly-fire + 3v3 allies (69), **smoke57** BattleBots P1 (25), smoke45 sticky-plow + shove, smoke38 2P integration (tank/race), smoke46 scoring/tiers, smoke51 arcade/RAM. Run `./battery.sh`; must end `ALL GREEN` + `ALL SCENARIOS BALANCED`.
+- **When adding a settings row, the per-mode row-count asserts in smoke55/56 will break** — update them (they assert exact `length` + each `k`). Same for pause-item-count asserts in smoke54.
 - The harness canvas is a no-op Proxy, so **render bugs that throw in a real browser (e.g. `createRadialGradient` with NaN, `String.repeat(negative)`) are NOT caught** — be careful with draw code. (We added a `cheat menu fits` assert in smoke54 to guard menu overflow.)
 
 ## 4. Architecture quick-map (search by symbol; line numbers drift)
-- **Cheats:** vars `let arcadeMode,bouncyMode,machineGun,ballMult,multiBall,stickyPlow,noClip,iceMode,driftMode,ballScale,robotScale,ballPups`; `CHEATS[]` array (name/desc/get/tog or slider); `drawKonami()` renders the 2-col menu; `cheatToggle/cheatMove/cheatAdjust`. **`anyCheat()`/`cheated()`** gate all records; `cheatedRun` latches during a run (set at gameplay ticks `playT+=dt`/`b2.t+=dt`/`tf2.t+=dt`/`r2.t+=dt`, reset in `retryRun/startDrive/startP2Ball/startP2Tank/startP2Race`).
-- **Input:** `getInp(bind)` returns `{vx,vy,vr}` per drive; **mouse-aim** = `mouseAimVr(bind)` override at the two `return{vx…}` lines (toggle `mouseAim`, key K). `mouseX/mouseY` tracked in mousemove.
-- **Pause:** `paused`, `canPause()`, `drawPause()`, `pauseClick()`, `pauseResumeRect/pauseQuitRect`; gated in `update(dt)` before the phase dispatch; Esc/Start enter, B/A or click exit.
+- **Cheats:** vars `let arcadeMode,bouncyMode,machineGun(0/1/2),ballMult,multiBall,stickyPlow,noClip,iceMode,ballScale,robotScale,ballPups,ramCdMult` (line ~294-295; DRIFT retired — `driftMode` removed, `MOM.drift` infra left dormant). `CHEATS[]` array (name/desc/get/tog or slider rows); `drawKonami()` renders the 2-col menu; `cheatToggle/cheatMove/cheatAdjust` + drag (`konamiDrag`/`applyKonamiSlider`). **`anyCheat()`/`cheated()`** gate all records (now also true when `SENS_MAX!==SENS_MAX_BASE` or `ramCdMult!==1`); `cheatedRun` latches during a run (set at gameplay ticks `playT+=dt`/`b2.t+=dt`/`tf2.t+=dt`/`r2.t+=dt`/`bb2.t`, reset in `retryRun/startDrive/startP2Ball/startP2Tank/startP2BB/startP2Race`).
+  - **MAX SENSITIVITY cheat:** `const SENS_MIN=0.3,SENS_MAX_BASE=2.0;let SENS_MAX=SENS_MAX_BASE;` (line 359). The slider raises `SENS_MAX` 2×–8× so the normal SENS slider/bumpers crank past the old 2× wall. Every clamp uses `SENS_MAX`.
+  - **RAM COOLDOWN cheat:** `ramCdMult` (0.1×–1×) scales `BOOST.cd` at all dash triggers (ball/tank/race ~line 3192/3204 + BattleBots `bbDashHeld`). Slider shows resulting seconds.
+- **Input:** `getInp(bind)` returns `{vx,vy,vr}` per drive (two `return{vx:vx*sensitivity,vy:vy*sensitivity,vr:vr*sensitivity*rotRatio}` sites, ~lines 1114/1188). **`rotRatio`** (line 159, default 1, persisted `frcds_rot`, range 0.25–3) biases turn-vs-translation; set by the PAUSE menu TURN RATE stepper. **`sensitivity`** is the single master lever (slider + LB/RB −0.1/+0.1 bumpers). **mouse-aim** = `mouseAimVr(bind)` override at the two return lines (toggle `mouseAim`, key K). `mouseX/mouseY` tracked in mousemove.
+- **Pause:** `paused`, `canPause()`, `drawPause()`, `pauseClick(mx,my)`; **list-driven** via `pauseItems()` (line 186) → RESUME · RESTART · (SETUP, 2P only) · MODE · SETTINGS · MENU, context-aware. Items can be `kind:'step'` (the TURN RATE stepper has `dec/inc/act`). Geometry `pauseItemRect(i,n)`/`pauseStepArrow(r,dir)`; nav actions `pauseRestart()`/`pauseTo(target)`/`pauseToMenu()`; `pauseResumeRect/pauseQuitRect` kept (derive from list) for back-compat tests. Full D-pad/A/B/Start gamepad nav. Gated in `update(dt)` before phase dispatch; Esc/Start enter.
+- **BattleBots (mode `battlebots`, phase `p2bb`, state `bb2`):** see §4b below — full subsystem.
+- **Friendly fire:** `friendlyFire` (line 157, default OFF, persisted `frcds_ff`, ⚙ Settings toggle). Gates same-side damage: tank bullet collision + `tf2Explode` (`&&!friendlyFire`), tank/ball arcade ram target lists. Kill credit always cross-side only.
+- **Team shades:** `TF2_RED_COLS` (warm: red/orange/amber/rose) + `TF2_BLUE_COLS` (cool: blue/cyan/violet/teal); `teamShade(side,idx)` (line 4139) → per-seat distinct ring shade. Seat 0 == `M2_COLS[side]` so 1v1 is byte-identical. `TF2_CPU_COLS` is an alias of `TF2_BLUE_COLS`.
 - **2P ball:** `b2` (`b2.bots[0/1]`, `b2.cpus` alliance, `b2.score`, `b2.pups`); `updateP2Ball`, `cpuBallUpdate` (brain → `b2ScoreCycle`), `b2Sticky`/`b2StickyCarriers` (plow capture cone `reach=RR+BR+[…]`, `lat=RR+[…]`), `b2Credit`/`b2TryScore`, `B2_SHOVE` (main-bot shove mass vs alliance, shooter).
 - **Tank:** `tf2` (`tf2.tanks[]` — VARIABLE ROSTER as of v5.1.41/42; each tank = `{side, col, ctl:{type,bind,tier,brain,name}, kills, dead, sx/sy/sh spawn, …}`). Roster helpers `tankCtl/tankSide/tankBrain/tankFoes/tankNearestFoe/tankFire/tankInp/tankMgOn/tankCol/tankLabel/withTank`; `cpuTankBrainsInit` (one brain per CPU tank); `tf2SpawnYs/tf2SpawnSide` (multi-spawn); `tf2CheckResult` (LIVES last-side-standing). `cpuTankUpdate`, `tf2Shoot`/`tf2Explode`/`tf2Damage` (kill credit), `PUP_TYPES`/`tf2AllowedPups`/`tf2ApplyPup`/`tf2SpawnPup`, `tfBulletOOB`/`tfBulletHitObs`. Sides: 0 = player(s), 1 = CPU squad; `m2.set.tcpus` (1–4 enemy tanks). Constants: `TF2_BLAST_R`, `MG_BURST_PER`, `TF2_CPU_COLS`.
 - **Race:** `r2` (`r2.bots`), `updateP2Race` (compare-times finish + 2× DNF), `cpuRaceUpdate` (PISTON RUN lateral-dodge). Race CPU is still holonomic (drive-kinematics deferred).
 - **Tiers:** `CPU_TIERS` (4: ROOKIE/VETERAN/WINNER/CHAMPION) + per-mode clones `CPU_TIERS_SHOOTER/TANK/RACE` via `modeTiers()`; `cpuTierParams`. Sizes: `let RR`, `let BR` (live; `RR0/BR0` bases; `setRobotScale` recomputes plow `SC_*`).
 - **Settings UI:** `p2SettingsRows()` (per-mode rows: vals+show or slider), `p2SetRowRect`, `p2SetDropRects`, `p2CycleSet`, `p2SetSliderVal`; `M2_SET_DEFAULTS` (RESET button); `cpuSettings` screen with `cpuSettingsReturn`.
 - **SP records:** `best{}`/`saveBest()` (`frc_showdown_v1`), `spGhostFinish`, achievements `achUnlock/achBeatTier/achH2HResult`, `h2hRecord` (`frcds_h2h_v1`).
+- **Mode picker:** `M2_MODES` (line ~4127, 5 entries: normal/shooter/tankfight/battlebots/race, each `{id,name,desc,col}`). `p2ModeRect(i)` computes card width **dynamically** from `M2_MODES.length` (was hard-coded to 4). Card desc word-wraps to `r.w−24` (v5.1.51). `p2GpItems()` loops `M2_MODES.length`. To add a mode: add to `M2_MODES`, add a `p2NavClick`/start dispatch branch, a `p2SettingsRows()` case, a phase + update/draw, and a `pauseRestart()` branch.
+
+## 4b. BattleBots subsystem (mode `battlebots`, phase `p2bb`, state `bb2`) — P1 complete
+The combat duel on the TANK FIGHT arena. **Positioning is the whole game** (keep your front to the foe). All in the code near line 3630.
+- **Constants:** `const BB={MOB:100,HP:100,frontCone:Math.PI*0.55,rearCone:Math.PI*0.55,hitCd:0.22,dmgK:26,dmgMax:34,knock:0.9};` (line 3630) — tune TTK here in playtest.
+- **State:** `let bb2=null;` (line 3631). Built by `startP2BB()` (line 3652). `bb2.bots[]` each `{x,y,h,vx,vy,side,col,ctl:{type,bind,tier,brain,name},mob,hp,inv,dead,boostT,boostCd,dmgDealt,_inp,…}`. `bb2.result` (winning side index, null while live), `bb2.t`.
+- **Two bars + directional armor** (the signature mechanic):
+  - **MOBILITY** drains first; `bbSpeed(b)` (line 3632) = `b.mob<=0?0:0.3+0.7*(b.mob/BB.MOB)` → slower as it drops, **0 = IMMOBILIZED** (can't drive).
+  - **HP** = the kill bar.
+  - `bbHitLoc(victim,fromX,fromY)` (line 3633): contact angle vs victim heading → `'front'` (≤frontCone/2), `'rear'` (≥π−rearCone/2), else `'side'`.
+  - `bbApplyHit(victim,loc,dmg,owner)` (line 3639): **front = immune** (just sets `inv` cooldown); **rear = HP directly**; **side = MOBILITY, spilling to HP once mob hits 0**. Per-contact cooldown `BB.hitCd`. Damage credited to `owner` only if cross-side (`dmgDealt`). HP≤0 → `dead=true` + `bbCheckResult(owner)`.
+- **Damage source:** ram-by-impact in `updateBB(dt)` (line 3691) — closing speed `p2ImpactMag(a._inp,c._inp)` × `BB.dmgK` (clamped `BB.dmgMax`), knockback to both. `bbCheckResult` (line 3648) = last SIDE standing wins.
+- **RAM/DASH:** always-on, human-only. `bbDashHeld(bind)` (line 3674) reads LT (gamepad) / Shift (`kbBoostHeld`); blocked if `mob<=0`. Per-bot `boostT/boostCd`, reuses `BOOST.dur/mul/cd` scaled by `ramCdMult`.
+- **CPU:** `bbCpuUpdate(dt)` (line 3678) — keep FRONT to foe (armor) while driving to its REAR to ram.
+- **Draw:** `drawBB()` (line 3726), `bbBar(x,y,w,h,frac,col)` (line 3725) — per-bot MOBILITY+HP bars + a front-armor arc indicator.
+- **Settings rows:** BEST OF + ARENA only (`p2SettingsRows()` battlebots case). Teardown nulls `bb2` in `p2Exit/p2QuitMatch`. `p2MatchLive()` includes `phase==='p2bb'&&bb2&&bb2.result===null`.
+- **Tests:** `smoke57.js` (25 asserts — mode wiring, 5-mode layout, hit-location, front-immune/rear-HP/side-mobility/spillover/immobile, mobility→speed, KO, same-side no-credit, dash engage+cooldown, draw-no-throw).
+- **Remaining phases** (PRD §A — get Sam's green-light, build phase-by-phase, battery-green each): **P2 weapons/loadouts** (SPINNER/PISTON/FLAMETHROWER/WEDGE + weapon picker on the claim card — needs claim-screen UI, hard to verify headless; Sam wants the claim screen *visualized*), **P3 hazards** (pit/saws/out-of-arena, toggleable), **P4** flame blow-up + TIMED judges' decision + HUD polish, **P5** stronger CPU brain, **P6** multi-bot rumble.
 
 ## 5. QUEUE (do in order)
 1. ✅ **Global ⚙ Settings menu** *(DONE v5.1.36)* — `phase='settings'` from main menu + pause overlay: Sound, Mouse-aim, CPU AI link, full gamepad nav.
@@ -50,7 +100,7 @@ Self-contained context for continuing this project in a fresh thread.
    - **All 3 phases shipped in v5.1.42.** Remaining polish ideas: distinct CPU chassis (not just rings), per-CPU tier picker, 2-human-teammates-vs-CPU (currently 2 humans = rivals).
 5. ✅ **FRIENDLY FIRE toggle** *(DONE v5.1.45)* — global `friendlyFire` flag (default OFF, persisted `frcds_ff`), toggle row in the ⚙ SETTINGS screen (reachable from menu AND pause → "pause settings"). Gates same-side damage everywhere: tank bullet collision + `tf2Explode` (the same-side skip is now `&&!friendlyFire`), tank arcade ram (`arcadeTackle` target list), and ball-mode arcade ram (now also hits own alliance when ON). NOTE: enemy-only RAM in ball mode was *already* wired (`arcadeTackle(p,…,ballFoes(p))`, `ballFoes` includes opposing main+support bots) — FF just adds the own-team option. Kill credit stays cross-side only (FF teamkills deal damage but don't score). smoke56 §16.
 6. ✅ **RAM knocks balls out of a carrier** *(VERIFIED — already a feature)* — `arcadeTackle` scatters the victim's `bot.load` with random velocities on a successful ram (line ~3147). No build needed.
-7. 📋 **RAM cooldown — shorter + adjustable (DROPDOWN preferred)** — `BOOST.cd` (currently 1.4s) gates RAM/dash reuse; Sam wants to spam the dash. Add a **RAM COOLDOWN** control — Sam prefers a DROPDOWN of presets (e.g. 0.1 / 0.25 / 0.5 / 1.0 / 1.4s, "spam"→default) over a slider (either acceptable). Scales/sets `BOOST.cd`. As a Konami cheat ⇒ records-disable via `anyCheat()`; or a pause/settings option if records aren't a concern. (Requested by Sam.)
+7. ✅ **RAM cooldown — shorter + adjustable** *(DONE v5.1.46)* — `ramCdMult` (0.1×–1×) scales `BOOST.cd` at every dash trigger (ball/tank/race + BattleBots); Konami **slider** (taints records via `anyCheat()`). **NOTE:** Sam originally preferred a DROPDOWN of presets; a slider was used because the Konami menu has no dropdown primitive. If he still wants the dropdown, add one (or move RAM COOLDOWN to a pause/settings dropdown so it doesn't taint records).
 8. ✅ **Swerve wheels drawn ON TOP of the body** *(DONE v5.1.44)* — `drawWheels` is now two-pass (under-body for non-swerve, OVER pass for swerve called from `drawRobot` after the body). All 4 pods fully visible.
 9. ✅ **Alliance ring: dashed, a touch BIGGER + slightly SEE-THROUGH** *(DONE v5.1.44)* — `p2AllianceRing` r=RR+13, dashed team stroke at 0.72 alpha over a lighter dark underlay. (Confirmed from the preview.)
 10. 🔄 **FRIENDLY CPU tanks / mixed teams → real 3v3 + auto-balance fill** — **Phase 1 DONE (v5.1.48):** ALLY TANKS ×0–2 lever adds CPU teammates (own brain, inherit P1 drive, VETERAN tier) → 2v2/3v3; warm/cool per-bot ring shades (`TF2_RED_COLS`/`TF2_BLUE_COLS`/`teamShade`) so same-drive teammates are distinguishable; `tierParamsByIdx` lets ally brains use `ctl.tier`. **Phase 2 TODO:** single TEAM SIZE lever (1v1/2v2/3v3), ≥3-human device binds (currently capped at 2 → can't do 3 humans / true "1v2 humans" yet), short-side auto-fill UI, and the claim-screen seat visualization. — the multi-tank roster (v5.1.42) already supports any side composition; the only limit is `startP2Tank`'s build rule ("humans → side 0, CPUs → side 1"). Generalize it so **CPUs can be teammates** (CPUs on side 0 with the human) and **both sides can mix humans + CPUs**. This effectively delivers **3v3** (the tabled item) on the tank engine, and enables **uneven human counts auto-balanced by filling the short side with H2H *main* CPUs** — i.e. a full opponent-grade `cpuTankBrainsInit` brain, NOT a weaker alliance-support bot — so e.g. **1 human + 1 fill-CPU vs 2 humans** plays fair. Each fill-CPU needs a drive (inherit a human's on its side, or default field-swerve) + tier. Likely a TEAM SIZE / per-side roster lever on the claim or settings screen. Sam: "this sorta proves 3v3, and we could do 1v2 humans and use a H2H main CPU to fill it and make it more fair." Supersedes much of the tabled 3v3 plan — cross-ref `PRD_TABLED_MODES.md` §3v3. (Requested by Sam.)
@@ -63,7 +113,7 @@ Self-contained context for continuing this project in a fresh thread.
 
 ## 6. Tabled (need user green-light)
 **Full specs for the two big ones are in `PRD_TABLED_MODES.md` — read it before building either.**
-- **BattleBots mode** — 🔄 **IN PROGRESS. P1 DONE (v5.1.49–50):** new mode `battlebots`/phase `p2bb`/`bb2` on the tank arena — two bars (MOBILITY+HP), directional armor (front immune / rear=HP / side=mobility→spillover), ram-by-impact, mobility→speed (0=immobilized), KO last-standing, basic BattleBots CPU, per-bot MOBILITY+HP HUD + front-arc, always-on RAM/DASH (LT/Shift). Mode picker is N-mode dynamic. Symbols: `BB`/`bbHitLoc`/`bbApplyHit`/`bbCheckResult`/`bbSpeed`/`startP2BB`/`updateBB`/`drawBB`/`bbCpuUpdate`/`bbDashHeld`; smoke57 (25). **Remaining (PRD §A):** P2 weapons/loadouts (SPINNER/PISTON/FLAMETHROWER/WEDGE + weapon picker on the claim card — **needs claim-screen UI; do live, hard to verify headless**), P3 hazards, P4 flame blow-up + TIMED judges + HUD polish, P5 stronger CPU, P6 rumble. Tune TTK/bars (`BB` consts) in playtest.
+- **BattleBots mode** — 🔄 **IN PROGRESS. P1 COMPLETE (v5.1.49–51).** Full subsystem map + constants + remaining phases are in **§4b above** and the spec in `PRD_TABLED_MODES.md §A`. Short version: mode works (two bars, directional armor, ram-by-impact, KO, basic CPU, RAM/DASH, HUD); next is **P2 weapons/loadouts** which needs a weapon picker on the claim card — **claim-screen UI is hard to verify headless, so build it live and `SendUserFile` for Sam to eyeball** (Sam wants the claim screen visualized regardless — see #10). Tune TTK/bars (`BB` consts) in playtest.
 - **3v3 human** — staged foundation exists (`b2Roster` fill-rule, alliance helpers `b2Mains/b2Foes`); full wiring (roster spawn, per-main brain/input, 6-card setup, N-pair pinning, balance) deferred to v5.2. Do last. Details in the PRD.
 - **Race CPU drive-kinematics** — low priority; steer drives may not clear the course (turn radius). Currently holonomic.
 - **CHAMPION "one ball at a time" (normal)** — sticky-plow capture cone fills; widened "a bit" in v5.1.33. Revisit if still feels off.
