@@ -7,7 +7,7 @@ src+=`
     m2.set.cpus=0;m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.bestOf=1;m2.set.contact='full';m2.set.lives=3;m2.set.map=map||0;m2.set.hpk=false;m2.set.pow=true;m2.set.tcpus=tcpus||1;m2.set.tformat=tformat||'lives';m2.set.tTimeSec=tTimeSec||90;m2.set.tallies=tallies||0;m2.set.allyTier=1;
     m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};
     m2.claim=[{type:'kb'},(cpuTier!=null?{type:'cpu',tier:cpuTier}:{type:'kb'})];m2.sens=[1,1];m2._gpPrev=[];
-    const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);updateP2Tank(3.1);};
+    playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2Tank();updateP2Tank(3.1);}; // grid claim is the v5.1.57 path; these tests drive the legacy roster shim (no m2.tseats) directly
 
   // ── 1. roster model: 2 tanks, two sides, control descriptors ──
   startTank(0);
@@ -127,12 +127,12 @@ src+=`
   // ── 12. settings: tankfight FORMAT lever swaps the lives/time row (Phase 3) ──
   m2.mode='tankfight';m2.set.tformat='lives';
   let tfrows=p2SettingsRows();
-  ok('LIVES format → 6 rows (tcpus/tallies/format/lives/bestOf/map)',tfrows.length===6&&tfrows[0].k==='tcpus'&&tfrows[1].k==='tallies'&&tfrows[2].k==='tformat'&&tfrows[3].k==='lives'&&tfrows[4].k==='bestOf'&&tfrows[5].k==='map');
+  ok('LIVES format → 4 rows (format/lives/bestOf/map; ENEMY/ALLY moved to the claim grid)',tfrows.length===4&&tfrows[0].k==='tformat'&&tfrows[1].k==='lives'&&tfrows[2].k==='bestOf'&&tfrows[3].k==='map');
   m2.set.tformat='timed';tfrows=p2SettingsRows();
-  ok('TIMED format → MATCH TIME row replaces LIVES',tfrows[3].k==='tTimeSec'&&tfrows.length===6);
+  ok('TIMED format → MATCH TIME row replaces LIVES',tfrows[1].k==='tTimeSec'&&tfrows.length===4);
   // settings overflow guard: every row sits above the START button
   {const sb=p2StartBtnRect();let okFit=true;for(let i=0;i<tfrows.length;i++){const rc=p2SetRowRect(i);if(rc.y+rc.h>sb.y)okFit=false;}
-   ok('all 6 tankfight rows fit above START',okFit);}
+   ok('all 4 tankfight rows fit above START',okFit);}
 
   // ── 13. TIMED is a deathmatch: infinite lives, respawn ignores lives ──
   startTank(0,1,1,'timed',90);
@@ -211,6 +211,33 @@ src+=`
    const seats=tankSeatsFromClaim();
    ok('tankSeatsFromClaim: RED = 1 human + 1 ally CPU',seats[0].length===2&&seats[0][0].type==='human'&&seats[0][1].type==='cpu');
    ok('tankSeatsFromClaim: BLUE = 2 enemy CPUs',seats[1].length===2&&seats[1].every(s=>s.type==='cpu'));}
+
+  // ── v5.1.57: the 6-seat claim GRID drives the roster (3v3 humans + mixed CPU + uneven sides) ──
+  {m2.mode='tankfight';tour=null;m2.tseats=[null,null,null,null,null,null];m2.tsel=0;
+   tankGridClaimDev({type:'kb'});m2.tsel=1;tankGridSetCpu(1);                                   // RED: 1 human + 1 CPU
+   m2.tsel=3;tankGridClaimDev({type:'gp',gp:0});m2.tsel=4;tankGridClaimDev({type:'gp',gp:1});   // BLUE: 2 humans
+   ok('grid: RED = 1 human + 1 CPU, BLUE = 2 humans',tankGridSideDesc(0)==='1 human + 1 CPU'&&tankGridSideDesc(1)==='2 humans');
+   ok('grid: device dedup — re-claiming the keyboard is a no-op',(m2.tsel=2,tankGridClaimDev({type:'kb'}),tankGridSideCount(0)===2));
+   ok('grid: canStart true (both sides filled)',tankGridCanStart()===true);
+   startP2Tank();
+   ok('grid → 4 tanks (RED 2, BLUE 2)',tf2.tanks.length===4&&tf2.tanks.filter(t=>t.side===0).length===2&&tf2.tanks.filter(t=>t.side===1).length===2);
+   ok('grid → 3 human tanks + 1 CPU',tf2.tanks.filter(t=>t.ctl.type!=='cpu').length===3&&tf2.tanks.filter(t=>t.ctl.type==='cpu').length===1);
+   ok('grid → each tank binds its own seat index 0-5',new Set(tf2.tanks.map(t=>t.ctl.bind)).size===4&&tf2.tanks.every(t=>t.ctl.bind>=0&&t.ctl.bind<6));}
+  {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;                       // full 3v3: RED 3 humans, BLUE 3 CPU
+   tankGridClaimDev({type:'kb'});tankGridClaimDev({type:'gp',gp:0});tankGridClaimDev({type:'gp',gp:1}); // auto-advance fills RED seats 0,1,2
+   tankGridSetCpu(3);tankGridSetCpu(4);tankGridSetCpu(5);
+   ok('grid 3v3: RED 3 humans in seats 0-2',tankGridSideCount(0)===3&&[0,1,2].every(i=>m2.tseats[i]&&m2.tseats[i].type==='human'));
+   startP2Tank();
+   ok('grid → 3v3 builds 6 tanks (3 vs 3)',tf2.tanks.length===6&&tf2.tanks.filter(t=>t.side===0).length===3&&tf2.tanks.filter(t=>t.side===1).length===3);
+   ok('grid → 3 humans vs 3 CPU',tf2.tanks.filter(t=>t.ctl.type!=='cpu').length===3&&tf2.tanks.filter(t=>t.ctl.type==='cpu').length===3);}
+  {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;                       // uneven 1v3
+   tankGridClaimDev({type:'kb'});m2.tsel=3;tankGridSetCpu(3);tankGridSetCpu(4);tankGridSetCpu(5);
+   startP2Tank();
+   ok('grid → uneven 1v3 (1 human vs 3 CPU)',tf2.tanks.filter(t=>t.side===0).length===1&&tf2.tanks.filter(t=>t.side===1).length===3);
+   ok('grid → per-bot cool shades distinct within BLUE',new Set(tf2.tanks.filter(t=>t.side===1).map(t=>t.col)).size===3);
+   m2.tseats=null;m2.tsel=0;}
+  {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridClaimDev({type:'kb'});m2.tsel=3;tankGridSetCpu(3); // render path doesn't throw (no-op canvas catches undefined access)
+   let drew=true;try{drawTankGrid();}catch(e){drew=false;}ok('drawTankGrid renders without throwing',drew);m2.tseats=null;m2.tsel=0;}
 
   console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire + 3v3 allies): '+P+' pass, '+F+' fail ---');
 })();

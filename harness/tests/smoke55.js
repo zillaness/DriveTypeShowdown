@@ -6,7 +6,7 @@ src+=`
     m2.set.cpus=0;m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.bestOf=1;m2.set.contact='full';m2.set.lives=3;m2.set.map=map||0;m2.set.hpk=false;m2.set.pow=true;
     m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};
     m2.claim=[{type:'kb'},{type:'kb'}];m2.sens=[1,1];m2._gpPrev=[];
-    const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);updateP2Tank(3.1);};
+    playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2Tank();updateP2Tank(3.1);};
   const idIdx=id=>PUP_TYPES.findIndex(p=>p.id===id);
 
   // ── pup table + gating ──
@@ -26,7 +26,7 @@ src+=`
   // settings rows: pow/hpk removed from tankfight rows (moved to per-pup sub-screen)
   m2.mode='tankfight';m2.set.tformat='lives';
   const tfrows=p2SettingsRows();
-  ok('tankfight has 6 settings rows (tcpus/tallies/format/lives/bestOf/map; pow+hpk in sub-screen)',tfrows.length===6&&tfrows[0].k==='tcpus'&&tfrows[1].k==='tallies'&&tfrows[2].k==='tformat'&&tfrows[3].k==='lives'&&tfrows[4].k==='bestOf'&&tfrows[5].k==='map');
+  ok('tankfight has 4 settings rows (format/lives/bestOf/map; team comp on the claim grid; pow+hpk in sub-screen)',tfrows.length===4&&tfrows[0].k==='tformat'&&tfrows[1].k==='lives'&&tfrows[2].k==='bestOf'&&tfrows[3].k==='map');
   ok('p2ShowPupCfg() true in tankfight',p2ShowPupCfg());
   ok('p2ShowPupCfg() false in ball mode',(m2.mode='normal',!p2ShowPupCfg()));
   m2.mode='tankfight';

@@ -10,7 +10,7 @@ src+=`
   const startTank=()=>{applyLayout('land2p');phase='p2claim';tour=null;m2.mode='tankfight';baseSet();m2.set.lives=1;m2.set.map=0;m2.set.hpk=false;m2.set.pow=false;
     m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};
     m2.claim=[{type:'kb'},{type:'kb'}];m2.sens=[1,1];m2._gpPrev=[];
-    const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);updateP2Tank(3.1);};
+    playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2Tank();updateP2Tank(3.1);};
 
   // ── EXTRA BALLS: the slider multiplies the balls in play ──
   ballMult=1;startBall('normal');const base=balls.length;

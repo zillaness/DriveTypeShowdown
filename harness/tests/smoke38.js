@@ -92,7 +92,7 @@ src+=`
   // ── F: tank fight — CPU moves, shoots with LoS gating, wins vs idle ──
   m2.mode='tankfight';m2.set.lives=1;m2.set.map=0;m2.set.hpk=false;m2.set.pow=false;
   phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:3}];m2._gpPrev=[];
-  p2Click(sb.x+sb.w/2,sb.y+sb.h/2);
+  playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2Tank();
   ok('tank match starts with CPU',phase==='p2tank'&&!!tf2&&!!tf2.tanks[1].ctl.brain&&tf2.tanks[1].ctl.type==='cpu');
   updateP2Tank(3.1);
   const ts=tf2.tanks[1],tsx=ts.x,tsy=ts.y;
@@ -112,7 +112,7 @@ src+=`
   ok('CHAMPION wins the duel vs idle (result='+tf2.result+')',tf2.result===1);
   // LoS gate: both tanks dead-center behind the CENTER PILLAR — CPU must hold fire
   p2QuitMatch(false);m2.set.map=1;phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:3}];m2._gpPrev=[];
-  p2Click(sb.x+sb.w/2,sb.y+sb.h/2);
+  playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2Tank();
   updateP2Tank(3.1);
   tf2.tanks[0].x=520;tf2.tanks[0].y=320;tf2.tanks[1].x=680;tf2.tanks[1].y=320; // pillar x540-660 between them
   tf2.bullets.length=0;
