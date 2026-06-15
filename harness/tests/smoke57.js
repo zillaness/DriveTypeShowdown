@@ -191,6 +191,31 @@ src+=`
   {startBB(0,2);bb2.bots[0].wheels=[{hp:40,dead:false},{hp:0,dead:true},{hp:0,dead:true},{hp:40,dead:false}];bb2.cd=0;bb2.result=null;
    let dThrew=false;try{drawBB();}catch(e){dThrew=true;console.log('   wheels draw err:',e.message);}
    ok('drawBB renders dead-wheel marks without throwing',!dThrew);}
+  // ── v5.1.79 P2.5: weapon/armor PICKER (grid tap-cyclers) + stat readout + round-trip to the spawned bot ──
+  {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridSetCpu(0);
+   const ld=bbSeatLoadout(0);ok('a BB seat lazily gets a default loadout',ld.weapon==='none'&&ld.armor==='balanced');
+   bbCycleField(ld,'weapon',1);ok('cycling WEAPON advances to the next id',ld.weapon===BB_WEAPONS[1].id);
+   bbCycleField(ld,'weapon',-1);ok('cycling WEAPON back wraps to RAM ONLY',ld.weapon==='none');
+   bbCycleField(ld,'armor',-1);ok('cycling ARMOR backward wraps to the last',ld.armor===BB_ARMOR[BB_ARMOR.length-1].id);
+   m2.tseats=null;}
+  {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tour=null;tankGridSetCpu(0);tankGridSetCpu(3);
+   m2.tseats[0].loadout={weapon:'spinner',armor:'hardplate'};m2.tseats[3].loadout={weapon:'flame',armor:'heatshield'};
+   startP2BB();const red=bb2.bots.find(b=>b.ctl.bind===0),blue=bb2.bots.find(b=>b.ctl.bind===3);
+   ok('grid loadout ROUND-TRIPS to the spawned bot (RED spinner/hardplate)',!!red&&red.ld.weapon==='spinner'&&red.ld.armor==='hardplate');
+   ok('grid loadout ROUND-TRIPS (BLUE flame/heatshield)',!!blue&&blue.ld.weapon==='flame'&&blue.ld.armor==='heatshield');
+   m2.tseats=null;}
+  {const light=bbStatBars({weapon:'none',armor:'light'}),heavy=bbStatBars({weapon:'spinner',armor:'hardplate'});
+   ok('stat readout: light build is FASTER than heavy',light.speed>heavy.speed);
+   ok('stat readout: heavy/hardplate build is TOUGHER',heavy.tough>light.tough);
+   ok('stat readout: spinner build hits HARDER',heavy.dmg>light.dmg);
+   ok('stat readout: all four bars in 0..1',[light,heavy].every(s=>[s.speed,s.mob,s.dmg,s.tough].every(v=>v>=0&&v<=1)));}
+  {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;phase='p2claim';tankGridSetCpu(0);tankGridSetCpu(3);m2.tseats[0].loadout={weapon:'spinner',armor:'light'};
+   let dThrew=false;try{drawTankGrid();}catch(e){dThrew=true;console.log('   grid draw err:',e.message);}
+   ok('drawTankGrid renders BB loadout pickers without throwing',!dThrew);
+   // a click on the weapon ◀▶ rects cycles the seat's weapon
+   const lr=bbSeatLoadRects(tankCellRect(0));const before=m2.tseats[0].loadout.weapon;tankGridClick(lr.wR.x+10,lr.wR.y+10);
+   ok('clicking the seat weapon ▶ cycles its loadout',m2.tseats[0].loadout.weapon!==before);
+   m2.tseats=null;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
