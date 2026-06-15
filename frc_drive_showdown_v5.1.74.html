@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.73.html
-  version: 5.1.73
+  file: frc_drive_showdown_v5.1.74.html
+  version: 5.1.74
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -144,6 +144,7 @@ const GP_AXES_ZERO={lx:0,ly:0,rx:0,ry:0};
 const JOYS_ZERO={L:{dx:0,dy:0},R:{dx:0,dy:0}};
 let playerBind=[{type:'any'},{type:'none'}];
 let gpAxesAll=[];   // per-gamepad-index {lx,ly,rx,ry}, deadzoned
+let tankAimLockStick=false; // tank fight: when an ARCADE gamepad tank reserves its RIGHT stick for turret aim, its drive reads the LEFT stick only
 let gpBtnsAll=[];   // per-gamepad-index pressed-boolean arrays (claim screens read this)
 function bindAxes(bind){
   if(bind.type==='any')return gpAxis;
@@ -1188,7 +1189,7 @@ function getInp(bind){
   }else if(id==='arcade'){
     // Either joystick: Y=forward/back, X=turn — check active flag OR gamepad magnitude
     const lAct=joys.L.active||Math.hypot(jlx,jly)>0.05;
-    const rAct=joys.R.active||Math.hypot(jrx,jry)>0.05;
+    const rAct=!tankAimLockStick&&(joys.R.active||Math.hypot(jrx,jry)>0.05); // tank-fight arcade aim reserves the right stick → drive on the left only
     const jax=lAct?jlx:rAct?jrx:0;
     const jay=lAct?jly:rAct?jry:0;
     const f=clamp(((Wk||Up)?1:0)-((Sk||Dn)?1:0)-jay,-1,1);
@@ -3367,20 +3368,29 @@ function drawP2SensToasts(){
   }
 }
 const TF2_TURRET_SLEW=9; // turret slew rate (rad/s) when swinging onto an AUTO-AIM target
-function tankAimCannon(t,p,dt){ // v5.1.72 turret: locked to the chassis heading; under AUTO-AIM it eases onto the nearest foe
+function tankTurretAim(t,bind){ // v5.1.73 ARCADE one-hand bonus: the FREE input (gamepad right stick / mouse) aims the turret. Returns the aim angle, or null (no manual aim).
+  const b=playerBind[bind];
+  if(!b||b.type==='cpu')return null;                  // CPUs don't manual-aim
+  if(p2cDriveDef(bind).id!=='arcade')return null;     // only the one-stick ARCADE drive frees a hand to aim the turret
+  if(b.type==='gp'){const ax=gpAxesAll[b.gp];if(ax&&Math.hypot(ax.rx,ax.ry)>=0.35)return Math.atan2(ax.ry,ax.rx);return null;} // right stick (deadzoned)
+  if(b.type==='kb'||b.type==='any')return Math.atan2((mouseY-FY)-t.y,(mouseX-FX)-t.x); // keyboard: aim from the tank toward the mouse cursor
+  return null;                                         // touch drives with its stick — no free hand; turret stays chassis/auto
+}
+function tankAimCannon(t,p,dt){ // turret: AUTO-AIM pickup (foe-track) > ARCADE manual aim (right stick / mouse) > locked to the chassis
   if(t.cannonAng==null)t.cannonAng=t.h;
-  if(t.aimT>0){
-    const foe=tankNearestFoe(p),tgt=foe?Math.atan2(foe.y-t.y,foe.x-t.x):t.h;
-    let dA=tgt-t.cannonAng;while(dA>Math.PI)dA-=2*Math.PI;while(dA<-Math.PI)dA+=2*Math.PI;
-    t.cannonAng+=Math.sign(dA)*Math.min(Math.abs(dA),TF2_TURRET_SLEW*dt);
-  }else t.cannonAng=t.h; // no auto-aim: the turret rides rigid with the chassis
+  let tgt,slew;
+  if(t.aimT>0){const foe=tankNearestFoe(p);tgt=foe?Math.atan2(foe.y-t.y,foe.x-t.x):t.h;slew=TF2_TURRET_SLEW;}
+  else{const man=tankTurretAim(t,t.ctl.bind);if(man!=null){tgt=man;slew=TF2_TURRET_SLEW*2.4;}else{t.cannonAng=t.h;return;}} // manual aim is snappy
+  let dA=tgt-t.cannonAng;while(dA>Math.PI)dA-=2*Math.PI;while(dA<-Math.PI)dA+=2*Math.PI;
+  t.cannonAng+=Math.sign(dA)*Math.min(Math.abs(dA),slew*dt);
 }
 function tf2Shoot(p){
   const t=tf2.tanks[p];
-  // AUTO-AIM: snap the launch angle to the foe's CURRENT position (no lead/curve). Firing is already gated to "pointed at the foe".
+  // launch angle: AUTO-AIM pickup snaps to the foe; else the ARCADE manual aim (right stick / mouse); else the chassis heading.
   let ang=t.h;
   if(t.aimT>0){const foe=tankNearestFoe(p);if(foe)ang=Math.atan2(foe.y-t.y,foe.x-t.x);}
-  t.cannonAng=ang; // snap the visual turret to the round it just fired
+  else{const man=tankTurretAim(t,t.ctl.bind);if(man!=null)ang=man;}
+  t.cannonAng=ang; // keep the visual turret aligned with the round it just fired
   let expl=false,pierce=false;
   if(mgOn(tankCtl(p).bind)){ // MACHINE GUN: a banked stack becomes a TIMED full-auto barrage (chaos), not one round per shot
     if(t.explBurstT>0)expl=true; else if(t.explAmmo>0){t.explBurstT=t.explAmmo*MG_BURST_PER;t.explAmmo=0;expl=true;}
@@ -3445,6 +3455,7 @@ function updateP2Tank(dt){
     t.aimT=Math.max(0,(t.aimT||0)-dt);
     t.explBurstT=Math.max(0,(t.explBurstT||0)-dt);
     t.pierceBurstT=Math.max(0,(t.pierceBurstT||0)-dt);
+    tankAimLockStick=(t.ctl.type!=='cpu')&&!!playerBind[bind]&&playerBind[bind].type==='gp'&&p2cDriveDef(bind).id==='arcade'; // arcade gamepad: drive on the LEFT stick, reserve the RIGHT for turret aim
     withTank(p,()=>{
       let inp=tankInp(p);
       if(t.speedT>0){inp.vx*=1.4;inp.vy*=1.4;}
@@ -3453,7 +3464,8 @@ function updateP2Tank(dt){
       t.h+=inp.vr*dt;{const _m=momModeFor(t,bind);if(_m)applyMomentum(t,inp,dt,_m);else{t.x+=inp.vx*dt;t.y+=inp.vy*dt;}}
       if(!noClip)obsCheck(t,RR); // NO-CLIP: phase through obstacles
     });
-    tankAimCannon(t,p,dt); // turret aim — locked to the chassis, swings onto the foe under AUTO-AIM
+    tankAimLockStick=false;
+    tankAimCannon(t,p,dt); // turret aim — AUTO-AIM > ARCADE manual aim > chassis
     t.reload-=dt;
     if(tankFire(p)&&t.reload<=0&&!(t.stunT>0)){const _mg=tankMgOn(p);tf2Shoot(p);t.reload=_mg?0.05:(t.rapidT>0?0.16:0.32);if(_mg)p2Rumble(bind,0.3);} // MACHINE GUN: full-auto + rumble
   }
@@ -7348,6 +7360,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.74 (2026-06-15): ARCADE DRIVE turret aim (TANK FIGHT) — arcade's one-stick / one-hand drive now earns a real edge: the FREE input aims the turret. Gamepad → the RIGHT stick points the cannon (and is reserved from driving, so the bot steers on the LEFT stick only); keyboard → the MOUSE aims (the turret tracks the cursor). New tankTurretAim(t,bind) (gated to drive id 'arcade', humans only). Aim priority: AUTO-AIM pickup (foe-lock) > arcade manual aim > chassis-locked; both tf2Shoot and tankAimCannon honor it (manual aim slews ~2.4× faster — snappy). tankAimLockStick reserves the arcade gamepad's right stick for aim; every other mode/drive is byte-identical. smoke55 +7 → 37. Full battery green. Single file, no assets.
   v5.1.73 (2026-06-15): BATTLEBOTS WEAPONS P2.1 — weight-based loadout DATA + effects (no UI yet; per frcds_bb_weapons_prd_v1.0.md). New BB_WEAPONS (RAM-ONLY default + SPINNER/PISTON/FLAMETHROWER/WEDGE), BB_ARMOR (BALANCED default + HARDPLATE/HEATSHIELD/LIGHT), and the weapon-class-vs-armor-class BB_RPS triangle. bbResolveLoadout(ld) derives weight→speedMul/turnMul/mobMax + deal/take/zone; bbLoadoutForBind reads the (not-yet-built) per-seat/claim loadout. Wired into bbSpeed (× speedMul, mobMax-sized bar), updateBB turn (× turnMul), and bbApplyHit (damage × deal × take × zone × RPS). The DEFAULT loadout is fully NEUTRAL (weight 0, all mults 1) so BattleBots P1 stays byte-identical — every bot spawns neutral until a loadout is picked (P2.5 UI). smoke57 +14 (data shape, neutral default, heavy=slower/sluggish/bigger-bar/more-deal, RPS directions, bbApplyHit scaling, P1 raw-damage parity) → 44. Full battery green. Single file, no assets.
   v5.1.72 (2026-06-15): TANK CANNON — the 2P TANK FIGHT bots now carry a visible turret/cannon (they were drawn as bare robots before, no barrel). The turret rides locked to the chassis heading; when AUTO-AIM (🎯 pickup) is active it eases onto the nearest foe at ~9 rad/s and the barrel glows gold. tf2Shoot still fires exactly at the foe under auto-aim (unchanged — smoke55's angle assert holds) and now snaps the turret to the shot so the barrel always matches the round. New tankAimCannon(t,p,dt) per-tank each tick + drawTankCannon(t,col) (turret base + barrel + bore + muzzle, drawn over the chassis). cannonAng added to the tank struct + reset in tf2Respawn. smoke55 +4 (shot snaps turret / swings onto foe under aim / locks to chassis without aim / drawP2Tank no-throw) → 30. Full battery green. Single file, no assets.
   v5.1.71 (2026-06-15): Ball 3v3 — PLAYABLE. NORMAL ball + SHOOTER now support up to 3v3 via the MULTI grid, exactly like TANK/BB. TEAM FORMAT row added to ball settings (1v1 = classic 2-card claim, MULTI = the 6-seat grid); tankGridMode/tankGridStart include normal/shooter; startP2Ball builds its roster from b2SpawnDescs — legacy 2 mains (2-card) OR N mains/side from the grid (b2SpawnDescs/b2LaneYs spread vertical lanes at the goal mouth, reusing tf2SpawnYs). The draw loop, the b2CpuUpdate all-pairs (i<2 → i<bots.length, _tch sizing, ctl-tier shove), and the PIN-PENALTY block are all generalized to N mains — byte-identical at 1v1. Settings rows compress their pitch when a mode has >8 rows so they never overlap START/RESET (fixes the ball-MULTI overflow). NEW smoke58 (21 asserts): 3v3 spawn/roster, a brain per CPU bind, b2Foes/b2OppMain, a 40s CPU-vs-CPU sim (no NaN, balanced 31–31 scoring, draw renders 6 bots), mixed 3-human-vs-3-CPU, shooter 3v3, and the 1v1 fallthrough (still exactly 2 mains). Full battery green. Single file, no assets.

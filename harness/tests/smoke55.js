@@ -64,9 +64,30 @@ src+=`
   ok('tf2Shoot snaps the turret (cannonAng) to the shot',Math.abs(t.cannonAng-wantA)<1e-6);
   t.cannonAng=0;t.aimT=8;for(let i=0;i<60;i++)tankAimCannon(t,0,1/60);
   ok('AUTO-AIM: turret swings onto the foe (cannonAng→'+t.cannonAng.toFixed(2)+')',Math.abs(t.cannonAng-wantA)<1e-6);
-  t.aimT=0;t.h=0.7;t.cannonAng=2.0;tankAimCannon(t,0,1/60);
-  ok('no auto-aim: turret locks to the chassis heading',Math.abs(t.cannonAng-t.h)<1e-9);
+  {const _sv=m2.drive[0];m2.drive[0]={kind:'main',idx:3,name:'FS',c:'#fff'}; // non-arcade: no manual aim → turret rides the chassis
+   t.aimT=0;t.h=0.7;t.cannonAng=2.0;tankAimCannon(t,0,1/60);
+   ok('no aim + non-arcade drive: turret locks to the chassis heading',Math.abs(t.cannonAng-t.h)<1e-9);
+   m2.drive[0]=_sv;}
   {let dThrew=false;try{phase='p2tank';drawP2Tank();}catch(e){dThrew=true;console.log('   drawP2Tank err:',e.message);}ok('drawP2Tank renders the turret without throwing',!dThrew);}
+  // ── v5.1.73 ARCADE one-hand bonus: the right stick (gamepad) / mouse (keyboard) aims the turret ──
+  {const arcIdx=DRIVES.findIndex(d=>d.id==='arcade');t.aimT=0;t.ctl.bind=0;
+   m2.drive[0]={kind:'main',idx:arcIdx,name:'Arcade',c:'#40c4ff'};
+   playerBind[0]={type:'gp',gp:0};gpAxesAll[0]={lx:0,ly:0,rx:0,ry:1}; // right stick → +y (π/2)
+   ok('arcade+gp: turret aim reads the right stick',Math.abs(tankTurretAim(t,0)-Math.PI/2)<1e-9);
+   t.cannonAng=0;for(let i=0;i<80;i++)tankAimCannon(t,0,1/60);
+   ok('arcade+gp: turret swings to the stick angle',Math.abs(t.cannonAng-Math.PI/2)<1e-6);
+   t.x=600;t.y=300;tf2.bullets.length=0;t.explAmmo=0;t.reload=0;tf2Shoot(0);
+   {const bm=tf2.bullets[tf2.bullets.length-1];ok('arcade+gp: shot flies along the manual aim',Math.abs(Math.atan2(bm.vy,bm.vx)-Math.PI/2)<1e-6);}
+   gpAxesAll[0]={lx:0,ly:0,rx:0.1,ry:0};ok('arcade+gp: tiny stick deflection ignored (deadzone)',tankTurretAim(t,0)===null);
+   gpAxesAll[0]={lx:0,ly:0,rx:0,ry:1};t.aimT=8;t.x=600;t.y=300;const fT=tf2.tanks[1];fT.x=600;fT.y=120; // AUTO-AIM pickup overrides manual aim
+   tf2.bullets.length=0;t.explAmmo=0;t.reload=0;tf2Shoot(0);
+   {const bo=tf2.bullets[tf2.bullets.length-1];ok('AUTO-AIM pickup overrides arcade manual aim',Math.abs(Math.atan2(bo.vy,bo.vx)-Math.atan2(fT.y-t.y,fT.x-t.x))<1e-6);}
+   t.aimT=0;
+   playerBind[0]={type:'kb'};t.x=600;t.y=300;mouseX=FX+600;mouseY=FY+120; // keyboard arcade → aim from the tank toward the cursor (straight up = -π/2)
+   ok('arcade+kb: turret aims from the tank toward the mouse',Math.abs(tankTurretAim(t,0)+Math.PI/2)<1e-9);
+   m2.drive[0]={kind:'main',idx:3,name:'FS',c:'#fff'};playerBind[0]={type:'gp',gp:0};gpAxesAll[0]={lx:0,ly:0,rx:0,ry:1};
+   ok('non-arcade drive: NO manual turret aim (even with stick input)',tankTurretAim(t,0)===null);
+   m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};playerBind[0]={type:'kb'};gpAxesAll=[];mouseX=0;mouseY=0;}
   t.aimT=0;
 
   // ── EXPLOSION AoE damages a nearby foe, owner-immune ──
