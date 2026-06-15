@@ -127,12 +127,12 @@ src+=`
   // ── 12. settings: tankfight FORMAT lever swaps the lives/time row (Phase 3) ──
   m2.mode='tankfight';m2.set.tformat='lives';
   let tfrows=p2SettingsRows();
-  ok('LIVES format → 5 rows (format/lives/bestOf/map/drive-variety)',tfrows.length===5&&tfrows[0].k==='tformat'&&tfrows[1].k==='lives'&&tfrows[2].k==='bestOf'&&tfrows[3].k==='map'&&tfrows[4].k==='tdrv');
+  ok('LIVES format → 6 rows (team-format/format/lives/bestOf/map/drive-variety)',tfrows.length===6&&tfrows[0].k==='tfmt'&&tfrows[1].k==='tformat'&&tfrows[2].k==='lives'&&tfrows[3].k==='bestOf'&&tfrows[4].k==='map'&&tfrows[5].k==='tdrv');
   m2.set.tformat='timed';tfrows=p2SettingsRows();
-  ok('TIMED format → MATCH TIME row replaces LIVES',tfrows[1].k==='tTimeSec'&&tfrows.length===5);
+  ok('TIMED format → MATCH TIME row replaces LIVES',tfrows[2].k==='tTimeSec'&&tfrows.length===6);
   // settings overflow guard: every row sits above the START button
   {const sb=p2StartBtnRect();let okFit=true;for(let i=0;i<tfrows.length;i++){const rc=p2SetRowRect(i);if(rc.y+rc.h>sb.y)okFit=false;}
-   ok('all 5 tankfight rows fit above START',okFit);}
+   ok('all 6 tankfight rows fit above START',okFit);}
 
   // ── 13. TIMED is a deathmatch: infinite lives, respawn ignores lives ──
   startTank(0,1,1,'timed',90);
@@ -213,6 +213,7 @@ src+=`
    ok('tankSeatsFromClaim: BLUE = 2 enemy CPUs',seats[1].length===2&&seats[1].every(s=>s.type==='cpu'));}
 
   // ── v5.1.57: the 6-seat claim GRID drives the roster (3v3 humans + mixed CPU + uneven sides) ──
+  m2.set.tfmt='multi'; // v5.1.66: the grid claim is MULTI-only (1v1 routes to the legacy 2-card claim)
   {m2.mode='tankfight';tour=null;m2.tseats=[null,null,null,null,null,null];m2.tsel=0;
    tankGridClaimDev({type:'kb'});m2.tsel=1;tankGridSetCpu(1);                                   // RED: 1 human + 1 CPU
    m2.tsel=3;tankGridClaimDev({type:'gp',gp:0});m2.tsel=4;tankGridClaimDev({type:'gp',gp:1});   // BLUE: 2 humans
@@ -273,6 +274,19 @@ src+=`
    m2.set.tdrv='norepeat';m2.tseats=[{type:'cpu',dev:null,tier:1,drive:{kind:'main',idx:0,name:'A',c:'#fff'}},{type:'cpu',dev:null,tier:1,drive:{kind:'main',idx:1,name:'B',c:'#fff'}},null,{type:'cpu',dev:null,tier:1,drive:{kind:'main',idx:2,name:'C',c:'#fff'}},null,null];
    tankGridCycleDrive(0,1);ok('cycler skips a drive already used by another bot (norepeat)',!(m2.tseats[0].drive.kind==='main'&&[1,2].includes(m2.tseats[0].drive.idx)));
    m2.set.tdrv='open';m2.tseats=null;m2.tsel=0;}
+
+  // ── v5.1.66: TEAM FORMAT — 1v1 routes to the legacy 2-card claim; multi uses the 6-seat grid ──
+  {m2.mode='tankfight';tour=null;phase='p2claim';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridClaimDev({type:'kb'});m2.tsel=3;tankGridSetCpu(3);
+   m2.set.tfmt='1v1';
+   ok('TEAM FORMAT 1v1 → grid claim screen OFF (legacy 2-card)',tankGridMode()===false);
+   ok('TEAM FORMAT 1v1 → start ignores a stale grid (legacy roster)',tankGridActive()===false);
+   m2.set.tfmt='multi';
+   ok('TEAM FORMAT multi → grid claim screen ON',tankGridMode()===true);
+   ok('TEAM FORMAT multi → start uses the grid roster',tankGridActive()===true);
+   m2.set.tfmt='1v1';m2.tseats=null;m2.claim=[{type:'kb'},{type:'cpu',tier:1}];m2.set.tcpus=1;m2.set.tallies=0;m2.set.allyTier=1;
+   playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2Tank();
+   ok('TEAM FORMAT 1v1 → legacy claim builds exactly 2 tanks (1v1)',tf2.tanks.length===2&&tf2.tanks.filter(t=>t.side===0).length===1&&tf2.tanks.filter(t=>t.side===1).length===1);
+   m2.set.tfmt='1v1';m2.tseats=null;m2.tsel=0;}
 
   console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire + 3v3 allies): '+P+' pass, '+F+' fail ---');
 })();

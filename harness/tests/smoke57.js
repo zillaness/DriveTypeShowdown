@@ -7,7 +7,7 @@ src+=`
   ok('BATTLEBOTS is in M2_MODES',M2_MODES.some(m=>m.id==='battlebots'));
   ok('5 modes now lay out without overflow',(()=>{const last=p2ModeRect(M2_MODES.length-1);return last.x+last.w<=CW+1&&p2ModeRect(0).x>=0;})());
   m2.mode='battlebots';const bbrows=p2SettingsRows();
-  ok('battlebots settings = BEST OF + ARENA',bbrows.length===2&&bbrows[0].k==='bestOf'&&bbrows[1].k==='map');
+  ok('battlebots settings = TEAM FORMAT + BEST OF + ARENA',bbrows.length===3&&bbrows[0].k==='tfmt'&&bbrows[1].k==='bestOf'&&bbrows[2].k==='map');
 
   // ── 2. start a 1v1 battlebots match (human vs CPU) ──
   const startBB=(map,cpuTier)=>{applyLayout('land2p');phase='p2claim';tour=null;m2.mode='battlebots';
@@ -67,7 +67,7 @@ src+=`
   ok('drawBB() renders without throwing',!threw);
 
   // ── v5.1.64: BattleBots 3v3 via the 6-seat claim grid (rumble) ──
-  {m2.mode='battlebots';tour=null;m2.tseats=[null,null,null,null,null,null];m2.tsel=0;
+  {m2.mode='battlebots';tour=null;m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;
    tankGridClaimDev({type:'kb'});tankGridClaimDev({type:'gp',gp:0});tankGridClaimDev({type:'gp',gp:1}); // RED seats 0,1,2
    tankGridSetCpu(3);tankGridSetCpu(4);tankGridSetCpu(5);                                            // BLUE seats 3,4,5
    startP2BB();

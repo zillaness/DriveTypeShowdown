@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.65.html
-  version: 5.1.65
+  file: frc_drive_showdown_v5.1.66.html
+  version: 5.1.66
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -4181,7 +4181,7 @@ const TF2_RED_COLS =['#ff5555','#ff9f43','#ffd740','#ff6f91']; // red · orange 
 const TF2_BLUE_COLS=['#5599ff','#33ccdd','#9b7bff','#44ddaa']; // blue · cyan · violet · teal
 function teamShade(side,idx){const pal=side===0?TF2_RED_COLS:TF2_BLUE_COLS;return pal[idx%pal.length];}
 const TF2_CPU_COLS=TF2_BLUE_COLS; // back-compat alias
-const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,tdrv:'open',ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
+const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,tdrv:'open',tfmt:'1v1',ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];m2.tseats=null;m2.tsel=0;}
@@ -4548,7 +4548,8 @@ function p2ModeRect(i){const n=M2_MODES.length,g=20,mar=24,w=Math.min(280,(CW-2*
 // Settings rows per mode (spec v3.1 matrix). Each row: label + cycle of values.
 function p2SettingsRows(){
   const S=m2.set;
-  if(m2.mode==='tankfight')return[ // team composition (humans/CPUs per side) is set on the 6-seat CLAIM GRID, not here
+  if(m2.mode==='tankfight')return[ // team composition (humans/CPUs per side) is set on the 6-seat CLAIM GRID (MULTI only)
+    {k:'tfmt',   lab:'TEAM FORMAT',      vals:['1v1','multi'],    show:v=>v==='multi'?'MULTI — up to 3v3 (grid)':'1v1 — classic 2-card'}, // 1v1 = original 2-card claim; multi = the 6-seat grid
     {k:'tformat',lab:'FORMAT',           vals:['lives','timed'],  show:v=>v==='timed'?'TIMED — most kills wins':'LIVES — last standing'},
     S.tformat==='timed'
       ?{k:'tTimeSec',lab:'MATCH TIME',   vals:[60,90,120,180],    show:v=>v+'s'}
@@ -4558,6 +4559,7 @@ function p2SettingsRows(){
     {k:'tdrv',   lab:'DRIVE VARIETY',    vals:['open','norepeat','team','cat'], show:v=>({open:'OFF — any drive',norepeat:'NO REPEAT DRIVES',team:'NO REPEAT PER TEAM',cat:'ONE PER CATEGORY/TEAM'})[v]||'OFF'}, // enforced on the claim grid
   ];
   if(m2.mode==='battlebots')return[
+    {k:'tfmt',   lab:'TEAM FORMAT',      vals:['1v1','multi'],    show:v=>v==='multi'?'MULTI — up to 3v3 (grid)':'1v1 — classic 2-card'}, // 1v1 = original 2-card claim; multi = the 6-seat grid
     {k:'bestOf', lab:'BEST OF',          vals:[1,3,5],            show:v=>v===1?'OFF (1 round)':'BEST OF '+v},
     {k:'map',    lab:'ARENA',            vals:[0,1,2,3],          show:v=>(TF2_MAPS[v]||TF2_MAPS[0]).name},
   ];
@@ -4749,7 +4751,7 @@ function p2cTouchRect(pl){const cx=p2cCol(pl);return{x:cx-150,y:584,w:300,h:26};
 function p2cCpuRect(){return{x:120,y:CH-78,w:180,h:34};}
 function p2cSwapRect(){return{x:CW-300,y:CH-78,w:180,h:34};}
 // ═══ TANK 3v3 CLAIM GRID (v5.1.57) — 2 sides × up to 3 seats; each EMPTY / HUMAN(device) / CPU(+tier), per-seat drive. Replaces the 2-card claim for TANK FIGHT. ═══
-function tankGridMode(){return phase==='p2claim'&&(m2.mode==='tankfight'||m2.mode==='battlebots')&&!tour;} // the 6-seat grid is the claim screen for tank fight + battlebots
+function tankGridMode(){return phase==='p2claim'&&(m2.mode==='tankfight'||m2.mode==='battlebots')&&m2.set.tfmt==='multi'&&!tour;} // grid claim screen — TANK/BB in MULTI (up to 3v3); 1v1 + tournaments fall through to the legacy 2-card claim
 function tankGridInit(){if(!Array.isArray(m2.tseats)||m2.tseats.length!==6)m2.tseats=[null,null,null,null,null,null];if(typeof m2.tsel!=='number')m2.tsel=0;}
 function tankSeatSideOf(i){return i<3?0:1;}
 function tankGridDefDrive(){const d=DRIVES[3];return{kind:'main',idx:3,name:d.name,c:d.c};} // field-centric swerve
@@ -4777,7 +4779,7 @@ function tankGridCycleTier(i,dir){const s=m2.tseats[i];if(!s||s.type!=='cpu')ret
 function tankGridSideCount(side){let n=0;for(let i=side*3;i<side*3+3;i++)if(m2.tseats&&m2.tseats[i])n++;return n;}
 function tankGridSideDesc(side){let h=0,c=0;for(let i=side*3;i<side*3+3;i++){const s=m2.tseats&&m2.tseats[i];if(!s)continue;if(s.type==='cpu')c++;else h++;}if(!h&&!c)return'— empty —';return (h?h+' human'+(h>1?'s':''):'')+(h&&c?' + ':'')+(c?c+' CPU':'');}
 function tankGridCanStart(){return tankGridSideReady(0)>=1&&tankGridSideReady(1)>=1&&!tankGridUnassigned();}
-function tankGridActive(){return Array.isArray(m2.tseats)&&m2.tseats.some(Boolean);}
+function tankGridActive(){return m2.set.tfmt==='multi'&&!tour&&Array.isArray(m2.tseats)&&m2.tseats.some(Boolean);} // grid roster drives the match only in MULTI; 1v1/tournaments use the legacy claim roster
 function tankGridMoveSel(dx,dy){tankGridInit();let side=m2.tsel<3?0:1,slot=m2.tsel%3;if(dx)side=dx<0?0:1;slot=clamp(slot+dy,0,2);m2.tsel=side*3+slot;sfx('click');}
 function tankGridApply(){tankGridEnforceDrives();for(let i=0;i<6;i++){const s=m2.tseats[i];playerBind[i]=tankGridSeatReady(s)?(s.type==='cpu'?{type:'cpu',tier:s.tier|0}:s.dev):{type:'none'};m2.drive[i]=s?s.drive:(m2.drive[i]||null);m2.sens[i]=(s&&s.sens!=null)?s.sens:1;}} // seats → per-index bind/drive/sens arrays (the match reads m2.drive[bind]/playerBind[bind])
 function tankGridToSeats(){const seats=[[],[]];for(let i=0;i<6;i++){const s=m2.tseats[i];if(!tankGridSeatReady(s))continue;seats[tankSeatSideOf(i)].push({type:s.type,bind:i,tier:s.tier|0});}return seats;}
@@ -7244,6 +7246,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.66 (2026-06-15): TEAM FORMAT choice (TANK + BATTLEBOTS) — pick 1v1 vs MULTI before the claim. New MATCH SETTINGS row 'TEAM FORMAT' (m2.set.tfmt, default '1v1'): 1v1 routes to the original 2-card "SET UP YOUR ROBOTS/BOTS" claim (Sam prefers it for simple head-to-head); MULTI routes to the 6-seat grid (up to 3v3, uneven sides, mixed humans/CPUs, per-seat drive/sens). tankGridMode() AND tankGridActive() now both require tfmt==='multi' (single switch: the claim screen AND the match-start roster source agree; a stale grid never leaks into a 1v1 start, and tournaments always use the legacy claim). smoke55/56/57 row-count asserts +1; smoke56 +5 (TEAM FORMAT gating: 1v1 grid OFF/legacy start, multi grid ON/grid start, 1v1 builds exactly 2 tanks) → 108. Step 1 of the v5.2 goal: 3v3 for all modes except obstacle course + dual 1v1/grid setup for each. Full battery green. Single file, no assets.
   v5.1.65 (2026-06-15): TANK/BB GRID polish — names above bots, sens click-drag, drive-group cycling. (1) The in-match name above each bot now shows that bot's name (custom rename / PLAYER N / CPU) for humans too — drawP2Tag was falling back to RED/BLUE for human seats. (2) The per-player SENSITIVITY slider on the grid is now click-AND-drag (mouse), not just click-to-set. (3) Drive picking: ◀▶ cycles WITHIN the current group (classic/holo/steer); a clickable GROUP cycler (⟳ tab) + gamepad D-pad up/down switches category, so you don't scroll all 13; claimed-pad LB/RB adjusts that seat's sensitivity. smoke56 +1 (within-group cycle + group cycle reaches all categories) → 103. Full battery green. Single file, no assets.
   v5.1.64 (2026-06-15): BATTLEBOTS 3v3 — the 6-seat claim grid now drives BattleBots too (rumble). BattleBots was already structurally N-bot (bb2.bots[] array, all-pairs ram damage, last-side-standing KO, per-side HUD) — only its roster was hardcoded 1v1. Wired startP2BB to the shared grid (tankGridMode/tankGridStart include battlebots): up to 3 bots/side, mixed humans/CPUs, per-seat drive/sens/name, distinct warm/cool shades + HUD names, each CPU gets a brain. Grid title reads "SET UP YOUR BOTS" in battlebots. Legacy 1v1/vs-CPU claim kept for tournaments/tests. smoke57 +4 (grid 3v3 build, brains, distinct shades/names, runs-no-throw) → 29. Also added frcds_online_prd_v1.0.md (concept/plan for playing online — not built). Full battery green. Single file, no assets.
   v5.1.63 (2026-06-15): UI — de-"2 PLAYER" labels → "MULTIPLAYER". The main-menu entry, the mode-pick header, and the portrait-rotate hint now read MULTIPLAYER / Multiplayer instead of "2 PLAYER" / "2-player" — a side can now field up to 3 bots (mixed humans/CPUs), so it's no longer a strictly-two-player mode. User-facing strings only (internal p2*/m2/"2P" code names unchanged). Render-only. Full battery green. Single file, no assets.
