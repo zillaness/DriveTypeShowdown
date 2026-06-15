@@ -193,6 +193,25 @@ src+=`
   startTank(0,1,1,'lives',90,0);
   ok('tallies=0 → no allies (2 tanks)',tf2.tanks.length===2&&tf2.tanks.filter(t=>t.side===0).length===1);
 
+  // ── v5.1.56: seat model → roster (tankRosterFromSeats) — the spine for the 3v3 claim grid (uneven sides + mixed human/CPU per side) ──
+  {const r=tankRosterFromSeats([[{type:'human',bind:0}],[{type:'human',bind:1}]]);
+   ok('seats → 1v1 roster',r.length===2&&r[0].side===0&&r[0].type==='human'&&r[1].side===1&&r[1].type==='human');}
+  {const r=tankRosterFromSeats([[{type:'human',bind:0},{type:'cpu',bind:0,tier:2}],[{type:'human',bind:1},{type:'human',bind:2}]]);
+   ok('mixed: RED 1 human+1 CPU vs BLUE 2 humans (2v2)',r.length===4&&r.filter(x=>x.side===0).length===2&&r.filter(x=>x.side===1).length===2&&r.filter(x=>x.type==='human').length===3&&r.filter(x=>x.type==='cpu').length===1);}
+  {const r=tankRosterFromSeats([[{type:'human',bind:0}],[{type:'cpu',bind:1,tier:1},{type:'cpu',bind:1,tier:1},{type:'cpu',bind:1,tier:1}]]);
+   ok('uneven 1v3 (1 human vs 3 CPU)',r.filter(x=>x.side===0).length===1&&r.filter(x=>x.side===1).length===3);}
+  {const r=tankRosterFromSeats([[{type:'human',bind:0},{type:'human',bind:1},{type:'human',bind:2}],[{type:'cpu',bind:0,tier:3}]]);
+   ok('3v1 (3 humans vs 1 CPU), tier preserved',r.filter(x=>x.side===0).length===3&&r.filter(x=>x.side===1).length===1&&r.find(x=>x.side===1).tier===3);}
+  {const r=tankRosterFromSeats([[{type:'human',bind:0}],[]]);
+   ok('empty side auto-fills one safety CPU',r.filter(x=>x.side===1).length===1&&r.find(x=>x.side===1).type==='cpu');}
+  {const r=tankRosterFromSeats([[null,{type:'human',bind:0},null],[{type:'cpu',bind:1,tier:0}]]);
+   ok('null/empty seats are skipped',r.filter(x=>x.side===0).length===1&&r[0].type==='human');}
+  // tankSeatsFromClaim reproduces the legacy claim (1 human + 1 ally CPU vs 2 enemy CPUs)
+  {m2.claim=[{type:'kb'},{type:'cpu',tier:1}];m2.set.tcpus=2;m2.set.tallies=1;m2.set.allyTier=1;
+   const seats=tankSeatsFromClaim();
+   ok('tankSeatsFromClaim: RED = 1 human + 1 ally CPU',seats[0].length===2&&seats[0][0].type==='human'&&seats[0][1].type==='cpu');
+   ok('tankSeatsFromClaim: BLUE = 2 enemy CPUs',seats[1].length===2&&seats[1].every(s=>s.type==='cpu'));}
+
   console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire + 3v3 allies): '+P+' pass, '+F+' fail ---');
 })();
 `;

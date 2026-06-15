@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.55.html
-  version: 5.1.55
+  file: frc_drive_showdown_v5.1.56.html
+  version: 5.1.56
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -3108,29 +3108,39 @@ function cpuTankUpdate(dt){
     br.fire=los&&dist<560&&Math.abs(af)<0.09+T.aim*0.5&&br.obj!=='patrol';
   }
 }
+function tankSeatsFromClaim(){ // legacy claim + ENEMY/ALLY levers → per-side seat lists [RED[], BLUE[]] (side 0 = player(s)+allies, side 1 = enemies). The v5.1.57 grid sets m2.tseats directly instead.
+  const seats=[[],[]];
+  const cpuBind=(m2.claim[0]&&m2.claim[0].type==='cpu')?0:((m2.claim[1]&&m2.claim[1].type==='cpu')?1:-1);
+  const allies=clamp(m2.set.tallies|0,0,2);
+  const allyTier=clamp((m2.set.allyTier!=null?m2.set.allyTier:1)|0,0,(modeTiers().length-1));
+  const enemyTier=(cpuBind>=0&&m2.claim[cpuBind])?(m2.claim[cpuBind].tier|0):1;
+  if(cpuBind<0){ // human vs human (+ CPU teammates each)
+    seats[0].push({type:'human',bind:0});seats[1].push({type:'human',bind:1});
+    for(let k=0;k<allies;k++)seats[0].push({type:'cpu',bind:0,tier:allyTier});
+    for(let k=0;k<allies;k++)seats[1].push({type:'cpu',bind:1,tier:allyTier});
+  }else{
+    for(let b=0;b<2;b++)if(m2.claim[b]&&m2.claim[b].type!=='cpu')seats[0].push({type:'human',bind:b});
+    if(!seats[0].length)seats[0].push({type:'human',bind:1-cpuBind}); // safety: always one player tank
+    for(let k=0;k<allies;k++)seats[0].push({type:'cpu',bind:0,tier:allyTier});
+    const n=clamp(m2.set.tcpus|0,1,4);for(let k=0;k<n;k++)seats[1].push({type:'cpu',bind:cpuBind,tier:enemyTier});
+  }
+  return seats;
+}
+function tankRosterFromSeats(seats){ // per-side seat lists → flat roster [{side,bind,type,tier}]; skips empty seats; a side with no seats auto-fills one VETERAN CPU so the match is valid
+  const roster=[];
+  for(let side=0;side<2;side++){const row=(seats&&seats[side])||[];
+    for(let s=0;s<row.length;s++){const seat=row[s];if(!seat)continue;
+      roster.push({side:side,bind:seat.bind|0,type:(seat.type==='cpu'?'cpu':'human'),tier:seat.tier|0});}}
+  for(let side=0;side<2;side++)if(!roster.some(r=>r.side===side))roster.push({side:side,bind:0,type:'cpu',tier:1});
+  return roster;
+}
 function startP2Tank(){cheatedRun=false;paused=false;
   applyLayout('tank2p');
   if(typeof m2.set.map!=='number'||!TF2_MAPS[m2.set.map])m2.set.map=0;
   const mp=TF2_MAPS[m2.set.map];
   tfObs=mp.obs;phase='p2tank';
-  // ── roster build (v5.1.48: + ALLY TANKS / 3v3) ── two teams: side 0 = player(s) + CPU allies, side 1 = CPU enemies (or H2H rival).
-  //  • one CPU claim → 1+ humans (+ ALLY ×0–2 CPU teammates) vs ENEMY TANKS ×1–4 CPU tanks  (tallies=0,tcpus=1 → byte-identical 1v1)
-  //  • both human    → rivals, one each side, each may get ALLY CPU teammates (tallies=0 → legacy 1v1)
-  const cpuBind=(m2.claim[0]&&m2.claim[0].type==='cpu')?0:((m2.claim[1]&&m2.claim[1].type==='cpu')?1:-1);
-  const allies=clamp(m2.set.tallies|0,0,2);                    // CPU teammates per player side
-  const allyTier=clamp((m2.set.allyTier!=null?m2.set.allyTier:1)|0,0,(modeTiers().length-1)); // fill-CPU skill (default VETERAN)
-  const enemyTier=(cpuBind>=0&&m2.claim[cpuBind])?(m2.claim[cpuBind].tier|0):1;
-  const roster=[]; // {side, bind, type, tier}
-  if(cpuBind<0){ // human vs human (+ CPU teammates each)
-    roster.push({side:0,bind:0,type:'human',tier:0},{side:1,bind:1,type:'human',tier:0});
-    for(let k=0;k<allies;k++)roster.push({side:0,bind:0,type:'cpu',tier:allyTier}); // P1's teammates (inherit P1 drive)
-    for(let k=0;k<allies;k++)roster.push({side:1,bind:1,type:'cpu',tier:allyTier}); // P2's teammates (inherit P2 drive)
-  }else{
-    for(let b=0;b<2;b++)if(m2.claim[b]&&m2.claim[b].type!=='cpu')roster.push({side:0,bind:b,type:'human',tier:0});
-    if(!roster.length)roster.push({side:0,bind:1-cpuBind,type:'human',tier:0}); // safety: always one player tank
-    for(let k=0;k<allies;k++)roster.push({side:0,bind:0,type:'cpu',tier:allyTier}); // CPU teammates (inherit P1 drive)
-    const n=clamp(m2.set.tcpus|0,1,4);for(let k=0;k<n;k++)roster.push({side:1,bind:cpuBind,type:'cpu',tier:enemyTier});
-  }
+  // ── roster build (v5.1.56: routed through the seat model) ── tankSeatsFromClaim() reproduces the legacy ENEMY/ALLY-lever claim; the v5.1.57 grid will set seats directly.
+  const roster=tankRosterFromSeats(tankSeatsFromClaim()); // [{side, bind, type, tier}] per tank
   const nSide=[roster.filter(r=>r.side===0).length,roster.filter(r=>r.side===1).length];
   const ys=[tf2SpawnYs(nSide[0]),tf2SpawnYs(nSide[1])],yIdx=[0,0],seat=[0,0];
   const timed=(m2.set.tformat==='timed'); // TIMED = deathmatch: infinite lives, most kills in the time limit wins
@@ -7172,6 +7182,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.56 (2026-06-15): TANK 3v3 step 1 — seat model behind the roster (no behavior change yet). Refactored startP2Tank's roster build into two helpers: tankSeatsFromClaim() turns the current claim + ENEMY/ALLY-TANKS levers into per-side seat lists, and tankRosterFromSeats() turns per-side seat lists into the flat tank roster (skips empty seats; a side with none auto-fills one VETERAN CPU). This is the spine for the upcoming 6-seat claim grid: it already supports uneven sides and mixed human/CPU per side (1v3, 3v1, 2v2-with-a-CPU, etc.) — the only thing still gating that is the claim UI (next step). Behavior is identical today (the shim reproduces the legacy roster exactly; tank input/fire key off ctl.bind/side, not array order). smoke56 +8 (seat→roster for 1v1/mixed-2v2/1v3/3v1/empty-fill/null-skip + shim reproduces the legacy claim) → 77. Full battery green. Single file, no assets.
   v5.1.55 (2026-06-15): CAP CPU SPEED cheat — choose who the MAX SENSITIVITY boost applies to. The ball/shooter CPU couples its drive speed to the human opponent's sensitivity so it keeps pace at any setting — which meant cranking MAX SENSITIVITY also turbo-charged the CPU. New CAP CPU SPEED toggle: ON clamps the CPU's inherited sensitivity to the normal 2× ceiling so only YOU go super-fast; OFF (default) lets the CPU keep pace for everyone-is-fast chaos. (Tank/race/BattleBots CPUs never inherited the boost — they already stay at normal speed regardless of MAX SENSITIVITY.) Wired through a new cpuPaceSens(p) helper at the ball CPU pace site; TURN OFF ALL resets it. smoke54 +3 (chaos vs cap clamp, all-off resets it). Full battery green. Single file, no assets.
   v5.1.54 (2026-06-15): FIX — gamepad B on the PAUSE screen now RESUMES instead of quitting to the main menu. Pressing B while paused called pauseToMenu() (all the way back to the menu), an easy way to lose a match by accident; B is the universal back/cancel and the natural read is "close this overlay." B now just unpauses (same as Start); the MENU action is still available as an explicit item in the pause list (and on the endgame nav). Logic-only one-liner. Full battery green. Single file, no assets.
   v5.1.53 (2026-06-15): FIX — beating single-player with cheats on froze the game. On an SP course completion the done screen drew the saved best time, but a cheated run never saves a best (records are disabled), so best[k] was undefined and fmt(undefined) threw inside drawDone — and the rAF loop had no try/catch, so the thrown frame never re-armed requestAnimationFrame and the whole game locked up. (1) drawDone now falls back to THIS run's time (playT) when there's no saved best, and shows "⚠ cheats on — not recorded" instead of "Best time saved." (2) Hardened the main loop: update()/draw() run in a try/catch so a single bad frame can never hard-freeze the game again (it logs and re-arms rAF). smoke54 +1 (cheated SP completion: drawDone doesn't throw). Full battery green. Single file, no assets.
