@@ -1,26 +1,31 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: 2026-06-15, at **v5.1.51**.
+**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: 2026-06-15, at **v5.1.56**.
 
 ---
 
 ## 0. ⚠️ READ FIRST — author + branch + identity constraints (non-negotiable)
 - **Commit author MUST be `Sam Cao <samuele.cao@gmail.com>`.** Use `git -c user.name="Sam Cao" -c user.email="samuele.cao@gmail.com" commit …`.
-- **Develop + push to `claude/eager-sagan-5wehy1` ONLY.** This is where ALL the real work lives (v5.1.37 → v5.1.51, 25+ commits). `git push -u origin <localbranch>:claude/eager-sagan-5wehy1`.
+- **Develop + push to `claude/eager-sagan-5wehy1` ONLY.** This is where ALL the real work lives (v5.1.37 → v5.1.56, 30+ commits). `git push -u origin <localbranch>:claude/eager-sagan-5wehy1`.
 - **⚠️ STALE-BRANCH TRAP:** a fresh session may be spun up pointed at a *different* branch name (e.g. `claude/dreamy-johnson-ybnqwi`). That branch is a **stale, diverged dead-end** (tip = a lone v5.1.36 commit; it forked at the `MIGRATION.md` commit and was superseded). It **cannot be fast-forwarded** to the current work. Do NOT push the work there (would need a destructive force-overwrite). If a session directive names anything other than `eager-sagan-5wehy1`, **confirm with Sam** — he confirmed (2026-06-15) the canonical branch is `eager-sagan-5wehy1`. Each thread migration tends to mint a new branch name; always reconcile back to eager-sagan.
 - **NEVER put the model id (or any "I am running on model X") string in a committed artifact** — not in commits, code, comments, changelog, PRs. Chat only.
 - **Do NOT open a PR unless Sam explicitly asks.**
 
 ## 1. Project basics
 - **Single-file HTML5 canvas game.** Everything lives in one `frc_drive_showdown_vX.Y.Z.html` (game code + inline `<script>` + changelog comment block near the end). No external assets.
-- **Current build:** `frc_drive_showdown_v5.1.51.html` (also a legacy `frc_drive_showdown_v5.0.1.html` is in the tree; ignore it).
+- **Current build:** `frc_drive_showdown_v5.1.56.html` (also a legacy `frc_drive_showdown_v5.0.1.html` is in the tree; ignore it).
 - **Branch:** `claude/eager-sagan-5wehy1` — see §0.
 - **Repo scope:** `zillaness/driveshowdown` (GitHub via `mcp__github__*` tools only; no `gh` CLI). Everything committed + pushed; battery ALL GREEN.
 - **Who:** Sam Cao, FRC Team 2204 Rambots. He playtests on desktop + phone, often steps away and asks for autonomous build sessions ("go as far as you can, pivot/table if blocked"). He likes terse status, real test results, and concrete shippable increments.
 - **Modes:** 2P H2H — NORMAL ball, SHOOTER, TANK FIGHT, **BATTLEBOTS** (new, P1), OBSTACLE RACE — plus single-player drive practice. Claimable CPU opponent, 4 skill tiers (ROOKIE/VETERAN/WINNER/CHAMPION).
 
 ## 1b. Recent version history (newest first — what shipped lately)
+- **v5.1.56** — Tank 3v3 step 1: seat model behind the roster (`tankSeatsFromClaim`/`tankRosterFromSeats` near `startP2Tank`), behavior-preserving; already supports uneven sides + mixed human/CPU per side. smoke56 → 77.
+- **v5.1.55** — CAP CPU SPEED cheat (`capCpuSpeed`, helper `cpuPaceSens(p)`): scopes the MAX SENSITIVITY boost — ON caps the ball/shooter CPU at 2× (only you go fast), OFF = chaos (CPU keeps pace). Tank/race/BB CPUs never inherited it. smoke54 → 63.
+- **v5.1.54** — Pause gamepad **B = resume** (was quit-to-menu); MENU still a pause-list item.
+- **v5.1.53** — FIX: beating SP **with cheats on froze the game** — `drawDone` read `best[k]`=undefined (cheated runs aren't saved) → `fmt(undefined)` threw → the rAF loop (no try/catch) never re-armed. Fix: drawDone falls back to `playT` + shows "⚠ cheats on — not recorded"; the main `loop()` now wraps `update()/draw()` in try/catch so no single bad frame can hard-freeze again.
+- **v5.1.52** — Cheat menu: ✕ EXIT (top-right) + ⟲ TURN OFF ALL (top-left, `cheatsAllOff()`) buttons (rects `drawKonami._exit`/`_alloff`); merged ICE SKATING toggle + ICE SLIP slider into ONE `ICE SKATING` slider (1.0×=OFF, `iceMode` derived = slip>1); toggles in the LEFT column, sliders in the RIGHT (drawKonami uses `nTog` split). smoke54 → 63.
 - **v5.1.51** — Mode-picker description word-wrap (fixed BattleBots desc spilling past its card now that the picker has 5 modes). Render-only.
 - **v5.1.50** — BattleBots RAM/DASH (LT/Shift burst, scaled by RAM COOLDOWN cheat; human-only; blocked when immobilized). Completes BattleBots **P1**.
 - **v5.1.49** — NEW MODE **BATTLEBOTS** (P1): `battlebots`/phase `p2bb`/`bb2`, two bars (MOBILITY+HP), directional armor, ram-by-impact, mobility→speed, KO last-standing, basic CPU, HUD. Mode picker made N-mode dynamic.
@@ -34,7 +39,11 @@ Self-contained context for continuing this project in a fresh thread.
 ## 1c. Where things stand / likely next (ask Sam to confirm priority)
 The current queue (§5) is mostly DONE. The two remaining BIG items both hinge on **claim-screen UI that can't be verified headless** (the smoke harness uses a no-op canvas) — so build them live and `SendUserFile` the build for Sam to eyeball:
 1. **BattleBots P2 — weapons/loadouts** (SPINNER/PISTON/FLAMETHROWER/WEDGE + RAM): needs a WEAPON picker on the claim card. PRD §A.
-2. **Tank 3v3 phase 2 — true multi-human**: a TEAM SIZE lever (1v1/2v2/3v3) + per-seat type, **≥3 human device binds** (currently capped at 2, so "1 human + 1 fill-CPU vs 2 humans" isn't possible yet), short-side auto-fill with H2H *main* CPUs, and a **6-seat claim grid** (Sam: claiming/reassigning devices has always been fiddly — he explicitly wants it *visualized*: per-seat side×seat grid, press-to-claim/release, live feedback). Queue #10 phase 2.
+2. **Tank 3v3 phase 2 — claim grid** *(step 1 DONE v5.1.56: seat model `tankSeatsFromClaim()`/`tankRosterFromSeats()` near `startP2Tank` — behavior-preserving; already supports uneven sides + mixed human/CPU)*. Remaining = the **6-seat claim grid UI** (TANK FIGHT first), which **replaces the ENEMY/ALLY TANKS settings rows**. **CONFIRMED model (Sam, 2026-06-15):**
+   - 2 sides × up to **3 seats** each; every cell EMPTY / HUMAN(device) / CPU(+tier). Each side **independently 1–3 bots** → 1v1/2v2/3v3 AND uneven **1v3 / 3v1 / 2v3** (cap **3/side**, ≥1/side to start); any human/CPU mix per side. No separate TEAM SIZE lever — the grid IS the size control; "short-side fill" is explicit (add a CPU seat, or leave it lopsided).
+   - **Claim flow (Sam's words):** choose a seat (which team) → **right after, pick that seat's DRIVE TYPE** → move to the next seat. So **DRIVE IS PER-SEAT**, not per-bind. Cleanest impl: extend `playerBind`/`m2.drive`/`m2.sens`/`m2.name` from length-2 to **up to 6** (one per seat) so the existing per-bind drive/render path (`withTank`→`withBot`→`m2.drive[bind]`) is reused; each seat = a bind index 0–5 + a side. Needs **≥3 human device binds** (currently capped at 2 in `p2ClaimDevice`).
+   - **Future drive-diversity rules to enable** (build so these can layer on): (a) no repeated drives at all, (b) no repeats within a team, (c) each seat a drive from a different CATEGORY (classic/holonomic/steer).
+   - UI not headless-verifiable (no-op canvas) → build live + `SendUserFile`; Sam iterates. Queue #10 phase 2.
 - **Tabled by Sam:** "Shooting" cheat in NORMAL ball (queue #3, mechanic TBD).
 - Sam tends to drop notes/queue items mid-session; capture them here. He values: terse status, real battery output, small shippable increments, and a `SendUserFile` of the build for playtesting now and then.
 
