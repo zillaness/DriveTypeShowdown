@@ -83,8 +83,13 @@ src+=`
    tf2.bullets.length=0;t.explAmmo=0;t.reload=0;tf2Shoot(0);
    {const bo=tf2.bullets[tf2.bullets.length-1];ok('AUTO-AIM pickup overrides arcade manual aim',Math.abs(Math.atan2(bo.vy,bo.vx)-Math.atan2(fT.y-t.y,fT.x-t.x))<1e-6);}
    t.aimT=0;
-   playerBind[0]={type:'kb'};t.x=600;t.y=300;mouseX=FX+600;mouseY=FY+120; // keyboard arcade → aim from the tank toward the cursor (straight up = -π/2)
-   ok('arcade+kb: turret aims from the tank toward the mouse',Math.abs(tankTurretAim(t,0)+Math.PI/2)<1e-9);
+   {const _mv=mouseAim;mouseAim=true;playerBind[0]={type:'kb'};t.x=600;t.y=300;mouseX=FX+600;mouseY=FY+120; // keyboard arcade + Mouse-Aim ON → aim from the tank toward the cursor (straight up = -π/2)
+    ok('arcade+kb (Mouse-Aim ON): turret aims from the tank toward the mouse',Math.abs(tankTurretAim(t,0)+Math.PI/2)<1e-9);
+    mouseAim=false;ok('arcade+kb (Mouse-Aim OFF): no mouse turret aim',tankTurretAim(t,0)===null);
+    // arcade redirects Mouse-Aim from the CHASSIS to the turret: mouseAimVr is suppressed while the turret handles aim
+    mouseAim=true;steerMode=false;tankAimLockStick=true;
+    ok('arcade tank suppresses chassis Mouse-Aim (mouseAimVr→null)',mouseAimVr({type:'kb'})===null);
+    tankAimLockStick=false;mouseAim=_mv;}
    m2.drive[0]={kind:'main',idx:3,name:'FS',c:'#fff'};playerBind[0]={type:'gp',gp:0};gpAxesAll[0]={lx:0,ly:0,rx:0,ry:1};
    ok('non-arcade drive: NO manual turret aim (even with stick input)',tankTurretAim(t,0)===null);
    m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};playerBind[0]={type:'kb'};gpAxesAll=[];mouseX=0;mouseY=0;}
