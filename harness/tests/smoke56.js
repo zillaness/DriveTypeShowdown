@@ -239,9 +239,11 @@ src+=`
    m2.tseats=null;m2.tsel=0;}
   {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridClaimDev({type:'kb'});m2.tsel=3;tankGridSetCpu(3); // render path doesn't throw (no-op canvas catches undefined access)
    let drew=true;try{drawTankGrid();}catch(e){drew=false;}ok('drawTankGrid renders without throwing',drew);m2.tseats=null;m2.tsel=0;}
-  {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridClaimDev({type:'kb'}); // v5.1.58: ◀▶ reaches every drive category, not just classic
-   const kinds=new Set();for(let k=0;k<13;k++){tankGridCycleDrive(0,1);kinds.add(m2.tseats[0].drive.kind);}
-   ok('grid drive cycler reaches all 3 categories (classic/holo/steer)',kinds.has('main')&&kinds.has('holo')&&kinds.has('steer'));m2.tseats=null;m2.tsel=0;}
+  {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridClaimDev({type:'kb'}); // v5.1.65: ◀▶ cycles WITHIN a group; the group cycle switches category
+   const startKind=m2.tseats[0].drive.kind;for(let k=0;k<13;k++)tankGridCycleDrive(0,1);
+   ok('◀▶ drive cycler stays within the current group',m2.tseats[0].drive.kind===startKind);
+   const kinds=new Set();for(let k=0;k<3;k++){tankGridCycleGroup(0,1);kinds.add(m2.tseats[0].drive.kind);}
+   ok('group cycle reaches all 3 categories (classic/holo/steer)',kinds.has('main')&&kinds.has('holo')&&kinds.has('steer'));m2.tseats=null;m2.tsel=0;}
   {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0; // v5.1.60: + PLAYER → unassigned seat; the device you press is what shows; renameable
    tankGridAddPlayer(0);
    ok('+ PLAYER makes a deviceless human seat named PLAYER 1',m2.tseats[0]&&m2.tseats[0].type==='human'&&!m2.tseats[0].dev&&m2.tseats[0].name==='PLAYER 1');
