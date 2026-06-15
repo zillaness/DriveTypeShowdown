@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.79.html
-  version: 5.1.79
+  file: frc_drive_showdown_v5.1.80.html
+  version: 5.1.80
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -3779,6 +3779,12 @@ function bbLoadoutForBind(bind){ // MULTI grid seat loadout, else 1v1 claim load
 function bbSeatLoadout(i){if(!m2.tseats||!m2.tseats[i])return {weapon:'none',armor:'balanced'};if(!m2.tseats[i].loadout)m2.tseats[i].loadout={weapon:'none',armor:'balanced'};return m2.tseats[i].loadout;}
 function bbCycleField(ld,field,dir){const list=field==='weapon'?BB_WEAPONS:BB_ARMOR,ids=list.map(x=>x.id),cur=Math.max(0,ids.indexOf(ld[field])),n=ids.length;ld[field]=ids[((cur+dir)%n+n)%n];sfx('click');}
 function bbStatBars(ld){const r=bbResolveLoadout(ld);return{speed:clamp((r.speedMul-0.45)/0.55,0,1),mob:clamp((r.mobMax/BB.MOB-1)/0.5,0,1),dmg:clamp((r.deal-0.6)/1.0,0,1),tough:clamp((1.4-r.take)/0.9,0,1)};} // 0..1 readout bars: SPEED / MOBILITY / DAMAGE / TOUGHNESS
+function bbCpuPickLoadout(tier){ // P2.6: a CPU with no chosen loadout arms itself (higher tiers pick armor with intent)
+  const ws=['spinner','piston','flame','wedge'],w=ws[Math.floor(Math.random()*ws.length)];let a;
+  if((tier|0)>=2)a=(w==='spinner'||w==='wedge')?'hardplate':(w==='flame')?'heatshield':'balanced';
+  else{const as=['hardplate','heatshield','light','balanced'];a=as[Math.floor(Math.random()*as.length)];}
+  return {weapon:w,armor:a};
+}
 function bbSeatLoadRects(c){const y=c.y+122;return{wL:{x:c.x+138,y:y,w:20,h:20},wR:{x:c.x+250,y:y,w:20,h:20},aL:{x:c.x+330,y:y,w:20,h:20},aR:{x:c.x+474,y:y,w:20,h:20}};}
 function bbDrawSeatLoadout(i,c){const s=m2.tseats&&m2.tseats[i];if(!s)return;const ld=bbSeatLoadout(i),w=bbWeaponById(ld.weapon),a=bbArmorById(ld.armor),lr=bbSeatLoadRects(c);
   ctx.textAlign='left';ctx.font='12px Courier New';ctx.fillStyle='#d9c08a';ctx.fillText('⚔',c.x+116,lr.wL.y+15);ctx.fillStyle='#8fbfd9';ctx.fillText('🛡',c.x+300,lr.aL.y+15);
@@ -3850,7 +3856,7 @@ function startP2BB(){cheatedRun=false;paused=false;
       if(r.type==='cpu'){ctl.tier=r.tier;ctl.name='CPU'+(nSide[r.side]>1?' '+(si+1):'');}
       if(gridOn){const _gs=m2.tseats[r.bind];ctl.name=(r.type==='cpu')?((r.side===0?'RED':'BLUE')+' '+(si+1)):((_gs&&_gs.name)||('PLAYER '+(si+1)));} // grid: player name / CPU side+slot
       ctl.brain=(r.type==='cpu')?{inp:{vx:0,vy:0,vr:0}}:null;
-      const ld=bbResolveLoadout(bbLoadoutForBind(r.bind)); // P2.1: weight-based loadout stats (neutral until a loadout is picked — no UI yet)
+      const _ldSrc=bbLoadoutForBind(r.bind);const ld=bbResolveLoadout((r.type==='cpu'&&!_ldSrc)?bbCpuPickLoadout(r.tier|0):_ldSrc); // P2.1 loadout stats; P2.6: a CPU with no chosen loadout auto-arms (tier-scaled)
       return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:BB.HP,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
   cpuH2H=null;
 }
@@ -3870,6 +3876,15 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
     br.inp.vx=mx*SPD*T.spd;br.inp.vy=my*SPD*T.spd;
     let dh=Math.atan2(foe.y-me.y,foe.x-me.x)-me.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
     br.inp.vr=clamp(dh*6,-TSP*T.turn,TSP*T.turn); // face the foe so our front armor takes the trades
+    // P2.6: fire the weapon when it makes sense (tier-scaled reliability)
+    const wp=me.ld?me.ld.weapon:'none';br.fire=false;
+    if(wp!=='none'){const dist=bd;let fang=Math.atan2(foe.y-me.y,foe.x-me.x)-me.h;while(fang>Math.PI)fang-=2*Math.PI;while(fang<-Math.PI)fang+=2*Math.PI;
+      const aimed=Math.abs(fang)<0.5,acc=clamp(0.45+0.55*(0.35-(T.aim||0))/0.35,0.3,1);
+      if(wp==='spinner')br.fire=dist<RR*5;                                                       // keep the disc spun up while a foe is near
+      else if(wp==='piston')br.fire=aimed&&dist<RR+RR*BB_W.pistRangeK+10&&Math.random()<acc;     // hammer when lined up + in reach
+      else if(wp==='flame')br.fire=aimed&&dist<RR+RR*BB_W.flameRangeK&&Math.random()<acc;        // torch when the foe is in the cone
+      else if(wp==='wedge')br.fire=aimed&&dist<RR*2.6;                                            // pin on contact
+    }
   }
 }
 // ── BattleBots P2.2: weapon FIRE behavior (SPINNER / PISTON / FLAMETHROWER / WEDGE; RAM is always-on) — all TUNABLE ──
@@ -7518,6 +7533,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.80 (2026-06-15): BATTLEBOTS WEAPONS P2.6 — CPU auto-arms + uses its weapon (COMPLETES P2.1–P2.6). A CPU BattleBot with no explicitly-chosen loadout now picks one at spawn (bbCpuPickLoadout — higher tiers armor with intent: spinner/wedge→hardplate, flame→heatshield), so a CPU opponent fights with a weapon instead of RAM-only; a user-set loadout (grid picker) is always respected. The brain (bbCpuUpdate) sets brain.fire per weapon, tier-scaled: SPINNER keeps spun up near a foe, PISTON/FLAME fire when the foe is in the front arc + range (reliability scales with tier), WEDGE pins on contact — and holds fire when the foe is behind it. Human bots stay neutral (RAM-only) unless you load them out. smoke57 +7 → 102. Full battery green. Single file, no assets.
   v5.1.79 (2026-06-15): BATTLEBOTS WEAPONS P2.5 — the LOADOUT PICKER (weapons are now EQUIPPABLE). Each BattleBots grid seat (MULTI, 1v1→3v3) has ⚔ WEAPON ◀▶ and 🛡 ARMOR ◀▶ tap-cyclers (bbDrawSeatLoadout/bbSeatLoadRects wired into drawTankGrid + tankGridClick); the choice stores on m2.tseats[i].loadout and ROUND-TRIPS to the spawned bot through the P2.1 bbLoadoutForBind path. New bbSeatLoadout/bbCycleField + a testable bbStatBars (SPEED/MOBILITY/DAMAGE/TOUGHNESS, 0..1). In-match each bot renders its weapon (P2.2 cosmetics) + dead-wheel marks. smoke57 +12. (The legacy 2-card 1v1 BB still defaults RAM-only — use MULTI for loadouts; drag-and-drop + per-seat stat bars are polish TODO.) Full battery green. Single file, no assets.
   v5.1.78 (2026-06-15): BATTLEBOTS WEAPONS P2.4 — per-wheel health → handling faults. Each bot has 4 CORNER wheels (FL/FR/RL/RR); a SIDE hit chews the wheel nearest the contact (bbWheelDamage routes by contact angle → nearest live corner), in PARALLEL with the mobility-bar drain (the P1 mob path stays byte-identical). A dead corner adds a PERSISTENT handling fault via wheelFault + bbDriveFamily: tank/arcade/steer get a constant turn-bias toward the dead side; swerve/holo get a strafe DRIFT toward it (+ a slight slow). Applied in updateBB's drive resolution; dead wheels show a red ✕ (bbDrawWheels). No dead wheels → no fault, so default combat is unchanged until you flank a corner off. (Deviation from the PRD: the mobility bar stays the speed pool, wheels are a parallel fault layer — richer "doesn't just slow you, changes how you drive.") smoke57 +9. Full battery green. Single file, no assets.
   v5.1.77 (2026-06-15): BATTLEBOTS WEAPONS P2.3 — flame BLOW-UP + mutual-destruction DRAW + death FX. The FLAMETHROWER's burn meter (RPS-scaled — hardplate ignites fast, heatshield resists; armor can't stop the heat) DETONATES a bot at the blowUp threshold even with HP left; it cools when you stop flaming (must SUSTAIN). Every KO (HP=0 or blow-up) spawns an explosion blast + scattered chassis debris (bbKill/bbDeathFx) and triggers a MUTUAL-DESTRUCTION chain: any near-dead bot (hp≤blastLethalHp) within the blast is also KO'd (recursive). bbCheckResult gains a DRAW state (nobody left) → "DRAW — DOUBLE KO"; a draw reports no winner (void round). bbFxTick animates blasts/debris even after the match ends. Default loadout never flames → BattleBots P1 byte-identical (the s.size===0 path was dead in P1). smoke57 +10 → 73. Full battery green. Single file, no assets.

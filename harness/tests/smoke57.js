@@ -17,7 +17,7 @@ src+=`
     playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2BB();updateBB(3.1);}; // grid claim is the v5.1.64 path; tests drive the legacy 1v1 roster directly
   startBB(0,2);
   ok('match starts: 2 bots, phase p2bb',phase==='p2bb'&&!!bb2&&bb2.bots.length===2);
-  ok('bots have MOBILITY + HP bars full',bb2.bots.every(b=>b.mob===BB.MOB&&b.hp===BB.HP));
+  ok('bots have MOBILITY + HP bars full (at their own mobMax)',bb2.bots.every(b=>b.mob===(b.ld?b.ld.mobMax:BB.MOB)&&b.hp===BB.HP));
   ok('sides 0/1, player human + CPU enemy',bb2.bots[0].side===0&&bb2.bots[1].side===1&&bb2.bots[0].ctl.type==='human'&&bb2.bots[1].ctl.type==='cpu');
   ok('CPU bot has a brain',!!bb2.bots[1].ctl.brain);
   ok('warm/cool seat shades',bb2.bots[0].col===M2_COLS[0]&&bb2.bots[1].col===M2_COLS[1]);
@@ -111,7 +111,7 @@ src+=`
    bb2.bots=[a2,v2];v2.inv=0;v2.hp=BB.HP;bbApplyHit(v2,'rear',30,0);
    ok('default loadout → RAW damage (P1 unchanged)',v2.hp===BB.HP-30);}
   startBB(0,2);
-  ok('spawned bots carry a neutral loadout (mob=MOB, ld present)',bb2.bots.every(b=>!!b.ld&&b.mob===BB.MOB&&b.ld.weapon==='none'&&b.ld.armor==='balanced'));
+  ok('spawned HUMAN bot stays neutral; CPUs auto-arm (P2.6)',(()=>{const h=bb2.bots.find(b=>b.ctl.type!=='cpu'),c=bb2.bots.find(b=>b.ctl.type==='cpu');return !!h&&h.ld.weapon==='none'&&h.ld.armor==='balanced'&&h.mob===BB.MOB&&!!c&&!!c.ld;})());
   // ── v5.1.76 P2.2: weapon FIRE behavior (SPINNER / PISTON / FLAMETHROWER / WEDGE) ──
   const bbBotWith=(weapon,armor,side,bind,cpu)=>{const ld=bbResolveLoadout({weapon:weapon,armor:armor});
     return {x:0,y:0,h:0,side:side|0,col:'#fff',mob:ld.mobMax,hp:BB.HP,inv:0,dead:false,dmgDealt:0,boostT:0,boostCd:0,
@@ -216,6 +216,24 @@ src+=`
    const lr=bbSeatLoadRects(tankCellRect(0));const before=m2.tseats[0].loadout.weapon;tankGridClick(lr.wR.x+10,lr.wR.y+10);
    ok('clicking the seat weapon ▶ cycles its loadout',m2.tseats[0].loadout.weapon!==before);
    m2.tseats=null;}
+  // ── v5.1.80 P2.6: CPU auto-arms + uses its weapon (tier-scaled) ──
+  {const lo=bbCpuPickLoadout(3);ok('bbCpuPickLoadout returns a valid weapon+armor (armed)',BB_WEAPONS.some(w=>w.id===lo.weapon)&&BB_ARMOR.some(a=>a.id===lo.armor)&&lo.weapon!=='none');}
+  {m2.mode='battlebots';m2.set.tfmt='1v1';m2.tseats=null;tour=null;m2.claim=[{type:'kb'},{type:'cpu',tier:3}];playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];
+   m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};startP2BB();
+   const cpu=bb2.bots.find(b=>b.ctl.type==='cpu'),hum=bb2.bots.find(b=>b.ctl.type!=='cpu');
+   ok('P2.6: a CPU with no chosen loadout AUTO-ARMS (weapon ≠ none)',!!cpu&&cpu.ld.weapon!=='none');
+   ok('P2.6: the human bot stays neutral (RAM only)',!!hum&&hum.ld.weapon==='none');}
+  {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tour=null;tankGridSetCpu(0);tankGridSetCpu(3);
+   m2.tseats[0].loadout={weapon:'wedge',armor:'light'};startP2BB();const seat0=bb2.bots.find(b=>b.ctl.bind===0);
+   ok('P2.6: a USER-set CPU loadout is RESPECTED (not auto-overridden)',!!seat0&&seat0.ld.weapon==='wedge'&&seat0.ld.armor==='light');m2.tseats=null;}
+  {const me=bbBotWith('spinner','balanced',0,0,true);me.x=300;me.y=300;me.h=0;
+   const foe=bbBotWith('none','balanced',1,1,true);foe.x=300+RR*3;foe.y=300;bb2.bots=[me,foe];bb2.result=null;
+   bbCpuUpdate(1/60);ok('CPU SPINNER spins up (brain.fire) when a foe is near',me.ctl.brain.fire===true);
+   foe.x=300+RR*30;bbCpuUpdate(1/60);ok('CPU SPINNER stops firing when no foe is near',me.ctl.brain.fire===false);}
+  {const me=bbBotWith('flame','balanced',0,0,true);me.x=300;me.y=300;me.h=0;
+   const foe=bbBotWith('none','balanced',1,1,true);foe.x=300+RR*1.6;foe.y=300;bb2.bots=[me,foe];bb2.result=null;
+   let lit=0;for(let i=0;i<40;i++){bbCpuUpdate(1/60);if(me.ctl.brain.fire)lit++;}ok('CPU FLAMETHROWER torches a foe in its cone',lit>0);
+   const behind=bbBotWith('none','balanced',1,2,true);behind.x=300-RR*1.6;behind.y=300;bb2.bots=[me,behind];let lit2=0;for(let i=0;i<20;i++){bbCpuUpdate(1/60);if(me.ctl.brain.fire)lit2++;}ok('CPU FLAMETHROWER holds fire when the foe is BEHIND it',lit2===0);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
