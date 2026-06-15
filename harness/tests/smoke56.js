@@ -242,6 +242,17 @@ src+=`
   {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridClaimDev({type:'kb'}); // v5.1.58: ◀▶ reaches every drive category, not just classic
    const kinds=new Set();for(let k=0;k<13;k++){tankGridCycleDrive(0,1);kinds.add(m2.tseats[0].drive.kind);}
    ok('grid drive cycler reaches all 3 categories (classic/holo/steer)',kinds.has('main')&&kinds.has('holo')&&kinds.has('steer'));m2.tseats=null;m2.tsel=0;}
+  {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0; // v5.1.60: + PLAYER → unassigned seat; the device you press is what shows; renameable
+   tankGridAddPlayer(0);
+   ok('+ PLAYER makes a deviceless human seat named PLAYER 1',m2.tseats[0]&&m2.tseats[0].type==='human'&&!m2.tseats[0].dev&&m2.tseats[0].name==='PLAYER 1');
+   ok('an unassigned player blocks START',tankGridCanStart()===false&&tankGridUnassigned()===true);
+   m2.tsel=0;tankGridClaimDev({type:'kb'});
+   ok('pressing the keyboard assigns it (shows KEYBOARD, not touch)',m2.tseats[0].dev&&m2.tseats[0].dev.type==='kb'&&tankGridDevLabel(m2.tseats[0].dev)==='⌨ KEYBOARD');
+   m2.tseats[0].name='BOB';m2.tsel=3;tankGridSetCpu(3);
+   ok('now startable; rename carries into the in-match HUD',tankGridCanStart()===true);
+   startP2Tank();
+   ok('renamed player shows as BOB in the HUD label',tf2.tanks.some((t,i)=>tankLabel(i)==='BOB'));
+   m2.tseats=null;m2.tsel=0;}
 
   console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire + 3v3 allies): '+P+' pass, '+F+' fail ---');
 })();
