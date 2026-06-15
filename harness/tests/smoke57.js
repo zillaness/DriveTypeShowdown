@@ -170,6 +170,27 @@ src+=`
   {startBB(0,2);bb2.blasts=[{x:300,y:300,t:0.3,r:RR*3}];bb2.deb=[{x:300,y:300,vx:50,vy:-30,r:1,vr:5,t:0.4,sz:4,col:'#f55'}];bb2.result='draw';bb2.cd=0;
    let dThrew=false;try{drawBB();}catch(e){dThrew=true;console.log('   draw/blast err:',e.message);}
    ok('drawBB renders blasts + debris + the DRAW overlay without throwing',!dThrew);}
+  // ── v5.1.78 P2.4: per-wheel health → handling faults ──
+  const wheels4=()=>[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false}));
+  {const v=bbBotWith('none','balanced',0,0,true);v.x=300;v.y=300;v.h=0;v.wheels=wheels4();bb2.bots=[v];bb2.result=null;
+   for(let i=0;i<6;i++){v.inv=0;v.mob=BB.MOB;v.hp=BB.HP;bbApplyHit(v,'side',20,null,300,360);} // repeated hits from the RIGHT (fromY>vy)
+   ok('per-wheel: a focused SIDE attack kills corner wheel(s)',v.wheels.some(w=>w.dead));
+   ok('dead corners are on the struck (right) side',v.wheels[1].dead||v.wheels[3].dead);
+   ok('a dead wheel produces a handling fault',!!wheelFault(v));}
+  ok('mob still drains normally with wheels present (P1 path intact)',(()=>{const v=bbBotWith('none','balanced',1,1,true);v.wheels=wheels4();v.mob=BB.MOB;v.hp=BB.HP;v.inv=0;bb2.bots=[v];bbApplyHit(v,'side',40,null);return v.mob===BB.MOB-40;})());
+  {const t=bbBotWith('none','balanced',0,0,true);t.wheels=[{hp:40,dead:false},{hp:0,dead:true},{hp:40,dead:false},{hp:40,dead:false}]; // FR (right) dead
+   m2.drive[0]={kind:'main',idx:DRIVES.findIndex(d=>d.id==='tank'),name:'Tank',c:'#0f0'};
+   const wf=wheelFault(t);ok('wheelFault: a dead RIGHT wheel biases right (turn>0), tank family',!!wf&&wf.turn>0&&wf.fam==='tank');
+   m2.drive[0]={kind:'holo',idx:0,name:'Mec',c:'#0ff'};ok('wheelFault: a holo/swerve bot DRIFTS instead (fam swerve)',wheelFault(t).fam==='swerve');}
+  ok('bbDriveFamily: arcade→tank, steer→steer, holo→swerve',(()=>{m2.drive[0]={kind:'main',idx:DRIVES.findIndex(d=>d.id==='arcade')};const a=bbDriveFamily(0);m2.drive[0]={kind:'steer',idx:0};const s=bbDriveFamily(0);m2.drive[0]={kind:'holo',idx:0};const h=bbDriveFamily(0);return a==='tank'&&s==='steer'&&h==='swerve';})());
+  {startBB(0,2);const b=bb2.bots[0];b.wheels=[{hp:40,dead:false},{hp:0,dead:true},{hp:40,dead:false},{hp:0,dead:true}]; // both RIGHT wheels dead
+   m2.drive[b.ctl.bind]={kind:'main',idx:DRIVES.findIndex(d=>d.id==='tank'),name:'Tank',c:'#0f0'};
+   b.x=300;b.y=300;b.h=0;b.mob=BB.MOB;const h0=b.h;bb2.cd=0;updateBB(1/60);
+   ok('a tank with dead RIGHT wheels turn-biases in the match (heading drifts, '+h0.toFixed(2)+'→'+b.h.toFixed(2)+')',b.h!==h0);}
+  ok('no dead wheels → no fault (P1 byte-identical)',wheelFault(bbBotWith('none','balanced',0,0,true))===null||(()=>{const v=bbBotWith('none','balanced',0,0,true);v.wheels=wheels4();return wheelFault(v)===null;})());
+  {startBB(0,2);bb2.bots[0].wheels=[{hp:40,dead:false},{hp:0,dead:true},{hp:0,dead:true},{hp:40,dead:false}];bb2.cd=0;bb2.result=null;
+   let dThrew=false;try{drawBB();}catch(e){dThrew=true;console.log('   wheels draw err:',e.message);}
+   ok('drawBB renders dead-wheel marks without throwing',!dThrew);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

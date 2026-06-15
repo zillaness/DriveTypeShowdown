@@ -1,7 +1,7 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: 2026-06-15, at **v5.1.77** (BB weapons P2.3 — flame blow-up + draw).
+**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: 2026-06-15, at **v5.1.78** (BB weapons P2.4 — per-wheel faults).
 
 ---
 
