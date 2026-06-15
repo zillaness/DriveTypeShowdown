@@ -183,6 +183,13 @@ src+=`
    ok('MOUSE-AIM turns toward the cursor (up='+up.toFixed(1)+' dn='+dn.toFixed(1)+')',up<-0.1&&dn>0.1);
    mouseAim=false;ok('MOUSE-AIM off leaves turn to keys (~0)',Math.abs(getInp({type:'kb'}).vr)<0.01);}
 
+  // ── v5.1.53: beating SP with cheats on must NOT freeze (drawDone read best[k]=undefined → fmt(undefined) threw → killed the rAF loop) ──
+  {holoMode=false;steerMode=false;obstacleCourse=false;curD=0;playT=12.34;cheatedRun=true;nameEntry={active:false};spGhostSaved=false;
+   const k2=driveKey(DRIVES[0].id);delete best[k2];
+   let threw=false;try{drawDone();}catch(e){threw=true;}
+   ok('cheated SP win: drawDone does not throw with no saved best (was a hard freeze)',!threw);
+   cheatedRun=false;}
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;

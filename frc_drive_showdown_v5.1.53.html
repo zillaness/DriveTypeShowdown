@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.52.html
-  version: 5.1.52
+  file: frc_drive_showdown_v5.1.53.html
+  version: 5.1.53
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -5741,14 +5741,14 @@ function drawDone(){
   ctx.fillStyle='rgba(0,0,0,0.78)';ctx.fillRect(FX,FY,FW,FH);
   const d=curDrv();
   const k2=holoMode?driveKey('holo_'+d.id+(holoCentric?'_fc':'')):driveKey(d.id);
-  const t=best[k2];
+  const t=(best[k2]!==undefined?best[k2]:playT); // cheated runs aren't recorded → show this run's time, never undefined (fmt(undefined) threw + froze the loop)
   ctx.textAlign='center';
   ctx.font='bold 46px Courier New';ctx.fillStyle=d.c;
   ctx.fillText('COMPLETE!',FX+FW/2,FY+FH/2-72);
   ctx.font='bold 60px Courier New';ctx.fillStyle='#eef';
   ctx.fillText(fmt(t),FX+FW/2,FY+FH/2+5);
   ctx.font='13px Courier New';ctx.fillStyle='#555';
-  ctx.fillText((nameEntry.active?'NEW BEST! Enter your name:':'Best time saved.')+(spGhostSaved?'  ·  👻 ghost saved':''),FX+FW/2,FY+FH/2+40);
+  ctx.fillText((nameEntry.active?'NEW BEST! Enter your name:':(cheated()?'⚠ cheats on — not recorded':'Best time saved.'))+(spGhostSaved?'  ·  👻 ghost saved':''),FX+FW/2,FY+FH/2+40);
   if(nameEntry.active){
     const bx=FX+FW/2-90,by=FY+FH/2+52,bw=180,bh=28;
     ctx.fillStyle='rgba(10,10,20,0.9)';rr(bx,by,bw,bh,8);ctx.fill();
@@ -7096,7 +7096,7 @@ const IMPORT_BTN={x:272,y:603,w:118,h:18};
 function loop(ts){
   const dt=Math.min((ts-lastTs)/1000,0.05);
   lastTs=ts;
-  update(dt);draw();
+  try{update(dt);draw();}catch(e){if(typeof console!=='undefined'&&console.error)console.error('frame error',e);} // never let one bad frame hard-freeze the game — rAF must always re-arm
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
@@ -7169,6 +7169,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.53 (2026-06-15): FIX — beating single-player with cheats on froze the game. On an SP course completion the done screen drew the saved best time, but a cheated run never saves a best (records are disabled), so best[k] was undefined and fmt(undefined) threw inside drawDone — and the rAF loop had no try/catch, so the thrown frame never re-armed requestAnimationFrame and the whole game locked up. (1) drawDone now falls back to THIS run's time (playT) when there's no saved best, and shows "⚠ cheats on — not recorded" instead of "Best time saved." (2) Hardened the main loop: update()/draw() run in a try/catch so a single bad frame can never hard-freeze the game again (it logs and re-arms rAF). smoke54 +1 (cheated SP completion: drawDone doesn't throw). Full battery green. Single file, no assets.
   v5.1.52 (2026-06-15): CHEAT MENU — EXIT + TURN-OFF-ALL BUTTONS, ICE MERGE, SLIDERS GROUPED. The Konami cheat panel now does a lot (sliders, multi-state toggles), so click-away alone felt risky. (1) Added a visible ✕ EXIT button (top-right) that closes the panel — Esc and gamepad B already closed it and tap-away still works; this is just an explicit affordance. (2) Added a ⟲ TURN OFF ALL CHEATS button (top-left, greens up when any cheat is on) that resets every cheat to default in one tap, leaving the panel open so you watch them clear. (3) Merged the old ICE SKATING toggle + ICE SLIP slider into ONE 'ICE SKATING' slider where 1.0× = OFF (no ice) and higher = more slide / less control (iceMode is now derived: on iff slip>1, fri=0.4/slip) — one control instead of two. (4) Re-laid the panel so all TOGGLE cheats sit in the LEFT column and all SLIDER cheats in the RIGHT column (was split by index), grouped by type for a cleaner read. smoke54 updated (ICE-merge + 1.0×=off, type-grouped fits check, EXIT closes, TURN-OFF-ALL clears every cheat). Full battery green. Single file, no assets.
   v5.1.51 (2026-06-15): MODE-PICKER DESCRIPTION WRAP. The 2P mode-select cards drew each mode's one-line `desc` centered at a fixed Y, so the longer BATTLEBOTS copy ("combat — ram the rear, guard your front") spilled past its card edge once the picker grew to 5 modes (~230px cards). The description now word-wraps to fit the card width (measureText against r.w−24) and the wrapped block is vertically centered, so a single-line desc stays exactly where it was (short descs byte-identical) while long copy flows onto a second line inside the card. Render-only (harness canvas is a no-op proxy); full battery green. Single file, no assets.
   v5.1.50 (2026-06-14): BATTLEBOTS — RAM/DASH (completes P1). The always-available RAM dash is now wired into BattleBots: LT (gamepad) / Shift (keyboard) fires a short forward burst (reuses BOOST dur/mul/cd, scaled by the RAM COOLDOWN cheat), multiplying translation so a dash-ram lands much more closing speed → more damage on the foe's rear/side. Human-only in P1; can't dash while immobilized (mobility 0). Per-bot boostT/boostCd, `bbDashHeld` reads LT/Shift. HUD hint updated. smoke57 +2 (dash engage + cooldown). Full battery green. Single file, no assets.
