@@ -127,12 +127,12 @@ src+=`
   // ── 12. settings: tankfight FORMAT lever swaps the lives/time row (Phase 3) ──
   m2.mode='tankfight';m2.set.tformat='lives';
   let tfrows=p2SettingsRows();
-  ok('LIVES format → 4 rows (format/lives/bestOf/map; ENEMY/ALLY moved to the claim grid)',tfrows.length===4&&tfrows[0].k==='tformat'&&tfrows[1].k==='lives'&&tfrows[2].k==='bestOf'&&tfrows[3].k==='map');
+  ok('LIVES format → 5 rows (format/lives/bestOf/map/drive-variety)',tfrows.length===5&&tfrows[0].k==='tformat'&&tfrows[1].k==='lives'&&tfrows[2].k==='bestOf'&&tfrows[3].k==='map'&&tfrows[4].k==='tdrv');
   m2.set.tformat='timed';tfrows=p2SettingsRows();
-  ok('TIMED format → MATCH TIME row replaces LIVES',tfrows[1].k==='tTimeSec'&&tfrows.length===4);
+  ok('TIMED format → MATCH TIME row replaces LIVES',tfrows[1].k==='tTimeSec'&&tfrows.length===5);
   // settings overflow guard: every row sits above the START button
   {const sb=p2StartBtnRect();let okFit=true;for(let i=0;i<tfrows.length;i++){const rc=p2SetRowRect(i);if(rc.y+rc.h>sb.y)okFit=false;}
-   ok('all 4 tankfight rows fit above START',okFit);}
+   ok('all 5 tankfight rows fit above START',okFit);}
 
   // ── 13. TIMED is a deathmatch: infinite lives, respawn ignores lives ──
   startTank(0,1,1,'timed',90);
@@ -259,6 +259,18 @@ src+=`
    ok('per-player SENS slider sets seat.sens to the cap',Math.abs(m2.tseats[0].sens-SENS_MAX)<1e-9);
    m2.tsel=3;tankGridSetCpu(3);startP2Tank();
    ok('seat.sens carries into m2.sens at match start',m2.sens[0]===SENS_MAX);m2.tseats=null;m2.tsel=0;}
+
+  // ── v5.1.62: DRIVE VARIETY rules enforced on the grid ──
+  {m2.mode='tankfight';const mk=()=>({kind:'main',idx:3,name:'X',c:'#fff'});
+   m2.set.tdrv='norepeat';m2.tseats=[];for(let k=0;k<6;k++)m2.tseats[k]={type:'cpu',dev:null,tier:1,drive:mk()};tankGridEnforceDrives();
+   ok('DRIVE VARIETY norepeat: all 6 drives distinct after enforce',new Set(m2.tseats.map(s=>s.drive.kind+s.drive.idx)).size===6);
+   m2.set.tdrv='team';for(let k=0;k<6;k++)m2.tseats[k].drive=mk();tankGridEnforceDrives();
+   ok('DRIVE VARIETY team: no repeats within a side (cross-side OK)',new Set(m2.tseats.slice(0,3).map(s=>s.drive.kind+s.drive.idx)).size===3&&new Set(m2.tseats.slice(3,6).map(s=>s.drive.kind+s.drive.idx)).size===3);
+   m2.set.tdrv='cat';for(let k=0;k<6;k++)m2.tseats[k].drive=mk();tankGridEnforceDrives();
+   ok('DRIVE VARIETY category: each RED seat a different drive category',new Set(m2.tseats.slice(0,3).map(s=>s.drive.kind)).size===3);
+   m2.set.tdrv='norepeat';m2.tseats=[{type:'cpu',dev:null,tier:1,drive:{kind:'main',idx:0,name:'A',c:'#fff'}},{type:'cpu',dev:null,tier:1,drive:{kind:'main',idx:1,name:'B',c:'#fff'}},null,{type:'cpu',dev:null,tier:1,drive:{kind:'main',idx:2,name:'C',c:'#fff'}},null,null];
+   tankGridCycleDrive(0,1);ok('cycler skips a drive already used by another bot (norepeat)',!(m2.tseats[0].drive.kind==='main'&&[1,2].includes(m2.tseats[0].drive.idx)));
+   m2.set.tdrv='open';m2.tseats=null;m2.tsel=0;}
 
   console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire + 3v3 allies): '+P+' pass, '+F+' fail ---');
 })();
