@@ -127,21 +127,31 @@ src+=`
    ok('cheated H2H win records nothing',JSON.stringify(h2hRec)===h0);}
   iceMode=false;cheatedRun=false;
 
-  // ── cheat menu fits on screen with the full cheat list ──
+  // ── cheat menu fits on screen + sliders/toggles are type-grouped (v5.1.52) ──
   konamiActive=true;drawKonami();
-  {const lr=drawKonami._rows[drawKonami._rows.length-1];const linkMax=Math.max.apply(null,(drawKonami._links||[{hy:0,hh:0}]).map(l=>l.hy+l.hh));
-   ok('cheat menu fits ('+CHEATS.length+' cheats, rows→'+(lr.y+lr.h).toFixed(0)+', links→'+linkMax.toFixed(0)+' < '+CH+')',lr.y+lr.h<CH-40&&linkMax<CH-8);}
+  {const rowsMax=Math.max.apply(null,drawKonami._rows.map(r=>r.y+r.h));const linkMax=Math.max.apply(null,(drawKonami._links||[{hy:0,hh:0}]).map(l=>l.hy+l.hh));
+   ok('cheat menu fits ('+CHEATS.length+' cheats, rows→'+rowsMax.toFixed(0)+', links→'+linkMax.toFixed(0)+' < '+CH+')',rowsMax<CH-40&&linkMax<CH-8);
+   ok('toggles in the left column, sliders in the right',drawKonami._rows.every((r,i)=>CHEATS[i].slider?(r.x>CW/2):(r.x<CW/2)));
+   const ex=drawKonami._exit,ao=drawKonami._alloff;
+   ok('cheat menu has ✕ EXIT + ⟲ TURN OFF ALL buttons on-screen',!!ex&&!!ao&&ex.x>=0&&ex.x+ex.w<=CW&&ao.x>=0&&ao.x+ao.w<=CW);}
 
-  // ── v5.1.37: ICE GRIP slider + cheat-menu slider drag (applyKonamiSlider sets value from a canvas x) ──
-  {const gi=CHEATS.findIndex(c=>c.name==='ICE SLIP');
-   ok('ICE SLIP slider cheat exists',gi>=0&&CHEATS[gi].slider===true&&CHEATS[gi].min===1);
+  // ── v5.1.52: ICE SKATING + ICE SLIP merged into ONE slider (1.0× = OFF) ──
+  {const gi=CHEATS.findIndex(c=>c.name==='ICE SKATING');
+   ok('ICE SKATING is now a slider; ICE SLIP removed',gi>=0&&CHEATS[gi].slider===true&&CHEATS[gi].min===1&&CHEATS.findIndex(c=>c.name==='ICE SLIP')<0);
    const r=drawKonami._rows[gi];
-   applyKonamiSlider(gi,r.slider.x1);ok('drag to far-left = default fun level (slip 1 → fri 0.40, least slide)',Math.abs(iceSlip-1)<1e-9&&Math.abs(MOM.ice.fri-0.4)<1e-9);
-   applyKonamiSlider(gi,r.slider.x2);ok('drag to far-right = max slip (slip 5 → fri 0.08, more sliding)',Math.abs(iceSlip-5)<1e-9&&Math.abs(MOM.ice.fri-0.08)<1e-6);
-   applyKonamiSlider(gi,(r.slider.x1+r.slider.x2)/2);ok('higher slip = lower friction = more slide ('+iceSlip.toFixed(1)+'×, fri '+MOM.ice.fri.toFixed(3)+')',iceSlip>1&&iceSlip<5&&MOM.ice.fri<0.4&&Math.abs(MOM.ice.fri-0.4/iceSlip)<1e-9);
-   iceSlip=1;MOM.ice.fri=0.4;
-   // a non-slider cheat row: applyKonamiSlider is a no-op (guards on c.slider)
+   applyKonamiSlider(gi,r.slider.x1);ok('1.0× = OFF (far-left: slip 1, iceMode off)',Math.abs(iceSlip-1)<1e-9&&iceMode===false);
+   applyKonamiSlider(gi,r.slider.x2);ok('far-right = max slip ON (slip 5 → fri 0.08, iceMode on)',Math.abs(iceSlip-5)<1e-9&&Math.abs(MOM.ice.fri-0.08)<1e-6&&iceMode===true);
+   applyKonamiSlider(gi,(r.slider.x1+r.slider.x2)/2);ok('mid = ice on, more slide ('+iceSlip.toFixed(1)+'×, fri '+MOM.ice.fri.toFixed(3)+')',iceSlip>1&&iceSlip<5&&iceMode===true&&MOM.ice.fri<0.4&&Math.abs(MOM.ice.fri-0.4/iceSlip)<1e-9);
+   CHEATS[gi].set(1);ok('setting ICE SKATING to 1.0× turns ice OFF',iceSlip===1&&iceMode===false);MOM.ice.fri=0.4;
    const ti=CHEATS.findIndex(c=>!c.slider);const tv=CHEATS[ti].get();applyKonamiSlider(ti,drawKonami._rows[ti].x);ok('applyKonamiSlider ignores non-slider rows',CHEATS[ti].get()===tv);}
+  // ── ⟲ TURN OFF ALL CHEATS button clears every cheat (panel stays open) ──
+  {iceSlip=3;iceMode=true;SENS_MAX=6;ramCdMult=0.3;ballMult=4;arcadeMode=true;bouncyMode=true;machineGun=2;multiBall=true;stickyPlow=true;noClip=true;ballPups=true;ballScale=2;robotScale=1.5;
+   ok('cheats on before TURN OFF ALL',anyCheat());
+   const ao=drawKonami._alloff;konamiActive=true;click(ao.x+ao.w/2,ao.y+ao.h/2);
+   ok('⟲ TURN OFF ALL clears every cheat',!anyCheat()&&!iceMode&&iceSlip===1&&SENS_MAX===SENS_MAX_BASE&&ramCdMult===1&&ballMult===1&&!arcadeMode&&!machineGun&&ballScale===1&&robotScale===1);
+   ok('TURN OFF ALL keeps the cheat panel open',konamiActive===true);}
+  // ── ✕ EXIT button closes the panel (click) ──
+  {const ex=drawKonami._exit;konamiActive=true;click(ex.x+ex.w/2,ex.y+ex.h/2);ok('clicking ✕ EXIT closes the cheat menu',konamiActive===false);}
   konamiActive=false;
 
   // ── PAUSE menu: freezes the match; RESUME/QUIT overlay ──

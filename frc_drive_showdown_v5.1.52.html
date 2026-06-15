@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.51.html
-  version: 5.1.51
+  file: frc_drive_showdown_v5.1.52.html
+  version: 5.1.52
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -293,7 +293,7 @@ function applyKonamiSlider(i,mx){ // set CHEATS[i]'s slider value from a canvas 
 // konami cheat menu: toggleable fun modes (replaces the old auto-frisbee flip). arcadeMode adds the LT boost-tackle in 2P H2H ball+tank.
 let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides
 let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,ballScale=1,robotScale=1,ballPups=false,ramCdMult=1; // more cheats (ramCdMult scales the RAM dash cooldown; SENS_MAX cheat lives by the sensitivity consts)
-let iceSlip=1; // ICE SKATING slip amount: 1 = the default fun level (least slide), higher = more slip. Drives MOM.ice.fri = 0.4/iceSlip.
+let iceSlip=1; // ICE SKATING slider: 1 = OFF (no ice), >1 = ice on, higher = more slip. Drives iceMode (=slip>1) + MOM.ice.fri = 0.4/iceSlip.
 let cheatedRun=false;paused=false; // set true while any cheat is active during a run/match; gates records + high scores
 const B2_BALL_CAP=72; // hard cap on balls in play (shared by EXTRA BALLS + MULTIBALL)
 function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1;}
@@ -301,25 +301,31 @@ function cheated(){return anyCheat()||cheatedRun;} // a run is "tainted" if a ch
 function mgOn(p){return machineGun===2||(machineGun===1&&m2.claim&&m2.claim[p]&&m2.claim[p].type!=='cpu');} // does side p get full-auto?
 // all cheats are independent — they mix and stack freely (e.g. machine-gun + bouncy + ultimate-ascent + extra-balls)
 const CHEATS=[
+  // ── toggles (left column) ──
   {name:'RAMMING',        desc:'[2P] Left Trigger / Shift = boost tackle — ram & stun the enemy bot (ball + tank)',get:()=>arcadeMode, tog:()=>{arcadeMode=!arcadeMode;}},
   {name:'ULTIMATE ASCENT',desc:'[SP+2P] Shooter shots fly forever — ricochet off the walls instead of dying',   get:()=>frisbeeMode, tog:()=>{frisbeeMode=!frisbeeMode;}},
   {name:'BOUNCY BALLS',   desc:'[SP+2P] Low-friction pinball chaos — balls barely slow, shots ricochet',        get:()=>bouncyMode,  tog:()=>{bouncyMode=!bouncyMode;}},
   {name:'MACHINE GUN',    desc:'[2P] Full-auto fire — OFF / YOU only / BOTH sides (tank AND shooter)',          get:()=>machineGun,  tog:()=>{machineGun=(machineGun+1)%3;}, show:v=>['OFF','YOU','BOTH'][v]||'OFF'},
-  {name:'EXTRA BALLS',    desc:'[2P] Multiply the balls in play (ball + shooter) — ◀ ▶ or drag to set',         slider:true,min:1,max:6,step:1,get:()=>ballMult,set:v=>{ballMult=clamp(Math.round(v),1,6);},show:v=>v+'×'},
   {name:'MULTIBALL',      desc:'[2P] Every goal spawns 2 more balls (ball + shooter, capped at '+B2_BALL_CAP+')', get:()=>multiBall,   tog:()=>{multiBall=!multiBall;}},
   {name:'STICKY PLOW',    desc:'[2P] Your bot gets the CHAMPION sticky plow — carry up to 5 (normal ball)',      get:()=>stickyPlow,  tog:()=>{stickyPlow=!stickyPlow;}},
   {name:'NO-CLIP',        desc:'[2P] Phase through robots & obstacles (balls still collide) — ball/tank/race',   get:()=>noClip,      tog:()=>{noClip=!noClip;}},
-  {name:'ICE SKATING',    desc:'[SP+2P] Low-friction gliding — momentum carries you, brakes are useless (all modes)', get:()=>iceMode,  tog:()=>{iceMode=!iceMode;clearMomentum();}},
-  {name:'ICE SLIP',       desc:'[SP+2P] How slippery ICE SKATING is — left = default fun glide (least), right = wild uncontrollable slide', slider:true,min:1,max:5,step:0.5,get:()=>iceSlip,set:v=>{iceSlip=Math.round(v*2)/2;MOM.ice.fri=0.4/iceSlip;},show:v=>v.toFixed(1)+'×'},
+  {name:'BALL POWER-UPS', desc:'[2P] SPEED » pickups spawn on the field (ball + shooter) — grab to boost 8s',   get:()=>ballPups,    tog:()=>{ballPups=!ballPups;}},
+  // ── sliders (right column) ──
+  {name:'EXTRA BALLS',    desc:'[2P] Multiply the balls in play (ball + shooter) — ◀ ▶ or drag to set',         slider:true,min:1,max:6,step:1,get:()=>ballMult,set:v=>{ballMult=clamp(Math.round(v),1,6);},show:v=>v+'×'},
+  {name:'ICE SKATING',    desc:'[SP+2P] Low-friction gliding — 1.0× = OFF, higher = more slide / less control (all modes)', slider:true,min:1,max:5,step:0.5,get:()=>iceSlip,set:v=>{iceSlip=clamp(Math.round(v*2)/2,1,5);iceMode=iceSlip>1;MOM.ice.fri=0.4/iceSlip;clearMomentum();},show:v=>v<=1?'OFF':v.toFixed(1)+'×'},
   {name:'MAX SENSITIVITY', desc:'[SP+2P] Uncaps the sensitivity ceiling (normally 2×) so the SENS slider/bumpers can crank far higher — pair with the pause RATIO knob to stay drivable', slider:true,min:2,max:8,step:0.5,get:()=>SENS_MAX,set:v=>{SENS_MAX=clamp(Math.round(v*2)/2,2,8);},show:v=>v.toFixed(1)+'×'},
   {name:'RAM COOLDOWN',   desc:'[2P] Scales the RAM dash cooldown (needs RAMMING) — drag left to spam the dash', slider:true,min:0.1,max:1,step:0.1,get:()=>ramCdMult,set:v=>{ramCdMult=clamp(Math.round(v*10)/10,0.1,1);},show:v=>(BOOST.cd*v).toFixed(2)+'s'},
   {name:'BALL SIZE',      desc:'[SP+2P] Giant or tiny balls — ◀ ▶ or drag the track to set',                    slider:true,min:0.5,max:2,step:0.1,get:()=>ballScale,set:v=>{ballScale=clamp(Math.round(v*10)/10,0.5,2);BR=clamp(BR0*ballScale,4,18);},show:v=>v.toFixed(1)+'×'},
   {name:'ROBOT SIZE',     desc:'[SP+2P] Giant or tiny robots — ◀ ▶ or drag (big bots strain the race course)',  slider:true,min:0.5,max:1.5,step:0.1,get:()=>robotScale,set:v=>setRobotScale(v),show:v=>v.toFixed(1)+'×'},
-  {name:'BALL POWER-UPS', desc:'[2P] SPEED » pickups spawn on the field (ball + shooter) — grab to boost 8s',   get:()=>ballPups,    tog:()=>{ballPups=!ballPups;}},
 ];
 function cheatMove(d){cheatIdx=(cheatIdx+d+CHEATS.length)%CHEATS.length;sfx('click');}
 function cheatToggle(){const c=CHEATS[cheatIdx];if(c.slider){c.set(c.get()>=c.max?c.min:c.get()+c.step);}else c.tog();sfx('claim');}
-function cheatAdjust(d){const c=CHEATS[cheatIdx];if(c.slider){c.set(clamp(c.get()+d*c.step,c.min,c.max));sfx('click');}else{const half=Math.ceil(CHEATS.length/2);cheatIdx=(cheatIdx+(d>0?half:-half)+CHEATS.length)%CHEATS.length;sfx('click');}} // ◀▶: nudge a slider, else jump columns
+function cheatAdjust(d){const c=CHEATS[cheatIdx];if(c.slider){c.set(clamp(c.get()+d*c.step,c.min,c.max));sfx('click');}else{const nT=CHEATS.filter(z=>!z.slider).length;cheatIdx=(cheatIdx+(d>0?nT:-nT)+CHEATS.length)%CHEATS.length;sfx('click');}} // ◀▶: nudge a slider, else jump to the slider column
+function cheatsAllOff(){ // ⟲ TURN OFF ALL CHEATS button — reset every cheat to its default
+  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;
+  ballMult=1;iceSlip=1;iceMode=false;MOM.ice.fri=0.4;clearMomentum();
+  SENS_MAX=SENS_MAX_BASE;ramCdMult=1;ballScale=1;BR=clamp(BR0,4,18);robotScale=1;setRobotScale(1);
+  sfx('claim');}
 // team easter eggs: NAME a bot 1678 (Citrus Circuits -> LIME TEAM) or 254 (The Cheesy Poofs -> ORANGE TEAM)
 let eggOverride=null; // per-bot color override, set from the bot's name in withBot / the card preview
 const EGG_COLS={lime:'#9aff2e',orange:'#ff6a13'},EGG_NAMES={lime:'LIME TEAM',orange:'ORANGE TEAM'};
@@ -844,6 +850,10 @@ function fmt(t){return t.toFixed(2)+'s';}
 function click(mx,my){
   if(muteShown()&&inMuteBtn(mx,my)){sfxToggle();return;}
   if(konamiActive){
+    const _ex=drawKonami._exit;
+    if(_ex&&mx>=_ex.x&&mx<=_ex.x+_ex.w&&my>=_ex.y&&my<=_ex.y+_ex.h){konamiActive=false;sfx('click');return;} // ✕ EXIT
+    const _ao=drawKonami._alloff;
+    if(_ao&&mx>=_ao.x&&mx<=_ao.x+_ao.w&&my>=_ao.y&&my<=_ao.y+_ao.h){cheatsAllOff();return;} // ⟲ TURN OFF ALL (panel stays open so you see them clear)
     const _rows=drawKonami._rows||[];
     for(let i=0;i<_rows.length;i++){const r=_rows[i];
       if(mx>=r.x&&mx<=r.x+r.w&&my>=r.y&&my<=r.y+r.h){cheatIdx=i;
@@ -1826,6 +1836,15 @@ function drawKonami(){
   // Header
   ctx.font='bold 13px Courier New';ctx.textAlign='center';
   ctx.fillStyle='#ff4444';ctx.fillText('✦ CHEATS UNLOCKED ✦',CW/2,34);
+  // ✕ EXIT (top-right) + ⟲ TURN OFF ALL (top-left) — explicit controls; the panel does a lot now, so click-away alone felt risky (Esc / pad B also close)
+  {const ew=88,eh=26,ex=CW-ew-14,ey=12;drawKonami._exit={x:ex,y:ey,w:ew,h:eh};
+   ctx.fillStyle='rgba(180,30,30,0.34)';ctx.fillRect(ex,ey,ew,eh);
+   ctx.strokeStyle='#ff6666';ctx.lineWidth=1.5;ctx.strokeRect(ex,ey,ew,eh);
+   ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffcccc';ctx.fillText('✕ EXIT',ex+ew/2,ey+eh/2+4);}
+  {const aw=150,ah=26,ax=14,ay=12,anyOn=anyCheat();drawKonami._alloff={x:ax,y:ay,w:aw,h:ah};
+   ctx.fillStyle=anyOn?'rgba(40,140,60,0.34)':'rgba(60,60,60,0.30)';ctx.fillRect(ax,ay,aw,ah);
+   ctx.strokeStyle=anyOn?'#5dff8a':'#666666';ctx.lineWidth=1.5;ctx.strokeRect(ax,ay,aw,ah);
+   ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillStyle=anyOn?'#cfffd9':'#999999';ctx.fillText('⟲ TURN OFF ALL',ax+aw/2,ay+ah/2+4);}
   // Stussy logo — centered, full opacity
   const sw=150,sh=Math.round(150*(1443/2742));
   const sx=(CW-sw)/2,sy=38; // small logo up top — the cheat list grew to 13, so the rows are tighter and start higher
@@ -1833,13 +1852,13 @@ function drawKonami(){
   ctx.globalAlpha=1;
   // ── cheat toggles (tight pitch so the full list fits) ──
   // two columns so the (growing) list stays compact
-  const half=Math.ceil(CHEATS.length/2),colW=Math.min(380,(CW-90)/2),colGap=30,rowH=22,rowPitch=26;
+  const nTog=CHEATS.filter(c=>!c.slider).length,colMax=Math.max(nTog,CHEATS.length-nTog),colW=Math.min(380,(CW-90)/2),colGap=30,rowH=22,rowPitch=26;
   const totalW=colW*2+colGap,x0=Math.round((CW-totalW)/2);
   let rowY=Math.round(CH*0.20);
   drawKonami._rows=[];
   for(let i=0;i<CHEATS.length;i++){
     const c=CHEATS[i],on=c.get(),sel=i===cheatIdx;
-    const col=i<half?0:1,row=i<half?i:i-half,rx=x0+col*(colW+colGap),y=rowY+row*rowPitch,rec={x:rx,y:y,w:colW,h:rowH};
+    const col=i<nTog?0:1,row=i<nTog?i:i-nTog,rx=x0+col*(colW+colGap),y=rowY+row*rowPitch,rec={x:rx,y:y,w:colW,h:rowH};
     drawKonami._rows.push(rec);
     ctx.fillStyle=sel?'rgba(255,70,70,0.26)':'rgba(180,30,30,0.12)';ctx.fillRect(rx,y,colW,rowH);
     ctx.strokeStyle=sel?'#ff7777':'#883333';ctx.lineWidth=sel?2:1;ctx.strokeRect(rx,y,colW,rowH);
@@ -1857,7 +1876,7 @@ function drawKonami(){
     }
   }
   // description of the FOCUSED cheat (mouse hover or gamepad focus sets cheatIdx) — its own clear line, brighter, clear of the links below
-  const descY=rowY+half*rowPitch+18;
+  const descY=rowY+colMax*rowPitch+18;
   ctx.font='11px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffcf8f';
   ctx.fillText(CHEATS[cheatIdx].desc,CW/2,descY);
   // Link buttons with icons — flow below the description so they never overlap the cheat rows / logo
@@ -7150,6 +7169,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.52 (2026-06-15): CHEAT MENU — EXIT + TURN-OFF-ALL BUTTONS, ICE MERGE, SLIDERS GROUPED. The Konami cheat panel now does a lot (sliders, multi-state toggles), so click-away alone felt risky. (1) Added a visible ✕ EXIT button (top-right) that closes the panel — Esc and gamepad B already closed it and tap-away still works; this is just an explicit affordance. (2) Added a ⟲ TURN OFF ALL CHEATS button (top-left, greens up when any cheat is on) that resets every cheat to default in one tap, leaving the panel open so you watch them clear. (3) Merged the old ICE SKATING toggle + ICE SLIP slider into ONE 'ICE SKATING' slider where 1.0× = OFF (no ice) and higher = more slide / less control (iceMode is now derived: on iff slip>1, fri=0.4/slip) — one control instead of two. (4) Re-laid the panel so all TOGGLE cheats sit in the LEFT column and all SLIDER cheats in the RIGHT column (was split by index), grouped by type for a cleaner read. smoke54 updated (ICE-merge + 1.0×=off, type-grouped fits check, EXIT closes, TURN-OFF-ALL clears every cheat). Full battery green. Single file, no assets.
   v5.1.51 (2026-06-15): MODE-PICKER DESCRIPTION WRAP. The 2P mode-select cards drew each mode's one-line `desc` centered at a fixed Y, so the longer BATTLEBOTS copy ("combat — ram the rear, guard your front") spilled past its card edge once the picker grew to 5 modes (~230px cards). The description now word-wraps to fit the card width (measureText against r.w−24) and the wrapped block is vertically centered, so a single-line desc stays exactly where it was (short descs byte-identical) while long copy flows onto a second line inside the card. Render-only (harness canvas is a no-op proxy); full battery green. Single file, no assets.
   v5.1.50 (2026-06-14): BATTLEBOTS — RAM/DASH (completes P1). The always-available RAM dash is now wired into BattleBots: LT (gamepad) / Shift (keyboard) fires a short forward burst (reuses BOOST dur/mul/cd, scaled by the RAM COOLDOWN cheat), multiplying translation so a dash-ram lands much more closing speed → more damage on the foe's rear/side. Human-only in P1; can't dash while immobilized (mobility 0). Per-bot boostT/boostCd, `bbDashHeld` reads LT/Shift. HUD hint updated. smoke57 +2 (dash engage + cooldown). Full battery green. Single file, no assets.
   v5.1.49 (2026-06-14): NEW MODE — BATTLEBOTS (P1: directional armor + two bars). A 5th 2P mode (`battlebots`, phase `p2bb`, `bb2` state) on the TANK FIGHT arena: a combat duel where positioning is everything. Every bot has a MOBILITY bar and an HP bar plus DIRECTIONAL ARMOR — keep your FRONT to the foe and kinetic ram hits are shrugged off; their REAR takes HP directly; their SIDE drains MOBILITY first (and once a bot's mobility hits 0 it's IMMOBILIZED — can't drive — and further side hits spill into HP). Damage = closing-speed (`p2ImpactMag`) × hit-location; brief per-contact cooldown; recoil knockback to both. KO (HP→0) = last side standing wins. P1 weapon is the always-on RAM (drive into their weak spots). Reuses the drive system (`withBot`/`getInp`/`obsCheck`), per-bot warm/cool team shades, the best-of series + result nav, and the new pause menu. A simple BattleBots CPU keeps its front to you while circling to your rear. HUD: per-bot MOBILITY + HP bars + a FRONT-armor arc indicator. The 2P mode picker now lays out N modes dynamically (was hard-coded to 4) + full gamepad nav. Settings: BEST OF + ARENA. Later phases (PRD_TABLED_MODES.md): weapons/loadouts (spinner/piston/flamethrower/wedge), hazards, flame blow-up, judges' decision, rumble. New smoke57 (23 asserts: mode wiring, hit-location, front-immune/rear-HP/side-mobility/spillover/immobile, mobility→speed, KO, draw-no-throw). Full battery green. Single file, no assets.
