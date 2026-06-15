@@ -216,6 +216,7 @@ panel:
 - Model id never in committed artifacts. Author = Sam Cao.
 
 ## CHANGELOG
+- **P2.2–P2.6 SHIPPED — BattleBots weapons COMPLETE (builds v5.1.76→80, 2026-06-15):** P2.2 weapon fire (spinner/piston/flamethrower/wedge), P2.3 flame blow-up + mutual-destruction draw + death FX, P2.4 per-wheel health → handling faults, P2.5 the weapon/armor PICKER (grid tap-cyclers, round-trips to the bot), P2.6 CPU auto-arms + uses its weapon (tier-scaled). All logic test-covered (smoke57 = 102). One deliberate deviation: per-wheel health is a PARALLEL fault layer (the mobility bar stays the speed pool) rather than replacing it — richer "changes how you drive." Numbers are first-pass TUNABLE. Optional polish left: drag-and-drop, per-seat stat bars, 1v1-claim pickers, flame VFX.
 - **P2.1 SHIPPED in build v5.1.73 (2026-06-15):** `BB_WEAPONS`/`BB_ARMOR`/`BB_RPS` data, `bbResolveLoadout`/`bbLoadoutForBind`, weight→speed/turn/mob + deal/take/zone/RPS wired into `bbSpeed`/`updateBB`/`bbApplyHit`. Default loadout fully neutral → P1 byte-identical. 14 new unit tests (smoke57 → 44). Tuning numbers are first-pass. Next: P2.2 weapon fire behaviors.
 - v1.0 (2026-06-15): Initial spec from Sam's 2026-06-15 direction — weight-based pure
   tradeoffs, drive synergies, damage-vs-susceptibility, weapon/armor RPS, flamethrower
