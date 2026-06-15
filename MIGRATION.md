@@ -1,7 +1,7 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: 2026-06-15, at **v5.1.63**.
+**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: 2026-06-15, at **v5.1.64**.
 
 ---
 
@@ -14,13 +14,14 @@ Self-contained context for continuing this project in a fresh thread.
 
 ## 1. Project basics
 - **Single-file HTML5 canvas game.** Everything lives in one `frc_drive_showdown_vX.Y.Z.html` (game code + inline `<script>` + changelog comment block near the end). No external assets.
-- **Current build:** `frc_drive_showdown_v5.1.63.html` (also a legacy `frc_drive_showdown_v5.0.1.html` is in the tree; ignore it).
+- **Current build:** `frc_drive_showdown_v5.1.64.html` (also a legacy `frc_drive_showdown_v5.0.1.html` is in the tree; ignore it).
 - **Branch:** `claude/eager-sagan-5wehy1` — see §0.
 - **Repo scope:** `zillaness/driveshowdown` (GitHub via `mcp__github__*` tools only; no `gh` CLI). Everything committed + pushed; battery ALL GREEN.
 - **Who:** Sam Cao, FRC Team 2204 Rambots. He playtests on desktop + phone, often steps away and asks for autonomous build sessions ("go as far as you can, pivot/table if blocked"). He likes terse status, real test results, and concrete shippable increments.
 - **Modes:** 2P H2H — NORMAL ball, SHOOTER, TANK FIGHT, **BATTLEBOTS** (new, P1), OBSTACLE RACE — plus single-player drive practice. Claimable CPU opponent, 4 skill tiers (ROOKIE/VETERAN/WINNER/CHAMPION).
 
 ## 1b. Recent version history (newest first — what shipped lately)
+- **v5.1.64** — **BattleBots 3v3**: the 6-seat grid now drives BattleBots (rumble) — `startP2BB` builds from `tankGridToSeats`; `tankGridMode`/`tankGridStart` include battlebots. BB was already N-bot (bb2.bots[], all-pairs damage, last-side KO); just needed the roster wired. smoke57 → 29. Added `frcds_online_prd_v1.0.md` (online-play concept; not built). **3v3-other-modes progress: BattleBots ✅; classic+shooter (ball `b2`) = the big remaining rework (N mains/brains/scoring/collisions/spawn).**
 - **v5.1.63** — UI: de-"2 PLAYER" → "MULTIPLAYER" (menu entry, mode-pick header, rotate hint); user-facing strings only. (Future: full splash separating SP vs multiplayer + global settings — §6.) Online-play concept captured in `frcds_online_prd_v1.0.md`.
 - **v5.1.62** — Tank 3v3 **DRIVE VARIETY** toggle (final pass): tankfight setting OFF / NO-REPEAT / NO-REPEAT-PER-TEAM / ONE-PER-CATEGORY, enforced on the grid (cycler skips disallowed, defaults valid, conflicts auto-resolve via `tankDriveAllowed`/`tankGridDefDriveFor`/`tankGridEnforceDrives`). smoke56 → 102. **3v3 tank now fully complete.**
 - **v5.1.61** — Tank 3v3 grid polish: inline rename (click name, type; prompt() only as touch fallback), per-player **sensitivity slider** (seat.sens→m2.sens), 3-zone cell layout (labels shifted clear of the bot), and the stray field compass / strafe arrows suppressed in previews (`_drivePreview`). smoke56 → 98.

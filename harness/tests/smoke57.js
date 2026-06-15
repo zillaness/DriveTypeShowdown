@@ -14,7 +14,7 @@ src+=`
     m2.set.bestOf=1;m2.set.map=map||0;
     m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};
     m2.claim=[{type:'kb'},{type:'cpu',tier:cpuTier!=null?cpuTier:2}];m2.sens=[1,1];m2._gpPrev=[];
-    const sb=p2StartBtnRect();p2Click(sb.x+sb.w/2,sb.y+sb.h/2);updateBB(3.1);};
+    playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2BB();updateBB(3.1);}; // grid claim is the v5.1.64 path; tests drive the legacy 1v1 roster directly
   startBB(0,2);
   ok('match starts: 2 bots, phase p2bb',phase==='p2bb'&&!!bb2&&bb2.bots.length===2);
   ok('bots have MOBILITY + HP bars full',bb2.bots.every(b=>b.mob===BB.MOB&&b.hp===BB.HP));
@@ -65,6 +65,18 @@ src+=`
   // ── 8. draw does not throw (no-op canvas) ──
   startBB(0,2);let threw=false;try{drawBB();}catch(e){threw=true;console.log('   drawBB error:',e.message);}
   ok('drawBB() renders without throwing',!threw);
+
+  // ── v5.1.64: BattleBots 3v3 via the 6-seat claim grid (rumble) ──
+  {m2.mode='battlebots';tour=null;m2.tseats=[null,null,null,null,null,null];m2.tsel=0;
+   tankGridClaimDev({type:'kb'});tankGridClaimDev({type:'gp',gp:0});tankGridClaimDev({type:'gp',gp:1}); // RED seats 0,1,2
+   tankGridSetCpu(3);tankGridSetCpu(4);tankGridSetCpu(5);                                            // BLUE seats 3,4,5
+   startP2BB();
+   ok('grid → BattleBots 3v3 builds 6 bots (3 vs 3)',bb2.bots.length===6&&bb2.bots.filter(b=>b.side===0).length===3&&bb2.bots.filter(b=>b.side===1).length===3);
+   ok('grid BB: 3 human bots + 3 CPU (each CPU has a brain)',bb2.bots.filter(b=>b.ctl.type!=='cpu').length===3&&bb2.bots.filter(b=>b.ctl.type==='cpu'&&b.ctl.brain).length===3);
+   ok('grid BB: per-bot distinct shades + names',new Set(bb2.bots.map(b=>b.col)).size===6&&new Set(bb2.bots.map(b=>b.ctl.name||p2Name(b.ctl.bind))).size===6);
+   updateBB(3.2);for(let i=0;i<30;i++)updateBB(1/60);
+   ok('grid BB 3v3 runs without throwing + result still open',phase==='p2bb'&&bb2.result===null);
+   m2.tseats=null;m2.tsel=0;}
 
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
