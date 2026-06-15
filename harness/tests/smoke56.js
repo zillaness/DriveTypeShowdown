@@ -238,6 +238,9 @@ src+=`
    m2.tseats=null;m2.tsel=0;}
   {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridClaimDev({type:'kb'});m2.tsel=3;tankGridSetCpu(3); // render path doesn't throw (no-op canvas catches undefined access)
    let drew=true;try{drawTankGrid();}catch(e){drew=false;}ok('drawTankGrid renders without throwing',drew);m2.tseats=null;m2.tsel=0;}
+  {m2.mode='tankfight';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridClaimDev({type:'kb'}); // v5.1.58: ◀▶ reaches every drive category, not just classic
+   const kinds=new Set();for(let k=0;k<13;k++){tankGridCycleDrive(0,1);kinds.add(m2.tseats[0].drive.kind);}
+   ok('grid drive cycler reaches all 3 categories (classic/holo/steer)',kinds.has('main')&&kinds.has('holo')&&kinds.has('steer'));m2.tseats=null;m2.tsel=0;}
 
   console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire + 3v3 allies): '+P+' pass, '+F+' fail ---');
 })();
