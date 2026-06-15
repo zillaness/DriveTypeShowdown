@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.68.html
-  version: 5.1.68
+  file: frc_drive_showdown_v5.1.69.html
+  version: 5.1.69
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -1110,7 +1110,7 @@ function closestOnSeg(px,py,ax,ay,bx,by){
 
 function getInp(bind){
   bind=bind||playerBind[0];
-  if(bind.type==='cpu'){const s=playerBind[0]===bind?0:1;return(cpuH2H&&cpuH2H[s])?cpuH2H[s].inp:{vx:0,vy:0,vr:0};}
+  if(bind.type==='cpu'){let s=playerBind.indexOf(bind);if(s<0)s=(playerBind[0]===bind?0:1);return(cpuH2H&&cpuH2H[s])?cpuH2H[s].inp:{vx:0,vy:0,vr:0};} // s = the bind's index in playerBind (was: only slot 0 vs 1) → supports >2 mains
   const kbOn=bind.type==='any'||bind.type==='kb';
   const k=s=>kbOn&&!!keys[s];
   const _ga=bindAxes(bind),
@@ -2452,7 +2452,7 @@ function b2PupTick(dt){ // spawn + collect SPEED pickups (cheat)
   b2.pupTimer-=dt;
   if(b2.pupTimer<=0){b2SpawnPup();b2.pupTimer=5+Math.random()*4;}
   for(const u of b2.pups){u.age=(u.age||0)+dt;if(u.age>10){u.dead=true;continue;}
-    for(let p=0;p<2;p++){const bo=b2.bots[p];if(!u.dead&&Math.hypot(u.x-bo.x,u.y-bo.y)<RR+12){u.dead=true;bo.speedT=8;sfx('pickup');}}}
+    for(const bo of b2.bots){if(!u.dead&&Math.hypot(u.x-bo.x,u.y-bo.y)<RR+12){u.dead=true;bo.speedT=8;sfx('pickup');}}}
   b2.pups=b2.pups.filter(u=>!u.dead);
 }
 function b2AddBalls(n){ // MULTIBALL: drop fresh balls near center (capped)
@@ -2595,15 +2595,15 @@ function updateP2Ball(dt){
   cpuBallUpdate(dt);
   b2PupTick(dt); // BALL POWER-UPS cheat
   // bots move
-  for(let p=0;p<2;p++){
+  for(let p=0;p<b2.bots.length;p++){
     const bo=b2.bots[p];
     bo.speedT=Math.max(0,(bo.speedT||0)-dt); // BALL POWER-UPS: SPEED boost decay
-    withBot(p,bo,()=>{
-      let inp=getInp(playerBind[p]);
+    withBot(bo.bind,bo,()=>{
+      let inp=getInp(playerBind[bo.bind]);
       if(bo.speedT>0){inp.vx*=1.4;inp.vy*=1.4;}
-      if(arcadeMode)inp=arcadeStep(p,bo,inp,dt,ballFoes(p));
+      if(arcadeMode)inp=arcadeStep(bo.bind,bo,inp,dt,ballFoes(p));
       bo._inp=inp;
-      bo.h+=inp.vr*dt;{const _m=momModeFor(bo,p);if(_m)applyMomentum(bo,inp,dt,_m);else{bo.x+=inp.vx*dt;bo.y+=inp.vy*dt;}}
+      bo.h+=inp.vr*dt;{const _m=momModeFor(bo,bo.bind);if(_m)applyMomentum(bo,inp,dt,_m);else{bo.x+=inp.vx*dt;bo.y+=inp.vy*dt;}}
       b2Wall(bo,RR);
     });
   }
@@ -2646,12 +2646,12 @@ function updateP2Ball(dt){
      }
    }}
   // arcade: boosting bots tackle (stun + knockback + scatter load). FF on → also tackle your own alliance (main + support bots)
-  if(arcadeMode){for(let p=0;p<2;p++){
-    const tgts=friendlyFire?[b2.bots[1-p],...(b2.cpus||[])].filter(o=>o&&o!==b2.bots[p]):ballFoes(p);
-    arcadeTackle(p,b2.bots[p],tgts);}}
+  if(arcadeMode){for(let p=0;p<b2.bots.length;p++){const bo=b2.bots[p];
+    const tgts=friendlyFire?[...b2.bots,...(b2.cpus||[])].filter(o=>o&&o!==bo):ballFoes(p); // FF on → tackle everyone but yourself (all mains + support)
+    arcadeTackle(bo.bind,bo,tgts);}}
   // shooter: per-bot intake + shoot, then projectile flight (mode-gated)
   if(m2.mode==='shooter'){
-    for(let p=0;p<2;p++){
+    for(let p=0;p<b2.bots.length;p++){
       const bo=b2.bots[p],inp=bo._inp;
       const ch=Math.cos(bo.h),sh=Math.sin(bo.h);
       const fwdSpd=ch*inp.vx+sh*inp.vy;
@@ -2659,19 +2659,19 @@ function updateP2Ball(dt){
         if(b.sc||b.intaken||b.proj)continue;
         const rdx=b.x-bo.x,rdy=b.y-bo.y;
         const lx=ch*rdx+sh*rdy,ly=-sh*rdx+ch*rdy;
-        if(lx>RR-BR-2&&lx<RR+BR+4&&Math.abs(ly)<RR+BR&&fwdSpd>20&&bo.intk.length<(mgOn(p)?99:4)){ // MACHINE GUN: big hopper
-          b.intaken=true;b.lastT=p;bo.intk.push(b);sfx('intake');
+        if(lx>RR-BR-2&&lx<RR+BR+4&&Math.abs(ly)<RR+BR&&fwdSpd>20&&bo.intk.length<(mgOn(bo.bind)?99:4)){ // MACHINE GUN: big hopper
+          b.intaken=true;b.lastT=bo.al;bo.intk.push(b);sfx('intake');
         }
       }
       bo.shootCd-=dt;
-      if(p2FireHeld(p)&&bo.shootCd<=0&&bo.intk.length>0&&!(bo.stunT>0)){
+      if(p2FireHeld(bo.bind)&&bo.shootCd<=0&&bo.intk.length>0&&!(bo.stunT>0)){
         sfx('launch');
         const b=bo.intk.shift();
-        b.intaken=false;b.proj=true;b.lastT=p;
+        b.intaken=false;b.proj=true;b.lastT=bo.al;
         b.x=bo.x+ch*(RR+14);b.y=bo.y+sh*(RR+14);
-        const _mg=mgOn(p);const _ps=_mg?480:300;b.vx=ch*_ps;b.vy=sh*_ps;b._dist=0; // MACHINE GUN: faster muzzle velocity
+        const _mg=mgOn(bo.bind);const _ps=_mg?480:300;b.vx=ch*_ps;b.vy=sh*_ps;b._dist=0; // MACHINE GUN: faster muzzle velocity
         bo.shootCd=_mg?0.05:0.18;                                       // MACHINE GUN: rapid fire
-        if(_mg)p2Rumble(p,0.3);
+        if(_mg)p2Rumble(bo.bind,0.3);
       }
     }
     for(const b of balls){
@@ -2726,8 +2726,8 @@ function updateP2Ball(dt){
     }
   }
   // per-bot ball interaction: body push + plow arms, with touch attribution
-  for(let p=0;p<2;p++){
-    const bo=b2.bots[p],inp=bo._inp;
+  for(const bo of b2.bots){
+    const inp=bo._inp;
     const rs=Math.hypot(inp.vx,inp.vy);
     for(const b of balls){
       if(b.sc||b.intaken||b.proj||b.held)continue;
@@ -2739,7 +2739,7 @@ function updateP2Ball(dt){
         b2Wall(bo,RR);b2Wall(b,BR);
         const psp=Math.max(rs*0.88,55);
         b.vx+=nx*psp;b.vy+=ny*psp;
-        b.lastT=p;
+        b.lastT=bo.al;
         b2TryScore(b);
       }
     }
@@ -2759,7 +2759,7 @@ function updateP2Ball(dt){
         const wx=ch*bestNx-sh*bestNy,wy=sh*bestNx+ch*bestNy;
         b.x+=wx*bestOv;b.y+=wy*bestOv;
         b2Wall(b,BR);
-        b.lastT=p;
+        b.lastT=bo.al;
         if(m2.mode!=='shooter'){ // SP parity: shooter plow corrals only
           const psp=Math.max(rs*0.92,60);
           b.vx+=wx*psp;b.vy+=wy*psp;
@@ -7255,6 +7255,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.69 (2026-06-15): Ball 3v3 — step 2: per-bot loop routing (BEHAVIOR-PRESERVING). updateP2Ball's per-bot loops (move/input, shooter intake+shoot, arcade tackle, body-push + plow-arm scoring) and b2PupTick now iterate b2.bots (ANY count) and route input/fire/rumble through each bot's bind: withBot(bo.bind), getInp(playerBind[bo.bind]), p2FireHeld(bo.bind), mgOn(bo.bind), arcadeStep(bo.bind), momModeFor(bo,bo.bind). Touch attribution corrected to the bot's ALLIANCE (b.lastT=bo.al, not the bind index) so scoring stays alliance-keyed once a side has multiple mains. getInp's CPU branch resolves the bind's index via playerBind.indexOf (was: only slot 0 vs 1). At 1v1 bind==al==index so every path is byte-identical — full ball battery green. DEFERRED to step 4 (lands with N-main spawn): the b2CpuUpdate all-pairs 'i<2' main test + the pin-block main-vs-main unification. Next (step 3): cpuH2H length-6-by-bind + generalize the cpuBallUpdate/b2ScoreCycle brain to N CPU mains. Full battery green. Single file, no assets.
   v5.1.68 (2026-06-15): Ball 3v3 — step 1: per-bot roster model + alliance-routed helpers (BEHAVIOR-PRESERVING). The 2P ball engine (b2) hard-assumed two mains (b2.bots[0]=RED, [1]=BLUE) with a single opposing main; this lands the spine for N mains/side without changing 1v1. Each ball bot now carries bind/role/ctl{type,tier} (the same shape tank/BB roster bots use), and the staged alliance helpers go live: ballFoes(p) → b2Foes(bo.al) (all opposing mains + opposing alliance support), b2StickyCarriers iterates the roster by ctl (not m2.claim), b2Sticky's foe list → b2Foes(car.al). At 1v1 bind==al==index so every path is byte-identical — full ball battery green. Next steps: route the per-bot move/shoot/arcade loops + the CPU brain (cpuH2H) to N mains, then roster-driven spawn + the MULTI grid claim + the legacy 2-card for 1v1. smoke45 updated (ctl is the live carrier-type source); smoke38 +1 (roster fields). Full battery green. Single file, no assets.
   v5.1.67 (2026-06-15): CPU vs CPU sims — the classic 2-card claim can now hold TWO CPUs (a difficulty-tuning aid). The 🤖 ADD CPU button (and gamepad Y) now fills the next OPEN side with a CPU instead of toggling a single one, so you can set up CPU-vs-CPU at 1v1 in every mode; when both sides are filled it drops a CPU (the label flips ADD/REMOVE based on whether a slot is open). Ball needed no engine change — no human is required (cpuH2HInit gives each CPU main a brain). tankSeatsFromClaim + startP2BB's legacy roster gained a both-CPU branch (one full CPU per side, + optional ally CPUs) so tank/BB 1v1 build CPU-vs-CPU instead of force-spawning a human. (3v3+ CPU sims already work via the MULTI grid.) Tests: smoke38 +3 (button fills both / drops when full / both mains CPU-driven + tick), smoke56 +1 (tank 1 CPU/side), smoke57 +1 (BB 1 CPU/side). Full battery green. Single file, no assets.
   v5.1.66 (2026-06-15): TEAM FORMAT choice (TANK + BATTLEBOTS) — pick 1v1 vs MULTI before the claim. New MATCH SETTINGS row 'TEAM FORMAT' (m2.set.tfmt, default '1v1'): 1v1 routes to the original 2-card "SET UP YOUR ROBOTS/BOTS" claim (Sam prefers it for simple head-to-head); MULTI routes to the 6-seat grid (up to 3v3, uneven sides, mixed humans/CPUs, per-seat drive/sens). tankGridMode() AND tankGridActive() now both require tfmt==='multi' (single switch: the claim screen AND the match-start roster source agree; a stale grid never leaks into a 1v1 start, and tournaments always use the legacy claim). smoke55/56/57 row-count asserts +1; smoke56 +5 (TEAM FORMAT gating: 1v1 grid OFF/legacy start, multi grid ON/grid start, 1v1 builds exactly 2 tanks) → 108. Step 1 of the v5.2 goal: 3v3 for all modes except obstacle course + dual 1v1/grid setup for each. Full battery green. Single file, no assets.
