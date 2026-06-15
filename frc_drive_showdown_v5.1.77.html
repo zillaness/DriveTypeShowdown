@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.76.html
-  version: 5.1.76
+  file: frc_drive_showdown_v5.1.77.html
+  version: 5.1.77
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-15
@@ -3793,11 +3793,30 @@ function bbApplyHit(victim,loc,dmg,owner){ // kinetic hit: front immune, rear→
   else{const m=victim.mob;if(m>0){victim.mob=Math.max(0,m-dmg);const spill=dmg-m;if(spill>0)victim.hp-=spill;}else victim.hp-=dmg;} // SIDE: drain wheels, then finish on the flank
   victim.inv=BB.hitCd;sfx('hit');
   if(owner!=null&&bb2.bots[owner]&&bb2.bots[owner].side!==victim.side)bb2.bots[owner].dmgDealt=(bb2.bots[owner].dmgDealt||0)+dmg; // for a future judges' decision
-  if(victim.hp<=0){victim.hp=0;victim.mob=0;victim.dead=true;sfx('boom');bbCheckResult(owner);}
+  if(victim.hp<=0)bbKill(victim,owner);
 }
-function bbCheckResult(lastKiller){ // last SIDE standing wins (KO). result is a side index.
+function bbCheckResult(lastKiller){ // last SIDE standing wins (KO); nobody left = mutual-destruction DRAW
   if(bb2.result!==null)return;const s=new Set();for(const b of bb2.bots)if(!b.dead)s.add(b.side);
-  if(s.size<=1){bb2.result=s.size===1?[...s][0]:(lastKiller!=null&&bb2.bots[lastKiller]?bb2.bots[lastKiller].side:0);sfx('win');}
+  if(s.size===0){bb2.result='draw';sfx('win');return;}
+  if(s.size===1){bb2.result=[...s][0];sfx('win');}
+}
+function bbKill(victim,owner){ // KO + explosion + MUTUAL-DESTRUCTION chain: a near-dead bot caught in the blast also dies
+  if(victim.dead)return;
+  victim.hp=0;victim.mob=0;victim.dead=true;sfx('boom');
+  if(!bb2.blasts)bb2.blasts=[];if(!bb2.deb)bb2.deb=[];
+  const R=RR*BB_W.blastRK;bb2.blasts.push({x:victim.x,y:victim.y,t:0.42,r:R});bbDeathFx(victim);
+  for(const o of bb2.bots){if(o===victim||o.dead)continue;if(o.hp<=BB_W.blastLethalHp&&Math.hypot(o.x-victim.x,o.y-victim.y)<=R)bbKill(o,owner);} // chain reaction
+  bbCheckResult(owner);
+}
+function bbDeathFx(b){ // cosmetic: scatter chassis debris on a KO (a fun, animated death)
+  if(!bb2.deb)bb2.deb=[];
+  for(let i=0;i<9;i++){const a=Math.random()*Math.PI*2,sp=60+Math.random()*150;
+    bb2.deb.push({x:b.x,y:b.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,r:Math.random()*Math.PI,vr:(Math.random()*2-1)*8,t:0.6+Math.random()*0.4,sz:2+Math.random()*4,col:b.col});}
+}
+function bbFxTick(dt){ // animate + retire explosions, debris, labels (runs even after the match ends so the final blow-up plays out)
+  if(bb2.blasts){for(const bl of bb2.blasts)bl.t-=dt;bb2.blasts=bb2.blasts.filter(bl=>bl.t>0);}
+  if(bb2.deb){for(const d of bb2.deb){d.x+=d.vx*dt;d.y+=d.vy*dt;d.vx*=0.9;d.vy*=0.9;d.r+=d.vr*dt;d.t-=dt;}bb2.deb=bb2.deb.filter(d=>d.t>0);}
+  for(const f of bb2.fx)f.t-=dt;bb2.fx=bb2.fx.filter(f=>f.t>0);
 }
 function startP2BB(){cheatedRun=false;paused=false;
   applyLayout('tank2p');
@@ -3815,7 +3834,7 @@ function startP2BB(){cheatedRun=false;paused=false;
         roster.push({side:1,bind:cpuBind,type:'cpu',tier:(m2.claim[cpuBind].tier|0)});}}}
   const nSide=[roster.filter(r=>r.side===0).length,roster.filter(r=>r.side===1).length];
   const ys=[tf2SpawnYs(nSide[0]),tf2SpawnYs(nSide[1])],yIdx=[0,0],seat=[0,0];
-  bb2={t:0,cd:3,result:null,repd:false,map:mp,fx:[],
+  bb2={t:0,cd:3,result:null,repd:false,map:mp,fx:[],blasts:[],deb:[],
     bots:roster.map(r=>{const sp=tf2SpawnSide(r.side,ys[r.side][yIdx[r.side]++]);
       const ctl=tankMkCtl(r.bind);ctl.type=r.type;const si=seat[r.side]++,col=teamShade(r.side,si);
       if(r.type==='cpu'){ctl.tier=r.tier;ctl.name='CPU'+(nSide[r.side]>1?' '+(si+1):'');}
@@ -3848,7 +3867,8 @@ const BB_W={
   spinRamp:0.85, spinMin:0.55, spinDmg:34, spinKnock:2.0,            // SPINNER: spin-up time, bite threshold, per-bite dmg, extra knockback
   pistCd:0.95, pistDmg:46, pistRangeK:1.7, pistArc:Math.PI*0.55, pistKnock:30, // PISTON: cooldown, strike dmg, reach (RR+RR×K), front arc, knockback
   flameRangeK:2.1, flameArc:Math.PI*0.42, flameDwell:0.55, flameDps:26, flameHeatMax:1.8, // FLAMETHROWER: reach, cone, heat-up dwell, dps, heat cap
-  wedgeDmg:0.40, wedgeArc:Math.PI*0.55, wedgePin:0.45, wedgeShove:2.2 // WEDGE: contact-dmg mult, front grab arc, pinned-foe speed mult, extra shove
+  wedgeDmg:0.40, wedgeArc:Math.PI*0.55, wedgePin:0.45, wedgeShove:2.2, // WEDGE: contact-dmg mult, front grab arc, pinned-foe speed mult, extra shove
+  blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24 // P2.3 FLAME blow-up burn threshold, burn cool-down/s, blast radius (×RR), near-dead HP caught in a blast
 };
 function bbWeaponFiring(b){ // is this bot firing its weapon (RT / Space / touch-fire; CPU via brain.fire)
   if(b.ctl.type==='cpu')return !!(b.ctl.brain&&b.ctl.brain.fire);
@@ -3868,11 +3888,11 @@ function bbContactDmg(att,ram){ // contact (ram) damage a weapon deals to the fo
 function bbApplyFlame(victim,dmg,owner){ // THERMAL: continuous, IGNORES directional armor (burns the FRONT too); feeds the blow-up meter (P2.3)
   if(victim.dead||dmg<=0)return;
   const atk=(owner!=null&&bb2&&bb2.bots[owner])?bb2.bots[owner]:null;
-  const deal=(atk&&atk.ld)?atk.ld.deal:1,take=victim.ld?victim.ld.take:1;
-  dmg=dmg*deal*take*bbRps(atk&&atk.ld?atk.ld.wcls:'thermal',victim.ld?victim.ld.arps:'balanced'); // no per-zone, no front-immune
-  victim.hp-=dmg;victim.burn=(victim.burn||0)+dmg;
-  if(atk&&atk.side!==victim.side)atk.dmgDealt=(atk.dmgDealt||0)+dmg;
-  if(victim.hp<=0){victim.hp=0;victim.mob=0;victim.dead=true;sfx('boom');bbCheckResult(owner);}
+  const deal=(atk&&atk.ld)?atk.ld.deal:1,take=victim.ld?victim.ld.take:1,rps=bbRps(atk&&atk.ld?atk.ld.wcls:'thermal',victim.ld?victim.ld.arps:'balanced');
+  victim.burn=(victim.burn||0)+dmg*rps;        // BLOW-UP meter: RPS-scaled (hardplate ignites fast, heatshield resists) — armor can't stop the heat building
+  const hp=dmg*deal*take*rps;victim.hp-=hp;     // HP damage IS reduced by armor/RPS (low DPS)
+  if(atk&&atk.side!==victim.side)atk.dmgDealt=(atk.dmgDealt||0)+hp;
+  if(victim.hp<=0||victim.burn>=BB_W.blowUp)bbKill(victim,owner); // HP gone OR sustained burn → BLOW-UP
 }
 function bbWeaponPre(dt){ // per-bot: cache FIRE input, ramp/decay SPINNER, decay PISTON cd + WEDGE pin + strike fx
   for(const b of bb2.bots){if(b.dead)continue;
@@ -3881,6 +3901,7 @@ function bbWeaponPre(dt){ // per-bot: cache FIRE input, ramp/decay SPINNER, deca
     if(b.pistCd>0)b.pistCd=Math.max(0,b.pistCd-dt);
     if(b.pinT>0)b.pinT=Math.max(0,b.pinT-dt);
     if(b._pistFx>0)b._pistFx=Math.max(0,b._pistFx-dt);
+    if(b.burn>0)b.burn=Math.max(0,b.burn-dt*BB_W.burnCool); // the blow-up meter cools when you're not being flamed — you must SUSTAIN it
   }
 }
 function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + FLAMETHROWER (heat-up, then armor-ignoring burn)
@@ -3902,7 +3923,7 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
 function updateBB(dt){
   if(!bb2)return;
   if(bb2.cd>0){const _p=Math.ceil(bb2.cd);bb2.cd-=dt;if(bb2.cd<=0)sfx('go');else if(Math.ceil(bb2.cd)<_p)sfx('count');return;}
-  if(bb2.result!==null){if(!bb2.repd){bb2.repd=true;p2SeriesReport(bb2.result);}return;}
+  if(bb2.result!==null){bbFxTick(dt);if(!bb2.repd){bb2.repd=true;if(typeof bb2.result==='number')p2SeriesReport(bb2.result);}return;} // a DRAW (mutual destruction) reports no winner — void round
   bb2.t+=dt;if(anyCheat())cheatedRun=true;
   bbCpuUpdate(dt);
   for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
@@ -3940,7 +3961,7 @@ function updateBB(dt){
     }
   }
   bbWeaponFire(dt); // PISTON strikes + FLAMETHROWER heat-up/burn (range-based)
-  for(const f of bb2.fx)f.t-=dt;bb2.fx=bb2.fx.filter(f=>f.t>0);
+  bbFxTick(dt); // explosions + debris + labels
 }
 function bbBar(x,y,w,h,frac,col){frac=clamp(frac,0,1);ctx.fillStyle='rgba(0,0,0,0.55)';rr(x,y,w,h,3);ctx.fill();ctx.fillStyle=col;rr(x,y,Math.max(0.001,w*frac),h,3);ctx.fill();}
 function bbDrawWeapon(b){ // P2.2 basic weapon cosmetics (the picker UI + polished look land in P2.5)
@@ -3977,6 +3998,13 @@ function drawBB(){
     drawP2Tag(p,b,b.ctl.name||p2Name(b.ctl.bind),b.col); // show each bot's name above it, humans included
     ctx.globalAlpha=1;
   }
+  // explosions + KO debris (mutual-destruction blasts / chassis scatter)
+  for(const bl of (bb2.blasts||[])){const k=1-bl.t/0.42,r=8+(bl.r-8)*k;ctx.globalAlpha=Math.max(0,bl.t/0.42);
+    ctx.fillStyle='#ff5a1e33';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#ff8a3d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.stroke();}
+  ctx.globalAlpha=1;
+  for(const d of (bb2.deb||[])){ctx.save();ctx.translate(FX+d.x,FY+d.y);ctx.rotate(d.r);ctx.globalAlpha=Math.max(0,Math.min(1,d.t*1.6));ctx.fillStyle=d.col||'#bbb';ctx.fillRect(-d.sz/2,-d.sz/2,d.sz,d.sz);ctx.restore();}
+  ctx.globalAlpha=1;
   {const row=[0,0];for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];const left=b.side===0,x=left?10:CW-194,r=row[b.side]++,y=16+r*42;
     ctx.textAlign='left';ctx.font='bold 11px Courier New';ctx.fillStyle=b.col;
     ctx.fillText((b.ctl.type==='cpu'?b.ctl.name:p2Name(b.ctl.bind))+(b.dead?' ✕KO':(b.mob<=0?' ⚠IMMOBILE':'')),x,y);
@@ -3985,7 +4013,7 @@ function drawBB(){
   ctx.textAlign='center';ctx.font='bold 13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText(fmt(Math.max(0,bb2.t)),CW/2,20);
   ctx.font='9px Courier New';ctx.fillStyle='#556';ctx.fillText('BATTLEBOTS — keep your FRONT to them · ram their REAR (HP) or SIDE (wheels) · LT/Shift = DASH',CW/2,38);
   if(bb2.cd>0){ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,CW,CH);ctx.font='bold 84px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffd740';ctx.fillText(String(Math.ceil(bb2.cd)),CW/2,FY+FH/2);ctx.font='bold 13px Courier New';ctx.fillStyle='#8888aa';ctx.fillText('BATTLEBOTS — '+bb2.map.name,CW/2,FY+FH/2+40);}
-  if(bb2.result!==null){ctx.fillStyle='rgba(0,0,0,0.74)';ctx.fillRect(0,0,CW,CH);const w=bb2.result;ctx.textAlign='center';ctx.font='bold 40px Courier New';ctx.fillStyle=M2_COLS[w];ctx.fillText((w===0?'RED':'BLUE')+' WINS',CW/2,FY+FH/2-54);ctx.font='13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('KO  ·  '+fmt(bb2.t),CW/2,FY+FH/2-22);drawP2Nav(FY+FH/2+34);}
+  if(bb2.result!==null){ctx.fillStyle='rgba(0,0,0,0.74)';ctx.fillRect(0,0,CW,CH);const w=bb2.result,draw=(w==='draw');ctx.textAlign='center';ctx.font='bold 40px Courier New';ctx.fillStyle=draw?'#ffd740':M2_COLS[w];ctx.fillText(draw?'DRAW':((w===0?'RED':'BLUE')+' WINS'),CW/2,FY+FH/2-54);ctx.font='13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText((draw?'DOUBLE KO':'KO')+'  ·  '+fmt(bb2.t),CW/2,FY+FH/2-22);drawP2Nav(FY+FH/2+34);}
 }
 
 // ═══ PHASE 3: 2P OBSTACLE RACE (vertical slice) ═══
@@ -7446,6 +7474,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.77 (2026-06-15): BATTLEBOTS WEAPONS P2.3 — flame BLOW-UP + mutual-destruction DRAW + death FX. The FLAMETHROWER's burn meter (RPS-scaled — hardplate ignites fast, heatshield resists; armor can't stop the heat) DETONATES a bot at the blowUp threshold even with HP left; it cools when you stop flaming (must SUSTAIN). Every KO (HP=0 or blow-up) spawns an explosion blast + scattered chassis debris (bbKill/bbDeathFx) and triggers a MUTUAL-DESTRUCTION chain: any near-dead bot (hp≤blastLethalHp) within the blast is also KO'd (recursive). bbCheckResult gains a DRAW state (nobody left) → "DRAW — DOUBLE KO"; a draw reports no winner (void round). bbFxTick animates blasts/debris even after the match ends. Default loadout never flames → BattleBots P1 byte-identical (the s.size===0 path was dead in P1). smoke57 +10 → 73. Full battery green. Single file, no assets.
   v5.1.76 (2026-06-15): BATTLEBOTS WEAPONS P2.2 — the four weapons now FIRE. FIRE input = RT (gamepad) / Space (keyboard) / CPU brain.fire; RAM stays on LT. SPINNER: hold to spin up (bbWeaponPre ramp), a spun-up edge bites on contact regardless of closing speed + flings BOTH bots (bbContactDmg/knockback). PISTON: front-arc strike on a ~1s cooldown (bbWeaponFire), big single hit. FLAMETHROWER: must DWELL ~0.55s on a foe (per-victim heat) before a low continuous DPS that IGNORES directional armor (bbApplyFlame — burns the front too) + feeds a burn meter for P2.3. WEDGE: soft contact damage but PINS + shoves the foe in its front arc (slows it via bbSpeed). New BB_W tuning const + bbWeaponFiring/bbContactDmg/bbApplyFlame/bbWeaponPre/bbWeaponFire + basic bbDrawWeapon cosmetics. Default loadout 'none' → every weapon path gated → BattleBots P1 byte-identical. smoke57 +19 → 63. (Weapons become equippable at the P2.5 picker UI — test-exercised for now.) Full battery green. Single file, no assets.
   v5.1.75 (2026-06-15): ARCADE turret aim now integrates cleanly with the Mouse-Aim [K] toggle (fixes the v5.1.74 double-aim). For a KEYBOARD arcade tank the Mouse-Aim setting now points the TURRET instead of also turning the chassis: tankTurretAim's kb branch is gated on mouseAim, and mouseAimVr (chassis-to-cursor turn) is SUPPRESSED for arcade tanks (tankAimLockStick now covers gp+kb arcade) — so you steer freely with WASD and aim the turret with the mouse. Non-arcade keyboard tanks keep the classic chassis Mouse-Aim; gamepad arcade right-stick aim is unchanged (independent of the toggle). smoke55 +2 → 39. Full battery green. Single file, no assets.
   v5.1.74 (2026-06-15): ARCADE DRIVE turret aim (TANK FIGHT) — arcade's one-stick / one-hand drive now earns a real edge: the FREE input aims the turret. Gamepad → the RIGHT stick points the cannon (and is reserved from driving, so the bot steers on the LEFT stick only); keyboard → the MOUSE aims (the turret tracks the cursor). New tankTurretAim(t,bind) (gated to drive id 'arcade', humans only). Aim priority: AUTO-AIM pickup (foe-lock) > arcade manual aim > chassis-locked; both tf2Shoot and tankAimCannon honor it (manual aim slews ~2.4× faster — snappy). tankAimLockStick reserves the arcade gamepad's right stick for aim; every other mode/drive is byte-identical. smoke55 +7 → 37. Full battery green. Single file, no assets.

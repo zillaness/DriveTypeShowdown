@@ -139,7 +139,7 @@ src+=`
    ok('FLAME: below dwell does NO damage yet (heat '+(a.heat[1]||0).toFixed(2)+')',c.hp===BB.HP&&a.heat[1]>0&&a.heat[1]<BB_W.flameDwell);
    bbWeaponFire(0.4);ok('FLAME: after heat-up it BURNS (hp '+BB.HP+'→'+c.hp.toFixed(1)+', burn>0)',c.hp<BB.HP&&(c.burn||0)>0);
    c.x=900;bbWeaponFire(1.0);ok('FLAME: heat decays when the foe leaves the cone',a.heat[1]<0.2);
-   c.x=100+RR*1.5;c.hp=BB.HP;c.inv=0;bbApplyHit(c,'front',30,0);ok('kinetic FRONT hit is immune',c.hp===BB.HP);
+   c.x=100+RR*1.5;c.hp=BB.HP;c.inv=0;c.burn=0;bbApplyHit(c,'front',30,0);ok('kinetic FRONT hit is immune',c.hp===BB.HP);
    c.inv=0;bbApplyFlame(c,30,0);ok('FLAME ignores front armor (burns through)',c.hp<BB.HP);}
   {const a=bbBotWith('wedge','balanced',0,0,true);
    ok('WEDGE softens its own ram damage (control, not damage)',Math.abs(bbContactDmg(a,20)-20*BB_W.wedgeDmg)<1e-9);
@@ -151,6 +151,25 @@ src+=`
    bb2.bots[2].firing=true;bb2.bots[0].spin=1;bb2.bots[1]._pistFx=0.1;bb2.cd=0;bb2.result=null;
    let dThrew=false;try{drawBB();}catch(e){dThrew=true;console.log('   drawBB weapon err:',e.message);}
    ok('drawBB renders all 4 weapons without throwing',!dThrew);}
+  // ── v5.1.77 P2.3: FLAME blow-up + mutual-destruction DRAW + death FX ──
+  {const x=bbBotWith('none','balanced',1,1,true);x.hp=BB.HP;x.burn=0;bb2.bots=[bbBotWith('flame','balanced',0,0,true),x];bb2.result=null;bb2.blasts=[];bb2.deb=[];
+   bbApplyFlame(x,BB_W.blowUp-2,0);const hpBefore=x.hp;ok('below the blow-up threshold: still alive (burn '+x.burn.toFixed(0)+', hp '+x.hp.toFixed(0)+')',!x.dead);
+   bbApplyFlame(x,4,0);ok('crossing the blow-up threshold DETONATES despite '+hpBefore.toFixed(0)+' HP left',x.dead===true&&x.hp===0);
+   ok('blow-up spawns an explosion blast + scatter debris',bb2.blasts.length>0&&bb2.deb.length>0);}
+  {const b=bbBotWith('none','balanced',0,0,true);b.burn=30;bb2.bots=[b];bb2.result=null;
+   for(let i=0;i<60;i++)bbWeaponPre(1/60);ok('the blow-up meter COOLS when not being flamed ('+b.burn.toFixed(0)+'<30)',b.burn<30);}
+  {const a=bbBotWith('none','balanced',0,0,true),c=bbBotWith('none','balanced',1,1,true);
+   a.x=100;a.y=100;c.x=110;c.y=100;a.hp=10;c.hp=10;bb2.bots=[a,c];bb2.result=null;bb2.blasts=[];bb2.deb=[];
+   bbKill(a,1);ok('MUTUAL DESTRUCTION: the blast KOs a near-dead adjacent foe',c.dead===true);
+   ok('last bot of each side caught → DRAW',bb2.result==='draw');}
+  {const a=bbBotWith('none','balanced',0,0,true),c=bbBotWith('none','balanced',1,1,true);
+   a.x=100;a.y=100;c.x=110;c.y=100;a.hp=10;c.hp=BB.HP;bb2.bots=[a,c];bb2.result=null;bb2.blasts=[];bb2.deb=[];
+   bbKill(a,1);ok('a HEALTHY bot SURVIVES the blast (only near-dead are caught)',!c.dead&&bb2.result===1);}
+  {bb2.bots=[bbBotWith('none','balanced',0,0,true),bbBotWith('none','balanced',1,1,true)];bb2.bots.forEach(b=>b.dead=true);bb2.result=null;
+   bbCheckResult(0);ok('bbCheckResult: nobody alive → draw',bb2.result==='draw');}
+  {startBB(0,2);bb2.blasts=[{x:300,y:300,t:0.3,r:RR*3}];bb2.deb=[{x:300,y:300,vx:50,vy:-30,r:1,vr:5,t:0.4,sz:4,col:'#f55'}];bb2.result='draw';bb2.cd=0;
+   let dThrew=false;try{drawBB();}catch(e){dThrew=true;console.log('   draw/blast err:',e.message);}
+   ok('drawBB renders blasts + debris + the DRAW overlay without throwing',!dThrew);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
