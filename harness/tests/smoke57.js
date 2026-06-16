@@ -115,14 +115,14 @@ src+=`
   // ── v5.1.76 P2.2: weapon FIRE behavior (SPINNER / PISTON / FLAMETHROWER / WEDGE) ──
   const bbBotWith=(weapon,armor,side,bind,cpu)=>{const ld=bbResolveLoadout({weapon:weapon,armor:armor});
     return {x:0,y:0,h:0,side:side|0,col:'#fff',mob:ld.mobMax,hp:BB.HP,inv:0,dead:false,dmgDealt:0,boostT:0,boostCd:0,
-      ctl:{bind:bind|0,type:cpu?'cpu':'human',brain:cpu?{inp:{vx:0,vy:0,vr:0},fire:false}:null},ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,fuel:BB_W.flameFuelMax,heat:{},firing:false,_inp:{vx:0,vy:0,vr:0},_vis:null};};
+      ctl:{bind:bind|0,type:cpu?'cpu':'human',brain:cpu?{inp:{vx:0,vy:0,vr:0},fire:false}:null},ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,_inp:{vx:0,vy:0,vr:0},_vis:null};};
   {const a=bbBotWith('spinner','balanced',0,0,false);playerBind[0]={type:'kb'};
    kbSpaceHeld=true;ok('FIRE: keyboard Space fires the weapon',bbWeaponFiring(a)===true);
    kbSpaceHeld=false;fireBtnPressed=false;ok('FIRE: released = not firing',bbWeaponFiring(a)===false);
    const cpu=bbBotWith('spinner','balanced',0,1,true);cpu.ctl.brain.fire=true;ok('FIRE: CPU fires via brain.fire',bbWeaponFiring(cpu)===true);}
   {const a=bbBotWith('spinner','balanced',0,0,true);a.ctl.brain.fire=true;bb2.bots=[a];bb2.result=null;
-   for(let i=0;i<60;i++)bbWeaponPre(1/60);ok('SPINNER spins up to full while firing ('+a.spin.toFixed(2)+')',a.spin>0.95);
-   a.ctl.brain.fire=false;for(let i=0;i<60;i++)bbWeaponPre(1/60);ok('SPINNER spins down when released',a.spin<0.05);
+   for(let i=0;i<90;i++)bbWeaponPre(1/60);ok('SPINNER spins up to full while firing ('+a.spin.toFixed(2)+', slower ramp now)',a.spin>0.95);
+   a.ctl.brain.fire=false;for(let i=0;i<90;i++)bbWeaponPre(1/60);ok('SPINNER spins down when released',a.spin<0.05);
    a.spin=1;ok('spun-up SPINNER bites on contact (≈spinDmg, ignores closing speed)',Math.abs(bbContactDmg(a,5)-BB_W.spinDmg)<1e-9);
    a.spin=0;ok('idle SPINNER deals only RAM damage',bbContactDmg(a,5)===5);}
   {const a=bbBotWith('piston','balanced',0,0,true);a.ctl.brain.fire=true;a.x=100;a.y=100;a.h=0;a.pistCd=0;
@@ -166,14 +166,21 @@ src+=`
    let ended=false;for(let i=0;i<Math.ceil((BB.countOut+0.5)*60)&&!ended;i++){updateBB(1/60);if(bb2.result!==null)ended=true;}
    ok('both-immobilized match ENDS via count-out (no soft-lock)',bb2.result!==null);
    ok('immobilized bots are counted out (KO)',bb2.bots[0].dead&&bb2.bots[1].dead);}
-  {const a=bbBotWith('flame','balanced',0,0,true);a.x=100;a.y=100;a.h=0;a.fuel=BB_W.flameFuelMax;a.firing=true;
-   const c=bbBotWith('none','balanced',1,1,true);c.x=100+RR*1.5;c.y=100;c.hp=BB.HP;c.inv=0;bb2.bots=[a,c];bb2.result=null;
-   const f0=a.fuel;bbWeaponFire(0.5);ok('FLAME burns FUEL while flaming',a.fuel<f0&&a.fuel>=f0-0.6);
-   a.fuel=0;c.hp=BB.HP;c.burn=0;c.inv=0;a.heat={};a.firing=true;bbWeaponFire(0.5);ok('out of FUEL → flame does not ignite',(a.heat[1]||0)===0&&c.hp===BB.HP);
-   a.firing=false;a.ctl.brain.fire=false;bbWeaponPre(0.5);ok('FUEL refills when idle',a.fuel>0);}
   {const a=bbBotWith('flame','balanced',0,0,true);a.x=100;a.y=100;a.h=0;a.heat={};
    const c=bbBotWith('none','balanced',1,1,true);c.x=100+RR*3.5;c.y=100;c.hp=BB.HP;c.inv=0;c.burn=0;bb2.bots=[a,c];bb2.result=null;
-   for(let i=0;i<70;i++){a.firing=true;a.fuel=3;bbWeaponFire(1/60);}ok('FLAME has more REACH (a foe ~3.5×RR out still burns)',c.hp<BB.HP);}
+   for(let i=0;i<70;i++){a.firing=true;bbWeaponFire(1/60);}ok('FLAME has more REACH (a foe ~3.5×RR out still burns)',c.hp<BB.HP);}
+  // spinner self-damage (energy transfer) + WEDGE deflection (the anti-spinner counter)
+  {startBB(0,2);bb2.cd=0;bb2.result=null;const a=bbBotWith('spinner','balanced',0,0,true),c=bbBotWith('none','balanced',1,1,true);
+   a.ctl.brain.fire=true;a.x=300;a.y=300;a.h=0;a.spin=1;a.mob=BB.MOB;a.hp=BB.HP;a.inv=0;c.x=300+RR*1.2;c.y=300;c.hp=BB.HP;c.mob=BB.MOB;c.inv=0;
+   bb2.bots=[a,c];const ahp0=a.hp;updateBB(1/60);ok('a SPINNER also damages ITSELF on a bite',a.hp<ahp0);}
+  {startBB(0,2);bb2.cd=0;bb2.result=null;const a=bbBotWith('spinner','balanced',0,0,true),w=bbBotWith('wedge','balanced',1,1,true);
+   a.ctl.brain.fire=true;a.x=300;a.y=300;a.h=0;a.spin=1;a.mob=BB.MOB;a.hp=BB.HP;a.inv=0;w.x=300+RR*1.2;w.y=300;w.hp=BB.HP;w.mob=BB.MOB;w.inv=0;
+   bb2.bots=[a,w];const ahp0=a.hp;updateBB(1/60);ok('a WEDGE DEFLECTS a spinner — the disc fully stalls + self-damages',a.spin===0&&a.hp<ahp0);}
+  // count-out gating: only a TRUE stalemate (no mobile foe), never an immobile bot a mobile foe can finish
+  {startBB(0,2);bb2.cd=0;bb2.result=null;const a=bb2.bots[0],c=bb2.bots[1];
+   a.x=100;a.y=100;a.mob=0;a.hp=BB.HP;a.outT=0;a.inv=0;a.dead=false;c.x=1100;c.y=600;c.mob=BB.MOB;c.hp=BB.HP;c.dead=false;
+   for(let i=0;i<60;i++){a.mob=0;c.mob=BB.MOB;updateBB(1/60);}
+   ok('an immobilized bot is NOT counted out while a foe can still finish it',(a.outT||0)===0);}
   ok('default-weapon contact damage = raw ram (P1 unchanged)',bbContactDmg(bbBotWith('none','balanced',0,0,true),17)===17);
   {startBB(0,2);for(let i=0;i<4;i++)m2.drive[i]={kind:'main',idx:1,name:'A',c:'#0ff'};
    bb2.bots=[bbBotWith('spinner','balanced',0,0,true),bbBotWith('piston','balanced',1,1,true),bbBotWith('flame','balanced',0,2,true),bbBotWith('wedge','balanced',1,3,true)];

@@ -8,7 +8,7 @@ src+=`
   function seedRng(s){let sd=s>>>0;Math.random=()=>{sd=(sd*1664525+1013904223)>>>0;return sd/4294967296;};}
   function mkBot(weapon,armor,side,bind){const ld=bbResolveLoadout({weapon:weapon,armor:armor});const sp=tf2SpawnSide(side,FH/2);
     return{x:sp.x,y:sp.y,h:sp.h,side:side,col:'#fff',mob:ld.mobMax,hp:BB.HP,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,
-      ctl:{bind:bind,type:'cpu',tier:3,name:'CPU',brain:{inp:{vx:0,vy:0,vr:0},fire:false}},ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,fuel:BB_W.flameFuelMax,heat:{},firing:false,
+      ctl:{bind:bind,type:'cpu',tier:3,name:'CPU',brain:{inp:{vx:0,vy:0,vr:0},fire:false}},ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,
       wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};}
   function runMatch(wA,wB,aArm,bArm,seed,aSide){
     seedRng(seed);applyLayout('tank2p');m2.set.map=0;const mp=TF2_MAPS[0];tfObs=[]; // obstacle-free arena: isolate WEAPON balance from the CPU's lack of obstacle pathing

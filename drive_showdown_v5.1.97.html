@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.96.html
-  version: 5.1.96
+  file: drive_showdown_v5.1.97.html
+  version: 5.1.97
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-16
@@ -4018,7 +4018,7 @@ function startP2BB(){cheatedRun=false;paused=false;
       if(gridOn){const _gs=m2.tseats[r.bind];ctl.name=(r.type==='cpu')?((r.side===0?'RED':'BLUE')+' '+(si+1)):((_gs&&_gs.name)||('PLAYER '+(si+1)));} // grid: player name / CPU side+slot
       ctl.brain=(r.type==='cpu')?{inp:{vx:0,vy:0,vr:0}}:null;
       const _ldSrc=bbLoadoutForBind(r.bind);const ld=bbResolveLoadout((r.type==='cpu'&&!_ldSrc)?bbCpuPickLoadout(r.tier|0):_ldSrc); // P2.1 loadout stats; P2.6: a CPU with no chosen loadout auto-arms (tier-scaled)
-      return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:BB.HP,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,fuel:BB_W.flameFuelMax,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
+      return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:BB.HP,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
   cpuH2H=null;
 }
 // RoboRumble RAM/DASH is always available (no RAMMING cheat needed) — LT (gamepad) / Shift (keyboard). Human-only in P1.
@@ -4032,8 +4032,17 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
     let foe=null,bd=1e9;for(const f of bb2.bots)if(!f.dead&&f.side!==me.side){const d=Math.hypot(f.x-me.x,f.y-me.y);if(d<bd){bd=d;foe=f;}}
     if(!foe){br.inp.vx=br.inp.vy=br.inp.vr=0;continue;}
     const T=tierParamsByIdx(me.ctl.tier|0,0);
-    const tx=foe.x-Math.cos(foe.h)*RR*2.2,ty=foe.y-Math.sin(foe.h)*RR*2.2; // aim a point behind the foe (its weak rear)
-    let mx=tx-me.x,my=ty-me.y,md=Math.hypot(mx,my)||1;mx/=md;my/=md;
+    // P0 FLANKING (v5.1.97): keep FACING the foe (front armor + weapon arc, via vr below) while ORBITING to its weak
+    // REAR/SIDE. Movement is holonomic in RoboRumble (translate in world space), so a bot strafes around while pointed
+    // at the foe — instead of pressing straight in front-to-front (which let only front-piercing weapons ever connect).
+    const dxf=me.x-foe.x,dyf=me.y-foe.y,df=Math.hypot(dxf,dyf)||1,aToMe=Math.atan2(dyf,dxf);
+    let off=aToMe-(foe.h+Math.PI);while(off>Math.PI)off-=2*Math.PI;while(off<-Math.PI)off+=2*Math.PI; // angular offset from being directly BEHIND the foe
+    const ringR=RR*2.2,behind=Math.abs(off)<0.55;
+    let mx,my;
+    if(df>ringR*1.6||behind){mx=foe.x-me.x;my=foe.y-me.y;} // far OR already behind → drive straight IN (close the gap / ram the rear)
+    else{const tang=aToMe+(off>0?-1:1)*Math.PI/2,radErr=(df-ringR)/ringR; // engaged but not behind → ORBIT toward the rear, holding the ring radius
+      mx=Math.cos(tang)-Math.cos(aToMe)*radErr;my=Math.sin(tang)-Math.sin(aToMe)*radErr;}
+    const md=Math.hypot(mx,my)||1;mx/=md;my/=md;
     br.inp.vx=mx*SPD*T.spd;br.inp.vy=my*SPD*T.spd;
     let dh=Math.atan2(foe.y-me.y,foe.x-me.x)-me.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
     br.inp.vr=clamp(dh*6,-TSP*T.turn,TSP*T.turn); // face the foe so our front armor takes the trades
@@ -4050,9 +4059,9 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
 }
 // ── RoboRumble P2.2: weapon FIRE behavior (SPINNER / PISTON / FLAMETHROWER / WEDGE; RAM is always-on) — all TUNABLE ──
 const BB_W={
-  spinRamp:0.85, spinMin:0.55, spinDmg:38, spinKnock:2.0, spinHitLoss:0.50, spinWallDmg:18, spinWallLoss:0.70, spinFront:0.50, // SPINNER: spin-up time, bite threshold, FULL-spin dmg (×spin), knockback, spin bled per BITE, self-dmg + spin bled on a WALL slam, FRONT-pierce (a spinner bites anything it touches, armor facing be damned)
-  pistCd:0.95, pistDmg:52, pistRangeK:1.7, pistArc:Math.PI*0.55, pistKnock:30, pistFront:0.72, // PISTON: cooldown, strike dmg, reach (RR+RR×K), front arc, knockback, FRONT-pierce fraction (a hammer dents an armored front)
-  flameRangeK:3.2, flameArc:Math.PI*0.42, flameDwell:0.55, flameDps:26, flameHeatMax:1.8, flameFuelMax:3.0, flameRegen:0.5, // FLAMETHROWER: reach (longer now), cone, dwell, dps, heat cap, FUEL (sec of flame), fuel refill/s when idle
+  spinRamp:1.10, spinMin:0.55, spinDmg:38, spinKnock:2.0, spinHitLoss:0.85, spinWallDmg:18, spinWallLoss:0.90, spinFront:0.50, spinSelf:0.30, spinDeflect:2.5, // SPINNER: + the bot takes spinSelf× of the damage it deals back into ITSELF on every bite (energy transfer), ×spinDeflect vs a WEDGE/blade (the anti-spinner counter — deflects, shreds the disc) spin-up time, bite threshold, FULL-spin dmg (×spin), knockback, spin bled per BITE, self-dmg + spin bled on a WALL slam, FRONT-pierce (a spinner bites anything it touches, armor facing be damned)
+  pistCd:1.05, pistDmg:40, pistRangeK:1.7, pistArc:Math.PI*0.55, pistKnock:30, pistFront:0.55, // PISTON: cooldown, strike dmg, reach (RR+RR×K), front arc, knockback, FRONT-pierce fraction (a hammer dents an armored front)
+  flameRangeK:3.2, flameArc:Math.PI*0.52, flameDwell:0.55, flameDps:34, flameHeatMax:1.8, // FLAMETHROWER: reach, WIDER cone, heat-up dwell, higher dps, heat cap (no fuel gauge — kept simple)
   wedgeDmg:0.40, wedgeArc:Math.PI*0.55, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, // WEDGE: contact-dmg mult, grab arc, pinned-foe speed mult, pin DURATION, shove
   blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, // P2.3 FLAME blow-up burn threshold, burn cool-down/s, blast radius (×RR), near-dead HP caught in a blast
   wheelHp:40, faultK:0.22 // P2.4 per-corner wheel HP; handling-fault strength (turn-bias / strafe drift per dead wheel)
@@ -4081,7 +4090,7 @@ function bbWeaponFiring(b){ // is this bot firing its weapon (RT / Space / touch
   if(b.ctl.type==='cpu')return !!(b.ctl.brain&&b.ctl.brain.fire);
   const d=playerBind[b.ctl.bind];if(!d)return false;
   if(d.type==='kb'||d.type==='any')return kbSpaceHeld||fireBtnPressed;
-  if(d.type==='gp'){const bt=gpBtnsAll[d.gp];return !!(bt&&bt[7]);}     // RT = fire weapon (LT/RB stays RAM dash)
+  if(d.type==='gp'){const bt=gpBtnsAll[d.gp];return !!(bt&&(bt[0]||bt[7]));}  // fire weapon = RT or A (LT = RAM dash); A added so it works if a pad reports RT only as an axis
   if(d.type==='touchL')return p2TFire[0];if(d.type==='touchR')return p2TFire[1];
   return false;
 }
@@ -4105,7 +4114,6 @@ function bbWeaponPre(dt){ // per-bot: cache FIRE input, ramp/decay SPINNER, deca
   for(const b of bb2.bots){if(b.dead)continue;
     b.firing=bbWeaponFiring(b);const w=b.ld?b.ld.weapon:'none';
     if(w==='spinner')b.spin=clamp((b.spin||0)+(b.firing?dt:-dt)/BB_W.spinRamp,0,1);
-    if(w==='flame'){if(b.fuel==null)b.fuel=BB_W.flameFuelMax;if(!b.firing)b.fuel=Math.min(BB_W.flameFuelMax,b.fuel+BB_W.flameRegen*dt);} // FUEL refills while idle; it BURNS in bbWeaponFire while flaming
     if(b.pistCd>0)b.pistCd=Math.max(0,b.pistCd-dt);
     if(b.pinT>0)b.pinT=Math.max(0,b.pinT-dt);
     if(b._pistFx>0)b._pistFx=Math.max(0,b._pistFx-dt);
@@ -4116,13 +4124,12 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
   for(let ai=0;ai<bb2.bots.length;ai++){const a=bb2.bots[ai];if(a.dead)continue;const w=a.ld?a.ld.weapon:'none';
     if(w==='piston'&&a.firing&&a.pistCd<=0){
       let foe=null,bd=1e9;for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);if(d<=RR+RR*BB_W.pistRangeK&&bbFoeAngOk(a,c,BB_W.pistArc)&&d<bd){bd=d;foe=c;}}
-      if(foe){bbApplyHit(foe,bbHitLoc(foe,a.x,a.y),BB_W.pistDmg,ai,a.x,a.y,BB_W.pistFront);const m=bd||1,nx=(foe.x-a.x)/m,ny=(foe.y-a.y)/m;foe.x+=nx*BB_W.pistKnock;foe.y+=ny*BB_W.pistKnock;obsCheck(foe,RR);a.pistCd=BB_W.pistCd;a._pistFx=0.12;sfx('thump');} // PISTON cracks the armored front too (frontPierce)
-      else a.pistCd=0.16; // dry swing — a brief re-cock
+      a._pistFx=0.16;a.pistCd=BB_W.pistCd;sfx('thump'); // ALWAYS extend + full cooldown on a fire press, so the player SEES the hammer fire (was: a silent dry swing if it missed)
+      if(foe){bbApplyHit(foe,bbHitLoc(foe,a.x,a.y),BB_W.pistDmg,ai,a.x,a.y,BB_W.pistFront);const m=bd||1,nx=(foe.x-a.x)/m,ny=(foe.y-a.y)/m;foe.x+=nx*BB_W.pistKnock;foe.y+=ny*BB_W.pistKnock;obsCheck(foe,RR);} // connects → crack the front too (frontPierce)
     }
-    if(w==='flame'){if(!a.heat)a.heat={};if(a.fuel==null)a.fuel=BB_W.flameFuelMax;
-      const lit=a.firing&&a.fuel>0;if(lit)a.fuel=Math.max(0,a.fuel-dt); // FUEL: the flame only ignites while there's fuel; sustained flaming runs it dry (refills when idle, in bbWeaponPre)
+    if(w==='flame'){if(!a.heat)a.heat={};
       for(let ci=0;ci<bb2.bots.length;ci++){const c=bb2.bots[ci];if(c.dead||c.side===a.side){a.heat[ci]=0;continue;}
-        const d=Math.hypot(c.x-a.x,c.y-a.y),hot=lit&&d<=RR+RR*BB_W.flameRangeK&&bbFoeAngOk(a,c,BB_W.flameArc);
+        const d=Math.hypot(c.x-a.x,c.y-a.y),hot=a.firing&&d<=RR+RR*BB_W.flameRangeK&&bbFoeAngOk(a,c,BB_W.flameArc);
         if(hot){a.heat[ci]=Math.min(BB_W.flameHeatMax,(a.heat[ci]||0)+dt);if(a.heat[ci]>=BB_W.flameDwell)bbApplyFlame(c,BB_W.flameDps*dt,ai);}
         else a.heat[ci]=Math.max(0,(a.heat[ci]||0)-dt*1.5);
       }
@@ -4172,16 +4179,20 @@ function updateBB(dt){
         a.x+=nx*ka;a.y+=ny*ka;c.x-=nx*kc;c.y-=ny*kc; // recoil knockback to both
         bbApplyHit(a,bbHitLoc(a,c.x,c.y),dC,j,c.x,c.y,cSpin?BB_W.spinFront:0); // c→a (a spun-up SPINNER pierces the front — it bites whatever it touches)
         bbApplyHit(c,bbHitLoc(c,a.x,a.y),dA,i,a.x,a.y,aSpin?BB_W.spinFront:0); // a→c
-        if(aSpin)a.spin=Math.max(0,a.spin-BB_W.spinHitLoss); // a SPINNER sheds energy into whatever it bites → it slows down, must re-spin
-        if(cSpin)c.spin=Math.max(0,c.spin-BB_W.spinHitLoss);
+        if(aSpin){const defl=(c.ld&&c.ld.weapon==='wedge')?BB_W.spinDeflect:1; // SHEDS RPM + self-stresses on every bite; a WEDGE/blade DEFLECTS (×spinDeflect): the disc shreds itself + stalls
+          a.spin=Math.max(0,a.spin-BB_W.spinHitLoss*defl);a.hp-=dA*BB_W.spinSelf*defl;if(a.hp<=0)bbKill(a,j);}
+        if(cSpin){const defl=(a.ld&&a.ld.weapon==='wedge')?BB_W.spinDeflect:1;
+          c.spin=Math.max(0,c.spin-BB_W.spinHitLoss*defl);c.hp-=dC*BB_W.spinSelf*defl;if(c.hp<=0)bbKill(c,i);}
       }
       obsCheck(a,RR);obsCheck(c,RR);
     }
   }
   bbWeaponFire(dt); // PISTON strikes + FLAMETHROWER heat-up/burn (range-based)
-  // IMMOBILIZED COUNT-OUT: an alive bot stuck at 0 mobility taps out after BB.countOut s. Mobility never regenerates (dead
-  // wheels), so without this a both-immobilized standoff soft-locks the match forever. First to seize up taps out first.
-  for(const b of bb2.bots){if(b.dead)continue;if(b.mob<=0){b.outT=(b.outT||0)+dt;if(b.outT>=BB.countOut)bbKill(b,null);}else b.outT=0;}
+  // STALEMATE COUNT-OUT: only when NOTHING is happening — an immobilized bot taps out ONLY if its side has no mobile
+  // opponent left to finish it (a true both-stuck standoff). If a foe can still move, let the player earn the kill.
+  {const sideMobile=[false,false];for(const b of bb2.bots)if(!b.dead&&b.mob>0)sideMobile[b.side]=true;
+   for(const b of bb2.bots){if(b.dead)continue;
+     if(b.mob<=0&&!sideMobile[1-b.side]){b.outT=(b.outT||0)+dt;if(b.outT>=BB.countOut)bbKill(b,null);}else b.outT=0;}}
   bbFxTick(dt); // explosions + debris + labels
 }
 function bbBar(x,y,w,h,frac,col){frac=clamp(frac,0,1);ctx.fillStyle='rgba(0,0,0,0.55)';rr(x,y,w,h,3);ctx.fill();ctx.fillStyle=col;rr(x,y,Math.max(0.001,w*frac),h,3);ctx.fill();}
@@ -4227,7 +4238,8 @@ function drawBB(){
     bbDrawWeapon(b); // P2.2 weapon cosmetic
     bbDrawWheels(b); // P2.4 dead-wheel marks
     drawP2Tag(p,b,b.ctl.name||p2Name(b.ctl.bind),b.col); // show each bot's name above it, humans included
-    if(b.mob<=0){ctx.fillStyle='#ff5252';ctx.font='bold 14px Courier New';ctx.textAlign='center';ctx.fillText('⚠ '+Math.max(1,Math.ceil(BB.countOut-(b.outT||0))),FX+b.x,FY+b.y+RR+20);} // COUNT-OUT timer over an immobilized bot
+    if((b.outT||0)>0){ctx.fillStyle='#ff5252';ctx.font='bold 14px Courier New';ctx.textAlign='center';ctx.fillText('⚠ '+Math.max(1,Math.ceil(BB.countOut-b.outT)),FX+b.x,FY+b.y+RR+20);} // STALEMATE count-out timer (both stuck)
+    else if(b.mob<=0){ctx.fillStyle='#ff8a52';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('⚠ STUCK',FX+b.x,FY+b.y+RR+20);} // immobilized but a foe can still finish it — no auto count-out
     else if(b.pinT>0){ctx.fillStyle='#ffd740';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('⊗ PINNED',FX+b.x,FY+b.y+RR+20);}
     ctx.globalAlpha=1;
   }
@@ -4240,11 +4252,10 @@ function drawBB(){
   ctx.globalAlpha=1;
   {const row=[0,0];for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];const left=b.side===0,x=left?10:CW-194,r=row[b.side]++,y=16+r*42;
     ctx.textAlign='left';ctx.font='bold 11px Courier New';ctx.fillStyle=b.col;
-    const st=b.dead?' ✕KO':(b.mob<=0?(' ⚠'+Math.max(1,Math.ceil(BB.countOut-(b.outT||0)))):(b.pinT>0?' ⊗PIN':''));
+    const st=b.dead?' ✕KO':((b.outT||0)>0?(' ⚠'+Math.max(1,Math.ceil(BB.countOut-b.outT))):(b.mob<=0?' ⚠STUCK':(b.pinT>0?' ⊗PIN':'')));
     ctx.fillText((b.ctl.type==='cpu'?b.ctl.name:p2Name(b.ctl.bind))+st,x,y);
     bbBar(x,y+5,184,7,b.mob/BB.MOB,'#ffd740');bbBar(x,y+15,184,7,b.hp/BB.HP,'#ff5555');
-    if(b.ld&&b.ld.weapon==='flame')bbBar(x,y+24,184,4,(b.fuel==null?1:b.fuel/BB_W.flameFuelMax),'#ff7a3d');       // FUEL gauge
-    else if(b.ld&&b.ld.weapon==='spinner')bbBar(x,y+24,184,4,(b.spin||0),'#9fd8ff');                              // SPIN-up gauge
+    if(b.ld&&b.ld.weapon==='spinner')bbBar(x,y+24,184,4,(b.spin||0),'#9fd8ff');                                   // SPIN-up gauge (RPM)
   }}
   ctx.textAlign='center';ctx.font='bold 13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText(fmt(Math.max(0,bb2.t)),CW/2,20);
   ctx.font='9px Courier New';ctx.fillStyle='#556';ctx.fillText('ROBORUMBLE — keep your FRONT to them · ram their REAR (HP) or SIDE (wheels) · LT/Shift = DASH · SPACE/RT = WEAPON',CW/2,38);
@@ -7773,6 +7784,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.97 (2026-06-16): ROBORUMBLE — FLANKING CPU (P0) + combat-balance pass (playtest feedback). (1) FLANKING BRAIN: the CPU used to keep its front to the foe and press straight in, so two bots turtled front-to-front and only front-piercing weapons connected (sim: 1% decisive, all draws). It now ORBITS to the foe's exposed REAR/SIDE while keeping its own front + weapon pointed at the foe (movement is holonomic in RoboRumble). Sim after: 68% decisive; the spread opened up (piston 4%→75%, ram 0%→50%). (2) SPINNER nerf (it was OP): slower spin-up (spinRamp 0.85→1.10), near-RESTART RPM loss on every bite (spinHitLoss→0.85), and it now SELF-DAMAGES on every bite (spinSelf, energy transfer); a WEDGE/blade DEFLECTS it (×spinDeflect: the disc stalls + shreds itself — the anti-spinner counter). Wall slam still self-damages. (3) COUNT-OUT is now STALEMATE-only: an immobilized bot taps out ONLY if its side has no mobile opponent left — if a foe can still move, you get to FINISH the kill (per playtest). HUD shows "⚠ N" only during a real count-out, "⚠ STUCK" otherwise. (4) PISTON feedback fix: the hammer ALWAYS visibly extends + thumps on a fire press (was a silent dry swing on a miss); fire = RT OR A on a gamepad. (5) SIMPLIFY: dropped the FLAME fuel gauge + the planned piston air-tank (too complicated for now — would return with a map refuel spot only if flame/piston need balancing); flame buffed (wider cone, dps 26→34). KNOWN: flame (~25%) + wedge (~0%) still lag in CPU-vs-CPU — they need their P1 kit (flame turret-aim, wedge grab-slam) to convert; tracked. smoke57 → 148. Full battery green. Single file, no assets.
   v5.1.96 (2026-06-16): ROBORUMBLE — SPINNER bites the FRONT + a headless WEAPON-BALANCE SIMULATOR. (1) SPINNER FRONT-PIERCE: a spun-up spinner now damages a foe's FRONT too (BB_W.spinFront) — it bites whatever it touches, armor facing be damned (only RAM/contact + WEDGE stay front-immune). Fixes the "everyone turtles front-to-front and nothing connects" stalemate the sim exposed. Spinner tuned down to compensate (spinDmg 52→38, spinFront 0.85→0.50, spinHitLoss 0.40→0.50); piston bumped (pistDmg 46→52, pistFront 0.5→0.72). (2) NEW TOOL harness/tests/bbbalance.js — seeded CPU-vs-CPU 1v1s for every weapon matchup (sides alternated); prints a win-rate matrix + each weapon's overall win%. FIRST FINDING: front-piercing weapons dominate because the P1 CPU keeps its front to the foe and never FLANKS, so wedge/ram/piston can't reach a rear/side — the imbalance is STRUCTURAL (CPU flanking + per-weapon identity), not magnitude. Tracked for the weapon-roster + brain pass. smoke57 +1 → 143. Full battery green (the sim is a standalone report). Single file, no assets.
   v5.1.95 (2026-06-16): ROBORUMBLE COMBAT OVERHAUL (playtest pass). (1) NO-END FIX — IMMOBILIZED COUNT-OUT: a SIDE hit drains mobility, and at 0 mobility a bot is immobilized but ALIVE; matches only end on last-side-standing, so two seized-up bots used to soft-lock forever. Now an immobilized bot taps out after BB.countOut (6s) — first to seize up taps first; a true simultaneous tie ends as a DRAW. On-field "⚠ N" + HUD count shown. (2) MORE HP (100→250): longer fights; a spinner hit isn't an instakill. (3) PISTON now does something — FRONT-PIERCE: a hammer/piston strike cracks the armored front for a fraction (BB_W.pistFront) instead of being fully shrugged off, so it's the anti-turtle weapon (bbApplyHit gains an optional frontPierce arg; RAM contact stays front-immune). (4) SPINNER rework: damage already scaled with spin; now it BLEEDS spin on every bite (spinHitLoss → must re-spin between hits) and a spun-up spinner that SLAMS A WALL takes self-damage + sheds spin (spinWallDmg/Loss). HUD spin-up gauge. (5) FLAMETHROWER: longer REACH (flameRangeK 2.1→3.2) + a FUEL gauge (flameFuelMax sec of flame, depletes while flaming, regens idle; no ignition at empty). (6) RAM DASH is now a committed FORWARD LUNGE along the nose (ram with your armored front), not a boost of the stick direction. (7) WEDGE clarity: longer pin (wedgePinT) + stronger shove + a "⊗ PINNED" cue. HUD hint now notes SPACE/RT = WEAPON. smoke57 +12 → 142. Full battery green. (NEXT v5.1.96: weapon ROSTER — drop RAM-ONLY, rename WEDGE → a bulldozer-blade weapon (grab-and-slam + spinner defense), plus FLIPPER / PINCER / a PERKS slot / arena hazards / minibots — tracked in the RoboRumble weapons PRD.) Single file, no assets.
   v5.1.94 (2026-06-16): ROBORUMBLE ARMORY — drag weapons + armor onto a bot to equip it (the original intent of the grid loadout polish). A new ARMORY rail sits across the top of the 6-seat ROBORUMBLE grid: every WEAPON (🤜 RAM · 🌀 SPIN · 🔨 PISTON · 🔥 FLAME · ◣ WEDGE) and every ARMOR (⚖ BAL · 🛡 HARD · ♨ HEAT · 🪶 LIGHT) as a colored chip (weapons warm, armor cool). DRAG a chip onto any seat to equip that weapon/armor on its bot — valid drop seats light up with a dashed halo and a floating chip follows the cursor; the per-seat stat bars (SPD/MOB/DMG/TUF) update so you see the trade-off immediately. Mouse + touch. The per-seat ◀▶ cyclers (fine-tune) and seat→seat loadout copy-drag stay. New BB_ARMORY_W/A tables, bbArmoryChips() (laid-out rail geometry, centered, above the seats), bbArmoryHit(), pure bbArmEquip(seat,kind,id) (validates against the real weapon/armor tables, no-ops on empty seats), bbDrawArmory(); a parallel bbArmDrag state wired through the same mouse/touch drag plumbing as the copy-drag (with click-suppression on a successful drop). smoke57 +11 → 130. Full battery green. Single file, no assets.

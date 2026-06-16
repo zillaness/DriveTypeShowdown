@@ -56,6 +56,7 @@ Each drive earns an identity in combat:
 
 ## P6 — BOT-NAME EASTER EGGS (+ achievement)
 - **"Optimus Prime"** → name it that and you get the red + blue + FLAMES paint (cosmetic). Name it that AND run ANY STEERING drive → **HEALING** (regen HP over time). Tiered egg: cosmetic on the name alone, the heal buff on name + steering.
+- **"Bumblebee"** → same egg, BLACK + YELLOW paint; same synergy (name + any steering drive → HEALING). You get both the paint and the heal.
 - **"Original Sin"** (a friend's real bot) → with TANK drive + a passive weapon (blade): **invulnerable wheels** + the benefit of ARCADE drive.
 - **"Unoriginal Sin"** → a **non-secret** achievement for discovering the Original Sin synergy (its visible description hints at the combo).
 - **"Autobots Roll Out"** → an achievement tied to the Optimus Prime egg (e.g. name your bot Optimus Prime + steering drive, or win a match with it).
