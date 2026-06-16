@@ -562,7 +562,25 @@ src+=`
     v0b.vip=true;v1b.vip=true;v0b.x=100;g0b.x=140;v1b.x=900;g1b.x=940;[v0b,g0b,v1b,g1b].forEach(b=>{b.y=300;b.hp=BB.HP;b.inv=0;});
     bb2.bots=[v0b,g0b,v1b,g1b];bb2.result=null;bb2.blasts=[];bbKill(v1b,0);
     ok('VIP: destroying the enemy VIP wins even with their grunts alive',bb2.result===0&&g1b.dead===false);}
-   m2.set.bbmode=svmode;}
+   // v5.1.126 P9: CPU mode-awareness (hunt VIP / hold the DOMINATION point / avoid SUMO ring-out)
+   {m2.set.bbmode='vip';
+    const me=bbBotWith('none','balanced',1,1,true);me.x=300;me.y=300;me.h=0;
+    const grunt=bbBotWith('none','balanced',0,2,true);grunt.x=300;grunt.y=360;grunt.vip=false; // closer
+    const vipFoe=bbBotWith('none','balanced',0,0,true);vipFoe.x=520;vipFoe.y=300;vipFoe.vip=true; // farther
+    bb2.bots=[me,grunt,vipFoe];bb2.result=null;bbCpuUpdate(1/60);
+    ok('VIP: a CPU HUNTS the enemy VIP even when a grunt is closer',me._foe===vipFoe);
+    m2.set.bbmode='domination';me._foe=null;
+    const dme=bbBotWith('none','balanced',1,1,true);dme.x=100;dme.y=100;dme.h=0; // far from the center zone
+    const dfoe=bbBotWith('none','balanced',0,0,true);dfoe.x=140;dfoe.y=100;
+    bb2.bots=[dme,dfoe];bb2.result=null;bbCpuUpdate(1/60);
+    ok('DOMINATION: a CPU outside the zone drives toward the center',dme.ctl.brain.inp.vx>0&&dme.ctl.brain.inp.vy>0);
+    m2.set.bbmode='sumo';
+    const sme=bbBotWith('none','balanced',1,1,true);sme.x=FW/2;sme.y=FH/2-BB_RING*0.9;sme.h=0; // near the top ring edge
+    const sfoe=bbBotWith('none','balanced',0,0,true);sfoe.x=FW/2;sfoe.y=FH/2-BB_RING*0.9-40;
+    bb2.bots=[sme,sfoe];bb2.result=null;bbCpuUpdate(1/60);
+    ok('SUMO: a CPU near the edge pulls back toward the center',sme.ctl.brain.inp.vy>0);
+    m2.set.bbmode=svmode;}
+  }
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

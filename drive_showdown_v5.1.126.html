@@ -4086,7 +4086,9 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
   if(!bb2)return;
   for(let p=0;p<bb2.bots.length;p++){const me=bb2.bots[p];if(me.dead)continue;const br=me.ctl.brain;if(!br)continue;
     let foe=null,bd=1e9;for(const f of bb2.bots)if(!f.dead&&f.side!==me.side){const d=Math.hypot(f.x-me.x,f.y-me.y);if(d<bd){bd=d;foe=f;}}
+    if(bbMode()==='vip'){const v=bb2.bots.find(f=>!f.dead&&f.side!==me.side&&f.vip);if(v){foe=v;bd=Math.hypot(v.x-me.x,v.y-me.y);}} // v5.1.126 P9 VIP: CPUs HUNT the enemy VIP (ignore grunts)
     if(!foe){br.inp.vx=br.inp.vy=br.inp.vr=0;continue;}
+    me._foe=foe;
     const T=tierParamsByIdx(me.ctl.tier|0,0);
     if(me.grab&&!me.grab.dead&&me.ld&&me.ld.weapon==='wedge'){const c2=me.grab,dl=c2.x,dr=FW-c2.x,dtp=c2.y,db=FH-c2.y,mn=Math.min(dl,dr,dtp,db);let wx=0,wy=0;if(mn===dl)wx=-1;else if(mn===dr)wx=1;else if(mn===dtp)wy=-1;else wy=1;let dh=Math.atan2(wy,wx)-me.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;br.inp.vr=clamp(dh*6,-TSP*T.turn,TSP*T.turn);br.inp.vx=Math.cos(me.h)*SPD*T.spd;br.inp.vy=Math.sin(me.h)*SPD*T.spd;br.fire=true;continue;} // v5.1.103 DOZER: while gripping a foe, face the nearest WALL + keep charging (the forward boost crushes the grabbed foe into it)
     // P0 FLANKING (v5.1.97): keep FACING the foe (front armor + weapon arc, via vr below) while ORBITING to its weak
@@ -4103,6 +4105,9 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
     br.inp.vx=mx*SPD*T.spd;br.inp.vy=my*SPD*T.spd;
     let dh=Math.atan2(foe.y-me.y,foe.x-me.x)-me.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
     br.inp.vr=clamp(dh*6,-TSP*T.turn,TSP*T.turn); // face the foe so our front armor takes the trades
+    {const _mode=bbMode(); // v5.1.126 P9 mode-aware steering (translate only — still FACE the foe to trade): hold the DOMINATION point / don't ring yourself out in SUMO
+     if(_mode==='domination'){const zx=FW/2-me.x,zy=FH/2-me.y,zd=Math.hypot(zx,zy)||1;if(zd>BB_DOM_R*0.55){br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;}}
+     else if(_mode==='sumo'){const ex=me.x-FW/2,ey=me.y-FH/2,ed=Math.hypot(ex,ey)||1;if(ed>BB_RING*0.8){br.inp.vx=-ex/ed*SPD*T.spd;br.inp.vy=-ey/ed*SPD*T.spd;}}}
     // P2.6: fire the weapon when it makes sense (tier-scaled reliability)
     const wp=me.ld?me.ld.weapon:'none';br.fire=false;
     if(wp!=='none'){const dist=bd;let fang=Math.atan2(foe.y-me.y,foe.x-me.x)-me.h;while(fang>Math.PI)fang-=2*Math.PI;while(fang<-Math.PI)fang+=2*Math.PI;
