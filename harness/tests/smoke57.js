@@ -150,7 +150,8 @@ src+=`
   {const v=bbBotWith('none','balanced',1,1,true);v.hp=BB.HP;v.inv=0;v.ld.take=1;v.ld.zone={front:1,side:1,rear:1};v.ld.arps='balanced';
    bb2.bots=[bbBotWith('piston','balanced',0,0,true),v];const hp0=v.hp;
    bbApplyHit(v,'front',40,0,v.x+10,v.y);ok('a plain FRONT hit is still immune (RAM shrugged off)',v.hp===hp0);
-   v.inv=0;bbApplyHit(v,'front',40,0,v.x+10,v.y,BB_W.pistFront);ok('PISTON front-pierce CRACKS the armored front',v.hp<hp0&&v.hp>=hp0-40);}
+   v.inv=0;bbApplyHit(v,'front',40,0,v.x+10,v.y,BB_W.pistFront);ok('PISTON front-pierce CRACKS the armored front',v.hp<hp0&&v.hp>=hp0-40);
+   v.inv=0;const hpP=v.hp;bbApplyHit(v,'front',BB_W.spinDmg,0,v.x+10,v.y,BB_W.spinFront);ok('SPINNER pierces the front too (bites a turtling foe)',v.hp<hpP);}
   {startBB(0,2);bb2.cd=0;bb2.result=null;const a=bbBotWith('spinner','balanced',0,0,true),c=bbBotWith('none','balanced',1,1,true);
    a.ctl.brain.fire=true;a.x=300;a.y=300;a.h=0;a.spin=1;a.mob=BB.MOB;a.hp=BB.HP;a.inv=0;c.x=300+RR*1.2;c.y=300;c.hp=BB.HP;c.mob=BB.MOB;c.inv=0;
    bb2.bots=[a,c];updateBB(1/60);ok('SPINNER sheds spin when it bites (slows on every hit)',a.spin<0.95);}
