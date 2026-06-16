@@ -296,11 +296,12 @@ let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoost
 let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,ballScale=1,robotScale=1,ballPups=false,ramCdMult=1; // more cheats (ramCdMult scales the RAM dash cooldown; SENS_MAX cheat lives by the sensitivity consts)
 let bbUnlimited=false,megaBots=false; // v5.1.118 P7 RoboRumble combat cheats: UNLIMITED RESOURCES (no weapon cooldowns) + MEGABOTS (giant HP + crushing ram)
 let airStrike=false,animeSword=false; // v5.1.119 P7 RoboRumble combat cheats: AIRSTRIKE (periodic arena bombs) + ANIME SWORD (every bot gets a dramatic front-arc slash)
+let arenaTraps=false; // v5.1.133 P7: ARENA TRAPS cheat — turn ANY arena into the DANGER ZONE (acid pit + saw blades) regardless of the chosen map
 let iceSlip=1; // ICE SKATING slider: 1 = OFF (no ice), >1 = ice on, higher = more slip. Drives iceMode (=slip>1) + MOM.ice.fri = 0.4/iceSlip.
 let capCpuSpeed=false; // CAP CPU SPEED cheat: with MAX SENSITIVITY cranked, true = CPUs stay at base speed (only you go fast); false = CPUs keep pace (chaos). Ball/shooter only — tank/race CPUs never inherit sensitivity.
 let cheatedRun=false;paused=false; // set true while any cheat is active during a run/match; gates records + high scores
 const B2_BALL_CAP=72; // hard cap on balls in play (shared by EXTRA BALLS + MULTIBALL)
-function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1||moveOrDie||bbUnlimited||megaBots||airStrike||animeSword;}
+function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1||moveOrDie||bbUnlimited||megaBots||airStrike||animeSword||arenaTraps;}
 function cheated(){return anyCheat()||cheatedRun;} // a run is "tainted" if a cheat is on now OR was on at any point this run
 function cpuPaceSens(p){ // every ball/shooter CPU (both sides, all tiers) keeps pace with the FASTEST HUMAN = max sens in the match.
   // (v5.1.98: was m2.sens[1-p] — a 2-player index that broke in 3v3, so only some bots inherited the boost: allies fast, enemies slow.)
@@ -319,6 +320,7 @@ const CHEATS=[
   {name:'MEGABOTS',       desc:'[ROBORUMBLE] giant HP pools + crushing ram damage — epic heavyweight slugfests (pair with ROBOT SIZE)', get:()=>megaBots, tog:()=>{megaBots=!megaBots;}}, // v5.1.118 P7
   {name:'AIRSTRIKE',      desc:'[ROBORUMBLE] bombs rain on the arena every few seconds — chaos for everyone (side-agnostic)', get:()=>airStrike, tog:()=>{airStrike=!airStrike;}}, // v5.1.119 P7
   {name:'ANIME SWORD',    desc:'[ROBORUMBLE] every bot gets a dramatic giant front-arc slash on a timer — big damage + knockback', get:()=>animeSword, tog:()=>{animeSword=!animeSword;}}, // v5.1.119 P7
+  {name:'ARENA TRAPS',    desc:'[ROBORUMBLE] turn ANY arena into the DANGER ZONE — a central acid pit + two saw blades', get:()=>arenaTraps, tog:()=>{arenaTraps=!arenaTraps;}}, // v5.1.133 P7
   {name:'MACHINE GUN',    desc:'[2P] Full-auto fire — OFF / YOU only / BOTH sides (tank AND shooter)',          get:()=>machineGun,  tog:()=>{machineGun=(machineGun+1)%3;}, show:v=>['OFF','YOU','BOTH'][v]||'OFF'},
   {name:'MULTIBALL',      desc:'[2P] Every goal spawns 2 more balls (ball + shooter, capped at '+B2_BALL_CAP+')', get:()=>multiBall,   tog:()=>{multiBall=!multiBall;}},
   {name:'STICKY PLOW',    desc:'[2P] Your bot gets the CHAMPION sticky plow — carry up to 5 (normal ball)',      get:()=>stickyPlow,  tog:()=>{stickyPlow=!stickyPlow;}},
@@ -337,7 +339,7 @@ function cheatMove(d){cheatIdx=(cheatIdx+d+CHEATS.length)%CHEATS.length;sfx('cli
 function cheatToggle(){const c=CHEATS[cheatIdx];if(c.slider){c.set(c.get()>=c.max?c.min:c.get()+c.step);}else c.tog();sfx('claim');}
 function cheatAdjust(d){const c=CHEATS[cheatIdx];if(c.slider){c.set(clamp(c.get()+d*c.step,c.min,c.max));sfx('click');}else{const nT=CHEATS.filter(z=>!z.slider).length;cheatIdx=(cheatIdx+(d>0?nT:-nT)+CHEATS.length)%CHEATS.length;sfx('click');}} // ◀▶: nudge a slider, else jump to the slider column
 function cheatsAllOff(){ // ⟲ TURN OFF ALL CHEATS button — reset every cheat to its default
-  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;moveOrDie=false;bbUnlimited=false;megaBots=false;airStrike=false;animeSword=false;
+  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;moveOrDie=false;bbUnlimited=false;megaBots=false;airStrike=false;animeSword=false;arenaTraps=false;
   ballMult=1;iceSlip=1;iceMode=false;MOM.ice.fri=0.4;clearMomentum();
   SENS_MAX=SENS_MAX_BASE;ramCdMult=1;ballScale=1;BR=clamp(BR0,4,18);robotScale=1;setRobotScale(1);
   sfx('claim');}
@@ -1913,9 +1915,9 @@ function drawKonami(){
   // two columns so the (growing) list stays compact
   const nTog=CHEATS.filter(c=>!c.slider).length;
   const colMax=portrait?CHEATS.length:Math.max(nTog,CHEATS.length-nTog);
-  const colW=portrait?Math.min(364,CW-32):Math.min(380,(CW-90)/2),colGap=30,rowH=portrait?20:22,rowPitch=portrait?24:26;
+  const colW=portrait?Math.min(364,CW-32):Math.min(380,(CW-90)/2),colGap=30,rowH=portrait?18:22,rowPitch=portrait?21:26; // v5.1.133: tighter portrait pitch so the grown cheat list + links still fit one column
   const totalW=portrait?colW:colW*2+colGap,x0=Math.round((CW-totalW)/2);
-  let rowY=Math.round(CH*(portrait?0.13:0.20));
+  let rowY=Math.round(CH*(portrait?0.115:0.20));
   drawKonami._rows=[];
   for(let i=0;i<CHEATS.length;i++){
     const c=CHEATS[i],on=c.get(),sel=i===cheatIdx;
@@ -4395,7 +4397,8 @@ function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing he
   }
 }
 // ── v5.1.120 P3 ARENA HAZARDS: per-map damage zones — a saw blade's position is a PURE fn of bb2.t (deterministic). RoboRumble-only (only updateBB calls this). ──
-function bbHazards(){return (bb2&&bb2.map&&bb2.map.haz)||[];}
+const BB_TRAP_DEFAULT=[{type:'pit',x:520,y:250,w:160,h:140},{type:'saw',cx:340,cy:320,axis:'y',amp:150,spd:1.5},{type:'saw',cx:860,cy:320,axis:'y',amp:150,spd:-1.5}]; // v5.1.133 ARENA TRAPS cheat: the DANGER ZONE hazard set, overlaid on any map
+function bbHazards(){if(arenaTraps)return BB_TRAP_DEFAULT;return (bb2&&bb2.map&&bb2.map.haz)||[];}
 function bbHazPos(h,t){if(h.type==='saw'){const o=Math.sin(t*h.spd)*h.amp;return h.axis==='y'?{x:h.cx,y:h.cy+o}:{x:h.cx+o,y:h.cy};}return{x:h.x,y:h.y};}
 function bbHazardUpdate(dt){
   if(!bb2)return;const hz=bbHazards();if(!hz.length)return;

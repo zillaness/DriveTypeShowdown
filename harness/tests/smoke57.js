@@ -526,7 +526,16 @@ src+=`
    ok('a SAW BLADE bites a bot it touches',onSaw.hp<os0);
    // an obstacle-free / hazard-free map runs the hazard pass as a no-op
    const flat=bbBotWith('none','balanced',0,0,true);flat.hp=BB.HP;bb2.bots=[flat];bb2.map=TF2_MAPS[0];bbHazardUpdate(0.2);
-   ok('a non-hazard arena takes no hazard damage',flat.hp===BB.HP);}
+   ok('a non-hazard arena takes no hazard damage',flat.hp===BB.HP);
+   // v5.1.133 P7: ARENA TRAPS cheat overlays the DANGER ZONE hazards onto ANY map
+   ok('ARENA TRAPS is a cheat',CHEATS.some(c=>c.name==='ARENA TRAPS'));
+   const svtr=arenaTraps;arenaTraps=true;
+   ok('ARENA TRAPS makes a plain map report hazards',(()=>{bb2.map=TF2_MAPS[0];return bbHazards().some(h=>h.type==='pit')&&bbHazards().some(h=>h.type==='saw');})());
+   const pitH=bbHazards().find(h=>h.type==='pit');
+   const trapped=bbBotWith('none','balanced',0,0,true);trapped.x=pitH.x+pitH.w/2;trapped.y=pitH.y+pitH.h/2;trapped.hp=BB.HP;trapped.inv=0;
+   bb2.bots=[trapped];bb2.map=TF2_MAPS[0];bb2.t=0;bbHazardUpdate(0.2);
+   ok('ARENA TRAPS: the pit drains HP even on a plain arena',trapped.hp<BB.HP);
+   arenaTraps=svtr;}
   // ── v5.1.121: P9 GAME MODES framework + SUMO (ring-out) ──
   {ok('GAME MODE includes KO + SUMO',BB_MODES.some(m=>m.id==='ko')&&BB_MODES.some(m=>m.id==='sumo'));
    const svmode=m2.set.bbmode;m2.set.bbmode='sumo';
