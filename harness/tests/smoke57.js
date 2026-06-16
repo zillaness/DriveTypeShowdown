@@ -237,6 +237,15 @@ src+=`
    bbCycleField(ld,'perk',-1);ok('cycling PERK back returns to NONE',ld.perk==='none');
    bbCycleField(ld,'perk',-1);ok('cycling PERK backward from NONE wraps to the last perk',ld.perk===BB_PERKS[BB_PERKS.length-1].id);
    m2.tseats=null;}
+  // ── v5.1.137: 3v3 grid AUTOBUILD-all-CPUs button ──
+  {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;
+   m2.tseats[0]={type:'human',dev:{type:'kb'},tier:0,drive:{kind:'main',idx:0},sens:1,name:'P1'}; // a human seat (must be left alone)
+   tankGridSetCpu(1);tankGridSetCpu(4);const human0=m2.tseats[0].loadout; // two CPU seats
+   ok('bbGridHasCpu detects CPU seats',bbGridHasCpu()===true);
+   const n=bbGridAutobuildCpus();
+   ok('AUTOBUILD CPUS rolls a loadout for every CPU seat',n===2&&!!m2.tseats[1].loadout&&!!m2.tseats[1].loadout.weapon&&!!m2.tseats[4].loadout);
+   ok('AUTOBUILD CPUS leaves the human seat alone',m2.tseats[0].loadout===human0);
+   m2.tseats=null;}
   // ── v5.1.136: the 1v1 claim LAYOUT picker now exposes a PERK row + carries it through ──
   {const r=bbClaimLoadRects(0);ok('1v1 claim loadout has a PERK row (◀▶)',!!(r.p&&r.p.l&&r.p.r));
    if(!m2.bbLoadout)m2.bbLoadout=[null,null];m2.bbLoadout[0]=null;const ld=bbClaimEnsure(0);
