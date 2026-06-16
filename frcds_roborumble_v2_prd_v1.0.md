@@ -89,7 +89,7 @@ Layer selectable objective modes on top of RoboRumble and Tank Fight (beyond las
 - **Claude's suggested others (for Sam to pick from):**
   - **SUMO / RING-OUT** — shove foes out of a shrinking arena; pairs perfectly with the FLIPPER + arena hazards (P3) + the DOZER push. Most on-theme for combat robots.
   - **PAYLOAD / ESCORT** — push a cart/objective along a path to the enemy side; rewards TANK push + bulldozer (drive synergies, P5).
-  - **CONTROL / DOMINATION** — 2–3 simultaneous capture zones (multi-KOTH); great for 3v3.
+  - **CONTROL / DOMINATION (capture points)** — **capture ZONES you take by STANDING IN / touching them**; hold captured zones to accrue score (multi-KOTH). **zone count is PER-MAP (Sam: "you decide how many… based on the map")** — each arena defines its own capture points (Claude picks; ~3 typical, more on bigger 3v3 maps). Great for 3v3.
   - **STOCK / ELIMINATION** — lives-based last-team-standing (vs the current sudden KO).
   - **JUGGERNAUT** — one buffed bot vs everyone; whoever kills it becomes the new juggernaut.
   - (lower priority) **BOMB DELIVERY** (carry a bomb to a goal), **TERRITORY**, **HOARD/COLLECT** (gather scattered pickups).
