@@ -16,25 +16,28 @@ output by morning.**
   nobody 0/100).
 
 ## PRIORITY ORDER (each = a shippable version; do in sequence)
-1. **BALANCE PASS** (highest): get the buzzsaw INTO the sim matrix (bbbalance.js weapon list), then
-   tighten the spread toward ~40–60% for ALL of spinner / buzzsaw / piston / flame / dozer (ram is the
-   no-weapon baseline, ~low is fine). Iterate `BB_W` constants. Document the final matrix.
-2. **FLIPPER** (P1): new weapon — RT, front-arc, flings the foe BACK with big knockback; flung into a
-   wall = ring-out damage (reuse the dozer wall-slam detection). Render + brain + tests + sim.
-3. **PINCER** (P1): new weapon — grab + immobilize (hold/pin), a 3v3 role-player; weak 1v1. Tests + sim.
-4. **KAMIKAZE** (P1): new weapon — RT triggers a LARGE explosion, self-destruct, takes nearby foes with
+**KEY (Sam, 2026-06-16): FEATURES FIRST, BALANCE LAST.** No point tuning balance while new weapons +
+features keep reshuffling it. Build everything, THEN one big balance pass at the very end. Until then,
+leave weapons at sane *functional* values (not 0%/100%, not crashing) and DON'T chase the sim band.
+1. **FLIPPER** (P1): new weapon — RT, front-arc, flings the foe BACK with big knockback; flung into a
+   wall = ring-out damage (reuse the dozer wall-slam detection). Render + brain + tests.
+2. **PINCER** (P1): new weapon — grab + immobilize (hold/pin), a 3v3 role-player; weak 1v1. Tests.
+3. **KAMIKAZE** (P1): new weapon — RT triggers a LARGE explosion, self-destruct, takes nearby foes with
    it (3v3). Reuse the flame blow-up blast at bigger radius.
-5. **P2 PERKS slot** (3rd equip slot): **"Parting Gift"** (explosion on death), **Flameproof**,
+4. **P2 PERKS slot** (3rd equip slot): **"Parting Gift"** (explosion on death), **Flameproof**,
    **Minibot**. UI cycler + effects + tests.
-6. **P4 MINIBOTS**: repurpose the alliance support bots as harassers (push/pin only) — ties to the
+5. **P4 MINIBOTS**: repurpose the alliance support bots as harassers (push/pin only) — ties to the
    minibot perk.
-7. **P5 DRIVE SYNERGIES**: TANK = push buff + blade synergy; ARCADE benefit; steering → (P6 heal egg).
-8. **P6 BOT-NAME EGGS**: Optimus Prime / Bumblebee (paint + steering-drive HEAL), Original Sin
+6. **P5 DRIVE SYNERGIES**: TANK = push buff + blade synergy; ARCADE benefit; steering → (P6 heal egg).
+7. **P6 BOT-NAME EGGS**: Optimus Prime / Bumblebee (paint + steering-drive HEAL), Original Sin
    (tank+blade → invuln wheels + arcade benefit); achievements "Unoriginal Sin" / "Autobots Roll Out".
-9. **P7 COMBAT CHEATS**: move-or-die, airstrike, megabots, walker/shufflebot, anime sword, unlimited
+8. **P7 COMBAT CHEATS**: move-or-die, airstrike, megabots, walker/shufflebot, anime sword, unlimited
    resources, arena-trap toggle.
-10. **P3 ARENA hazards + MAP-SELECT screen** (bigger; do if time — gates ring-outs + P9).
-11. **P9 GAME MODES** (KOTH variants / CTF / push-ball / domination / sumo / stock / VIP) — needs P3.
+9. **P3 ARENA hazards + MAP-SELECT screen** (bigger; gates ring-outs + P9).
+10. **P9 GAME MODES** (KOTH variants / CTF / push-ball / domination / sumo / stock / VIP) — needs P3.
+11. **★ FINAL BALANCE PASS** (LAST, once all weapons/perks exist): use `bbbalance.js` (now covers the
+    5+ pickables; buzzsaw in, ram-baseline out) — tighten every weapon/perk into the ~34–66% band as
+    best the sim allows. This is the only point balance tuning is worthwhile.
 
 ## Progress log (append as you ship; survives context compaction)
 - ✅ v5.1.99–107 (pre-overnight): flame turret-aim+feel, dozer grab-slam + charging-bull, RAM-only
