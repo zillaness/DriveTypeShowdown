@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.94.html
-  version: 5.1.94
+  file: drive_showdown_v5.2.0.html
+  version: 5.2.0
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-16
@@ -1143,6 +1143,7 @@ function closestOnSeg(px,py,ax,ay,bx,by){
 function getInp(bind){
   bind=bind||playerBind[0];
   if(bind.type==='cpu'){let s=playerBind.indexOf(bind);if(s<0)s=(playerBind[0]===bind?0:1);return(cpuH2H&&cpuH2H[s])?cpuH2H[s].inp:{vx:0,vy:0,vr:0};} // s = the bind's index in playerBind (was: only slot 0 vs 1) → supports >2 mains
+  if(bind.type==='remote'){const s=(bind.seat!=null)?bind.seat:playerBind.indexOf(bind);return(s>=0&&netRemoteInput[s])?netRemoteInput[s]:{vx:0,vy:0,vr:0};} // ONLINE (P1): a seat driven by inputs received over the wire — mirrors the 'cpu' synthesized-input seam
   const kbOn=bind.type==='any'||bind.type==='kb';
   const k=s=>kbOn&&!!keys[s];
   const _ga=bindAxes(bind),
@@ -7677,6 +7678,47 @@ loadBest();
 const EXPORT_BTN={x:10,y:603,w:118,h:18};
 const HS_BTN={x:132,y:603,w:136,h:18};
 const IMPORT_BTN={x:272,y:603,w:118,h:18};
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// ONLINE MULTIPLAYER — P1: host-authoritative netcode SEAMS (serialize/apply + remote input + loopback).
+// Per frcds_online_prd_v1.1: build the testable seams first. DORMANT in local play (net.role===null);
+// the loop/WebRTC wiring + connect UI land in P1b/P2. First netted mode = BALL/SHOOTER (b2).
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+const net={role:null, mode:null, tx:null}; // role: null (local) | 'host' | 'remote'
+let netRemoteInput={};                      // seat index -> latest input {vx,vy,vr,...} received over the wire
+function netSetRemoteInput(seat,inp){netRemoteInput[seat]=inp||{vx:0,vy:0,vr:0};}
+function netClearRemote(){netRemoteInput={};}
+// ── BALL/SHOOTER (b2) snapshot: the minimal authoritative state a remote needs to RENDER (it runs no sim). ──
+// Identity (al/seat/bind/ctl) is fixed at spawn and agreed in the handshake, so the snapshot ships only the
+// dynamic fields. Floats are sent raw in P1 (quantize/delta is a P5 size optimization).
+function netSerializeBall(){
+  if(!b2)return null;
+  return {md:'ball', t:b2.t, cd:b2.cd, res:b2.result, sc:b2.score.slice(), sd:!!b2.sudden,
+    bots:b2.bots.map(b=>({x:b.x,y:b.y,h:b.h,mg:(b.intk?b.intk.length:0),sp:b.speedT||0})),
+    cpus:(b2.cpus||[]).map(c=>({x:c.x,y:c.y,h:c.h||0})),
+    balls:balls.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,
+      f:(b.sc?1:0)|(b.intaken?2:0)|(b.proj?4:0)|(b.golden?8:0), lt:(b.lastT==null?-1:b.lastT)}))};
+}
+function netApplyBall(s){
+  if(!b2||!s||s.md!=='ball')return false;
+  b2.t=s.t;b2.cd=s.cd;b2.result=s.res;b2.score=s.sc.slice();b2.sudden=!!s.sd;
+  for(let i=0;i<b2.bots.length&&i<s.bots.length;i++){const b=b2.bots[i],q=s.bots[i];
+    b.x=q.x;b.y=q.y;b.h=q.h;b.speedT=q.sp;
+    if(!b.intk)b.intk=[];b.intk.length=0;for(let k=0;k<q.mg;k++)b.intk.push({}); // mag COUNT drives the HUD dots; contents unused on the remote (no sim runs)
+  }
+  if(b2.cpus)for(let i=0;i<b2.cpus.length&&i<s.cpus.length;i++){const c=b2.cpus[i],q=s.cpus[i];c.x=q.x;c.y=q.y;c.h=q.h;}
+  balls.length=0;
+  for(let i=0;i<s.balls.length;i++){const q=s.balls[i];
+    balls.push({x:q.x,y:q.y,vx:q.vx,vy:q.vy,id:i,sc:!!(q.f&1),intaken:!!(q.f&2),proj:!!(q.f&4),golden:!!(q.f&8),lastT:(q.lt<0?null:q.lt)});}
+  return true;
+}
+function netSnapshotJSON(){const s=netSerializeBall();return s?JSON.stringify(s):null;} // host → wire
+function netApplyJSON(json){try{return netApplyBall(JSON.parse(json));}catch(e){return false;}} // wire → remote
+// ── Loopback transport: two in-process endpoints with the SAME {send, onmessage} shape a real RTCDataChannel
+// will expose. Lets host+remote run on one machine for an echo test (P1 success) with no real peer. ──
+function netLoopback(){
+  const mk=()=>({onmessage:null,peer:null,sent:0,send(m){this.sent++;if(this.peer&&this.peer.onmessage)this.peer.onmessage(m);}});
+  const host=mk(),remote=mk();host.peer=remote;remote.peer=host;return {host:host,remote:remote};
+}
 function loop(ts){
   const dt=Math.min((ts-lastTs)/1000,0.05);
   lastTs=ts;
@@ -7753,6 +7795,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.2.0 (2026-06-16): [ONLINE — sandbox branch] P1a — host-authoritative netcode SEAMS (no real network yet; DORMANT in local play). Per frcds_online_prd_v1.1, the testable foundation for over-the-internet play. (1) A net state object (net.role null=local / 'host' / 'remote') + a 'remote' bind type: getInp gains one branch that returns the latest input received over the wire for a seat — mirroring the existing 'cpu' synthesized-input seam, so no per-mode movement code changes. (2) BALL/SHOOTER snapshot: netSerializeBall() emits the minimal authoritative state a remote needs to render (bot pos/heading + magazine count, alliance-bot pos, every ball's pos/vel/flags/last-touch, score/timer/result); netApplyBall() writes it back. JSON wire helpers (netSnapshotJSON / netApplyJSON, malformed-input safe). (3) A loopback transport (netLoopback) with the same {send,onmessage} shape a real RTCDataChannel will expose, so host+remote can echo on one machine for testing with no peer. New smoke60 (13 asserts: dormant default, serialize→perturb→apply round-trip, JSON round-trip + malformed reject, shooter magazine-count survival, the 'remote' getInp branch, loopback echo). Local play byte-identical (net dormant); full battery green. NEXT: P1b loop integration + a 2-tab BroadcastChannel demo, then P2 real WebRTC 1v1 + the splash ONLINE entry + a REMOTE seat. Single file, no assets.
   v5.1.94 (2026-06-16): ROBORUMBLE ARMORY — drag weapons + armor onto a bot to equip it (the original intent of the grid loadout polish). A new ARMORY rail sits across the top of the 6-seat ROBORUMBLE grid: every WEAPON (🤜 RAM · 🌀 SPIN · 🔨 PISTON · 🔥 FLAME · ◣ WEDGE) and every ARMOR (⚖ BAL · 🛡 HARD · ♨ HEAT · 🪶 LIGHT) as a colored chip (weapons warm, armor cool). DRAG a chip onto any seat to equip that weapon/armor on its bot — valid drop seats light up with a dashed halo and a floating chip follows the cursor; the per-seat stat bars (SPD/MOB/DMG/TUF) update so you see the trade-off immediately. Mouse + touch. The per-seat ◀▶ cyclers (fine-tune) and seat→seat loadout copy-drag stay. New BB_ARMORY_W/A tables, bbArmoryChips() (laid-out rail geometry, centered, above the seats), bbArmoryHit(), pure bbArmEquip(seat,kind,id) (validates against the real weapon/armor tables, no-ops on empty seats), bbDrawArmory(); a parallel bbArmDrag state wired through the same mouse/touch drag plumbing as the copy-drag (with click-suppression on a successful drop). smoke57 +11 → 130. Full battery green. Single file, no assets.
   v5.1.93 (2026-06-16): TRADEMARK SCRUB for distribution — renamed third-party marks out of the PRODUCT. (1) "BattleBots" → "ROBORUMBLE" everywhere it's shown (mode select, in-match HUD, splash card) — the combat mode where weaponized robots wreck each other; the internal mode id stays 'battlebots' and the bb* code is unchanged (not user-visible), so the full battery is untouched. (2) The "Ultimate Ascent" (an FRC game name) disc easter egg → "DISC🥏 MODE" — the 🥏 sits where the O goes, so it reads like "DISCO MODE"; the SP HUD pill matches. (3) "FRC" / "FIRST Robotics" stripped from the metadata header, the PWA manifest name ('FRC Drive Showdown' → 'Drive Type Showdown'), the splash credit, and the SP card copy — the on-screen title stays "DRIVE TYPE SHOWDOWN". The ordinary word "first" (first-to-finish) and the author's own team links (rambots.org, instagram.com/frc2204, "Team 2204 Rambots" credit) are kept by request. File renamed frc_drive_showdown_*.html → drive_showdown_*.html. Comments + the changelog were scrubbed too so view-source is clean; only non-visible code identifiers (the 'battlebots' id, frisbeeMode, the frc_/frcds_ localStorage keys, which would orphan saved data if renamed) are retained. No gameplay change. Full battery green. (NOTE: the dev docs — *.md PRDs, MIGRATION, harness comments — are not distributed and still use the old terms; scrub on request.) Single file, no assets.
   v5.1.92 (2026-06-16): SPLASH FRONT DOOR + global SETTINGS entry + cheats page fixed for PORTRAIT. The game is really two games in one — the original portrait/phone SINGLE-PLAYER drive challenge and the new landscape/desktop MULTIPLAYER head-to-head — but the only door was a small "MULTIPLAYER" button buried atop the SP menu. (1) SPLASH SCREEN (new startup phase 'splash'): a clean front door that splits the two paths from the start — 🕹 SINGLE PLAYER (→ the portrait menu) and 👥 MULTIPLAYER (→ landscape p2 head-to-head) as big cards, plus a ⚙ SETTINGS button (global settings, so "settings vs menu" is unambiguous from the top) and an orientation hint that recommends the path matching your screen. Mouse/touch (tap a card), keyboard (1 = Single · 2 = Multiplayer · Enter = orientation-recommended), gamepad (A = Multiplayer, Y = Single). The splash is the HUB: Esc from the SP menu and Back from multiplayer (p2Exit) both return here. New drawSplash/drawSplashCard/splashRects; settingsBack + muteShown learn the 'splash' origin. (2) CHEATS PAGE PORTRAIT FIX: the Konami cheat menu was hard-wired to two ~155px columns on a 400px-wide portrait canvas, so names and sliders were crushed/overlapping and the header collided with the top buttons. On narrow layouts (CW<560) it now renders ONE full-width column (drops the decorative logo, header below the buttons, slimmer rows) so every cheat name + slider fits and the sliders get a usable track; landscape is byte-identical (smoke54's 2-column assert still holds). smoke52 +8 (splash geometry/routing/Back/p2Exit), smoke54 +5 (portrait single-column fit + on-screen buttons). Full battery green. Single file, no assets.
