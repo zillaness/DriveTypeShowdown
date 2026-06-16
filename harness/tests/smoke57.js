@@ -435,7 +435,9 @@ src+=`
    const c=bbBotWith('none','balanced',1,1,true);c.x=300+RR*2;c.y=300;c.hp=BB.HP;c.inv=0;bb2.bots=[a,c];bb2.result=null;bb2.blasts=[];bb2.deb=[];
    const hp0=c.hp;bbWeaponFire(1/60);
    ok('KAMIKAZE self-destructs (the bot dies on RT)',a.dead===true);
-   ok('KAMIKAZE blast damages a nearby foe',c.hp<hp0);
+   ok('KAMIKAZE blast leaves a nearby foe DEAD or at very low HP',c.dead||c.hp<=BB.HP*0.2);
+   {const ctr=bbBotWith('none','balanced',1,5,true);ctr.x=300;ctr.y=300;ctr.hp=BB.HP;ctr.inv=0;const kk=bbBotWith('kamikaze','balanced',0,4,true);kk.x=300;kk.y=300;kk.firing=true;bb2.bots=[kk,ctr];bb2.result=null;bb2.blasts=[];bb2.deb=[];bbWeaponFire(1/60);ok('KAMIKAZE DESTROYS a foe at the blast center',ctr.dead===true);}
+   ok('KAMIKAZE radius is much bigger than before (>=8×RR)',BB_W.kamiRK>=8);
    const far=bbBotWith('none','balanced',1,2,true);far.x=300+RR*20;far.y=300;far.hp=BB.HP;far.inv=0;const b2=bbBotWith('kamikaze','balanced',0,3,true);b2.x=300;b2.y=300;b2.firing=true;bb2.bots=[b2,far];bb2.result=null;bb2.blasts=[];
    bbWeaponFire(1/60);ok('KAMIKAZE does NOT hit a foe outside the blast radius',far.hp===BB.HP);
    ok('KAMIKAZE is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='kamikaze')&&BB_ARMORY_W.some(w=>w.id==='kamikaze'));}
