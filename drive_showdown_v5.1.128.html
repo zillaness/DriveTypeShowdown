@@ -4107,6 +4107,7 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
     br.inp.vr=clamp(dh*6,-TSP*T.turn,TSP*T.turn); // face the foe so our front armor takes the trades
     {const _mode=bbMode(); // v5.1.126 P9 mode-aware steering (translate only — still FACE the foe to trade): hold the DOMINATION point / don't ring yourself out in SUMO
      if(_mode==='domination'){const zx=FW/2-me.x,zy=FH/2-me.y,zd=Math.hypot(zx,zy)||1;if(zd>BB_DOM_R*0.55){br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;}}
+     else if(_mode==='koth'&&bb2.koth){const zx=bb2.koth.x-me.x,zy=bb2.koth.y-me.y,zd=Math.hypot(zx,zy)||1;if(zd>BB_KOTH_R*0.55){br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;}} // chase the moving hill
      else if(_mode==='sumo'){const ex=me.x-FW/2,ey=me.y-FH/2,ed=Math.hypot(ex,ey)||1;if(ed>BB_RING*0.8){br.inp.vx=-ex/ed*SPD*T.spd;br.inp.vy=-ey/ed*SPD*T.spd;}}}
     // P2.6: fire the weapon when it makes sense (tier-scaled reliability)
     const wp=me.ld?me.ld.weapon:'none';br.fire=false;
@@ -4312,14 +4313,18 @@ const BB_MODES=[
   {id:'ko',        name:'KO — last bot standing'},
   {id:'sumo',      name:'SUMO — ring-out wins'},
   {id:'domination',name:'DOMINATION — hold the zone'},
+  {id:'koth',      name:'KOTH — hold the moving hill'},
   {id:'vip',       name:'VIP — kill the enemy VIP'},
 ];
 const BB_RING=290; // SUMO ring radius (px from arena center)
 const BB_DOM_R=150, BB_DOM_TARGET=12; // DOMINATION control-zone radius + seconds of uncontested hold to win
+const BB_KOTH_R=130, BB_KOTH_TARGET=14, BB_KOTH_MOVE=8; // KOTH hill radius + seconds of majority-hold to win + how often the hill relocates
+function bbKothReloc(){return {x:clamp(FW/2+(Math.random()*2-1)*(FW/2-BB_KOTH_R-40),BB_KOTH_R+30,FW-BB_KOTH_R-30),y:clamp(FH/2+(Math.random()*2-1)*(FH/2-BB_KOTH_R-30),BB_KOTH_R+24,FH-BB_KOTH_R-24)};} // a fresh in-bounds hill spot
 function bbMode(){return (m2.set&&m2.set.bbmode)||'ko';}
 function bbModeHint(){const ctrl=' · LT/Shift = DASH · SPACE/RT = WEAPON';switch(bbMode()){ // v5.1.127 P9: the in-match HUD spells out each mode's win condition
   case'sumo':return'SUMO — shove them OUT of the ring; last bot inside wins'+ctrl;
   case'domination':return'DOMINATION — HOLD the center zone uncontested to win'+ctrl;
+  case'koth':return'KOTH — hold the MOVING hill (majority wins it); it relocates'+ctrl;
   case'vip':return'VIP ♛ — destroy the enemy VIP to win (protect yours!)'+ctrl;
   default:return'ROBORUMBLE — keep your FRONT to them · ram their REAR (HP) or SIDE (wheels)'+ctrl;}}
 function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing here (bbKill→bbCheckResult covers it)
@@ -4332,6 +4337,12 @@ function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing he
     for(const b of bb2.bots){if(b.dead)continue;if(Math.hypot(b.x-cx,b.y-cy)<=BB_DOM_R)c[b.side]++;}
     if(c[0]>0&&c[1]===0)bb2.dom[0]+=dt;else if(c[1]>0&&c[0]===0)bb2.dom[1]+=dt; // contested (both present) or empty = no progress
     for(let s=0;s<2;s++)if(bb2.dom[s]>=BB_DOM_TARGET){bb2.result=s;sfx('win');break;}
+  }else if(mode==='koth'){ // KOTH: a hill that RELOCATES; the side with MORE bots on it banks time (a tie banks nothing); first to BB_KOTH_TARGET wins
+    if(!bb2.koth)bb2.koth={x:cx,y:cy,move:BB_KOTH_MOVE,score:[0,0]};const k=bb2.koth;
+    k.move-=dt;if(k.move<=0){const p=bbKothReloc();k.x=p.x;k.y=p.y;k.move=BB_KOTH_MOVE;}
+    const c=[0,0];for(const b of bb2.bots){if(b.dead)continue;if(Math.hypot(b.x-k.x,b.y-k.y)<=BB_KOTH_R)c[b.side]++;}
+    if(c[0]>c[1])k.score[0]+=dt;else if(c[1]>c[0])k.score[1]+=dt; // majority holds the hill; equal = contested = no gain
+    for(let s=0;s<2;s++)if(k.score[s]>=BB_KOTH_TARGET){bb2.result=s;sfx('win');break;}
   }
 }
 // ── v5.1.120 P3 ARENA HAZARDS: per-map damage zones — a saw blade's position is a PURE fn of bb2.t (deterministic). RoboRumble-only (only updateBB calls this). ──
@@ -4524,6 +4535,7 @@ function drawBB(){
   drawTFField();drawTFObstacles();drawBBHazards();
   if(bbMode()==='sumo'){ctx.save();ctx.strokeStyle='rgba(255,215,64,0.55)';ctx.lineWidth=4;ctx.setLineDash([14,10]);ctx.beginPath();ctx.arc(FX+FW/2,FY+FH/2,BB_RING,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();} // v5.1.121 P9 SUMO ring
   if(bbMode()==='domination'){ctx.save();ctx.strokeStyle='rgba(105,240,174,0.6)';ctx.fillStyle='rgba(105,240,174,0.08)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+FW/2,FY+FH/2,BB_DOM_R,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();const d=bb2.dom||[0,0];for(let s=0;s<2;s++){const w=120,x=s===0?CW/2-w-8:CW/2+8;bbBar(x,46,w,8,clamp(d[s]/BB_DOM_TARGET,0,1),M2_COLS[s]);}} // v5.1.122 P9 DOMINATION zone + hold meters
+  if(bbMode()==='koth'&&bb2.koth){const k=bb2.koth;ctx.save();ctx.strokeStyle='rgba(255,196,64,0.7)';ctx.fillStyle='rgba(255,196,64,0.10)';ctx.lineWidth=3;ctx.setLineDash([10,8]);ctx.beginPath();ctx.arc(FX+k.x,FY+k.y,BB_KOTH_R,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#ffd740';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('⛰ HILL · moves in '+Math.ceil(k.move)+'s',FX+k.x,FY+k.y-BB_KOTH_R-6);ctx.restore();for(let s=0;s<2;s++){const w=120,x=s===0?CW/2-w-8:CW/2+8;bbBar(x,46,w,8,clamp(k.score[s]/BB_KOTH_TARGET,0,1),M2_COLS[s]);}} // v5.1.128 P9 KOTH moving hill + hold meters
   for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
     const blink=b.inv>0&&Math.floor(b.inv*12)%2===0;ctx.globalAlpha=blink?0.45:1;
     _noScoop=true;withBot(b.ctl.bind,b,()=>{drawRobot();});_noScoop=false; // RoboRumble: a weapon replaces the ball plow

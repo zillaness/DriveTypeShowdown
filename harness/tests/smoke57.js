@@ -551,6 +551,17 @@ src+=`
    ok('DOMINATION: a CONTESTED zone banks nothing',bb2.dom[0]===0&&bb2.dom[1]===0);
    bb2.bots=[dz];bb2.dom=[BB_DOM_TARGET-0.01,0];bb2.result=null;bbModeUpdate(0.5);
    ok('DOMINATION: reaching the target WINS the round',bb2.result===0);
+   // KOTH (moving hill — majority holds)
+   ok('GAME MODE includes KOTH',BB_MODES.some(m=>m.id==='koth'));
+   m2.set.bbmode='koth';
+   const kme=bbBotWith('none','balanced',0,0,true);kme.x=FW/2;kme.y=FH/2;
+   bb2.bots=[kme];bb2.result=null;bb2.koth=null;bb2.map=TF2_MAPS[0];bbModeUpdate(0.1);
+   ok('KOTH: a side alone on the hill banks time',bb2.koth.score[0]>0&&bb2.koth.score[1]===0);
+   const ka=bbBotWith('none','balanced',0,0,true);ka.x=FW/2;ka.y=FH/2;const kb=bbBotWith('none','balanced',1,1,true);kb.x=FW/2;kb.y=FH/2;
+   bb2.bots=[ka,kb];bb2.koth={x:FW/2,y:FH/2,move:BB_KOTH_MOVE,score:[0,0]};bb2.result=null;bbModeUpdate(0.1);
+   ok('KOTH: an evenly contested hill banks nothing',bb2.koth.score[0]===0&&bb2.koth.score[1]===0);
+   bb2.bots=[kme];kme.x=FW/2;kme.y=FH/2;bb2.koth={x:FW/2,y:FH/2,move:BB_KOTH_MOVE,score:[BB_KOTH_TARGET-0.01,0]};bb2.result=null;bbModeUpdate(0.1);
+   ok('KOTH: reaching the target wins',bb2.result===0);
    // VIP (assassinate the enemy VIP)
    ok('GAME MODE includes VIP',BB_MODES.some(m=>m.id==='vip'));
    m2.set.bbmode='vip';
@@ -574,6 +585,10 @@ src+=`
     const dfoe=bbBotWith('none','balanced',0,0,true);dfoe.x=140;dfoe.y=100;
     bb2.bots=[dme,dfoe];bb2.result=null;bbCpuUpdate(1/60);
     ok('DOMINATION: a CPU outside the zone drives toward the center',dme.ctl.brain.inp.vx>0&&dme.ctl.brain.inp.vy>0);
+    m2.set.bbmode='koth';
+    const kc=bbBotWith('none','balanced',1,1,true);kc.x=100;kc.y=100;kc.h=0;const kf=bbBotWith('none','balanced',0,0,true);kf.x=140;kf.y=100;
+    bb2.bots=[kc,kf];bb2.koth={x:FW/2,y:FH/2,move:BB_KOTH_MOVE,score:[0,0]};bb2.result=null;bbCpuUpdate(1/60);
+    ok('KOTH: a CPU off the hill drives toward it',kc.ctl.brain.inp.vx>0&&kc.ctl.brain.inp.vy>0);
     m2.set.bbmode='sumo';
     const sme=bbBotWith('none','balanced',1,1,true);sme.x=FW/2;sme.y=FH/2-BB_RING*0.9;sme.h=0; // near the top ring edge
     const sfoe=bbBotWith('none','balanced',0,0,true);sfoe.x=FW/2;sfoe.y=FH/2-BB_RING*0.9-40;
@@ -581,7 +596,8 @@ src+=`
     ok('SUMO: a CPU near the edge pulls back toward the center',sme.ctl.brain.inp.vy>0);
     // v5.1.127: the in-match HUD hint is mode-specific
     m2.set.bbmode='ko';const hKo=bbModeHint();m2.set.bbmode='sumo';const hSumo=bbModeHint();m2.set.bbmode='domination';const hDom=bbModeHint();m2.set.bbmode='vip';const hVip=bbModeHint();
-    ok('each GAME MODE shows its own objective hint',/SUMO/.test(hSumo)&&/DOMINATION/.test(hDom)&&/VIP/.test(hVip)&&hKo!==hSumo&&hSumo!==hDom&&hDom!==hVip);
+    m2.set.bbmode='koth';const hKoth=bbModeHint();
+    ok('each GAME MODE shows its own objective hint',/SUMO/.test(hSumo)&&/DOMINATION/.test(hDom)&&/VIP/.test(hVip)&&/KOTH/.test(hKoth)&&hKo!==hSumo&&hSumo!==hDom&&hDom!==hVip&&hKoth!==hDom);
     m2.set.bbmode=svmode;}
   }
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
