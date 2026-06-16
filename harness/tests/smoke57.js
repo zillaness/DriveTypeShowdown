@@ -392,6 +392,16 @@ src+=`
    ok('an un-spun BUZZSAW does not bite',(()=>{const u=bbBotWith('buzzsaw','balanced',0,0,true);u.x=300;u.y=300;u.h=0;u.spin=0.2;return bbSpinBite(u,front)===0;})());
    ok('BUZZSAW shares the spinner spin-up ramp',(()=>{const u=bbBotWith('buzzsaw','balanced',0,0,true);u.spin=0;u.ctl.brain.fire=true;bb2.bots=[u];bbWeaponPre(0.5);return u.spin>0;})());
    ok('BUZZSAW is a PICKABLE weapon in the armory + table',BB_WEAPONS.some(w=>w.id==='buzzsaw')&&BB_ARMORY_W.some(w=>w.id==='buzzsaw'));}
+  // ── v5.1.109: FLIPPER — RT launcher, flings a front-arc foe BACK + ring-out into walls ──
+  {const a=bbBotWith('flipper','balanced',0,0,true);a.x=300;a.y=300;a.h=0;a.firing=true;a.pistCd=0;
+   const c=bbBotWith('none','balanced',1,1,true);c.x=300+RR*1.5;c.y=300;c.hp=BB.HP;c.inv=0;const cx0=c.x;bb2.bots=[a,c];bb2.result=null;
+   bbWeaponFire(1/60);
+   ok('FLIPPER flings a front-arc foe BACK (x '+cx0.toFixed(0)+'→'+c.x.toFixed(0)+') + deals some damage',c.x>cx0+RR&&c.hp<BB.HP);
+   ok('FLIPPER respects its cooldown (no 2nd fling immediately)',(()=>{const hp1=c.hp,x1=c.x;bbWeaponFire(1/60);return c.hp===hp1&&Math.abs(c.x-x1)<1;})());
+   const a2=bbBotWith('flipper','balanced',0,0,true);a2.x=FW-RR*2.6;a2.y=FH/2;a2.h=0;a2.firing=true;a2.pistCd=0; // facing the RIGHT wall
+   const c2=bbBotWith('none','balanced',1,1,true);c2.x=FW-RR*1.3;c2.y=FH/2;c2.hp=BB.HP;c2.inv=0;bb2.bots=[a2,c2];
+   bbWeaponFire(1/60);ok('FLIPPER RING-OUT: a foe flung into a WALL takes bonus impact damage',c2.hp<BB.HP-BB_W.flipDmg);
+   ok('FLIPPER is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='flipper')&&BB_ARMORY_W.some(w=>w.id==='flipper'));}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
