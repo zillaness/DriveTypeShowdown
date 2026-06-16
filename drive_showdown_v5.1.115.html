@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.114.html
-  version: 5.1.114
+  file: drive_showdown_v5.1.115.html
+  version: 5.1.115
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-16
@@ -4103,7 +4103,7 @@ const BB_W={
   flameRangeK:6.4, flameArc:Math.PI*0.26, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, // FLAMETHROWER (v5.1.100): ~2× REACH + a NARROWER focused jet (per playtest), heat-up dwell, dps (re-tuned via the sim), heat cap (no fuel gauge), MOVE-mult while torching (plant-to-burn — the balance counter to the ARCADE turret kite; fuel parked)
   wedgeDmg:0.40, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:85, grabDmg:18, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.5, pincerGrabDur:1.8, pincerDrain:55, // WEDGE/DOZER: contact-dmg, grab arc, pinned speed mult, pin/grab DURATION, shove + v5.1.103 GRAB-AND-SLAM (grip seconds, cooldown, base wall-slam dmg ×speed), dozerCharge = forward boost while firing RT, dashBuff = RoboRumble LT-dash speed/range buff
   blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:4.6, kamiDmg:170, partingRK:3.8, partingDmg:95, // P2.3 FLAME blow-up; v5.1.111 KAMIKAZE self-destruct blast radius (×RR) + peak damage (falls off to 0.4× at the edge)
-  wheelHp:40, faultK:0.22, tankPush:1.5 // P2.4 per-corner wheel HP; handling-fault strength; v5.1.114 P5 TANK-family drive (tank/arcade/west-coast) shoves the foe HARDER (knockback ×tankPush) — the push synergy with the DOZER blade
+  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22 // P2.4 wheel HP + handling-fault; v5.1.114 P5 TANK-family shove ×tankPush; v5.1.115 P6 egg HEAL/sec (Optimus/Bumblebee + steering)
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
   const id=(typeof p2cDriveDef!=='undefined')?p2cDriveDef(bind).id:'tank';
@@ -4113,8 +4113,18 @@ function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot
   if(k==='steer')return 'steer';
   return 'tank'; // tank / arcade / west-coast (differential)
 }
+// ── v5.1.115 P6 BOT-NAME EASTER EGGS — Optimus/Bumblebee (paint + steering HEAL), Original Sin (tank+blade → invuln wheels) ──
+function bbBotName(b){return ((b&&b.ctl&&b.ctl.name)||(b&&b.ctl&&m2.name&&m2.name[b.ctl.bind])||'').toString();}
+function bbNameEgg(b){const n=bbBotName(b).toUpperCase().replace(/[^A-Z]/g,'');return n==='OPTIMUSPRIME'?'optimus':n==='BUMBLEBEE'?'bumblebee':n==='ORIGINALSIN'?'originalsin':null;}
+const BB_EGG_PAINT={optimus:['#1e4dff','#ff2e2e'],bumblebee:['#1a1a1a','#ffd21a'],originalsin:['#7a2eff','#2effd2']};
+function bbEggActive(b){ // the BUFF tier needs the right drive (+ weapon); the paint shows on the name alone
+  const e=bbNameEgg(b);if(!e||!b.ctl)return null;
+  if((e==='optimus'||e==='bumblebee')&&bbDriveFamily(b.ctl.bind)==='steer')return e;            // name + STEERING → heal
+  if(e==='originalsin'&&bbDriveFamily(b.ctl.bind)==='tank'&&b.ld&&b.ld.weapon==='wedge')return e; // tank + blade → invuln wheels + arcade benefit
+  return null;}
+function bbEggUnlock(e){if(e)try{localStorage.setItem('bb_egg_'+e,'1');}catch(x){}} // achievement flag (Autobots Roll Out / Unoriginal Sin screen = follow-up)
 function bbWheelDamage(v,dmg,fromX,fromY){ // P2.4: a SIDE hit also chews a CORNER wheel — nearest the contact, then same-side, then far (corners 0 FL,1 FR,2 RL,3 RR)
-  if(!v.wheels)return;let right=true,fwd=true;
+  if(!v.wheels)return;if(bbEggActive(v)==='originalsin'){bbEggUnlock('originalsin');return;}let right=true,fwd=true; // ORIGINAL SIN: invulnerable wheels
   if(fromX!=null){let a=Math.atan2(fromY-v.y,fromX-v.x)-v.h;while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;right=a>0;fwd=Math.abs(a)<Math.PI/2;}
   const order=right?[fwd?1:3,fwd?3:1,0,2]:[fwd?0:2,fwd?2:0,1,3];
   for(const i of order){const wl=v.wheels[i];if(wl&&!wl.dead){wl.hp-=dmg;if(wl.hp<=0){wl.hp=0;wl.dead=true;}return;}}
@@ -4239,6 +4249,7 @@ function updateBB(dt){
   for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
     if(b.held&&!b.held.dead&&b.held.grab===b){b.inv=Math.max(0,b.inv-dt);b._inp={vx:0,vy:0,vr:0};continue;} // v5.1.103: a GRABBED bot is stuck to the dozer's blade — bbGrabUpdate carries it, so skip its own drive
     b.inv=Math.max(0,b.inv-dt);const bind=b.ctl.bind;
+    {const eg=bbEggActive(b);if(eg){bbEggUnlock(eg);if((eg==='optimus'||eg==='bumblebee')&&b.hp<BB.HP)b.hp=Math.min(BB.HP,b.hp+BB_W.eggHeal*dt);}} // v5.1.115 P6: Optimus/Bumblebee + STEERING drive → HEAL over time
     b.boostT=Math.max(0,b.boostT-dt);b.boostCd=Math.max(0,b.boostCd-dt);
     if(bbDashHeld(bind)&&b.boostCd<=0&&b.boostT<=0&&b.mob>0){b.boostT=BOOST.dur;b.boostCd=BOOST.cd*ramCdMult;sfx('thump');p2Rumble(bind,0.6);} // RAM dash: a burst that hits harder (more closing speed → more damage)
     let wallHit=false;
@@ -4367,6 +4378,7 @@ function drawBB(){
     ctx.restore();
     bbDrawWeapon(b); // P2.2 weapon cosmetic
     bbDrawWheels(b); // P2.4 dead-wheel marks
+    {const eg=bbNameEgg(b);if(eg){const pc=BB_EGG_PAINT[eg];ctx.save();ctx.translate(FX+b.x,FY+b.y);ctx.lineWidth=3;ctx.strokeStyle=pc[0];ctx.beginPath();ctx.arc(0,0,RR+5,-Math.PI/2,Math.PI/2);ctx.stroke();ctx.strokeStyle=pc[1];ctx.beginPath();ctx.arc(0,0,RR+5,Math.PI/2,Math.PI*1.5);ctx.stroke();if(bbEggActive(b)){ctx.fillStyle=pc[1];ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillText('★',0,-RR-9);}ctx.restore();}} // v5.1.115 P6 egg PAINT (two-tone ring; ★ = buff active)
     drawP2Tag(p,b,b.ctl.name||p2Name(b.ctl.bind),b.col); // show each bot's name above it, humans included
     if((b.outT||0)>0){ctx.fillStyle='#ff5252';ctx.font='bold 14px Courier New';ctx.textAlign='center';ctx.fillText('⚠ '+Math.max(1,Math.ceil(BB.countOut-b.outT)),FX+b.x,FY+b.y+RR+20);} // STALEMATE count-out timer (both stuck)
     else if(b.mob<=0){ctx.fillStyle='#ff8a52';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('⚠ STUCK',FX+b.x,FY+b.y+RR+20);} // immobilized but a foe can still finish it — no auto count-out
@@ -7914,6 +7926,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.115 (2026-06-16): ROBORUMBLE — P6 BOT-NAME EASTER EGGS. Name a bot to trigger an egg: OPTIMUS PRIME / BUMBLEBEE → a two-tone egg PAINT ring (red+blue / black+yellow) on the name alone, and with ANY STEERING drive → HEAL over time (eggHeal/sec); ORIGINAL SIN + TANK drive + a passive blade (DOZER) → INVULNERABLE WHEELS (bbWheelDamage skips it) + the push/charge benefit. A ★ marks an active buff; the buff sets a localStorage achievement flag (the Autobots-Roll-Out / Unoriginal-Sin achievement SCREEN + full custom paint with flames are follow-ups; the ring is the current cue). New bbNameEgg/bbEggActive/bbBotName helpers. smoke57 +6 → 200. Full battery green. Single file, no assets.
   v5.1.114 (2026-06-16): ROBORUMBLE — P5 DRIVE SYNERGY (first cut). A TANK-family drive (tank / arcade / west-coast, via bbDriveFamily) now SHOVES the foe HARDER in a collision (knockback ×tankPush 1.5) — the pushing identity + the synergy with the DOZER blade. (ARCADE's benefit is already its one-handed turret aim — the flame turret is arcade-only; STEERING's synergy is the heal egg, P6.) smoke57 +3 → 194. Full battery green. Single file, no assets.
   v5.1.113 (2026-06-16): ROBORUMBLE — P2 PERKS pick UI. The ARMORY rail gains a 3rd group — PERK chips (✦ NONE / 🎁 GIFT / 🧯 PROOF / 🤖 MINI) alongside weapons + armor; drag a perk chip onto a seat to equip it (bbArmEquip 'perk', reusing the same drag plumbing + drop-halos). Rail re-fitted (cw 58→50 + perk group) so all 8 weapons + 4 armor + 4 perks fit centered on landscape. ★ P2 PERKS slot COMPLETE (data + effects + CPU-use + pick UI). smoke57 +1 → 191. Full battery green. Single file, no assets.
   v5.1.112 (2026-06-16): ROBORUMBLE — P2 PERKS slot (data + effects). A 3rd loadout field (ld.perk) alongside weapon + armor. BB_PERKS: NO PERK / PARTING GIFT / FLAMEPROOF / MINIBOT. EFFECTS wired: PARTING GIFT — a big EXPLOSION on death (bbKill spawns a partingRK blast that damages nearby ENEMIES + chains) so you take foes with you; FLAMEPROOF — immune to flame DPS + blow-up (bbApplyFlame early-returns). MINIBOT reserved (wired in P4). CPUs now roll a perk (bbCpuPickLoadout) so perks appear in play; bbArmEquip handles the 'perk' kind. bbResolveLoadout passes the perk through. (The armory drag-to-pick perk chips land next.) smoke57 +7 → 190. Full battery green. Single file, no assets.

@@ -435,6 +435,17 @@ src+=`
   {ok('P5: TANK-family drive has a push buff (>1)',BB_W.tankPush>1);
    ok('bbDriveFamily maps the main TANK drive to the tank family',(()=>{const sd=m2.drive[0];m2.drive[0]={kind:'main',idx:0};const r=bbDriveFamily(0);m2.drive[0]=sd;return r==='tank';})());
    ok('bbDriveFamily maps SWERVE to the swerve family (no push buff)',(()=>{const sd=m2.drive[0];m2.drive[0]={kind:'main',idx:3};const r=bbDriveFamily(0);m2.drive[0]=sd;return r==='swerve';})());}
+  // ── v5.1.115: P6 BOT-NAME EASTER EGGS — Optimus/Bumblebee (steering HEAL), Original Sin (tank+blade invuln wheels) ──
+  {ok('bbNameEgg detects the three eggs',bbNameEgg({ctl:{name:'Optimus Prime',bind:0}})==='optimus'&&bbNameEgg({ctl:{name:'bumblebee',bind:0}})==='bumblebee'&&bbNameEgg({ctl:{name:'Original Sin',bind:0}})==='originalsin');
+   const sd=m2.drive[0];
+   m2.drive[0]={kind:'steer',idx:0};const op=bbBotWith('none','balanced',0,0,true);op.ctl.name='Optimus Prime';op.hp=100;bb2.bots=[op];bb2.result=null;bb2.cd=0;bb2.t=1;
+   ok('OPTIMUS + STEERING drive activates the egg buff',bbEggActive(op)==='optimus');
+   const hp0=op.hp;updateBB(0.5);ok('OPTIMUS + steering HEALS over time (hp '+hp0+'→'+op.hp.toFixed(0)+')',op.hp>hp0);
+   m2.drive[0]={kind:'main',idx:0};const op2=bbBotWith('none','balanced',0,0,true);op2.ctl.name='Optimus Prime';ok('OPTIMUS on a NON-steering drive = paint only, NO buff',bbEggActive(op2)===null&&bbNameEgg(op2)==='optimus');
+   const os=bbBotWith('wedge','balanced',0,0,true);os.ctl.name='Original Sin';os.wheels=[{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
+   bbWheelDamage(os,100,null,null);ok('ORIGINAL SIN (tank+blade): wheels are INVULNERABLE',os.wheels.every(w=>!w.dead&&w.hp===40));
+   const os2=bbBotWith('wedge','balanced',0,0,true);os2.ctl.name='RANDO';os2.wheels=[{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
+   bbWheelDamage(os2,100,null,null);ok('a normal bot DOES take wheel damage',os2.wheels.some(w=>w.dead||w.hp<40));m2.drive[0]=sd;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
