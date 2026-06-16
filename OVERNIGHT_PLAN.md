@@ -44,8 +44,10 @@ leave weapons at sane *functional* values (not 0%/100%, not crashing) and DON'T 
   drop, bouncy tank shots, spinner nerf, flame LOS, HP→360, piston buff, CPU unstick, **BUZZSAW**.
   Sim @107: piston 62 · flame 50 · wedge 49 · spinner 38 · ram 6 (buzzsaw not yet in the sim).
 - ✅ **P1 WEAPON ROSTER COMPLETE (v5.1.108–111):** sim set fixed (8 pickables, ram-baseline out, buzzsaw/flipper/pincer/kamikaze in); **BUZZSAW** (front spin-up cutter), **FLIPPER** (fling-back + ring-out), **PINCER** (grab+immobilize/drain-mob, 3v3), **KAMIKAZE** (RT self-destruct blast). 183 tests green. Balance deferred per Sam.
-- ▶ NEXT: **P2 PERKS slot** (Parting Gift = explosion-on-death, Flameproof, Minibot) — then P4 minibots, P5 synergies, P6 eggs, P7 cheats, P3 arena/map-select, P9 modes, ★ final balance.
-- Sim @111 (pre-balance, FYI): buzzsaw 71 · piston 64 · spinner 57 · flame 57 · flipper 43 · wedge 35 · pincer 29 · kamikaze 0 (1v1 self-destruct = draws).
+- ✅ **P2 PERKS slot COMPLETE (v5.1.112–113):** 3rd loadout field `ld.perk`; BB_PERKS (NONE/PARTING GIFT/FLAMEPROOF/MINIBOT); effects wired — PARTING GIFT = big blast on death (bbKill), FLAMEPROOF = flame-immune (bbApplyFlame); CPUs roll perks; ARMORY rail has a drag-drop PERK group (bbArmEquip 'perk'). MINIBOT is a reserved placeholder (real bot wired in P4). 191 tests green.
+- ▶ **NEXT:** P4 minibots (+ wire the MINIBOT perk) → P5 drive synergies (tank push buff + blade) → P6 bot-name eggs (Optimus/Bumblebee paint+heal, Original Sin) → P7 cheats → P3 arena hazards + map-select → P9 game modes → ★ FINAL BALANCE.
+- **State: 15 versions shipped this session (v5.1.99→113), all green on `dev`.** Sim @111 (pre-balance, FYI): buzzsaw 71 · piston 64 · spinner 57 · flame 57 · flipper 43 · wedge 35 · pincer 29 · kamikaze 0.
+- **Reminders for whoever continues:** new weapon = BB_WEAPONS + BB_ARMORY_W entry + behavior (bbWeaponFire / contact loop) + brain fire (bbCpuUpdate) + render (bbDrawWeapon) + a smoke57 test + add to bbbalance.js WEAPONS. After git mv to the new version, you must Read the renamed file before Edit. Ritual: edit → git mv vN→vN+1 → sed extract.sh + MIGRATION → ./extract.sh && ./battery.sh (ALL GREEN) → commit "Release vN+1: …" → push dev.
 
 ## Morning deliverable
 A green, pushed `dev` with: a balanced weapon roster (incl. buzzsaw/flipper/pincer/kamikaze), the
