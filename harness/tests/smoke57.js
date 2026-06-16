@@ -323,7 +323,29 @@ src+=`
   {const me=bbBotWith('flame','balanced',0,0,true);me.x=300;me.y=300;me.h=0;
    const foe=bbBotWith('none','balanced',1,1,true);foe.x=300+RR*1.6;foe.y=300;bb2.bots=[me,foe];bb2.result=null;
    let lit=0;for(let i=0;i<40;i++){bbCpuUpdate(1/60);if(me.ctl.brain.fire)lit++;}ok('CPU FLAMETHROWER torches a foe in its cone',lit>0);
-   const behind=bbBotWith('none','balanced',1,2,true);behind.x=300-RR*1.6;behind.y=300;bb2.bots=[me,behind];let lit2=0;for(let i=0;i<20;i++){bbCpuUpdate(1/60);if(me.ctl.brain.fire)lit2++;}ok('CPU FLAMETHROWER holds fire when the foe is BEHIND it',lit2===0);}
+   // v5.1.99 TURRET-AIM: the flame is no longer locked forward — its turret tracks a foe to the REAR and still torches it.
+   const behind=bbBotWith('none','balanced',1,2,true);behind.x=300-RR*1.6;behind.y=300;bb2.bots=[me,behind];let lit2=0;for(let i=0;i<20;i++){bbCpuUpdate(1/60);if(me.ctl.brain.fire)lit2++;}ok('CPU FLAME turret FIRES at a foe behind it (was: held fire)',lit2>0);
+   me.h=0;bbWeaponPre(1/60);ok('CPU FLAME turret AIMS behind (weaponAng ~ π toward the rear foe)',Math.abs(Math.abs(me.weaponAng)-Math.PI)<0.2);}
+  // ── v5.1.99: FLAME TURRET-AIM — a turreted weapon aims independent of the chassis (CPU foe-track / human mouse·stick) ──
+  {ok('bbIsTurret: flame is turreted, piston is not',bbIsTurret('flame')===true&&bbIsTurret('piston')===false);
+   const me=bbBotWith('flame','balanced',0,0,true);me.x=300;me.y=300;me.h=0; // chassis faces EAST (0)
+   const side=bbBotWith('none','balanced',1,1,true);side.x=300;side.y=300-RR*1.6; // foe due NORTH — 90° off the nose, OUTSIDE the chassis front arc
+   bb2.bots=[me,side];bb2.result=null;
+   ok('bbAimAngle (CPU) points the turret at the SIDE foe (~north, -π/2)',Math.abs(bbAimAngle(me)-(-Math.PI/2))<0.15);
+   ok('the chassis FRONT arc does NOT cover the side foe',bbFoeAngOk(me,side,BB_W.flameArc)===false);
+   bbWeaponPre(1/60);ok('bbWeaponPre stores weaponAng on the flame bot',Math.abs(me.weaponAng-(-Math.PI/2))<0.15);
+   ok('but the TURRET arc DOES cover the side foe',bbFoeArcAt(me,side,BB_W.flameArc,me.weaponAng)===true);
+   me.ctl.brain.fire=true;side.hp=BB.HP;side.burn=0;me.heat={};
+   for(let i=0;i<60;i++){me.firing=true;bbWeaponPre(1/60);bbWeaponFire(1/60);}
+   ok('FLAME turret BURNS a side foe the chassis is NOT facing (hp '+side.hp.toFixed(0)+'<'+BB.HP+')',side.hp<BB.HP);
+   const ram=bbBotWith('none','balanced',0,0,true);ram.h=1.2;bb2.bots=[ram];bbWeaponPre(1/60);ok('a NON-turret weapon keeps weaponAng = the chassis heading',Math.abs(ram.weaponAng-1.2)<1e-9);
+   const me2=bbBotWith('flame','balanced',0,0,true);me2.x=100;me2.y=100;me2.h=0;me2.ctl.brain.fire=true;me2.heat={};
+   const far=bbBotWith('none','balanced',1,1,true);far.x=100+RR*10;far.y=100;far.hp=BB.HP;bb2.bots=[me2,far];
+   for(let i=0;i<60;i++){me2.firing=true;bbWeaponPre(1/60);bbWeaponFire(1/60);}ok('FLAME turret still respects RANGE (a foe way out of reach stays unburned)',far.hp===BB.HP);
+   const h=bbBotWith('flame','balanced',0,0,false);h.x=200;h.y=200;h.h=0;playerBind[0]={type:'kb'};bb2.bots=[h];
+   mouseX=FX+h.x;mouseY=FY+h.y-80;bbWeaponPre(1/60);ok('HUMAN flame turret follows the MOUSE (~north when the cursor is above the bot)',Math.abs(h.weaponAng-(-Math.PI/2))<0.05);
+   mouseX=FX+h.x+80;mouseY=FY+h.y;bbWeaponPre(1/60);ok('HUMAN flame turret tracks the mouse to the EAST (~0)',Math.abs(h.weaponAng)<0.05);
+   let dThrew=false;try{bbDrawWeapon(h);}catch(e){dThrew=true;console.log('   draw err:',e.message);}ok('bbDrawWeapon renders the turreted flame cone without throwing',!dThrew);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
