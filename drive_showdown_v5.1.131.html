@@ -4109,6 +4109,7 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
      if(_mode==='domination'){const zx=FW/2-me.x,zy=FH/2-me.y,zd=Math.hypot(zx,zy)||1;if(zd>BB_DOM_R*0.55){br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;}}
      else if(_mode==='koth'&&bb2.koth&&bb2.koth.active){const zx=bb2.koth.x-me.x,zy=bb2.koth.y-me.y,zd=Math.hypot(zx,zy)||1;if(zd>BB_KOTH_R*0.55){br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;}} // race to the active hill (idle during the despawn gap)
      else if(_mode==='ctf'&&bb2.flags){const ef=bb2.flags[1-me.side];let tx,ty;if(ef.carrier===me){const ob=bb2.flags[me.side];tx=ob.hx;ty=ob.hy;}else{tx=ef.x;ty=ef.y;} const zx=tx-me.x,zy=ty-me.y,zd=Math.hypot(zx,zy)||1;br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;} // CTF: grab the enemy flag, then run it home
+     else if(_mode==='pushball'&&bb2.pball){const pb=bb2.pball,goalX=me.side===0?FW-10:10,ax=goalX-pb.x,ay=FH/2-pb.y,an=Math.hypot(ax,ay)||1,nx=ax/an,ny=ay/an;const bx=pb.x-nx*(RR+BB_PB_R+6),by=pb.y-ny*(RR+BB_PB_R+6),zx=bx-me.x,zy=by-me.y,zd=Math.hypot(zx,zy)||1;br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;} // PUSH-BALL: get BEHIND the ball (relative to the enemy goal) to shove it in
      else if(_mode==='sumo'){const ex=me.x-FW/2,ey=me.y-FH/2,ed=Math.hypot(ex,ey)||1;if(ed>BB_RING*0.8){br.inp.vx=-ex/ed*SPD*T.spd;br.inp.vy=-ey/ed*SPD*T.spd;}}}
     // P2.6: fire the weapon when it makes sense (tier-scaled reliability)
     const wp=me.ld?me.ld.weapon:'none';br.fire=false;
@@ -4317,7 +4318,9 @@ const BB_MODES=[
   {id:'koth',      name:'KOTH — hold the moving hill'},
   {id:'vip',       name:'VIP — kill the enemy VIP'},
   {id:'ctf',       name:'CTF — capture the flag'},
+  {id:'pushball',  name:'PUSH-BALL — shove the ball into their goal'},
 ];
+const BB_PB_R=24, BB_PB_FRIC=0.94, BB_PB_PUSH=120, BB_PB_GOALH=220, BB_PB_GOALD=34, BB_PB_TARGET=3; // PUSH-BALL: ball radius, per-frame friction, push impulse, goal-mouth height, goal depth from each end wall, goals to win
 const BB_RING=290; // SUMO ring radius (px from arena center)
 const BB_DOM_R=150, BB_DOM_TARGET=12; // DOMINATION control-zone radius + seconds of uncontested hold to win
 const BB_KOTH_R=130, BB_KOTH_TARGET=14, BB_KOTH_HOLD=8, BB_KOTH_GAP=1.6; // KOTH hill radius + seconds of majority-hold to win + how long a hill STAYS before despawning + the gap before the next one appears elsewhere
@@ -4331,6 +4334,7 @@ function bbModeHint(){const ctrl=' · LT/Shift = DASH · SPACE/RT = WEAPON';swit
   case'koth':return'KOTH — stand on the hill (majority wins it); it despawns + reappears elsewhere'+ctrl;
   case'vip':return'VIP ♛ — destroy the enemy VIP to win (protect yours!)'+ctrl;
   case'ctf':return'CTF ⚑ — grab the enemy flag, bring it home (your flag must be home)'+ctrl;
+  case'pushball':return'PUSH-BALL ⚽ — shove the ball into the ENEMY goal'+ctrl;
   default:return'ROBORUMBLE — keep your FRONT to them · ram their REAR (HP) or SIDE (wheels)'+ctrl;}}
 function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing here (bbKill→bbCheckResult covers it)
   if(!bb2||bb2.result!==null)return;
@@ -4364,6 +4368,13 @@ function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing he
     for(const f of bb2.flags){if(!f.carrier)continue;const c=f.carrier,own=bb2.flags[c.side]; // capture: the carrier reaches its OWN base with its own flag home
       if(own.home&&Math.hypot(c.x-own.hx,c.y-own.hy)<=R){bb2.ctf[c.side]++;sfx('win');f.carrier=null;f.x=f.hx;f.y=f.hy;f.home=true;}}
     for(let s=0;s<2;s++)if(bb2.ctf[s]>=BB_CTF_TARGET){bb2.result=s;sfx('win');break;}
+  }else if(mode==='pushball'){ // PUSH-BALL: shove the center ball into the enemy goal mouth. Side 0 attacks the RIGHT goal, side 1 the LEFT. First to BB_PB_TARGET goals wins.
+    if(!bb2.pball){bb2.pball={x:cx,y:cy,vx:0,vy:0};bb2.pscore=[0,0];}
+    const pb=bb2.pball;pb.x+=pb.vx*dt;pb.y+=pb.vy*dt;pb.vx*=BB_PB_FRIC;pb.vy*=BB_PB_FRIC; // integrate + friction
+    for(const b of bb2.bots){if(b.dead)continue;const dx=pb.x-b.x,dy=pb.y-b.y,d=Math.hypot(dx,dy)||0.01;if(d<RR+BB_PB_R){const nx=dx/d,ny=dy/d,ov=RR+BB_PB_R-d;pb.x+=nx*ov;pb.y+=ny*ov;const bs=Math.hypot((b._inp&&b._inp.vx)||0,(b._inp&&b._inp.vy)||0);pb.vx+=nx*(BB_PB_PUSH+bs*0.6);pb.vy+=ny*(BB_PB_PUSH+bs*0.6);}} // bots shove the ball (harder when moving fast)
+    if(Math.abs(pb.y-cy)<BB_PB_GOALH/2&&(pb.x<BB_PB_GOALD||pb.x>FW-BB_PB_GOALD)){const scorer=pb.x<BB_PB_GOALD?1:0;bb2.pscore[scorer]++;sfx('win');pb.x=cx;pb.y=cy;pb.vx=0;pb.vy=0;for(let s=0;s<2;s++)if(bb2.pscore[s]>=BB_PB_TARGET){bb2.result=s;break;}} // GOAL → reset to center
+    if(pb.x<BB_PB_R){pb.x=BB_PB_R;pb.vx=Math.abs(pb.vx)*0.5;}else if(pb.x>FW-BB_PB_R){pb.x=FW-BB_PB_R;pb.vx=-Math.abs(pb.vx)*0.5;} // wall bounce (after the goal check)
+    if(pb.y<BB_PB_R){pb.y=BB_PB_R;pb.vy=Math.abs(pb.vy)*0.5;}else if(pb.y>FH-BB_PB_R){pb.y=FH-BB_PB_R;pb.vy=-Math.abs(pb.vy)*0.5;}
   }
 }
 // ── v5.1.120 P3 ARENA HAZARDS: per-map damage zones — a saw blade's position is a PURE fn of bb2.t (deterministic). RoboRumble-only (only updateBB calls this). ──
@@ -4566,6 +4577,10 @@ function drawBB(){
       const fx=FX+f.x,fy=FY+f.y;ctx.strokeStyle='#cfcfe0';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(fx,fy+14);ctx.lineTo(fx,fy-16);ctx.stroke(); // pole
       ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(fx,fy-16);ctx.lineTo(fx+16,fy-11);ctx.lineTo(fx,fy-6);ctx.closePath();ctx.fill();} // flag
     const sc=bb2.ctf||[0,0];ctx.font='bold 13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('⚑ '+sc[0]+' — '+sc[1]+' ⚑  (first to '+BB_CTF_TARGET+')',CW/2,FY+58);ctx.restore();}
+  if(bbMode()==='pushball'&&bb2.pball){const pb=bb2.pball;ctx.save(); // v5.1.131 P9 PUSH-BALL: goal mouths + the ball + score
+    for(let s=0;s<2;s++){const gx=s===0?0:FW-BB_PB_GOALD,col=M2_COLS[s===0?1:0];ctx.fillStyle=col+'22';ctx.fillRect(FX+gx,FY+FH/2-BB_PB_GOALH/2,BB_PB_GOALD,BB_PB_GOALH);ctx.strokeStyle=col+'aa';ctx.lineWidth=2;ctx.strokeRect(FX+gx,FY+FH/2-BB_PB_GOALH/2,BB_PB_GOALD,BB_PB_GOALH);} // each end goal tinted by who SCORES there
+    ctx.fillStyle='#e8e8f0';ctx.strokeStyle='#222';ctx.lineWidth=2;ctx.beginPath();ctx.arc(FX+pb.x,FY+pb.y,BB_PB_R,0,Math.PI*2);ctx.fill();ctx.stroke();
+    const sc=bb2.pscore||[0,0];ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle='#d4d4f4';ctx.fillText('⚽ '+sc[0]+' — '+sc[1]+'  (first to '+BB_PB_TARGET+')',CW/2,FY+58);ctx.restore();}
   for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
     const blink=b.inv>0&&Math.floor(b.inv*12)%2===0;ctx.globalAlpha=blink?0.45:1;
     _noScoop=true;withBot(b.ctl.bind,b,()=>{drawRobot();});_noScoop=false; // RoboRumble: a weapon replaces the ball plow

@@ -587,6 +587,16 @@ src+=`
    const fl4=bbCtfFlags();fl4[0].carrier=win;fl4[0].home=false;fl4[0].x=win.x;fl4[0].y=win.y;
    bb2.bots=[win];bb2.flags=fl4;bb2.ctf=[0,BB_CTF_TARGET-1];bb2.result=null;bbModeUpdate(0.05);
    ok('CTF: reaching the capture target wins',bb2.result===1);
+   // PUSH-BALL (soccer)
+   ok('GAME MODE includes PUSH-BALL',BB_MODES.some(m=>m.id==='pushball'));
+   m2.set.bbmode='pushball';
+   const pusher=bbBotWith('none','balanced',0,0,true);pusher.x=300;pusher.y=FH/2;pusher._inp={vx:SPD,vy:0,vr:0};
+   bb2.bots=[pusher];bb2.pball={x:320,y:FH/2,vx:0,vy:0};bb2.pscore=[0,0];bb2.result=null;bbModeUpdate(0.05);
+   ok('PUSH-BALL: a bot shoves the ball away from it',bb2.pball.vx>0);
+   bb2.bots=[];bb2.pball={x:20,y:FH/2,vx:0,vy:0};bb2.pscore=[0,0];bb2.result=null;bbModeUpdate(0.05);
+   ok('PUSH-BALL: ball in the LEFT goal scores for side 1 + resets to center',bb2.pscore[1]===1&&Math.abs(bb2.pball.x-FW/2)<1);
+   bb2.bots=[];bb2.pball={x:20,y:FH/2,vx:0,vy:0};bb2.pscore=[0,BB_PB_TARGET-1];bb2.result=null;bbModeUpdate(0.05);
+   ok('PUSH-BALL: reaching the goal target wins',bb2.result===1);
    // VIP (assassinate the enemy VIP)
    ok('GAME MODE includes VIP',BB_MODES.some(m=>m.id==='vip'));
    m2.set.bbmode='vip';
@@ -619,6 +629,11 @@ src+=`
     const ctff=bbBotWith('none','balanced',1,1,true);ctff.x=100;ctff.y=300; // a foe to the WEST (so plain chase would go -x)
     bb2.flags=bbCtfFlags();bb2.bots=[ctfc,ctff];bb2.result=null;bbCpuUpdate(1/60);
     ok('CTF: a CPU heads for the enemy flag (not just the nearest foe)',ctfc.ctl.brain.inp.vx>0);
+    m2.set.bbmode='pushball';
+    const pbc=bbBotWith('none','balanced',0,0,true);pbc.x=300;pbc.y=FH/2;pbc.h=0; // side 0 attacks the RIGHT goal
+    const pbf=bbBotWith('none','balanced',1,1,true);pbf.x=100;pbf.y=FH/2; // foe to the WEST
+    bb2.pball={x:600,y:FH/2,vx:0,vy:0};bb2.bots=[pbc,pbf];bb2.result=null;bbCpuUpdate(1/60);
+    ok('PUSH-BALL: a CPU positions behind the ball to push it goalward',pbc.ctl.brain.inp.vx>0);
     m2.set.bbmode='sumo';
     const sme=bbBotWith('none','balanced',1,1,true);sme.x=FW/2;sme.y=FH/2-BB_RING*0.9;sme.h=0; // near the top ring edge
     const sfoe=bbBotWith('none','balanced',0,0,true);sfoe.x=FW/2;sfoe.y=FH/2-BB_RING*0.9-40;
@@ -626,8 +641,8 @@ src+=`
     ok('SUMO: a CPU near the edge pulls back toward the center',sme.ctl.brain.inp.vy>0);
     // v5.1.127: the in-match HUD hint is mode-specific
     m2.set.bbmode='ko';const hKo=bbModeHint();m2.set.bbmode='sumo';const hSumo=bbModeHint();m2.set.bbmode='domination';const hDom=bbModeHint();m2.set.bbmode='vip';const hVip=bbModeHint();
-    m2.set.bbmode='koth';const hKoth=bbModeHint();m2.set.bbmode='ctf';const hCtf=bbModeHint();
-    ok('each GAME MODE shows its own objective hint',/SUMO/.test(hSumo)&&/DOMINATION/.test(hDom)&&/VIP/.test(hVip)&&/KOTH/.test(hKoth)&&/CTF/.test(hCtf)&&hKo!==hSumo&&hSumo!==hDom&&hDom!==hVip&&hKoth!==hDom&&hCtf!==hKoth);
+    m2.set.bbmode='koth';const hKoth=bbModeHint();m2.set.bbmode='ctf';const hCtf=bbModeHint();m2.set.bbmode='pushball';const hPb=bbModeHint();
+    ok('each GAME MODE shows its own objective hint',/SUMO/.test(hSumo)&&/DOMINATION/.test(hDom)&&/VIP/.test(hVip)&&/KOTH/.test(hKoth)&&/CTF/.test(hCtf)&&/PUSH-BALL/.test(hPb)&&hKo!==hSumo&&hSumo!==hDom&&hDom!==hVip&&hKoth!==hDom&&hCtf!==hKoth&&hPb!==hCtf);
     m2.set.bbmode=svmode;}
   }
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
