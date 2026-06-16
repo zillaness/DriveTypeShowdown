@@ -551,6 +551,17 @@ src+=`
    ok('DOMINATION: a CONTESTED zone banks nothing',bb2.dom[0]===0&&bb2.dom[1]===0);
    bb2.bots=[dz];bb2.dom=[BB_DOM_TARGET-0.01,0];bb2.result=null;bbModeUpdate(0.5);
    ok('DOMINATION: reaching the target WINS the round',bb2.result===0);
+   // VIP (assassinate the enemy VIP)
+   ok('GAME MODE includes VIP',BB_MODES.some(m=>m.id==='vip'));
+   m2.set.bbmode='vip';
+   {const v0=bbBotWith('none','balanced',0,0,true),g0=bbBotWith('none','balanced',0,2,true),v1=bbBotWith('none','balanced',1,1,true),g1=bbBotWith('none','balanced',1,3,true);
+    v0.vip=true;v1.vip=true;v0.x=100;g0.x=140;v1.x=900;g1.x=940;[v0,g0,v1,g1].forEach(b=>{b.y=300;b.hp=BB.HP;b.inv=0;});
+    bb2.bots=[v0,g0,v1,g1];bb2.result=null;bb2.blasts=[];bbKill(g1,0);
+    ok('VIP: killing only a GRUNT does NOT end the match',bb2.result===null);
+    const v0b=bbBotWith('none','balanced',0,0,true),g0b=bbBotWith('none','balanced',0,2,true),v1b=bbBotWith('none','balanced',1,1,true),g1b=bbBotWith('none','balanced',1,3,true);
+    v0b.vip=true;v1b.vip=true;v0b.x=100;g0b.x=140;v1b.x=900;g1b.x=940;[v0b,g0b,v1b,g1b].forEach(b=>{b.y=300;b.hp=BB.HP;b.inv=0;});
+    bb2.bots=[v0b,g0b,v1b,g1b];bb2.result=null;bb2.blasts=[];bbKill(v1b,0);
+    ok('VIP: destroying the enemy VIP wins even with their grunts alive',bb2.result===0&&g1b.dead===false);}
    m2.set.bbmode=svmode;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();

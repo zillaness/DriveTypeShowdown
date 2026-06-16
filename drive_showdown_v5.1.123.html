@@ -4017,7 +4017,14 @@ function bbApplyHit(victim,loc,dmg,owner,fromX,fromY,frontPierce){ // kinetic hi
   if(victim.hp<=0)bbKill(victim,owner);
 }
 function bbCheckResult(lastKiller){ // last SIDE standing wins (KO); nobody left = mutual-destruction DRAW
-  if(bb2.result!==null)return;const s=new Set();for(const b of bb2.bots)if(!b.dead)s.add(b.side);
+  if(bb2.result!==null)return;
+  if(bbMode()==='vip'){ // v5.1.123 P9 VIP: a side LOSES the instant its VIP is destroyed (grunts don't matter)
+    const vd=[false,false];for(const b of bb2.bots)if(b.vip&&b.dead)vd[b.side]=true;
+    if(vd[0]&&vd[1]){bb2.result='draw';sfx('win');return;}
+    if(vd[0]){bb2.result=1;sfx('win');return;}
+    if(vd[1]){bb2.result=0;sfx('win');return;}
+  }
+  const s=new Set();for(const b of bb2.bots)if(!b.dead)s.add(b.side);
   if(s.size===0){bb2.result='draw';sfx('win');return;}
   if(s.size===1){bb2.result=[...s][0];sfx('win');}
 }
@@ -4066,6 +4073,7 @@ function startP2BB(){cheatedRun=false;paused=false;
       const _mhp=BB.HP*(megaBots?BB_W.megaHp:1); // v5.1.118 MEGABOTS: a giant HP pool (mhp = this bot's max, used by the HP bar)
       return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:_mhp,mhp:_mhp,mega:!!megaBots,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
   bb2.minis=bbMiniSpawn(); // v5.1.117 P4: deploy a harasser for each bot carrying the MINIBOT perk
+  for(let _s=0;_s<2;_s++){const _v=bb2.bots.find(b=>b.side===_s);if(_v)_v.vip=true;} // v5.1.123 P9 VIP: the first bot per side is that side's VIP (used only in VIP mode)
   cpuH2H=null;
 }
 // RoboRumble RAM/DASH is always available (no RAMMING cheat needed) — LT (gamepad) / Shift (keyboard). Human-only in P1.
@@ -4298,6 +4306,7 @@ const BB_MODES=[
   {id:'ko',        name:'KO — last bot standing'},
   {id:'sumo',      name:'SUMO — ring-out wins'},
   {id:'domination',name:'DOMINATION — hold the zone'},
+  {id:'vip',       name:'VIP — kill the enemy VIP'},
 ];
 const BB_RING=290; // SUMO ring radius (px from arena center)
 const BB_DOM_R=150, BB_DOM_TARGET=12; // DOMINATION control-zone radius + seconds of uncontested hold to win
@@ -4516,6 +4525,7 @@ function drawBB(){
     bbDrawWheels(b); // P2.4 dead-wheel marks
     {const eg=bbNameEgg(b);if(eg){const pc=BB_EGG_PAINT[eg];ctx.save();ctx.translate(FX+b.x,FY+b.y);ctx.lineWidth=3;ctx.strokeStyle=pc[0];ctx.beginPath();ctx.arc(0,0,RR+5,-Math.PI/2,Math.PI/2);ctx.stroke();ctx.strokeStyle=pc[1];ctx.beginPath();ctx.arc(0,0,RR+5,Math.PI/2,Math.PI*1.5);ctx.stroke();if(bbEggActive(b)){ctx.fillStyle=pc[1];ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillText('★',0,-RR-9);}ctx.restore();}} // v5.1.115 P6 egg PAINT (two-tone ring; ★ = buff active)
     drawP2Tag(p,b,b.ctl.name||p2Name(b.ctl.bind),b.col); // show each bot's name above it, humans included
+    if(bbMode()==='vip'&&b.vip){ctx.fillStyle='#ffd740';ctx.font='bold 15px Courier New';ctx.textAlign='center';ctx.fillText('♛',FX+b.x,FY+b.y-RR-16);} // v5.1.123 P9 VIP crown
     if((b.outT||0)>0){ctx.fillStyle='#ff5252';ctx.font='bold 14px Courier New';ctx.textAlign='center';ctx.fillText('⚠ '+Math.max(1,Math.ceil(BB.countOut-b.outT)),FX+b.x,FY+b.y+RR+20);} // STALEMATE count-out timer (both stuck)
     else if(b.mob<=0){ctx.fillStyle='#ff8a52';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('⚠ STUCK',FX+b.x,FY+b.y+RR+20);} // immobilized but a foe can still finish it — no auto count-out
     else if(b.pinT>0){ctx.fillStyle='#ffd740';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('⊗ PINNED',FX+b.x,FY+b.y+RR+20);}
