@@ -565,6 +565,28 @@ src+=`
    // the hill DESPAWNS (a gap with no scoring), then re-appears elsewhere
    bb2.bots=[kme];kme.x=FW/2;kme.y=FH/2;bb2.koth={x:FW/2,y:FH/2,active:false,t:0.05,score:[2,0]};bb2.result=null;const ks0=bb2.koth.score[0];const ox=bb2.koth.x;bbModeUpdate(0.1);
    ok('KOTH: no scoring during the despawn gap, then a new hill appears',bb2.koth.score[0]===ks0&&bb2.koth.active===true);
+   // CTF (capture the flag)
+   ok('GAME MODE includes CTF',BB_MODES.some(m=>m.id==='ctf'));
+   m2.set.bbmode='ctf';
+   const thief=bbBotWith('none','balanced',1,1,true);thief.x=90;thief.y=FH/2; // enemy on side-0's flag base
+   bb2.bots=[thief];bb2.flags=bbCtfFlags();bb2.ctf=[0,0];bb2.result=null;bbModeUpdate(0.05);
+   ok('CTF: an enemy touching your flag steals it',bb2.flags[0].carrier===thief&&bb2.flags[0].home===false);
+   const cap=bbBotWith('none','balanced',1,1,true);cap.x=FW-90;cap.y=FH/2; // side-1 carrier at its own base
+   const fl=bbCtfFlags();fl[0].carrier=cap;fl[0].home=false;fl[0].x=cap.x;fl[0].y=cap.y;
+   bb2.bots=[cap];bb2.flags=fl;bb2.ctf=[0,0];bb2.result=null;bbModeUpdate(0.05);
+   ok('CTF: carrying the enemy flag to your base (own flag home) scores',bb2.ctf[1]===1&&bb2.flags[0].home===true);
+   const dead=bbBotWith('none','balanced',1,1,true);dead.x=400;dead.y=300;dead.dead=true;
+   const fl2=bbCtfFlags();fl2[0].carrier=dead;fl2[0].home=false;fl2[0].x=400;fl2[0].y=300;
+   bb2.bots=[dead];bb2.flags=fl2;bb2.ctf=[0,0];bb2.result=null;bbModeUpdate(0.05);
+   ok('CTF: a carrier dying DROPS the flag (not home)',fl2[0].carrier===null&&fl2[0].home===false);
+   const ret=bbBotWith('none','balanced',0,2,true);ret.x=400;ret.y=300; // own (side 0) bot on its dropped flag
+   const fl3=bbCtfFlags();fl3[0].carrier=null;fl3[0].home=false;fl3[0].x=400;fl3[0].y=300;
+   bb2.bots=[ret];bb2.flags=fl3;bb2.ctf=[0,0];bb2.result=null;bbModeUpdate(0.05);
+   ok('CTF: own side returns a dropped flag home',fl3[0].home===true&&fl3[0].x===fl3[0].hx);
+   const win=bbBotWith('none','balanced',1,1,true);win.x=FW-90;win.y=FH/2;
+   const fl4=bbCtfFlags();fl4[0].carrier=win;fl4[0].home=false;fl4[0].x=win.x;fl4[0].y=win.y;
+   bb2.bots=[win];bb2.flags=fl4;bb2.ctf=[0,BB_CTF_TARGET-1];bb2.result=null;bbModeUpdate(0.05);
+   ok('CTF: reaching the capture target wins',bb2.result===1);
    // VIP (assassinate the enemy VIP)
    ok('GAME MODE includes VIP',BB_MODES.some(m=>m.id==='vip'));
    m2.set.bbmode='vip';
@@ -592,6 +614,11 @@ src+=`
     const kc=bbBotWith('none','balanced',1,1,true);kc.x=100;kc.y=100;kc.h=0;const kf=bbBotWith('none','balanced',0,0,true);kf.x=140;kf.y=100;
     bb2.bots=[kc,kf];bb2.koth={x:FW/2,y:FH/2,active:true,t:BB_KOTH_HOLD,score:[0,0]};bb2.result=null;bbCpuUpdate(1/60);
     ok('KOTH: a CPU off the hill drives toward it',kc.ctl.brain.inp.vx>0&&kc.ctl.brain.inp.vy>0);
+    m2.set.bbmode='ctf';
+    const ctfc=bbBotWith('none','balanced',0,0,true);ctfc.x=300;ctfc.y=300;ctfc.h=0; // side 0 → wants enemy flag (side 1) at the EAST base
+    const ctff=bbBotWith('none','balanced',1,1,true);ctff.x=100;ctff.y=300; // a foe to the WEST (so plain chase would go -x)
+    bb2.flags=bbCtfFlags();bb2.bots=[ctfc,ctff];bb2.result=null;bbCpuUpdate(1/60);
+    ok('CTF: a CPU heads for the enemy flag (not just the nearest foe)',ctfc.ctl.brain.inp.vx>0);
     m2.set.bbmode='sumo';
     const sme=bbBotWith('none','balanced',1,1,true);sme.x=FW/2;sme.y=FH/2-BB_RING*0.9;sme.h=0; // near the top ring edge
     const sfoe=bbBotWith('none','balanced',0,0,true);sfoe.x=FW/2;sfoe.y=FH/2-BB_RING*0.9-40;
@@ -599,8 +626,8 @@ src+=`
     ok('SUMO: a CPU near the edge pulls back toward the center',sme.ctl.brain.inp.vy>0);
     // v5.1.127: the in-match HUD hint is mode-specific
     m2.set.bbmode='ko';const hKo=bbModeHint();m2.set.bbmode='sumo';const hSumo=bbModeHint();m2.set.bbmode='domination';const hDom=bbModeHint();m2.set.bbmode='vip';const hVip=bbModeHint();
-    m2.set.bbmode='koth';const hKoth=bbModeHint();
-    ok('each GAME MODE shows its own objective hint',/SUMO/.test(hSumo)&&/DOMINATION/.test(hDom)&&/VIP/.test(hVip)&&/KOTH/.test(hKoth)&&hKo!==hSumo&&hSumo!==hDom&&hDom!==hVip&&hKoth!==hDom);
+    m2.set.bbmode='koth';const hKoth=bbModeHint();m2.set.bbmode='ctf';const hCtf=bbModeHint();
+    ok('each GAME MODE shows its own objective hint',/SUMO/.test(hSumo)&&/DOMINATION/.test(hDom)&&/VIP/.test(hVip)&&/KOTH/.test(hKoth)&&/CTF/.test(hCtf)&&hKo!==hSumo&&hSumo!==hDom&&hDom!==hVip&&hKoth!==hDom&&hCtf!==hKoth);
     m2.set.bbmode=svmode;}
   }
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
