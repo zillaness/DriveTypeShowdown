@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.115.html
-  version: 5.1.115
+  file: drive_showdown_v5.1.116.html
+  version: 5.1.116
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-16
@@ -292,13 +292,13 @@ function applyKonamiSlider(i,mx){ // set CHEATS[i]'s slider value from a canvas 
   const t=clamp((mx-r.slider.x1)/(r.slider.x2-r.slider.x1),0,1),st=c.step||1;
   c.set(c.min+Math.round(t*(c.max-c.min)/st)*st);}
 // konami cheat menu: toggleable fun modes (replaces the old auto-disc flip). arcadeMode adds the LT boost-tackle in 2P H2H ball+tank.
-let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides
+let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0,moveOrDie=false; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides; v5.1.116 moveOrDie = RoboRumble anti-camp cheat
 let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,ballScale=1,robotScale=1,ballPups=false,ramCdMult=1; // more cheats (ramCdMult scales the RAM dash cooldown; SENS_MAX cheat lives by the sensitivity consts)
 let iceSlip=1; // ICE SKATING slider: 1 = OFF (no ice), >1 = ice on, higher = more slip. Drives iceMode (=slip>1) + MOM.ice.fri = 0.4/iceSlip.
 let capCpuSpeed=false; // CAP CPU SPEED cheat: with MAX SENSITIVITY cranked, true = CPUs stay at base speed (only you go fast); false = CPUs keep pace (chaos). Ball/shooter only — tank/race CPUs never inherit sensitivity.
 let cheatedRun=false;paused=false; // set true while any cheat is active during a run/match; gates records + high scores
 const B2_BALL_CAP=72; // hard cap on balls in play (shared by EXTRA BALLS + MULTIBALL)
-function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1;}
+function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1||moveOrDie;}
 function cheated(){return anyCheat()||cheatedRun;} // a run is "tainted" if a cheat is on now OR was on at any point this run
 function cpuPaceSens(p){ // every ball/shooter CPU (both sides, all tiers) keeps pace with the FASTEST HUMAN = max sens in the match.
   // (v5.1.98: was m2.sens[1-p] — a 2-player index that broke in 3v3, so only some bots inherited the boost: allies fast, enemies slow.)
@@ -312,6 +312,7 @@ const CHEATS=[
   {name:'RAMMING',        desc:'[2P] Left Trigger / Shift = boost tackle — ram & stun the enemy bot (ball + tank)',get:()=>arcadeMode, tog:()=>{arcadeMode=!arcadeMode;}},
   {name:'DISC🥏 MODE',  desc:'[SP+2P] Shooter shots fly forever as discs — ricochet off the walls instead of dying',   get:()=>frisbeeMode, tog:()=>{frisbeeMode=!frisbeeMode;}},
   {name:'BOUNCY BALLS',   desc:'[SP+2P] Low-friction pinball chaos — balls barely slow, shots ricochet',        get:()=>bouncyMode,  tog:()=>{bouncyMode=!bouncyMode;}},
+  {name:'MOVE OR DIE',    desc:'[ROBORUMBLE] keep moving or you lose health — no camping',                     get:()=>moveOrDie,   tog:()=>{moveOrDie=!moveOrDie;}}, // v5.1.116 P7 combat cheat
   {name:'MACHINE GUN',    desc:'[2P] Full-auto fire — OFF / YOU only / BOTH sides (tank AND shooter)',          get:()=>machineGun,  tog:()=>{machineGun=(machineGun+1)%3;}, show:v=>['OFF','YOU','BOTH'][v]||'OFF'},
   {name:'MULTIBALL',      desc:'[2P] Every goal spawns 2 more balls (ball + shooter, capped at '+B2_BALL_CAP+')', get:()=>multiBall,   tog:()=>{multiBall=!multiBall;}},
   {name:'STICKY PLOW',    desc:'[2P] Your bot gets the CHAMPION sticky plow — carry up to 5 (normal ball)',      get:()=>stickyPlow,  tog:()=>{stickyPlow=!stickyPlow;}},
@@ -4103,7 +4104,7 @@ const BB_W={
   flameRangeK:6.4, flameArc:Math.PI*0.26, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, // FLAMETHROWER (v5.1.100): ~2× REACH + a NARROWER focused jet (per playtest), heat-up dwell, dps (re-tuned via the sim), heat cap (no fuel gauge), MOVE-mult while torching (plant-to-burn — the balance counter to the ARCADE turret kite; fuel parked)
   wedgeDmg:0.40, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:85, grabDmg:18, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.5, pincerGrabDur:1.8, pincerDrain:55, // WEDGE/DOZER: contact-dmg, grab arc, pinned speed mult, pin/grab DURATION, shove + v5.1.103 GRAB-AND-SLAM (grip seconds, cooldown, base wall-slam dmg ×speed), dozerCharge = forward boost while firing RT, dashBuff = RoboRumble LT-dash speed/range buff
   blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:4.6, kamiDmg:170, partingRK:3.8, partingDmg:95, // P2.3 FLAME blow-up; v5.1.111 KAMIKAZE self-destruct blast radius (×RR) + peak damage (falls off to 0.4× at the edge)
-  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22 // P2.4 wheel HP + handling-fault; v5.1.114 P5 TANK-family shove ×tankPush; v5.1.115 P6 egg HEAL/sec (Optimus/Bumblebee + steering)
+  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
   const id=(typeof p2cDriveDef!=='undefined')?p2cDriveDef(bind).id:'tank';
@@ -4267,6 +4268,7 @@ function updateBB(dt){
     if(wallHit&&b.ld&&b.ld.weapon==='spinner'&&(b.spin||0)>=BB_W.spinMin&&b.inv<=0){ // a spun-up SPINNER that slams a WALL shreds ITSELF + bleeds spin
       b.hp-=BB_W.spinWallDmg*b.spin;b.spin=Math.max(0,b.spin-BB_W.spinWallLoss);b.inv=BB.hitCd;sfx('hit');if(b.hp<=0)bbKill(b,null);}
   }
+  if(moveOrDie)for(const b of bb2.bots){if(b.dead)continue;const mv=(b._modX!=null)?Math.hypot(b.x-b._modX,b.y-b._modY):99;if(mv<SPD*dt*0.5&&b.mob>2){b.hp-=BB_W.modDps*dt;if(b.hp<=0)bbKill(b,null);}b._modX=b.x;b._modY=b.y;} // v5.1.116 MOVE OR DIE cheat: stand still → bleed HP (anti-camp)
   bbGrabUpdate(dt); // v5.1.103 DOZER: carry/slam a gripped foe (after movement, before the contact pass)
   bbWeaponPre(dt); // spin-up / cooldown decay + cache each bot's FIRE input
   // bot-bot contact: separate + ram/weapon damage by closing speed × hit location (front immune, rear=HP, side=mobility→HP)
@@ -7926,6 +7928,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.116 (2026-06-16): ROBORUMBLE — P7 combat cheat: MOVE OR DIE. A Konami-menu toggle (moveOrDie) — in RoboRumble a bot that stays still bleeds HP (BB_W.modDps/sec) so there's no camping; keep moving. Tracks per-bot movement each frame in updateBB. smoke57 +2 → 202. Full battery green. (More P7 cheats — airstrike, megabots, walker, anime sword, unlimited resources, arena traps — plus P4 minibots / P3 arena+map-select / P9 modes remain; see OVERNIGHT_PLAN.md.) Single file, no assets.
   v5.1.115 (2026-06-16): ROBORUMBLE — P6 BOT-NAME EASTER EGGS. Name a bot to trigger an egg: OPTIMUS PRIME / BUMBLEBEE → a two-tone egg PAINT ring (red+blue / black+yellow) on the name alone, and with ANY STEERING drive → HEAL over time (eggHeal/sec); ORIGINAL SIN + TANK drive + a passive blade (DOZER) → INVULNERABLE WHEELS (bbWheelDamage skips it) + the push/charge benefit. A ★ marks an active buff; the buff sets a localStorage achievement flag (the Autobots-Roll-Out / Unoriginal-Sin achievement SCREEN + full custom paint with flames are follow-ups; the ring is the current cue). New bbNameEgg/bbEggActive/bbBotName helpers. smoke57 +6 → 200. Full battery green. Single file, no assets.
   v5.1.114 (2026-06-16): ROBORUMBLE — P5 DRIVE SYNERGY (first cut). A TANK-family drive (tank / arcade / west-coast, via bbDriveFamily) now SHOVES the foe HARDER in a collision (knockback ×tankPush 1.5) — the pushing identity + the synergy with the DOZER blade. (ARCADE's benefit is already its one-handed turret aim — the flame turret is arcade-only; STEERING's synergy is the heal egg, P6.) smoke57 +3 → 194. Full battery green. Single file, no assets.
   v5.1.113 (2026-06-16): ROBORUMBLE — P2 PERKS pick UI. The ARMORY rail gains a 3rd group — PERK chips (✦ NONE / 🎁 GIFT / 🧯 PROOF / 🤖 MINI) alongside weapons + armor; drag a perk chip onto a seat to equip it (bbArmEquip 'perk', reusing the same drag plumbing + drop-halos). Rail re-fitted (cw 58→50 + perk group) so all 8 weapons + 4 armor + 4 perks fit centered on landscape. ★ P2 PERKS slot COMPLETE (data + effects + CPU-use + pick UI). smoke57 +1 → 191. Full battery green. Single file, no assets.

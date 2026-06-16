@@ -446,6 +446,12 @@ src+=`
    bbWheelDamage(os,100,null,null);ok('ORIGINAL SIN (tank+blade): wheels are INVULNERABLE',os.wheels.every(w=>!w.dead&&w.hp===40));
    const os2=bbBotWith('wedge','balanced',0,0,true);os2.ctl.name='RANDO';os2.wheels=[{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
    bbWheelDamage(os2,100,null,null);ok('a normal bot DOES take wheel damage',os2.wheels.some(w=>w.dead||w.hp<40));m2.drive[0]=sd;}
+  // ── v5.1.116: P7 combat cheat — MOVE OR DIE (stand still → bleed HP) ──
+  {const sv=moveOrDie;moveOrDie=true;const b=bbBotWith('none','balanced',0,0,true);b.x=400;b.y=400;b.hp=BB.HP;b.mob=BB.MOB;b._modX=400;b._modY=400;
+   const foe=bbBotWith('none','balanced',1,1,true);foe.dead=true;bb2.bots=[b,foe];bb2.result=null;bb2.cd=0;bb2.t=1;
+   const hp0=b.hp;for(let i=0;i<40;i++){bb2.cd=0;updateBB(1/60);}ok('MOVE OR DIE cheat: a stationary bot BLEEDS HP',b.hp<hp0);
+   moveOrDie=false;const b2=bbBotWith('none','balanced',0,0,true);b2.x=400;b2.y=400;b2.hp=BB.HP;b2.mob=BB.MOB;b2._modX=400;b2._modY=400;bb2.bots=[b2,Object.assign(bbBotWith('none','balanced',1,1,true),{dead:true})];bb2.result=null;
+   for(let i=0;i<40;i++){bb2.cd=0;updateBB(1/60);}ok('MOVE OR DIE off: a stationary bot is unharmed',b2.hp===BB.HP);moveOrDie=sv;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
