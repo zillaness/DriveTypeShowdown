@@ -111,6 +111,10 @@ src+=`
   ok('EXPLOSION AoE damages the nearby foe',fa.hp===hp0-1);
   ok('EXPLOSION is owner-immune',tf2.tanks[0].hp===ohp0);
   ok('EXPLOSION spawns a blast ring',tf2.blasts.length>0);
+  // v5.1.88: blast radius doubled (80→160) — now reaches a foe ~130px out that the old radius missed
+  fa.x=430;fa.y=300;fa.hp=3;fa.inv=0;fa.shield=false;tf2.tanks[0].x=900;tf2.tanks[0].hp=3;tf2.tanks[0].inv=0;tf2.blasts.length=0;
+  tf2Explode(300,300,0);
+  ok('EXPLOSION 2× radius reaches a foe ~130px away',fa.hp===2);
 
   // ── PIERCING passes through an obstacle, then dies at the bound ──
   startTank(1); // CENTER PILLAR (obstacle ~x540-660, y230-410)
