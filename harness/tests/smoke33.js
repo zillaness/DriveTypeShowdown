@@ -59,7 +59,11 @@ src+=`
    tour={names:['A','B','C','D'],drv:[],policy:'open',seedMode:'rand',format:'single',mode:'battlebots',buf:'',seeds:[],M:[],qi:0};
    tourBuild();const md=tourNext();tour.cur=md;tour.curE=tourEntrants(md);r2=null;tf2=null;bb2={result:'draw',bots:[]};let remat=0;
    p2NavClick(CW/2,320,300,()=>{remat++;});
-   T('RoboRumble DRAW replays (rematch called, match not advanced)',remat===1&&tour.cur===md);}
+   T('RoboRumble DRAW replays (rematch called, match not advanced)',remat===1&&tour.cur===md);
+   // v5.1.125 T1: registration is framed by ALLIANCE (team), not per-player
+   texts.length=0;tour={names:['A','B'],drv:[],policy:'open',seedMode:'rand',format:'single',mode:'battlebots',buf:'',seeds:[],M:[],qi:0};
+   phase='p2tnames';drawTourNames();
+   T('tournament registration is ALLIANCE-framed',texts.some(t=>/ALLIANCE/i.test(t)));}
   tour=null;bb2=null;console.log('done');
 })();
 `;

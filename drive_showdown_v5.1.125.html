@@ -5132,7 +5132,7 @@ function tourCloseInput(){
   try{el.remove();}catch(e){}
 }
 function drawTourNames(){
-  p2Chrome('TOURNAMENT — REGISTRATION','add 4–16 team names · tap the box to type (on-screen keyboard opens) · click a name to remove it · Esc backs out');
+  p2Chrome('TOURNAMENT — REGISTRATION','register 4–16 ALLIANCES (team names) · tap the box to type (on-screen keyboard opens) · click an alliance to remove it · Esc backs out'); // v5.1.125 T1: alliance-based registration framing
   // name-entry box — styled as a text input so it's obvious you type here
   const ib={x:CW/2-250,y:142,w:500,h:46};
   const empty=tour.names.length===0&&!tour.buf;
@@ -5146,12 +5146,12 @@ function drawTourNames(){
     ctx.fillText(tour.buf+caret,ib.x+16,ib.y+30);
   }else{
     ctx.font='italic 15px Courier New';ctx.fillStyle='#555577';
-    ctx.fillText('⌨ type a team name…',ib.x+16,ib.y+29);
+    ctx.fillText('⌨ type an ALLIANCE name…',ib.x+16,ib.y+29);
   }
   ctx.font='bold 11px Courier New';ctx.textAlign='right';ctx.fillStyle='#44ffaa99';
   ctx.fillText('⏎ ENTER adds',ib.x+ib.w-12,ib.y+29);
   ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillStyle='#8888aa';
-  ctx.fillText('TEAM NAMES — '+tour.names.length+' of 4–16 added',CW/2,ib.y+ib.h+22);
+  ctx.fillText('ALLIANCES — '+tour.names.length+' of 4–16 registered',CW/2,ib.y+ib.h+22);
   if(empty){ctx.font='11px Courier New';ctx.fillStyle='#666688';
     ctx.fillText('tap the box on touch devices — the keyboard opens right there',CW/2,ib.y+ib.h+40);}
   for(let i=0;i<tour.names.length;i++){
