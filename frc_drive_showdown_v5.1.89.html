@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.88.html
-  version: 5.1.88
+  file: frc_drive_showdown_v5.1.89.html
+  version: 5.1.89
   author: Sam Cao
   created: 2026-06-11
-  last_updated: 2026-06-15
+  last_updated: 2026-06-16
   description: Single-file HTML5 canvas game demonstrating all FRC drive types (tank, arcade, swerve, holonomic, steering) with CPU defenders, an H2H sticky-plow scoring cycle with steal, a unified Mario-Kart setup screen (drive + controller + rename per spot), a scalable ball count, gamepad/touch support, high scores, and easter eggs. Built for FRC Team 2204 Rambots.
   ai_update: Update last_updated and version. Rename file to match. Append changelog comment at bottom. Patch with targeted edits only; never rewrite the full file. Run a JS syntax check after every change.
 -->
@@ -2993,6 +2993,20 @@ const PUP_TYPES=[
   {id:'pierce',icon:'↯',  col:'#b388ff', lab:'PIERCING ×3'},  // single-use, stackable: punches through walls & the enemy
   {id:'aim',   icon:'🎯', col:'#69f0ae', lab:'AUTO-AIM 8s'},  // timed: shots snap to the foe's current position
 ];
+const PUP_BY_ID={};for(const _p of PUP_TYPES)PUP_BY_ID[_p.id]=_p;
+// tankPupHud(t): pure helper — the ordered list of power-up badges a tank is CURRENTLY holding, for the in-match HUD.
+// Each badge: {id, icon, col, txt, kind} where kind is 'timer' (counting down), 'ammo' (stocked rounds) or 'charge' (one-shot, no number).
+// Drives both the corner cards and the on-field strip under each tank, so the loadout reads at a glance during combat.
+function tankPupHud(t){
+  const out=[],push=(id,txt,kind)=>{const d=PUP_BY_ID[id];out.push({id:id,icon:d.icon,col:d.col,txt:txt,kind:kind});};
+  if(t.shield)push('shield','','charge');
+  if(t.rapidT>0)push('rapid',Math.ceil(t.rapidT)+'s','timer');
+  if(t.speedT>0)push('speed',Math.ceil(t.speedT)+'s','timer');
+  if(t.explBurstT>0)push('expl',t.explBurstT.toFixed(1)+'s','timer'); else if(t.explAmmo>0)push('expl','×'+t.explAmmo,'ammo');
+  if(t.pierceBurstT>0)push('pierce',t.pierceBurstT.toFixed(1)+'s','timer'); else if(t.pierceAmmo>0)push('pierce','×'+t.pierceAmmo,'ammo');
+  if(t.aimT>0)push('aim',Math.ceil(t.aimT)+'s','timer');
+  return out;
+}
 function tf2AllowedPups(){
   // pow/hpk are master gates (backward-compat); puX keys add per-pup control within each gate
   const S=m2.set,out=[];
@@ -3545,6 +3559,25 @@ function drawTankCannon(t,col){ // v5.1.72 a basic cannon/turret on the tank cha
   ctx.beginPath();ctx.arc(RR+13,0,3,0,Math.PI*2);ctx.fillStyle=aim?'#ffd240':col;ctx.fill(); // muzzle
   ctx.restore();
 }
+// drawPupChips(list,x,y,align): colored power-up chips for the tank HUD. Each chip = a dark rounded slab
+// with the pickup's PUP_TYPES color (left accent bar + icon/text). align 'left' grows right from x (x = left edge);
+// align 'right' grows left from x (x = right edge); align 'center' centers the row on x. Returns the row width.
+function drawPupChips(list,x,y,align){
+  if(!list||!list.length)return 0;
+  ctx.save();ctx.font='bold 11px Courier New';ctx.textBaseline='middle';
+  const H=14,PAD=5,GAP=3;
+  const chips=list.map(b=>{const label=b.icon+(b.txt?' '+b.txt:'');return{b:b,label:label,w:Math.ceil(ctx.measureText(label).width)+PAD*2+3};});
+  const total=chips.reduce((s,c)=>s+c.w,0)+GAP*(chips.length-1);
+  let lx = align==='right'? x-total : align==='center'? x-total/2 : x;
+  for(const c of chips){
+    ctx.fillStyle='rgba(8,8,16,0.82)';ctx.fillRect(lx,y-H/2,c.w,H);          // dark slab
+    ctx.fillStyle=c.b.col;ctx.fillRect(lx,y-H/2,3,H);                         // colored accent bar
+    ctx.fillStyle=c.b.col;ctx.textAlign='left';ctx.fillText(c.label,lx+3+PAD,y);
+    lx+=c.w+GAP;
+  }
+  ctx.restore();ctx.textBaseline='alphabetic';
+  return total;
+}
 function drawP2Tank(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
   drawTFField();drawTFObstacles();
@@ -3606,6 +3639,7 @@ function drawP2Tank(){
     drawP2Tag(p,t,tankLabel(p),cov); // show each bot's name (custom rename / PLAYER N / CPU) above it, humans included
     drawTankCannon(t,tankCol(p)); // basic cannon/turret on top of the chassis
     ctx.globalAlpha=1;
+    {const pups=tankPupHud(t);if(pups.length)drawPupChips(pups,FX+t.x,FY+t.y+RR+15,'center');} // on-field loadout strip — see your power-ups at your own tank, no glance to the corner
   }
   // HUD cards — players stack down the LEFT, CPU tanks down the RIGHT (compact, two lines each)
   {const row=[0,0];
@@ -3615,16 +3649,12 @@ function drawP2Tank(){
      ctx.font='bold 11px Courier New';ctx.fillStyle=tankCol(p);
      ctx.fillText(tankLabel(p)+' '+(m2.drive[t.ctl.bind]?m2.drive[t.ctl.bind].name:''),x,y);
      ctx.font='bold 12px Courier New';
-     const fx=[];
-     if(t.shield)fx.push('◈');
-     if(t.rapidT>0)fx.push('⚡'+Math.ceil(t.rapidT));
-     if(t.speedT>0)fx.push('»'+Math.ceil(t.speedT));
-     if(t.explBurstT>0)fx.push('💥'+t.explBurstT.toFixed(1)+'s'); else if(t.explAmmo>0)fx.push('💥'+t.explAmmo);
-     if(t.pierceBurstT>0)fx.push('↯'+t.pierceBurstT.toFixed(1)+'s'); else if(t.pierceAmmo>0)fx.push('↯'+t.pierceAmmo);
-     if(t.aimT>0)fx.push('🎯'+Math.ceil(t.aimT));
      // TIMED is a deathmatch (∞ lives) → the card shows KILLS instead of hearts
      const lifeStr=tf2.timed?('☠'+t.kills):(isFinite(t.lives)?'♥'.repeat(Math.max(0,t.lives)):'∞');
-     ctx.fillText(t.dead?'— eliminated —':('HP '+'●'.repeat(Math.max(0,t.hp))+'○'.repeat(Math.max(0,3-t.hp))+'  '+lifeStr+(fx.length?'  '+fx.join(' '):'')),x,y+14);
+     const hpStr=t.dead?'— eliminated —':('HP '+'●'.repeat(Math.max(0,t.hp))+'○'.repeat(Math.max(0,3-t.hp))+'  '+lifeStr);
+     ctx.fillText(hpStr,x,y+14);
+     if(!t.dead){const pups=tankPupHud(t); // colored power-up chips trail the HP/lives line (each in its pickup color)
+       if(pups.length){const hw=ctx.measureText(hpStr).width;drawPupChips(pups,left?x+hw+8:x-hw-8,y+14,left?'left':'right');}}
      ctx.globalAlpha=1;
    }}
   ctx.textAlign='center';ctx.font='bold 13px Courier New';ctx.fillStyle=tf2.sudden?'#ffd740':'#d4d4f4';
@@ -7559,6 +7589,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.89 (2026-06-16): TANK POWER-UP HUD — readable, colored, on the field. The held-pickup readout in TANK FIGHT was monochrome emoji crammed onto the corner card's HP line (all one color, easy to miss mid-fight). New pure helper tankPupHud(t) returns the ordered badge list a tank currently holds — {id,icon,col,txt,kind} where kind is 'timer' (counting down, e.g. "5s"), 'ammo' (banked rounds, e.g. "×2") or 'charge' (one-shot shield, no number) — drawn by drawPupChips() as small COLORED slabs (each in its PUP_TYPES color, left accent bar + icon/text). Two placements off the one helper: (a) the corner cards now trail the HP/lives line with colored chips, (b) a NEW on-field loadout strip sits just under each live tank, so you read YOUR power-ups at YOUR tank without glancing to the corner — works for all N tanks (multi-tank up to 4v4). A banked explosive/piercing stack flips from an "×N" ammo chip to a countdown timer chip once a MACHINE-GUN barrage banks it. No engine/balance change (display only). smoke55 +8 (tankPupHud order/kind/txt/color + barrage flip + drawPupChips left/right/center no-throw) → 53. Full battery green. Single file, no assets.
   v5.1.88 (2026-06-16): TANK — EXPLOSIVE blast radius DOUBLED (80→160). The 💥 explosive-ammo area blast in TANK FIGHT now has 2× the radius (TF2_BLAST_R 80→160), so a detonation catches foes much farther out — the one constant scales both the damage check (≤ TF2_BLAST_R+RR) and the expanding visual ring. smoke55 +1 (a foe ~130px out, missed by the old radius, is now caught) → 45. Full battery green. Single file, no assets.
   v5.1.87 (2026-06-16): GRID — drop the USE-TOUCH button; tap the seat to claim touch. The on-screen "👆 USE TOUCH" button on each awaiting grid seat is gone; instead, TAPPING an awaiting (deviceless) human seat now claims a touch controller directly — so a touchscreen laptop/Chromebook can still claim on the grid, while a key/pad press still claims those devices. (Phones don't fit a 3v3 grid anyway — they use the 1v1 2-card claim; the top-vs-bottom mobile 1v1 with on-screen joysticks stays tabled.) Removed tankCellSub.touch + its draw/hit-rect; the awaiting seat shows a "👆 or TAP the seat for touch" hint. tankGridClick: an awaiting-seat tap (not on a control) → tankGridSetTouch. smoke56 +1 (tap-claims-touch) → 110; smoke59 dropped the 2 dead USE-TOUCH asserts → 23. Full battery green. Single file, no assets.
   v5.1.86 (2026-06-16): MULTI alliance bots default 0 + clearer category nav on the grid. (1) Switching TEAM FORMAT now defaults the alliance support bots (normal/shooter CPU BOTS PER SIDE): MULTI → 0 (the 6-seat grid IS the 3v3 — its mains fill both sides, so no extra support by default, avoiding 3 mains + 2 support = 5/side), 1v1 → 2 (the classic alliance feel). Synced in p2TfmtSyncAlliance wherever tfmt changes (cycle + dropdown); the user can still bump it back up. (2) The 6-seat grid drive picker makes the gamepad nav clearer: the category cycler now reads "▲▼ CLASSIC" (was "⟳ CLASSIC") and the subtitle hint adds "▲▼ category" beside "◀▶ drive" — D-pad left/right cycles the drive, up/down cycles the category. smoke52 +2 → 28. Full battery green. Single file, no assets.

@@ -48,6 +48,24 @@ src+=`
   ok('EXPLOSIVE stacks (+3 each → 6)',t0.explAmmo===6);
   tf2ApplyPup(t0,PUP_TYPES[idIdx('aim')]); ok('AUTO-AIM sets an 8s timer',t0.aimT===8);
 
+  // ── tankPupHud: the in-match power-up badge list (drives the corner cards + the on-field strip under each tank) ──
+  {const th=tf2.tanks[0];
+   th.shield=false;th.rapidT=0;th.speedT=0;th.explAmmo=0;th.explBurstT=0;th.pierceAmmo=0;th.pierceBurstT=0;th.aimT=0;
+   ok('tankPupHud empty when no pickups held',tankPupHud(th).length===0);
+   th.shield=true;th.rapidT=5;th.explAmmo=2;th.aimT=8;
+   const hud=tankPupHud(th);
+   ok('tankPupHud lists held pickups in order (shield,rapid,expl,aim)',hud.length===4&&hud[0].id==='shield'&&hud[1].id==='rapid'&&hud[2].id==='expl'&&hud[3].id==='aim');
+   ok('shield badge is a one-shot charge (no number)',hud[0].kind==='charge'&&hud[0].txt==='');
+   ok('rapid badge counts down (timer "5s")',hud[1].kind==='timer'&&hud[1].txt==='5s');
+   ok('explosive stock shows as ammo "×2"',hud[2].kind==='ammo'&&hud[2].txt==='×2');
+   ok('badges carry the pickup type color',hud[1].col===PUP_BY_ID['rapid'].col);
+   th.explBurstT=2.4;th.explAmmo=0; // mid-barrage: the banked stack flips from ammo to a countdown
+   const eb=tankPupHud(th).find(b=>b.id==='expl');
+   ok('explosive barrage shows as a timer ("2.4s"), not ammo',eb.kind==='timer'&&eb.txt==='2.4s');
+   {let dpThrew=false;try{drawPupChips(tankPupHud(th),100,100,'left');drawPupChips(tankPupHud(th),100,100,'right');drawPupChips(tankPupHud(th),100,100,'center');}catch(e){dpThrew=true;console.log('   drawPupChips err:',e.message);}
+    ok('drawPupChips renders left/right/center without throwing',!dpThrew);}
+   th.shield=false;th.rapidT=0;th.explAmmo=0;th.explBurstT=0;th.aimT=0;}
+
   // ── respawn rule: ammo persists, timed buff resets ──
   t0.explAmmo=4;t0.pierceAmmo=2;t0.aimT=5;tf2Respawn(0);
   ok('respawn: ammo persists (expl 4, pierce 2), aim resets',tf2.tanks[0].explAmmo===4&&tf2.tanks[0].pierceAmmo===2&&tf2.tanks[0].aimT===0);
