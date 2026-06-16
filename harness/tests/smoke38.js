@@ -192,6 +192,14 @@ src+=`
   ok('CPUvsCPU ball: both mains are CPU-driven',!!cpuH2H&&!!cpuH2H[0]&&!!cpuH2H[1]);
   ok('v5.1.68: ball bots carry roster fields (bind/role/ctl)',b2.bots[0].bind===0&&b2.bots[0].role==='main'&&b2.bots[0].ctl.type==='cpu'&&b2.bots[1].al===1&&b2.bots[1].ctl.tier===2);
   updateP2Ball(0.1);ok('CPUvsCPU ball: a tick runs without throwing',phase==='p2ball'&&isFinite(b2.bots[0].x)&&isFinite(b2.bots[1].x));
+  // ── v5.1.102: the BOUNCY cheat now ricochets TANK-FIGHT shots off the walls (was ball/shooter only) ──
+  {m2.mode='tankfight';m2.set.lives=1;m2.set.map=0;m2.set.hpk=false;m2.set.pow=false;m2.claim=[{type:'kb'},{type:'cpu',tier:1}];m2.drive=[{kind:'main',idx:0,name:'A',c:'#0ff'},{kind:'main',idx:0,name:'A',c:'#0ff'}];playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2Tank();tf2.cd=0;
+   const findB=()=>tf2.bullets.find(b=>b.id===999),mk=()=>({x:5,y:FH/2,vx:-400,vy:0,owner:0,id:999,expl:false,pierce:false,hitSet:null,bnc:0}); // a shot heading LEFT into the x=3 wall
+   bouncyMode=false;tf2.bullets=[mk()];updateP2Tank(1/60);ok('BOUNCY off: a tank shot DIES at the wall (unchanged)',!findB());
+   bouncyMode=true;tf2.bullets=[mk()];for(let i=0;i<3;i++){tf2.cd=0;updateP2Tank(1/60);}const rb=findB();
+   ok('BOUNCY on: the tank shot RICOCHETS (alive, vx flipped +x, bounce counted)',!!rb&&rb.vx>0&&rb.bnc>=1);
+   {const b=mk();b.bnc=4;bouncyMode=true;tf2.cd=0;tf2.bullets=[b];updateP2Tank(1/60);ok('BOUNCY: a shot still EXPIRES after the bounce cap',!findB());}
+   bouncyMode=false;}
   p2QuitMatch(false);p2Exit();console.log('done');
 })();
 

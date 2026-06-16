@@ -94,6 +94,7 @@ Layer selectable objective modes on top of RoboRumble and Tank Fight (beyond las
   - **CONTROL / DOMINATION (capture points)** — **capture ZONES you take by STANDING IN / touching them**; hold captured zones to accrue score (multi-KOTH). **zone count is PER-MAP (Sam: "you decide how many… based on the map")** — each arena defines its own capture points (Claude picks; ~3 typical, more on bigger 3v3 maps). Great for 3v3.
   - **STOCK / ELIMINATION** — lives-based last-team-standing (vs the current sudden KO).
   - **JUGGERNAUT** — one buffed bot vs everyone; whoever kills it becomes the new juggernaut.
+  - **VIP / HQ / BASE DEFENSE** (Sam — "this might be multiple game modes"): (a) **HORDE / SURVIVAL** — fend off WAVES of CPU enemies (PvE); (b) **BASE / VIP DEFENSE** — both teams protect a VIP or a base; (c) **VIP ROTATION (3v3)** — one alliance tank is the VIP; when the VIP dies the NEXT tank becomes VIP; **non-VIP tanks respawn UNLIMITED**; the alliance is eliminated only when **EVERY tank has died while it was the VIP**.
   - (lower priority) **BOMB DELIVERY** (carry a bomb to a goal), **TERRITORY**, **HOARD/COLLECT** (gather scattered pickups).
 Shares the MAP-SELECT screen (P3); ties into TOURNAMENT v2 (a mode per bracket). Each mode = a score/time HUD + a win condition; reuse the ball/pickup + zone primitives where possible (the ball mode already has carry/drop + zones to borrow from).
 
