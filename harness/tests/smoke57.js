@@ -511,7 +511,7 @@ src+=`
   // ── v5.1.120: P3 ARENA HAZARDS — the DANGER ZONE map (acid pit + saw blades) + map-select includes it ──
   {const hazMap=TF2_MAPS.find(m=>m.id==='hazard');
    ok('a HAZARD arena (DANGER ZONE) exists with a pit + saws',!!hazMap&&hazMap.haz.some(h=>h.type==='pit')&&hazMap.haz.some(h=>h.type==='saw'));
-   ok('ARENA map-select includes every map (incl. the hazard arena)',(()=>{m2.mode='battlebots';const r=p2SettingsRows().find(r=>r.k==='map');return r&&r.vals.length===TF2_MAPS.length&&r.vals.indexOf(TF2_MAPS.indexOf(hazMap))>=0;})());
+   ok('ARENA map-select includes every map (incl. the hazard arena)',(()=>{m2.mode='battlebots';const r=p2SettingsRows().find(r=>r.k==='map');return r&&TF2_MAPS.every((m,i)=>r.vals.indexOf(i)>=0)&&r.vals.indexOf(TF2_MAPS.indexOf(hazMap))>=0;})());
    const pit=hazMap.haz.find(h=>h.type==='pit');
    const inPit=bbBotWith('none','balanced',0,0,true);inPit.x=pit.x+pit.w/2;inPit.y=pit.y+pit.h/2;inPit.hp=BB.HP;inPit.inv=0;
    const safe=bbBotWith('none','balanced',1,1,true);safe.x=80;safe.y=80;safe.hp=BB.HP;safe.inv=0;
@@ -536,6 +536,12 @@ src+=`
    bb2.bots=[trapped];bb2.map=TF2_MAPS[0];bb2.t=0;bbHazardUpdate(0.2);
    ok('ARENA TRAPS: the pit drains HP even on a plain arena',trapped.hp<BB.HP);
    arenaTraps=svtr;}
+   // v5.1.134 polish: RANDOM arena option
+   {m2.mode='battlebots';const mr=p2SettingsRows().find(r=>r.k==='map');
+    ok('ARENA selector offers RANDOM',mr&&mr.vals.indexOf('rand')>=0&&/RANDOM/i.test(mr.show('rand')));
+    const svm=m2.set.map;m2.set.map='rand';const i=bbMapIdx();
+    ok('RANDOM resolves to a valid map index without overwriting the setting',typeof i==='number'&&TF2_MAPS[i]&&m2.set.map==='rand');
+    m2.set.map=svm;}
   // ── v5.1.121: P9 GAME MODES framework + SUMO (ring-out) ──
   {ok('GAME MODE includes KO + SUMO',BB_MODES.some(m=>m.id==='ko')&&BB_MODES.some(m=>m.id==='sumo'));
    const svmode=m2.set.bbmode;m2.set.bbmode='sumo';

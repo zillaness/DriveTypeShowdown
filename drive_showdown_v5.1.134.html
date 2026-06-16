@@ -4059,8 +4059,8 @@ function bbFxTick(dt){ // animate + retire explosions, debris, labels (runs even
 }
 function startP2BB(){cheatedRun=false;paused=false;
   applyLayout('tank2p');
-  if(typeof m2.set.map!=='number'||!TF2_MAPS[m2.set.map])m2.set.map=0;
-  const mp=TF2_MAPS[m2.set.map];tfObs=mp.obs;phase='p2bb';
+  if(m2.set.map!=='rand'&&(typeof m2.set.map!=='number'||!TF2_MAPS[m2.set.map]))m2.set.map=0; // 'rand' = RANDOM (re-rolls each match, keeps the setting); else clamp to a valid index
+  const mp=TF2_MAPS[bbMapIdx()];tfObs=mp.obs;phase='p2bb';
   // roster: the 6-seat grid when set (up to 3/side, mixed human/CPU rumble), else the legacy 1v1 / vs-CPU claim (tournaments/tests)
   const gridOn=tankGridActive();let roster;
   if(gridOn){tankGridApply();roster=tankRosterFromSeats(tankGridToSeats());}
@@ -4339,6 +4339,7 @@ const BB_KOTH_R=130, BB_KOTH_TARGET=14, BB_KOTH_HOLD=8, BB_KOTH_GAP=1.6; // KOTH
 const BB_CTF_R=16, BB_CTF_TARGET=3; // CTF: flag pickup/return/capture touch radius (added to RR) + captures to win
 function bbKothReloc(){return {x:clamp(FW/2+(Math.random()*2-1)*(FW/2-BB_KOTH_R-40),BB_KOTH_R+30,FW-BB_KOTH_R-30),y:clamp(FH/2+(Math.random()*2-1)*(FH/2-BB_KOTH_R-30),BB_KOTH_R+24,FH-BB_KOTH_R-24)};} // a fresh in-bounds hill spot
 function bbCtfFlags(){return [{side:0,hx:90,hy:FH/2,x:90,y:FH/2,carrier:null,home:true},{side:1,hx:FW-90,hy:FH/2,x:FW-90,y:FH/2,carrier:null,home:true}];} // each side's flag sits at its base; the ENEMY steals it
+function bbMapIdx(){let i=m2.set&&m2.set.map;if(i==='rand')i=Math.floor(Math.random()*TF2_MAPS.length);return (typeof i==='number'&&TF2_MAPS[i])?i:0;} // v5.1.134 resolve the ARENA setting → a concrete map index ('rand' re-rolls)
 function bbMode(){return (m2.set&&m2.set.bbmode)||'ko';}
 function bbModeHint(){const ctrl=' · LT/Shift = DASH · SPACE/RT = WEAPON';switch(bbMode()){ // v5.1.127 P9: the in-match HUD spells out each mode's win condition
   case'sumo':return'SUMO — shove them OUT of the ring; last bot inside wins'+ctrl;
@@ -5416,7 +5417,7 @@ function p2SettingsRows(){
   if(m2.mode==='battlebots')return[
     {k:'tfmt',   lab:'TEAM FORMAT',      vals:['1v1','multi'],    show:v=>v==='multi'?'MULTI — up to 3v3 (grid)':'1v1 — classic 2-card'}, // 1v1 = original 2-card claim; multi = the 6-seat grid
     {k:'bestOf', lab:'BEST OF',          vals:[1,3,5],            show:v=>v===1?'OFF (1 round)':'BEST OF '+v},
-    {k:'map',    lab:'ARENA',            vals:TF2_MAPS.map((m,i)=>i), show:v=>(TF2_MAPS[v]||TF2_MAPS[0]).name}, // v5.1.120 P3: includes the DANGER ZONE hazard arena
+    {k:'map',    lab:'ARENA',            vals:[...TF2_MAPS.map((m,i)=>i),'rand'], show:v=>v==='rand'?'RANDOM 🎲 (re-rolls each match)':(TF2_MAPS[v]||TF2_MAPS[0]).name}, // v5.1.120 P3: DANGER ZONE arena; v5.1.134: + RANDOM
     {k:'bbmode', lab:'GAME MODE',         vals:BB_MODES.map(m=>m.id), show:v=>(BB_MODES.find(m=>m.id===v)||BB_MODES[0]).name}, // v5.1.121 P9: KO / SUMO / DOMINATION / VIP win conditions
   ];
   if(m2.mode==='race')return[
