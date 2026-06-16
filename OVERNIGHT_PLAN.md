@@ -1,5 +1,15 @@
 # 🌙 OVERNIGHT AUTONOMOUS GOAL — RoboRumble (2026-06-16 → morning)
 
+## 🆕 FRESH THREAD — START HERE (handoff 2026-06-16)
+You are continuing an autonomous RoboRumble build run. **Canonical branch = `dev`** (see `CLAUDE.md`).
+1. `git fetch origin dev` and make sure you're on it. Current tip = **`drive_showdown_v5.1.116.html`** (v5.1.116).
+2. **Fresh container:** `./extract.sh && ./battery.sh` → must print `ALL GREEN` (extract writes `/tmp/g.js`; without it every smoke test ENOENTs — that's missing setup, not failure).
+3. Read this file's **Progress log** (below) for what's DONE + what's NEXT, and `MIGRATION.md` for project context.
+4. Continue the queue (NEXT = P4 minibots) one shippable version at a time. **Ritual per version:**
+   edit `drive_showdown_vX.Y.Z.html` → `git mv` to the next version → `sed` the new filename into `extract.sh` + `MIGRATION.md` → `./extract.sh && ./battery.sh` (ALL GREEN) → `git commit -m "Release …"` → `git push -u origin dev`. **After a `git mv` you must Read the renamed file before Edit.**
+5. **Don't chase weapon balance** — the roster is final + balanced (sim says "FIGHTERS WITHIN 34–66% BAND ✓"); re-run `node harness/tests/bbbalance.js /tmp/g.js` only after a new weapon/perk.
+6. Sam live-playtests: terse status, real `./battery.sh` results, drop a build (SendUserFile) at milestones, fold his feel-feedback in.
+
 **Mandate (Sam, going to sleep):** Work the RoboRumble queue autonomously. **Aim for
 FULLY BALANCED weapons (as best the sim allows)** and **finish/advance all queued passes.**
 Ship playable builds incrementally to `dev`. Sam wants a **successful, green, feature-rich
