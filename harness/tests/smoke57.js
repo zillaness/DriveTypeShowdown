@@ -423,7 +423,7 @@ src+=`
    bbWeaponFire(1/60);ok('FLIPPER RING-OUT: a foe flung into a WALL takes bonus impact damage',c2.hp<BB.HP-BB_W.flipDmg);
    ok('FLIPPER is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='flipper')&&BB_ARMORY_W.some(w=>w.id==='flipper'));}
   // ── v5.1.110: PINCER — grab + IMMOBILIZE (hold + drain mobility), no slam/damage; a 3v3 role-player ──
-  {const a=bbBotWith('pincer','balanced',0,0,true);a.x=300;a.y=300;a.h=0;
+  {const a=bbBotWith('pincer','balanced',0,0,true);a.x=300;a.y=300;a.h=0;a.firing=true; // v5.1.140: hold the trigger to keep gripping
    const c=bbBotWith('none','balanced',1,1,true);c.mob=BB.MOB;c.hp=BB.HP;bb2.bots=[a,c];bb2.result=null;
    a.grab=c;c.held=a;a.grabT=BB_W.pincerGrabDur;const mob0=c.mob,hp0=c.hp;
    for(let i=0;i<30;i++)bbGrabUpdate(1/60);
@@ -440,6 +440,31 @@ src+=`
    bb2.bots=[a,c];bb2.result=null;bb2.cd=0;bb2.t=1;updateBB(1/60);
    ok('PINCER grabs + controls a foe on a firing front-arc ram',a.grab===c&&c.held===a);
    m2.set.bbmode=sv;}
+  // ── v5.1.140: PINCER is an UNBREAKABLE clamp — hold to grip, wall-slam, held bot can't drive but can fire, only a teammate frees it ──
+  {const h=bbBotWith('pincer','balanced',0,0,true);h.x=300;h.y=300;h.h=0;h.firing=true;
+   const c=bbBotWith('none','balanced',1,1,true);c.x=334;c.y=300;c.hp=BB.HP;h.grab=c;c.held=h;h.grabT=BB_W.pincerGrabDur;
+   bb2.bots=[h,c];bb2.result=null;tfObs=[];for(let i=0;i<200;i++)bbGrabUpdate(1/60); // ~3.3s, well past pincerGrabDur
+   ok('PINCER holds indefinitely while the holder keeps firing (no auto-release)',h.grab===c&&c.held===h);
+   h.firing=false;bbGrabUpdate(1/60);
+   ok('PINCER lets go when the HOLDER stops firing (captive still cannot self-release)',h.grab===null&&c.held===null);
+   // wall-slam: drag the captive into a wall (field edge) → damage
+   const h2=bbBotWith('pincer','balanced',0,0,true);h2.x=FW-2;h2.y=300;h2.h=0;h2.firing=true;h2._inp={vx:SPD,vy:0,vr:0};
+   const c2=bbBotWith('none','balanced',1,1,true);c2.x=FW-2;c2.y=300;c2.hp=BB.HP;c2.inv=0;h2.grab=c2;c2.held=h2;
+   bb2.bots=[h2,c2];bb2.result=null;tfObs=[];const chp=c2.hp;bbGrabUpdate(1/60);
+   ok('PINCER slams the captive into a wall for damage',c2.hp<chp);
+   // a held bot can still ARM/FIRE its weapon (cannot drive — _inp zeroed in updateBB)
+   const hsp=bbBotWith('spinner','balanced',1,1,true);hsp.ctl.brain.fire=true;hsp.spin=0;const cap=bbBotWith('pincer','balanced',0,0,true);cap.firing=true;cap.grab=hsp;hsp.held=cap;
+   bb2.bots=[cap,hsp];bbWeaponPre(1/60);
+   ok('a PINCER-held bot can still spin up / fire its weapon',hsp.spin>0);
+   // RESCUE: a teammate of the captive ramming the captor frees it
+   const sv2=m2.set.bbmode;m2.set.bbmode='ko';
+   const H=bbBotWith('pincer','balanced',0,0,true);H.x=300;H.y=300;H.h=0;H.firing=true;H.ctl.brain.fire=true;H.ctl.brain.inp={vx:0,vy:0,vr:0};
+   const C=bbBotWith('none','balanced',1,1,true);C.x=334;C.y=300;C.hp=BB.HP;H.grab=C;C.held=H;
+   const ALLY=bbBotWith('none','balanced',1,2,true);ALLY.x=272;ALLY.y=300;ALLY.ctl.brain.fire=false;
+   const svdrv=m2.drive;m2.drive=[{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'}];
+   bb2.bots=[H,C,ALLY];bb2.result=null;bb2.cd=0;bb2.t=1;updateBB(1/60);m2.drive=svdrv;
+   ok('PINCER lock breaks when a teammate rams the captor (rescue)',H.grab===null&&C.held===null);
+   m2.set.bbmode=sv2;}
   // ── v5.1.111: KAMIKAZE — RT self-destruct, a big blast that takes nearby foes with it (3v3) ──
   {const a=bbBotWith('kamikaze','balanced',0,0,true);a.x=300;a.y=300;a.firing=true;
    const c=bbBotWith('none','balanced',1,1,true);c.x=300+RR*2;c.y=300;c.hp=BB.HP;c.inv=0;bb2.bots=[a,c];bb2.result=null;bb2.blasts=[];bb2.deb=[];
