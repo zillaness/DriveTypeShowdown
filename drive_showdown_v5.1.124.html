@@ -3823,8 +3823,9 @@ function p2NavClick(mx,my,cy,rematch){
       if(inR(mx,my,{x:CW/2-90,y:cy,w:180,h:40}))tourQualDone(r2.bots[0].fin!==null?r2.bots[0].fin:Infinity);
       return true;}
     if(inR(mx,my,{x:CW/2-100,y:cy,w:200,h:40})){
-      const w=r2?r2.result:tf2?tf2.result:b2.result;
-      tourMatchEnd(w);}
+      const w=r2?r2.result:tf2?tf2.result:bb2?bb2.result:b2.result; // v5.1.124 T3: RoboRumble (bb2) results now report into the bracket
+      if(typeof w!=='number'){if(rematch)rematch();} // a DRAW (e.g. RoboRumble mutual destruction) is undecisive in a bracket → replay the match, don't advance
+      else tourMatchEnd(w);}
     return true;
   }
   if(inR(mx,my,{x:CW/2-80,y:cy,w:160,h:40})){
@@ -5158,7 +5159,7 @@ function drawTourNames(){
     btn(r.x,r.y,r.w,r.h,(i+1)+'. '+tour.names[i].slice(0,12),'#8888ff');
   }
   const opts=[
-    ['MATCH MODE',{normal:'NORMAL H2H',shooter:'SHOOTER H2H',tankfight:'TANK FIGHT',race:'OBSTACLE RACE'}[tour.mode]],
+    ['MATCH MODE',{normal:'NORMAL H2H',shooter:'SHOOTER H2H',tankfight:'TANK FIGHT',battlebots:'ROBORUMBLE',race:'OBSTACLE RACE'}[tour.mode]],
     ['DRIVE POLICY',tour.policy==='open'?'OPEN — pick every match':'CLOSED — first pick locks'],
     ['SEEDING',tour.seedMode==='rand'?'RANDOM':'QUALIFIER — solo time trial'],
     ['BRACKET',(tour.format||'double')==='double'?'DOUBLE ELIMINATION (default)':'SINGLE ELIMINATION'],
@@ -5260,7 +5261,7 @@ function tourClick(mx,my){
     {const b=tourInputRect();if(inR(mx,my,b)){tourOpenInput();return;}}
     for(let i=0;i<tour.names.length;i++){if(inR(mx,my,tourNameRect(i))){tour.names.splice(i,1);return;}}
     for(let i=0;i<4;i++){if(inR(mx,my,tourOptRect(i))){
-      if(i===0){const seq=['normal','shooter','tankfight','race'];tour.mode=seq[(seq.indexOf(tour.mode)+1)%4];}
+      if(i===0){const seq=['normal','shooter','tankfight','battlebots','race'];tour.mode=seq[(seq.indexOf(tour.mode)+1)%seq.length];} // v5.1.124 T3: RoboRumble joins the bracket mode list
       else if(i===1)tour.policy=tour.policy==='open'?'closed':'open';
       else if(i===2)tour.seedMode=tour.seedMode==='rand'?'qual':'rand';
       else tour.format=(tour.format||'double')==='double'?'single':'double';

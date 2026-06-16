@@ -46,7 +46,21 @@ src+=`
   tour.format='single';tourBuild();drawTourBracket();
   tour.format='double';tourBuild();drawTourBracket();
   console.log('both bracket views draw ok');
-  tour=null;console.log('done');
+  // ── v5.1.124 T3: RoboRumble joins the tournament bracket ──
+  {const T=(l,c)=>console.log((c?'ok — ':'FAIL — ')+l);
+   const seq=['normal','shooter','tankfight','battlebots','race'];
+   T('tour mode list includes RoboRumble',seq.indexOf('battlebots')>=0);
+   // a RoboRumble bracket runs to a champion, resolving each match through the CONTINUE-BRACKET nav (p2NavClick reads bb2.result)
+   tour={names:['A','B','C','D'],drv:[],policy:'open',seedMode:'rand',format:'single',mode:'battlebots',buf:'',seeds:[],M:[],qi:0};
+   tourBuild();let gg=0;while(tour.champ===null&&gg++<12){const m=tourNext();if(!m)break;tour.cur=m;tour.curE=tourEntrants(m);
+     r2=null;tf2=null;bb2={result:0,bots:[]};const cy=300;p2NavClick(CW/2,cy+20,cy,()=>{});}
+   T('RoboRumble single N=4 bracket completes via p2NavClick(bb2)',tour.champ!==null);
+   // a DRAW (mutual destruction) is undecisive → replay (rematch), do NOT advance the bracket
+   tour={names:['A','B','C','D'],drv:[],policy:'open',seedMode:'rand',format:'single',mode:'battlebots',buf:'',seeds:[],M:[],qi:0};
+   tourBuild();const md=tourNext();tour.cur=md;tour.curE=tourEntrants(md);r2=null;tf2=null;bb2={result:'draw',bots:[]};let remat=0;
+   p2NavClick(CW/2,320,300,()=>{remat++;});
+   T('RoboRumble DRAW replays (rematch called, match not advanced)',remat===1&&tour.cur===md);}
+  tour=null;bb2=null;console.log('done');
 })();
 `;
 global.ctxState={depth:0};global.texts=[];
