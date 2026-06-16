@@ -11,6 +11,10 @@ src+=`
   p2CycleSet(bi,1); ok('cycle +1 advances ballN auto -> '+m2.set.ballN,m2.set.ballN===rows[bi].vals[1]);
   p2CycleSet(bi,-1);ok('cycle -1 returns to auto ('+m2.set.ballN+')',m2.set.ballN==='auto');
   p2CycleSet(bi,-1);ok('cycle -1 from first wraps to last ('+m2.set.ballN+')',m2.set.ballN===rows[bi].vals[rows[bi].vals.length-1]);
+  // v5.1.86: switching TEAM FORMAT defaults the alliance support bots — the MULTI grid IS the 3v3 (cpus→0); 1v1 keeps 2/side
+  {const ti=p2SettingsRows().findIndex(r=>r.k==='tfmt');m2.set.tfmt='1v1';m2.set.cpus=2;
+   p2CycleSet(ti,1);ok('TEAM FORMAT → MULTI defaults CPU BOTS PER SIDE to 0',m2.set.tfmt==='multi'&&m2.set.cpus===0);
+   p2CycleSet(ti,1);ok('TEAM FORMAT → 1v1 restores 2 alliance bots/side',m2.set.tfmt==='1v1'&&m2.set.cpus===2);}
   // dropdown: click the row opens the list of all choices
   setDropdown=null;m2.set.ballN='auto';
   const rc=p2SetRowRect(bi);
