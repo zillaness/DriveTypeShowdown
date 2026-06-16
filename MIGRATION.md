@@ -1,7 +1,31 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: 2026-06-15, at **v5.1.80** (BB weapons P2.1-P2.6 COMPLETE).
+**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-16, at v5.1.98** (see ⏩ LATEST STATE below — much has changed since v5.1.80).
+
+---
+
+## ⏩ LATEST STATE — 2026-06-16, **v5.1.98** (READ THIS; the older sections below are pre-v5.1.80 history)
+
+**Builds / branches:**
+- **`claude/eager-sagan-5wehy1` = CANONICAL stable.** Latest **`drive_showdown_v5.1.98.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it.
+- **`claude/online-net-5wehy1` = ONLINE sandbox** (isolated so online netcode can't risk the stable build). Build **`drive_showdown_v5.2.0.html`** — online P1a only (dormant in local play).
+- `claude/sharp-newton-kn5ulv` — stale/behind; ignore.
+
+**COMMIT AUTHOR:** Sam confirmed (2026-06-16) that committing as **`Claude <noreply@anthropic.com>` is FINE / easier** — this SUPERSEDES the old §0 "must be Sam Cao" rule. No history rewrite needed.
+
+**TRADEMARK SCRUB (v5.1.93) — for distribution:** the product no longer uses third-party marks. **"BattleBots" → "ROBORUMBLE"** in all DISPLAYED text (the internal mode id stays `'battlebots'`, `bb*` code unchanged). **"Ultimate Ascent" → "DISC🥏 MODE"** (🥏 = the O → "DISCO MODE"; var `frisbeeMode` unchanged). **"FRC"/"FIRST" stripped** from metadata/manifest/splash (on-screen title stays "DRIVE TYPE SHOWDOWN"). File renamed `frc_drive_showdown_*` → **`drive_showdown_*`**. Kept: the word "first", team links (rambots.org, ig frc2204, "Team 2204 Rambots"). The dev-doc `*.md` + harness comments still use old terms (not distributed; scrub on request).
+
+**Shipped this session (v5.1.81→98):** BattleBots loadout picker/ARMORY (drag weapon/armor chips onto a seat), ball-3v3 polish (per-main HUD roster, momentum-aware shove), **SPLASH front door** (`phase==='splash'` = the hub; SINGLE PLAYER vs MULTIPLAYER + global SETTINGS; Esc-from-menu + `p2Exit` return here), cheats page fixed for portrait (1 column when `CW<560`), trademark scrub, then a big **ROBORUMBLE combat overhaul**: immobilized **COUNT-OUT** (STALEMATE-only — fires only when a side has no mobile foe), HP 100→250, **PISTON front-pierce** (+always-extends, fire=RT or A), **SPINNER** rework (slow spin-up, near-restart RPM loss + **self-damage** every bite, **WEDGE deflects it**, wall self-damage, **front-pierce**), **FLANKING CPU brain (P0 DONE — `bbCpuUpdate` orbits to the rear/side)**, flame reach+cone, forward-lunge dash, dropped flame fuel. v5.1.98 fixed 3v3 ball **CPU sensitivity** (`cpuPaceSens` = max human sens; was the 2-player `m2.sens[1-p]`).
+
+**TOOL:** `harness/tests/bbbalance.js` — RoboRumble WEAPON-BALANCE sim (seeded CPU-vs-CPU, every matchup → win-rate matrix). `./extract.sh && node harness/tests/bbbalance.js`. Current: **spinner/piston ~75%, ram 50%, flame ~25%, wedge ~0%** (flame+wedge lag pending P1 kit).
+
+**ACTIVE PRDs (the roadmap):**
+- `frcds_roborumble_v2_prd_v1.0.md` — **combat deep-pass; CURRENT FOCUS.** P0 flanking DONE. **P1 weapon roster (IN PROGRESS):** dozer/blade grab-slam + flame turret-aim (fixes wedge/flame), flipper (flings foe back), pincer (grab+immobilize, 3v3 role), drop RAM-ONLY. Then P2 perks slot, P3 hazards + map-select screen, P4 minibots (repurpose alliance bots → harass only), P5 drive synergies (tank push buff + blade synergy; arcade benefit), P6 bot-name eggs (Optimus Prime/Bumblebee → paint + steering-drive HEALING; Original Sin → tank+blade invuln wheels; achievements "Unoriginal Sin"/"Autobots Roll Out"), P7 combat cheats (move-or-die, airstrike, megabots, walker/shufflebot, anime sword, unlimited fuel/air/RPM, arena-trap control), P8 ongoing balance via the sim.
+- `frcds_online_prd_v1.1.md` — online. **P1a netcode seams DONE on the sandbox branch** (`net` state, `'remote'` getInp bind, `netSerializeBall`/`netApplyBall`+JSON+`netLoopback`; smoke60). Next: P1b loop+2-tab BroadcastChannel demo, P2 real WebRTC 1v1 (Sam wants **BALL/shooter** first), splash ONLINE entry, REMOTE seat. Parsec = zero-dev interim.
+- `frcds_tournament_v2_prd_v1.0.md` — tournament is "super outdated". v2 = **8-alliance 3v3 brackets** (register ALLIANCE names, not individuals), all modes, registration UI fix (overlap/typing), map-select. NOT started.
+
+**Operating mode (Sam, 2026-06-16):** live-playtesting; wants me to **keep working the RoboRumble P1 queue autonomously in the background** + ship playable builds, folding in bugs he surfaces. Terse status, real test results, `./battery.sh` ALL GREEN before each ship.
 
 ---
 
