@@ -140,6 +140,18 @@ src+=`
    const ex=drawKonami._exit,ao=drawKonami._alloff;
    ok('cheat menu has ✕ EXIT + ⟲ TURN OFF ALL buttons on-screen',!!ex&&!!ao&&ex.x>=0&&ex.x+ex.w<=CW&&ao.x>=0&&ao.x+ao.w<=CW);}
 
+  // ── PORTRAIT cheats (v5.1.92): one full-width column so nothing is crushed; everything stays on-screen ──
+  {const _sv=curLayout;applyLayout('legacy');konamiActive=true;drawKonami();const rws=drawKonami._rows;
+   ok('portrait: cheats render in ONE column (all rows share an x)',new Set(rws.map(r=>Math.round(r.x))).size===1);
+   ok('portrait: all '+rws.length+' rows fit within the canvas width',rws.every(r=>r.x>=0&&r.x+r.w<=CW));
+   const pRowsMax=Math.max.apply(null,rws.map(r=>r.y+r.h)),pLinkMax=Math.max.apply(null,(drawKonami._links||[{hy:0,hh:0}]).map(l=>l.hy+l.hh));
+   ok('portrait: rows + links fit vertically ('+pRowsMax.toFixed(0)+'/'+pLinkMax.toFixed(0)+' < '+CH+')',pRowsMax<CH-30&&pLinkMax<CH-8);
+   const sl=rws.find((r,i)=>CHEATS[i].slider);
+   ok('portrait: a slider gets a usable track (>80px wide)',!!sl&&!!sl.slider&&(sl.slider.x2-sl.slider.x1)>80);
+   const _ex=drawKonami._exit,_ao=drawKonami._alloff;
+   ok('portrait: EXIT + TURN-OFF-ALL buttons stay on-screen',_ex.x>=0&&_ex.x+_ex.w<=CW&&_ao.x>=0&&_ao.x+_ao.w<=CW);
+   applyLayout(_sv);drawKonami();konamiActive=false;} // restore the landscape layout/rows for the slider tests below
+
   // ── v5.1.52: ICE SKATING + ICE SLIP merged into ONE slider (1.0× = OFF) ──
   {const gi=CHEATS.findIndex(c=>c.name==='ICE SKATING');
    ok('ICE SKATING is now a slider; ICE SLIP removed',gi>=0&&CHEATS[gi].slider===true&&CHEATS[gi].min===1&&CHEATS.findIndex(c=>c.name==='ICE SLIP')<0);

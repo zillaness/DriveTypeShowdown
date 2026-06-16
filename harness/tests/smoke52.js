@@ -66,6 +66,28 @@ src+=`
    p2Click(rc.x+rc.w-70,rc.y+rc.h/2); ok('◀ click steps the setting down ('+m2.set.cpus+')',m2.set.cpus===0);
    p2Click(rc.x+rc.w/2,rc.y+rc.h/2);  ok('row-body click still opens the dropdown',setDropdown===ci);setDropdown=null;}
 
+  // ── v5.1.92 SPLASH front door: SINGLE PLAYER vs MULTIPLAYER + global SETTINGS ──
+  {applyLayout('legacy');phase='splash';paused=false;
+   const R=splashRects();
+   ok('splashRects sp/mp/set all sit inside the canvas',[R.sp,R.mp,R.set].every(r=>r.x>=0&&r.x+r.w<=CW&&r.y>=0&&r.y+r.h<=CH));
+   ok('the three splash zones do not overlap vertically',R.sp.y+R.sp.h<=R.mp.y&&R.mp.y+R.mp.h<=R.set.y);
+   let sThrew=false;try{drawSplash();}catch(e){sThrew=true;console.log('   splash draw err:',e.message);}
+   ok('drawSplash renders without throwing',!sThrew);
+   // SINGLE PLAYER → the portrait drive menu
+   phase='splash';click(R.sp.x+R.sp.w/2,R.sp.y+R.sp.h/2);
+   ok('clicking SINGLE PLAYER → the portrait menu (legacy layout)',phase==='menu'&&curLayout==='legacy');
+   // MULTIPLAYER → landscape head-to-head
+   applyLayout('legacy');phase='splash';click(R.mp.x+R.mp.w/2,R.mp.y+R.mp.h/2);
+   ok('clicking MULTIPLAYER → p2 head-to-head (landscape)',phase==='p2modes'&&curLayout==='land2p');
+   // SETTINGS → global settings, remembering the splash as its origin
+   applyLayout('legacy');phase='splash';click(R.set.x+R.set.w/2,R.set.y+R.set.h/2);
+   ok('clicking SETTINGS → global settings, origin=splash',phase==='settings'&&settingsReturn==='splash');
+   settingsBack();
+   ok('Back from settings returns to the SPLASH',phase==='splash');
+   // multiplayer Back lands on the splash hub
+   applyLayout('legacy');phase='splash';click(R.mp.x+R.mp.w/2,R.mp.y+R.mp.h/2);p2Exit();
+   ok('p2Exit returns to the SPLASH hub',phase==='splash');}
+
   console.log('--- settings-options: '+P+' pass, '+F+' fail ---');
 })();
 `;

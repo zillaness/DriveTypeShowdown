@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.91.html
-  version: 5.1.91
+  file: frc_drive_showdown_v5.1.92.html
+  version: 5.1.92
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-16
@@ -152,7 +152,7 @@ function bindAxes(bind){
   return GP_AXES_ZERO;
 }
 function resetBinds(){playerBind=[{type:'any'},{type:'none'}];}
-let phase='menu',paused=false;
+let phase='splash',paused=false; // v5.1.92: a SPLASH front door splits SINGLE PLAYER (portrait) vs MULTIPLAYER (landscape) from the start
 let mouseX=0,mouseY=0,mouseAim=false,mouseBtnHeld=false; try{mouseAim=localStorage.getItem('frcds_maim')==='1';}catch(e){}
 function toggleMouseAim(){mouseAim=!mouseAim;try{localStorage.setItem('frcds_maim',mouseAim?'1':'0');}catch(e){}sfx('click');}
 let friendlyFire=false; try{friendlyFire=localStorage.getItem('frcds_ff')==='1';}catch(e){} // OFF = hits land only on the OPPOSING alliance/side (ram · guns · blasts); ON = you can hit your own team too
@@ -406,7 +406,7 @@ C.addEventListener('touchstart',e=>{
       continue;
     }
     if(phase==='settings'){handleSettingsClick(p.x,p.y);continue;}
-  if(phase==='holoMenu'||phase==='steerMenu'||phase==='highscores'||phase==='ghosts'||phase==='achievements'){click(p.x,p.y);continue;}
+  if(phase==='splash'||phase==='holoMenu'||phase==='steerMenu'||phase==='highscores'||phase==='ghosts'||phase==='achievements'){click(p.x,p.y);continue;}
     if(phase&&phase.indexOf('p2')===0){
       if(phase==='p2claim'){
         if(tankGridMode()){
@@ -622,12 +622,19 @@ window.addEventListener('keydown',e=>{
   }else{
     konamiIdx=(e.key===KONAMI[0]?1:0);
   }
+  if(phase==='splash'){
+    if(e.key==='1'){sfx('click');applyLayout('legacy');phase='menu';}
+    else if(e.key==='2'){sfx('click');p2Enter();}
+    else if(e.key==='Enter'){sfx('click');if(window.innerHeight>window.innerWidth){applyLayout('legacy');phase='menu';}else p2Enter();} // Enter → the orientation-recommended path
+    e.preventDefault();return;
+  }
   if(phase==='layoutPreview'){
     if(e.key==='Escape'){applyLayout('legacy');phase='menu';}
     else if(e.key==='l'||e.key==='L'){applyLayout(LAYOUT_ORDER[(LAYOUT_ORDER.indexOf(curLayout)+1)%LAYOUT_ORDER.length]);}
     e.preventDefault();return;
   }
   if(phase==='menu'&&(e.key==='l'||e.key==='L')){phase='layoutPreview';e.preventDefault();return;}
+  if(phase==='menu'&&e.key==='Escape'){phase='splash';sfx('click');e.preventDefault();return;} // back out of Single Player to the SPLASH hub
   if(phase&&phase.indexOf('p2')===0){
     if(e.key==='Escape'){if(p2MatchLive())paused=!paused;else p2Back();e.preventDefault();return;}
     if(phase==='p2claim'){if(tankGridMode())tankGridKb(e);else p2ClaimKb(e);e.preventDefault();return;}
@@ -688,7 +695,8 @@ function pauseClick(mx,my){ // returns true if the click was consumed by the pau
 }
 // ── Global Settings screen ──
 function settingsBack(){
-  if(settingsReturn==='menu'||settingsReturn===''){phase='menu';}
+  if(settingsReturn==='splash'){phase='splash';}
+  else if(settingsReturn==='menu'||settingsReturn===''){phase='menu';}
   else{phase=settingsReturn;paused=true;}
   settingsReturn='menu';settingsGpIdx=0;
 }
@@ -889,6 +897,13 @@ function click(mx,my){
       }
     }
     konamiActive=false;sfx('click');return; // tap elsewhere closes the menu (no longer force-enables frisbee)
+  }
+  if(phase==='splash'){
+    const R=splashRects();
+    if(inR(mx,my,R.sp)){sfx('click');applyLayout('legacy');phase='menu';return;}      // SINGLE PLAYER → the portrait drive-challenge menu
+    if(inR(mx,my,R.mp)){sfx('click');p2Enter();return;}                                // MULTIPLAYER → landscape head-to-head
+    if(inR(mx,my,R.set)){sfx('click');settingsReturn='splash';settingsGpIdx=0;phase='settings';return;}
+    return;
   }
   if(phase==='settings'){handleSettingsClick(mx,my);return;}
   if(phase&&phase.indexOf('p2')===0){p2Click(mx,my);return;}
@@ -1453,6 +1468,11 @@ function updateGamepad(){
     if(just(0)){const it=items[cpuGpIdx];if(it&&it.kind!=='slider')handleCpuSettingsClick(it.x+it.w/2,it.y+it.h/2);}
     if(just(1)||just(8)){if(cpuSettingsReturn){const r=cpuSettingsReturn;cpuSettingsReturn=null;phase=r;}else phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu';}
   }else if(phase!=='cpuSettings'&&cpuGpIdx>=0){cpuGpIdx=-1;}
+  // Splash: A → MULTIPLAYER (the controller use-case), Y → SINGLE PLAYER
+  if(phase==='splash'){
+    if(just(0)){sfx('click');p2Enter();}
+    else if(just(3)){sfx('click');applyLayout('legacy');phase='menu';}
+  }
   // Menu navigation — 2D grid: up/down move rows, left/right move columns
   if(phase==='menu'&&!gpShowMap){
     const items=gpMenuItems();
@@ -1854,9 +1874,10 @@ function drawKonami(){
   ctx.fillStyle='rgba(0,0,0,0.94)';ctx.fillRect(0,0,CW,CH);
   // Scanlines
   for(let _y=0;_y<CH;_y+=4){ctx.fillStyle='rgba(0,0,0,0.14)';ctx.fillRect(0,_y,CW,2);}
-  // Header
-  ctx.font='bold 13px Courier New';ctx.textAlign='center';
-  ctx.fillStyle='#ff4444';ctx.fillText('✦ CHEATS UNLOCKED ✦',CW/2,34);
+  const portrait=CW<560; // narrow layouts (legacy/port ~400px) → ONE full-width column + a slimmer top so the cheats actually fit and read
+  // Header — drops BELOW the top buttons on portrait so it can't overlap them
+  ctx.font='bold '+(portrait?12:13)+'px Courier New';ctx.textAlign='center';
+  ctx.fillStyle='#ff4444';ctx.fillText('✦ CHEATS UNLOCKED ✦',CW/2,portrait?52:34);
   // ✕ EXIT (top-right) + ⟲ TURN OFF ALL (top-left) — explicit controls; the panel does a lot now, so click-away alone felt risky (Esc / pad B also close)
   {const ew=88,eh=26,ex=CW-ew-14,ey=12;drawKonami._exit={x:ex,y:ey,w:ew,h:eh};
    ctx.fillStyle='rgba(180,30,30,0.34)';ctx.fillRect(ex,ey,ew,eh);
@@ -1866,20 +1887,22 @@ function drawKonami(){
    ctx.fillStyle=anyOn?'rgba(40,140,60,0.34)':'rgba(60,60,60,0.30)';ctx.fillRect(ax,ay,aw,ah);
    ctx.strokeStyle=anyOn?'#5dff8a':'#666666';ctx.lineWidth=1.5;ctx.strokeRect(ax,ay,aw,ah);
    ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillStyle=anyOn?'#cfffd9':'#999999';ctx.fillText('⟲ TURN OFF ALL',ax+aw/2,ay+ah/2+4);}
-  // Stussy logo — centered, full opacity
-  const sw=150,sh=Math.round(150*(1443/2742));
-  const sx=(CW-sw)/2,sy=38; // small logo up top — the cheat list grew to 13, so the rows are tighter and start higher
-  try{ctx.globalAlpha=1;ctx.drawImage(_logoStussy,sx,sy,sw,sh);}catch(e){}
-  ctx.globalAlpha=1;
+  // Stussy logo — centered (skipped on portrait to free vertical room for the single column)
+  if(!portrait){const sw=150,sh=Math.round(150*(1443/2742));
+   const sx=(CW-sw)/2,sy=38; // small logo up top — the cheat list grew, so the rows are tighter and start higher
+   try{ctx.globalAlpha=1;ctx.drawImage(_logoStussy,sx,sy,sw,sh);}catch(e){}
+   ctx.globalAlpha=1;}
   // ── cheat toggles (tight pitch so the full list fits) ──
   // two columns so the (growing) list stays compact
-  const nTog=CHEATS.filter(c=>!c.slider).length,colMax=Math.max(nTog,CHEATS.length-nTog),colW=Math.min(380,(CW-90)/2),colGap=30,rowH=22,rowPitch=26;
-  const totalW=colW*2+colGap,x0=Math.round((CW-totalW)/2);
-  let rowY=Math.round(CH*0.20);
+  const nTog=CHEATS.filter(c=>!c.slider).length;
+  const colMax=portrait?CHEATS.length:Math.max(nTog,CHEATS.length-nTog);
+  const colW=portrait?Math.min(364,CW-32):Math.min(380,(CW-90)/2),colGap=30,rowH=portrait?20:22,rowPitch=portrait?24:26;
+  const totalW=portrait?colW:colW*2+colGap,x0=Math.round((CW-totalW)/2);
+  let rowY=Math.round(CH*(portrait?0.13:0.20));
   drawKonami._rows=[];
   for(let i=0;i<CHEATS.length;i++){
     const c=CHEATS[i],on=c.get(),sel=i===cheatIdx;
-    const col=i<nTog?0:1,row=i<nTog?i:i-nTog,rx=x0+col*(colW+colGap),y=rowY+row*rowPitch,rec={x:rx,y:y,w:colW,h:rowH};
+    const col=portrait?0:(i<nTog?0:1),row=portrait?i:(i<nTog?i:i-nTog),rx=x0+col*(colW+colGap),y=rowY+row*rowPitch,rec={x:rx,y:y,w:colW,h:rowH};
     drawKonami._rows.push(rec);
     ctx.fillStyle=sel?'rgba(255,70,70,0.26)':'rgba(180,30,30,0.12)';ctx.fillRect(rx,y,colW,rowH);
     ctx.strokeStyle=sel?'#ff7777':'#883333';ctx.lineWidth=sel?2:1;ctx.strokeRect(rx,y,colW,rowH);
@@ -1897,7 +1920,7 @@ function drawKonami(){
     }
   }
   // description of the FOCUSED cheat (mouse hover or gamepad focus sets cheatIdx) — its own clear line, brighter, clear of the links below
-  const descY=rowY+colMax*rowPitch+18;
+  const descY=rowY+colMax*rowPitch+(portrait?12:18);
   ctx.font='11px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffcf8f';
   ctx.fillText(CHEATS[cheatIdx].desc,CW/2,descY);
   // Link buttons with icons — flow below the description so they never overlap the cheat rows / logo
@@ -4554,7 +4577,7 @@ const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layou
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];m2.tseats=null;m2.tsel=0;m2.bbLoadout=[null,null];}
-function p2Exit(){tour=null;tf2=null;bb2=null;r2=null;tfObs=null;b2Teardown();resetBinds();applyLayout('legacy');phase='menu';} // resetBinds: restore single-player input routing (else SP reads the stale 2P bind and ignores gamepad sticks)
+function p2Exit(){tour=null;tf2=null;bb2=null;r2=null;tfObs=null;b2Teardown();resetBinds();applyLayout('legacy');phase='splash';} // back out of multiplayer to the SPLASH hub. resetBinds: restore single-player input routing (else SP reads the stale 2P bind and ignores gamepad sticks)
 // ═══ PHASE 11: TOURNAMENT ═══
 // 4–16 typed entrants, generic double elimination (byes to the next power of two),
 // FRC 2023+ format: NO bracket reset; the grand final is a straight best-of-3.
@@ -5231,7 +5254,7 @@ function p2DrawStat(x,y,w,label,val,col){
 // ── drawing ──
 // v5.1: a small clickable mute toggle for the corner (menu + 2P setup screens). [M] still works everywhere.
 function muteBtnRect(){return{x:CW-38,y:8,w:30,h:26};} // small corner icon; dynamic CW (changes with layout)
-function muteShown(){return phase==='menu'||(phase&&phase.indexOf('p2')===0&&phase!=='p2ball'&&phase!=='p2race'&&phase!=='p2tank');} // drawn on menu + 2P setup screens (p2Chrome), not match screens
+function muteShown(){return phase==='splash'||phase==='menu'||(phase&&phase.indexOf('p2')===0&&phase!=='p2ball'&&phase!=='p2race'&&phase!=='p2tank');} // drawn on splash + menu + 2P setup screens (p2Chrome), not match screens
 function inMuteBtn(mx,my){return inR(mx,my,muteBtnRect());}
 function drawMuteBtn(){
   const r=muteBtnRect();
@@ -5507,6 +5530,7 @@ function drawInner(){
   if(phase&&phase.indexOf('p2')===0){p2Draw();p2Overlays();return;}
   if(phase==='settings'){drawSettings();return;}
   if(phase==='cpuSettings'){drawCpuSettings();return;}
+  if(phase==='splash'){drawSplash();return;}
   if(phase==='menu'){drawMenu();if(gpShowMap)drawControllerMap();return;}
   if(phase==='results'){drawResults();return;}
   if(tankFight){drawTankFight();return;}
@@ -6792,6 +6816,43 @@ function drawCpuSettings(){
   }
 }
 
+// ── v5.1.92 SPLASH front door: pick SINGLE PLAYER (portrait/phone) or MULTIPLAYER (landscape/desktop) ──
+// Rendered on the legacy (portrait) layout — the central hub that both paths return to.
+function splashRects(){return{
+  sp :{x:30,y:196,w:CW-60,h:150}, // SINGLE PLAYER path card
+  mp :{x:30,y:362,w:CW-60,h:150}, // MULTIPLAYER path card
+  set:{x:30,y:538,w:CW-60,h:46},  // global SETTINGS
+};}
+function drawSplashCard(r,icon,title,lines,col,bg){
+  ctx.fillStyle=bg;rr(r.x,r.y,r.w,r.h,14);ctx.fill();
+  ctx.strokeStyle=col;ctx.lineWidth=2;rr(r.x,r.y,r.w,r.h,14);ctx.stroke();
+  ctx.textAlign='center';
+  ctx.font='38px serif';ctx.fillText(icon,CW/2,r.y+54);
+  ctx.font='bold 20px Courier New';ctx.fillStyle=col;ctx.fillText(title,CW/2,r.y+88);
+  ctx.font='10px Courier New';ctx.fillStyle='#7a7a98';
+  lines.forEach((ln,i)=>ctx.fillText(ln,CW/2,r.y+108+i*14));
+  ctx.font='bold 11px Courier New';ctx.fillStyle=col;ctx.fillText('▶ START',CW/2,r.y+r.h-12);
+}
+function drawSplash(){
+  ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
+  for(let y=0;y<CH;y+=3){ctx.fillStyle='rgba(0,0,0,0.12)';ctx.fillRect(0,y,CW,1);}
+  ctx.textAlign='center';
+  ctx.font='bold 30px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('DRIVE TYPE',CW/2,98);ctx.fillText('SHOWDOWN',CW/2,130);
+  ctx.font='11px Courier New';ctx.fillStyle='#55556a';ctx.fillText('FRC Team 2204 Rambots',CW/2,154);
+  const R=splashRects();
+  drawSplashCard(R.sp,'🕹','SINGLE PLAYER',['Drive-type challenge — master every','FRC drive. Portrait · phone-friendly.'],'#44ffaa','rgba(18,44,30,0.55)');
+  drawSplashCard(R.mp,'👥','MULTIPLAYER',['Head-to-head 1v1–3v3: ball · tank ·','race · BattleBots. Landscape · desktop.'],'#ee66bb','rgba(40,16,40,0.6)');
+  const s=R.set;ctx.fillStyle='rgba(20,20,44,0.82)';rr(s.x,s.y,s.w,s.h,10);ctx.fill();
+  ctx.strokeStyle='#334466';ctx.lineWidth=1.5;rr(s.x,s.y,s.w,s.h,10);ctx.stroke();
+  ctx.font='bold 14px Courier New';ctx.fillStyle='#8899cc';ctx.textAlign='center';ctx.fillText('⚙  SETTINGS',CW/2,s.y+29);
+  // orientation hint — steer the user to the path that fits their screen (both always available)
+  const portrait=window.innerHeight>window.innerWidth;
+  ctx.font='10px Courier New';ctx.fillStyle=portrait?'#44ffaa':'#ee66bb';
+  ctx.fillText(portrait?'📱 Portrait — Single Player fits your screen':'🖥 Landscape — Multiplayer is built for this',CW/2,612);
+  ctx.fillStyle='#33334a';ctx.font='9px Courier New';
+  ctx.fillText(gpConnected?'tap a path · 🎮 A = Multiplayer · Y = Single Player':'tap a path · keys: 1 = Single · 2 = Multiplayer',CW/2,632);
+  drawMuteBtn();
+}
 function drawMenu(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
   for(let y=0;y<CH;y+=3){ctx.fillStyle='rgba(0,0,0,0.12)';ctx.fillRect(0,y,CW,1);}
@@ -7642,6 +7703,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.92 (2026-06-16): SPLASH FRONT DOOR + global SETTINGS entry + cheats page fixed for PORTRAIT. The game is really two games in one — the original portrait/phone SINGLE-PLAYER drive challenge and the new landscape/desktop MULTIPLAYER head-to-head — but the only door was a small "MULTIPLAYER" button buried atop the SP menu. (1) SPLASH SCREEN (new startup phase 'splash'): a clean front door that splits the two paths from the start — 🕹 SINGLE PLAYER (→ the portrait menu) and 👥 MULTIPLAYER (→ landscape p2 head-to-head) as big cards, plus a ⚙ SETTINGS button (global settings, so "settings vs menu" is unambiguous from the top) and an orientation hint that recommends the path matching your screen. Mouse/touch (tap a card), keyboard (1 = Single · 2 = Multiplayer · Enter = orientation-recommended), gamepad (A = Multiplayer, Y = Single). The splash is the HUB: Esc from the SP menu and Back from multiplayer (p2Exit) both return here. New drawSplash/drawSplashCard/splashRects; settingsBack + muteShown learn the 'splash' origin. (2) CHEATS PAGE PORTRAIT FIX: the Konami cheat menu was hard-wired to two ~155px columns on a 400px-wide portrait canvas, so names and sliders were crushed/overlapping and the header collided with the top buttons. On narrow layouts (CW<560) it now renders ONE full-width column (drops the decorative logo, header below the buttons, slimmer rows) so every cheat name + slider fits and the sliders get a usable track; landscape is byte-identical (smoke54's 2-column assert still holds). smoke52 +8 (splash geometry/routing/Back/p2Exit), smoke54 +5 (portrait single-column fit + on-screen buttons). Full battery green. Single file, no assets.
   v5.1.91 (2026-06-16): BALL 3v3 POLISH — per-main HUD roster + momentum-aware shove. (1) PER-MAIN HUD NAMES: the ball/shooter HUD named only binds 0/1 (the legacy 2-main assumption), so in a 3v3 the other four mains were unnamed up top. The HUD now stacks a roster down each side — every MAIN's name + drive (+ magazine dots in shooter), each drawn in that bot's own shade so the corner readout matches the on-field tag/ring (the alliance SCORE stays the headline; this adds the per-bot lineup). New pure helpers b2HudRoster(al) → {name,drive,col,mag,bind} per main and b2MainCol(bo) (same shade/egg logic as drawP2Tag). 1v1/2v2 unchanged (1 or 2 rows/side). (2) MOMENTUM-AWARE SHOVE: bot-bot overlap used to split 50/50 regardless of who was driving in, so you couldn't actually shove anyone in a scrum. New pure b2ShoveWeights(av,cv,nx,ny) splits the overlap by each bot's drive INTO the contact — the bot pushing harder holds ground, the one driven into yields — while the weights always sum to 1 (total separation preserved). Equal push OR both idle → even 50/50, byte-identical to before, so it stays mirror-fair and balance-neutral (balance suite still green). smoke58 +9 (roster shape/colors/binds + shove driver/idle/equal cases) → 30. Full battery green. Single file, no assets.
   v5.1.90 (2026-06-16): BATTLEBOTS GRID POLISH — per-seat stat bars + drag-to-copy a loadout (closes the v5.1.79 TODO). (1) PER-SEAT STAT BARS: every BattleBots grid seat now shows a compact 4-bar profile (SPD/MOB/DMG/TUF) in the left column under the preview, driven by the existing bbStatBars(ld) — so a loadout's trade-offs read at a glance while you pick (heavy spinner = high DMG/TUF, low SPD; light = the reverse). New bbSeatStatsRect(c) (geometry, sits inside the cell and clear of the loadout bar + SENS slider) + bbDrawSeatStats(i,c). (2) DRAG-TO-COPY: grab a seat's loadout BAR (the body, between the ◀▶ cyclers — which stay tap-cycle) and DROP it on another seat to clone its weapon+armor — arm a whole side the same way in two gestures. Valid drop seats get a dashed gold halo and a floating ⚔/🛡 chip follows the cursor; a successful drop deep-copies the loadout (no aliasing) and swallows the trailing click. Mouse + touch (touchscreen laptops/Chromebooks). New bbCopyLoadout(from,to) (pure, deep-copy, no-ops on same/empty seats), bbSeatAt(mx,my), bbSeatGripRect/bbLoadGripHit (grip excludes the cyclers), bbDrawLoadDrag(). smoke57 +11 → 119. Full battery green. Single file, no assets.
   v5.1.89 (2026-06-16): TANK POWER-UP HUD — readable, colored, on the field. The held-pickup readout in TANK FIGHT was monochrome emoji crammed onto the corner card's HP line (all one color, easy to miss mid-fight). New pure helper tankPupHud(t) returns the ordered badge list a tank currently holds — {id,icon,col,txt,kind} where kind is 'timer' (counting down, e.g. "5s"), 'ammo' (banked rounds, e.g. "×2") or 'charge' (one-shot shield, no number) — drawn by drawPupChips() as small COLORED slabs (each in its PUP_TYPES color, left accent bar + icon/text). Two placements off the one helper: (a) the corner cards now trail the HP/lives line with colored chips, (b) a NEW on-field loadout strip sits just under each live tank, so you read YOUR power-ups at YOUR tank without glancing to the corner — works for all N tanks (multi-tank up to 4v4). A banked explosive/piercing stack flips from an "×N" ammo chip to a countdown timer chip once a MACHINE-GUN barrage banks it. No engine/balance change (display only). smoke55 +8 (tankPupHud order/kind/txt/color + barrage flip + drawPupChips left/right/center no-throw) → 53. Full battery green. Single file, no assets.
