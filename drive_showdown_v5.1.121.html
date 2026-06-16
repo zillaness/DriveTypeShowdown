@@ -4057,7 +4057,7 @@ function startP2BB(){cheatedRun=false;paused=false;
   const nSide=[roster.filter(r=>r.side===0).length,roster.filter(r=>r.side===1).length];
   const ys=[tf2SpawnYs(nSide[0]),tf2SpawnYs(nSide[1])],yIdx=[0,0],seat=[0,0];
   bb2={t:0,cd:3,result:null,repd:false,map:mp,fx:[],blasts:[],deb:[],
-    bots:roster.map(r=>{const sp=tf2SpawnSide(r.side,ys[r.side][yIdx[r.side]++]);
+    bots:roster.map(r=>{const sp=tf2SpawnSide(r.side,ys[r.side][yIdx[r.side]++]);if((m2.set&&m2.set.bbmode)==='sumo')sp.x=r.side===0?FW/2-170:FW/2+170; // v5.1.121 P9 SUMO: spawn INSIDE the ring (default spawns sit at the arena edge = instant ring-out)
       const ctl=tankMkCtl(r.bind);ctl.type=r.type;const si=seat[r.side]++,col=teamShade(r.side,si);
       if(r.type==='cpu'){ctl.tier=r.tier;ctl.name='CPU'+(nSide[r.side]>1?' '+(si+1):'');}
       if(gridOn){const _gs=m2.tseats[r.bind];ctl.name=(r.type==='cpu')?((r.side===0?'RED':'BLUE')+' '+(si+1)):((_gs&&_gs.name)||('PLAYER '+(si+1)));} // grid: player name / CPU side+slot
@@ -4293,6 +4293,20 @@ function bbMiniUpdate(dt){ // harassers: chase nearest opponent main, shove + pi
   const M=bb2.minis;for(let i=0;i<M.length;i++)for(let j=i+1;j<M.length;j++){const a=M[i],c=M[j];if(a.dead||c.dead)continue; // mini-mini separation (don't stack)
     const dx=a.x-c.x,dy=a.y-c.y,d=Math.hypot(dx,dy)||0.01;if(d<mrr*2){const nx=dx/d,ny=dy/d,ov=mrr*2-d;a.x+=nx*ov*0.5;a.y+=ny*ov*0.5;c.x-=nx*ov*0.5;c.y-=ny*ov*0.5;}}
 }
+// ── v5.1.121 P9 GAME MODES: alternate RoboRumble win conditions (KO is the default, resolved by bbCheckResult). ──
+const BB_MODES=[
+  {id:'ko',  name:'KO — last bot standing'},
+  {id:'sumo',name:'SUMO — ring-out wins'},
+];
+const BB_RING=290; // SUMO ring radius (px from arena center)
+function bbMode(){return (m2.set&&m2.set.bbmode)||'ko';}
+function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing here (bbKill→bbCheckResult covers it)
+  if(!bb2||bb2.result!==null)return;
+  const mode=bbMode();
+  if(mode==='sumo'){const cx=FW/2,cy=FH/2; // SUMO: a bot shoved outside the ring is rung out (eliminated). Winner falls out of bbCheckResult (last side standing).
+    for(const b of bb2.bots){if(b.dead)continue;if(Math.hypot(b.x-cx,b.y-cy)>BB_RING){b._rungOut=true;bbKill(b,null);}}
+  }
+}
 // ── v5.1.120 P3 ARENA HAZARDS: per-map damage zones — a saw blade's position is a PURE fn of bb2.t (deterministic). RoboRumble-only (only updateBB calls this). ──
 function bbHazards(){return (bb2&&bb2.map&&bb2.map.haz)||[];}
 function bbHazPos(h,t){if(h.type==='saw'){const o=Math.sin(t*h.spd)*h.amp;return h.axis==='y'?{x:h.cx,y:h.cy+o}:{x:h.cx+o,y:h.cy};}return{x:h.x,y:h.y};}
@@ -4395,6 +4409,7 @@ function updateBB(dt){
   bbWeaponFire(dt); // PISTON strikes + FLAMETHROWER heat-up/burn (range-based)
   bbMiniUpdate(dt); // v5.1.117 P4: deployed harasser minibots chase + shove/pin opponents
   bbHazardUpdate(dt); // v5.1.120 P3: arena hazards (acid pit + saw blades) damage bots
+  bbModeUpdate(dt); // v5.1.121 P9: game-mode win conditions (sumo ring-out, etc.)
   bbSwordUpdate(dt); // v5.1.119 P7: ANIME SWORD periodic slash (cheat)
   bbAirstrikeUpdate(dt); // v5.1.119 P7: AIRSTRIKE arena bombs (cheat)
   // STALEMATE COUNT-OUT: only when NOTHING is happening — an immobilized bot taps out ONLY if its side has no mobile
@@ -4480,6 +4495,7 @@ function drawBBHazards(){ // v5.1.120 P3: paint the DANGER ZONE hazards — stri
 function drawBB(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
   drawTFField();drawTFObstacles();drawBBHazards();
+  if(bbMode()==='sumo'){ctx.save();ctx.strokeStyle='rgba(255,215,64,0.55)';ctx.lineWidth=4;ctx.setLineDash([14,10]);ctx.beginPath();ctx.arc(FX+FW/2,FY+FH/2,BB_RING,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();} // v5.1.121 P9 SUMO ring
   for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
     const blink=b.inv>0&&Math.floor(b.inv*12)%2===0;ctx.globalAlpha=blink?0.45:1;
     _noScoop=true;withBot(b.ctl.bind,b,()=>{drawRobot();});_noScoop=false; // RoboRumble: a weapon replaces the ball plow
@@ -4913,7 +4929,7 @@ const TF2_RED_COLS =['#ff5555','#ff9f43','#ffd740','#ff6f91']; // red · orange 
 const TF2_BLUE_COLS=['#5599ff','#33ccdd','#9b7bff','#44ddaa']; // blue · cyan · violet · teal
 function teamShade(side,idx){const pal=side===0?TF2_RED_COLS:TF2_BLUE_COLS;return pal[idx%pal.length];}
 const TF2_CPU_COLS=TF2_BLUE_COLS; // back-compat alias
-const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,tdrv:'open',tfmt:'1v1',ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
+const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,tdrv:'open',tfmt:'1v1',ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true,bbmode:'ko'}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];m2.tseats=null;m2.tsel=0;m2.bbLoadout=[null,null];}
@@ -5294,6 +5310,7 @@ function p2SettingsRows(){
     {k:'tfmt',   lab:'TEAM FORMAT',      vals:['1v1','multi'],    show:v=>v==='multi'?'MULTI — up to 3v3 (grid)':'1v1 — classic 2-card'}, // 1v1 = original 2-card claim; multi = the 6-seat grid
     {k:'bestOf', lab:'BEST OF',          vals:[1,3,5],            show:v=>v===1?'OFF (1 round)':'BEST OF '+v},
     {k:'map',    lab:'ARENA',            vals:TF2_MAPS.map((m,i)=>i), show:v=>(TF2_MAPS[v]||TF2_MAPS[0]).name}, // v5.1.120 P3: includes the DANGER ZONE hazard arena
+    {k:'bbmode', lab:'GAME MODE',         vals:BB_MODES.map(m=>m.id), show:v=>(BB_MODES.find(m=>m.id===v)||BB_MODES[0]).name}, // v5.1.121 P9: KO / SUMO / DOMINATION / VIP win conditions
   ];
   if(m2.mode==='race')return[
     {k:'course', lab:'COURSE',           vals:[0,1,2],            show:v=>(R2_COURSES[v]||R2_COURSES[0]).name},

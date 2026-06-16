@@ -7,7 +7,7 @@ src+=`
   ok('BATTLEBOTS is in M2_MODES',M2_MODES.some(m=>m.id==='battlebots'));
   ok('5 modes now lay out without overflow',(()=>{const last=p2ModeRect(M2_MODES.length-1);return last.x+last.w<=CW+1&&p2ModeRect(0).x>=0;})());
   m2.mode='battlebots';const bbrows=p2SettingsRows();
-  ok('battlebots settings = TEAM FORMAT + BEST OF + ARENA',bbrows.length===3&&bbrows[0].k==='tfmt'&&bbrows[1].k==='bestOf'&&bbrows[2].k==='map');
+  ok('battlebots settings = TEAM FORMAT + BEST OF + ARENA + GAME MODE',bbrows.length===4&&bbrows[0].k==='tfmt'&&bbrows[1].k==='bestOf'&&bbrows[2].k==='map'&&bbrows[3].k==='bbmode');
 
   // ── 2. start a 1v1 battlebots match (human vs CPU) ──
   const startBB=(map,cpuTier)=>{applyLayout('land2p');phase='p2claim';tour=null;m2.mode='battlebots';
@@ -527,6 +527,20 @@ src+=`
    // an obstacle-free / hazard-free map runs the hazard pass as a no-op
    const flat=bbBotWith('none','balanced',0,0,true);flat.hp=BB.HP;bb2.bots=[flat];bb2.map=TF2_MAPS[0];bbHazardUpdate(0.2);
    ok('a non-hazard arena takes no hazard damage',flat.hp===BB.HP);}
+  // ── v5.1.121: P9 GAME MODES framework + SUMO (ring-out) ──
+  {ok('GAME MODE includes KO + SUMO',BB_MODES.some(m=>m.id==='ko')&&BB_MODES.some(m=>m.id==='sumo'));
+   const svmode=m2.set.bbmode;m2.set.bbmode='sumo';
+   const inRing=bbBotWith('none','balanced',0,0,true);inRing.x=FW/2;inRing.y=FH/2;inRing.hp=BB.HP;
+   const out=bbBotWith('none','balanced',1,1,true);out.x=FW/2+BB_RING+40;out.y=FH/2;out.hp=BB.HP;
+   bb2.bots=[inRing,out];bb2.result=null;bb2.blasts=[];bb2.map=TF2_MAPS[0];bbModeUpdate(1/60);
+   ok('SUMO: a bot shoved OUT of the ring is rung out',out.dead===true&&inRing.dead===false);
+   ok('SUMO: last bot in the ring wins the round',bb2.result===0);
+   // a bot inside the ring is safe
+   m2.set.bbmode='sumo';const safe2=bbBotWith('none','balanced',0,0,true);safe2.x=FW/2+50;safe2.y=FH/2;safe2.hp=BB.HP;
+   const foe2=bbBotWith('none','balanced',1,1,true);foe2.x=FW/2-50;foe2.y=FH/2;foe2.hp=BB.HP;
+   bb2.bots=[safe2,foe2];bb2.result=null;bbModeUpdate(1/60);
+   ok('SUMO: bots inside the ring are safe (no premature result)',safe2.dead===false&&foe2.dead===false&&bb2.result===null);
+   m2.set.bbmode=svmode;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
