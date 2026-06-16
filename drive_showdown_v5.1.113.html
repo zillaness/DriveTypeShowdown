@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.112.html
-  version: 5.1.112
+  file: drive_showdown_v5.1.113.html
+  version: 5.1.113
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-16
@@ -3917,19 +3917,22 @@ const BB_PERKS=[ // v5.1.112 P2: a 3rd loadout slot — PERK (id stays in ld.per
 ];
 function bbPerkById(id){return BB_PERKS.find(p=>p.id===id)||BB_PERKS[0];}
 function bbPerkOf(b){return (b&&b.ld&&b.ld.perk)||'none';}
-const BB_ARM_WCOL='#d9c08a', BB_ARM_ACOL='#8fbfd9'; // weapons warm, armor cool (match the seat ⚔/🛡 labels)
-function bbArmoryChips(){ // laid-out chip rects for the top rail: weapon group ⚔ … then armor group 🛡 …, centered
-  const cw=58,gap=4,LBL=20,GRP=20,cy=85,ch=26;
-  const wW=LBL+BB_ARMORY_W.length*(cw+gap)-gap, aW=LBL+BB_ARMORY_A.length*(cw+gap)-gap, total=wW+GRP+aW;
+const BB_ARM_WCOL='#d9c08a', BB_ARM_ACOL='#8fbfd9', BB_ARM_PCOL='#a6d9a0'; // weapons warm, armor cool, perks green (match the seat ⚔/🛡/✦ labels)
+function bbArmoryChips(){ // laid-out chip rects for the top rail: weapon group ⚔ … armor 🛡 … perk ✦, centered (v5.1.113: + PERK group)
+  const cw=50,gap=4,LBL=18,GRP=16,cy=85,ch=26;
+  const wW=LBL+BB_ARMORY_W.length*(cw+gap)-gap, aW=LBL+BB_ARMORY_A.length*(cw+gap)-gap, pW=LBL+BB_PERKS.length*(cw+gap)-gap, total=wW+GRP+aW+GRP+pW;
   let x=Math.round((CW-total)/2);const out=[];
   out.push({kind:'wlabel',ic:'⚔',x:x,y:cy,w:16,h:ch});x+=LBL;
   for(const w of BB_ARMORY_W){out.push({kind:'weapon',id:w.id,lab:w.lab,ic:w.ic,x:x,y:cy,w:cw,h:ch});x+=cw+gap;}
   x+=GRP-gap;
   out.push({kind:'alabel',ic:'🛡',x:x,y:cy,w:16,h:ch});x+=LBL;
   for(const a of BB_ARMORY_A){out.push({kind:'armor',id:a.id,lab:a.lab,ic:a.ic,x:x,y:cy,w:cw,h:ch});x+=cw+gap;}
+  x+=GRP-gap;
+  out.push({kind:'plabel',ic:'✦',x:x,y:cy,w:16,h:ch});x+=LBL;
+  for(const p of BB_PERKS){out.push({kind:'perk',id:p.id,lab:p.lab,ic:p.ic,x:x,y:cy,w:cw,h:ch});x+=cw+gap;}
   return out;
 }
-function bbArmoryHit(mx,my){for(const c of bbArmoryChips()){if((c.kind==='weapon'||c.kind==='armor')&&inR(mx,my,c))return c;}return null;} // which armory chip is under the point
+function bbArmoryHit(mx,my){for(const c of bbArmoryChips()){if((c.kind==='weapon'||c.kind==='armor'||c.kind==='perk')&&inR(mx,my,c))return c;}return null;} // which armory chip is under the point
 function bbArmEquip(seat,kind,id){ // pure: drop a chip on a seat → set its weapon OR armor (validated against the real tables)
   const s=m2.tseats&&m2.tseats[seat];if(!s)return false;const ld=bbSeatLoadout(seat);
   if(kind==='weapon'&&BB_WEAPONS.some(w=>w.id===id)){ld.weapon=id;return true;}
@@ -3942,8 +3945,8 @@ function bbDrawArmory(){ // the chip rail + (while dragging) seat drop-halos and
   const chips=bbArmoryChips();
   ctx.fillStyle='rgba(18,18,32,0.55)';rr(chips[0].x-8,chips[0].y-4,(chips[chips.length-1].x+chips[chips.length-1].w)-chips[0].x+16,chips[0].h+8,8);ctx.fill();
   for(const c of chips){
-    if(c.kind==='wlabel'||c.kind==='alabel'){ctx.font='13px Courier New';ctx.textAlign='center';ctx.fillStyle=c.kind==='wlabel'?BB_ARM_WCOL:BB_ARM_ACOL;ctx.fillText(c.ic,c.x+8,c.y+18);continue;}
-    const col=c.kind==='weapon'?BB_ARM_WCOL:BB_ARM_ACOL,held=bbArmDrag&&bbArmDrag.kind===c.kind&&bbArmDrag.id===c.id;
+    if(c.kind==='wlabel'||c.kind==='alabel'||c.kind==='plabel'){ctx.font='13px Courier New';ctx.textAlign='center';ctx.fillStyle=c.kind==='wlabel'?BB_ARM_WCOL:c.kind==='alabel'?BB_ARM_ACOL:BB_ARM_PCOL;ctx.fillText(c.ic,c.x+8,c.y+18);continue;}
+    const col=c.kind==='weapon'?BB_ARM_WCOL:c.kind==='armor'?BB_ARM_ACOL:BB_ARM_PCOL,held=bbArmDrag&&bbArmDrag.kind===c.kind&&bbArmDrag.id===c.id;
     ctx.fillStyle=held?'rgba(60,60,40,0.6)':'rgba(40,40,62,0.85)';rr(c.x,c.y,c.w,c.h,6);ctx.fill();
     ctx.strokeStyle=col;ctx.lineWidth=held?2:1;rr(c.x,c.y,c.w,c.h,6);ctx.stroke();
     ctx.textAlign='center';ctx.font='10px Courier New';ctx.fillStyle=col;ctx.fillText(c.ic,c.x+11,c.y+17);
@@ -3951,7 +3954,7 @@ function bbDrawArmory(){ // the chip rail + (while dragging) seat drop-halos and
   }
   if(bbArmDrag){
     for(let i=0;i<6;i++){if(!(m2.tseats&&m2.tseats[i]))continue;const c=tankCellRect(i);
-      ctx.strokeStyle=bbArmDrag.kind==='weapon'?BB_ARM_WCOL:BB_ARM_ACOL;ctx.lineWidth=2.5;ctx.setLineDash([7,5]);rr(c.x,c.y,c.w,c.h,12);ctx.stroke();ctx.setLineDash([]);}
+      ctx.strokeStyle=bbArmDrag.kind==='weapon'?BB_ARM_WCOL:bbArmDrag.kind==='armor'?BB_ARM_ACOL:BB_ARM_PCOL;ctx.lineWidth=2.5;ctx.setLineDash([7,5]);rr(c.x,c.y,c.w,c.h,12);ctx.stroke();ctx.setLineDash([]);}
     const txt=bbArmDrag.ic+' '+bbArmDrag.lab,x=bbArmDrag.x,y=bbArmDrag.y;
     ctx.font='bold 11px Courier New';const tw=ctx.measureText(txt).width+18;
     ctx.fillStyle='rgba(12,12,24,0.94)';rr(x+12,y-12,tw,24,7);ctx.fill();
@@ -7910,6 +7913,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.113 (2026-06-16): ROBORUMBLE — P2 PERKS pick UI. The ARMORY rail gains a 3rd group — PERK chips (✦ NONE / 🎁 GIFT / 🧯 PROOF / 🤖 MINI) alongside weapons + armor; drag a perk chip onto a seat to equip it (bbArmEquip 'perk', reusing the same drag plumbing + drop-halos). Rail re-fitted (cw 58→50 + perk group) so all 8 weapons + 4 armor + 4 perks fit centered on landscape. ★ P2 PERKS slot COMPLETE (data + effects + CPU-use + pick UI). smoke57 +1 → 191. Full battery green. Single file, no assets.
   v5.1.112 (2026-06-16): ROBORUMBLE — P2 PERKS slot (data + effects). A 3rd loadout field (ld.perk) alongside weapon + armor. BB_PERKS: NO PERK / PARTING GIFT / FLAMEPROOF / MINIBOT. EFFECTS wired: PARTING GIFT — a big EXPLOSION on death (bbKill spawns a partingRK blast that damages nearby ENEMIES + chains) so you take foes with you; FLAMEPROOF — immune to flame DPS + blow-up (bbApplyFlame early-returns). MINIBOT reserved (wired in P4). CPUs now roll a perk (bbCpuPickLoadout) so perks appear in play; bbArmEquip handles the 'perk' kind. bbResolveLoadout passes the perk through. (The armory drag-to-pick perk chips land next.) smoke57 +7 → 190. Full battery green. Single file, no assets.
   v5.1.111 (2026-06-16): ROBORUMBLE — NEW WEAPON: KAMIKAZE (P1; COMPLETES the weapon roster). RT = SELF-DESTRUCT: one big blast (kamiRK 4.6×RR, kamiDmg 170, falloff to 0.4× at the edge) that damages every nearby bot, then the kamikaze dies (reuses bbKill + the blast/chain). Useless 1v1 (a mutual-destruction trade → sim 0% wins), a 3v3 play (take 2+ foes with you). New BB_WEAPONS/armory entry (💣 KAMI), a blinking-bomb render, the CPU detonates when a foe is in the blast. ★ P1 WEAPON ROSTER COMPLETE: spinner · buzzsaw · piston · flame · DOZER · flipper · pincer · kamikaze (8). smoke57 +4 → 183. Full battery green. Balance deferred to the end. Single file, no assets.
   v5.1.110 (2026-06-16): ROBORUMBLE — NEW WEAPON: PINCER (P1). Grab + IMMOBILIZE: on a firing front-arc contact it clamps the foe to its front (reusing the dozer grab machinery) and HOLDS it (pincerGrabDur 1.8s), grinding the foe's MOBILITY down (pincerDrain) so it's immobilized for teammates to pile on — NO slam, NO big damage. A 3v3 role-player (weak 1v1, sim 17%, by design). New BB_WEAPONS/armory entry (🦀 PINCE), a two-prong claw render that closes when gripping, the CPU clamps a lined-up foe. smoke57 +3 → 179. Full battery green. Balance deferred. Single file, no assets.

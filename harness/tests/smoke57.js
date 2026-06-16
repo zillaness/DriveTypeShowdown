@@ -275,6 +275,7 @@ src+=`
   {applyLayout('land2p');m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;phase='p2claim';tour=null;tankGridSetCpu(0);
    const chips=bbArmoryChips(),wChips=chips.filter(c=>c.kind==='weapon'),aChips=chips.filter(c=>c.kind==='armor');
    ok('armory rail has every PICKABLE weapon (RAM-only dropped) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none').length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length);
+   ok('v5.1.113: armory rail now has the PERK group too',chips.filter(c=>c.kind==='perk').length===BB_PERKS.length&&bbArmEquip&&(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','flameproof')&&m2.tseats[0].loadout.perk==='flameproof';})());
    ok('armory chip ids match the real weapon/armor tables',wChips.every(c=>BB_WEAPONS.some(w=>w.id===c.id))&&aChips.every(c=>BB_ARMOR.some(a=>a.id===c.id)));
    ok('armory rail sits inside the canvas, above the seats',chips.every(c=>c.x>=0&&c.x+c.w<=CW&&c.y>=0&&c.y+c.h<=tankCellRect(0).y));
    const sp=wChips.find(c=>c.id==='spinner'),hit=bbArmoryHit(sp.x+sp.w/2,sp.y+sp.h/2);
