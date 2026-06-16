@@ -346,6 +346,14 @@ src+=`
    mouseX=FX+h.x;mouseY=FY+h.y-80;bbWeaponPre(1/60);ok('HUMAN flame turret follows the MOUSE (~north when the cursor is above the bot)',Math.abs(h.weaponAng-(-Math.PI/2))<0.05);
    mouseX=FX+h.x+80;mouseY=FY+h.y;bbWeaponPre(1/60);ok('HUMAN flame turret tracks the mouse to the EAST (~0)',Math.abs(h.weaponAng)<0.05);
    let dThrew=false;try{bbDrawWeapon(h);}catch(e){dThrew=true;console.log('   draw err:',e.message);}ok('bbDrawWeapon renders the turreted flame cone without throwing',!dThrew);}
+  // ── v5.1.100: the flame turret is an ARCADE-DRIVE PERK ONLY (swerve/holo aim via the chassis; tank/steer locked forward) ──
+  {const sv=bbBotWith('flame','balanced',0,0,true);sv.x=300;sv.y=300;sv.h=0;
+   const sf=bbBotWith('none','balanced',1,1,true);sf.x=300;sf.y=300-RR*1.6;bb2.bots=[sv,sf];bb2.result=null; // foe due north (off the nose)
+   const sd=m2.drive[0];
+   m2.drive[0]={kind:'main',idx:3};bbWeaponPre(1/60);ok('SWERVE flame is NOT turreted — weaponAng stays on the chassis (b.h)',Math.abs(sv.weaponAng-sv.h)<1e-9);
+   m2.drive[0]={kind:'main',idx:0};bbWeaponPre(1/60);ok('TANK flame is NOT turreted either — locked forward',Math.abs(sv.weaponAng-sv.h)<1e-9);
+   m2.drive[0]={kind:'main',idx:1};bbWeaponPre(1/60);ok('ARCADE flame IS turreted — weaponAng tracks the side foe (~-π/2)',Math.abs(sv.weaponAng-(-Math.PI/2))<0.15);
+   m2.drive[0]=sd;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
