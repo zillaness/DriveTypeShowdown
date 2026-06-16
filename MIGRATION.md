@@ -1,14 +1,14 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-16, at v5.1.100** (see ⏩ LATEST STATE below — much has changed since v5.1.80).
+**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-16, at v5.1.101** (see ⏩ LATEST STATE below — much has changed since v5.1.80).
 
 ---
 
-## ⏩ LATEST STATE — 2026-06-16, **v5.1.100** (READ THIS; the older sections below are pre-v5.1.80 history)
+## ⏩ LATEST STATE — 2026-06-16, **v5.1.101** (READ THIS; the older sections below are pre-v5.1.80 history)
 
 **Builds / branches:**
-- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.100.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it.
+- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.101.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it.
 - **`claude/online-net-5wehy1` = ONLINE sandbox** (isolated so online netcode can't risk the stable build). Build **`drive_showdown_v5.2.0.html`** — online P1a only (dormant in local play).
 - `claude/sharp-newton-kn5ulv` — stale/behind; ignore.
 
@@ -25,7 +25,7 @@ Self-contained context for continuing this project in a fresh thread.
 **QUEUED from this playtest (not yet built):** (1) **DOZER damage-RAM = a chassis-forward RT charge** (LT stays the directional dodge) — build it WITH the dozer grab-slam (next). (2) **Universal SETTINGS on the SPLASH** should host: export/import **SCORES**, **CONTROLS**, **HIGH SCORES**, **ACHIEVEMENTS**, and import/export **GHOSTS** (non-RoboRumble; later).
 
 **ACTIVE PRDs (the roadmap):**
-- `frcds_roborumble_v2_prd_v1.0.md` — **combat deep-pass; CURRENT FOCUS.** P0 flanking DONE. **P1 weapon roster (IN PROGRESS):** flame turret-aim + feel pass **DONE (v5.1.99–100 — flame 25%→50%, arcade-only aim, 2× range/narrow jet, animated, rumble, directional dash)**; **NEXT → DOZER (fixes wedge 0%): rename WEDGE→DOZER + bulldozer-blade render + grab-and-slam, with its damage RAM on a chassis-forward RT charge**, flipper (flings foe back), pincer (grab+immobilize, 3v3 role), drop RAM-ONLY. Then P2 perks slot, P3 hazards + map-select screen, P4 minibots (repurpose alliance bots → harass only), P5 drive synergies (tank push buff + blade synergy; arcade benefit), P6 bot-name eggs (Optimus Prime/Bumblebee → paint + steering-drive HEALING; Original Sin → tank+blade invuln wheels; achievements "Unoriginal Sin"/"Autobots Roll Out"), P7 combat cheats (move-or-die, airstrike, megabots, walker/shufflebot, anime sword, unlimited fuel/air/RPM, arena-trap control), P8 ongoing balance via the sim.
+- `frcds_roborumble_v2_prd_v1.0.md` — **combat deep-pass; CURRENT FOCUS.** P0 flanking DONE. **P1 weapon roster (IN PROGRESS):** flame turret-aim + feel pass **DONE (v5.1.99–100 — flame 25%→50%, arcade-only aim, 2× range/narrow jet, animated, rumble, directional dash)**; **DOZER rename + bulldozer-blade RENDER DONE (v5.1.101); NEXT → its GRAB-AND-SLAM (fixes wedge 0%): charge forward on RT to grip a foe ~1s and crush it into a wall for damage (LT stays the directional dodge)**, flipper (flings foe back), pincer (grab+immobilize, 3v3 role), drop RAM-ONLY. Then P2 perks slot, P3 hazards + map-select screen, P4 minibots (repurpose alliance bots → harass only), P5 drive synergies (tank push buff + blade synergy; arcade benefit), P6 bot-name eggs (Optimus Prime/Bumblebee → paint + steering-drive HEALING; Original Sin → tank+blade invuln wheels; achievements "Unoriginal Sin"/"Autobots Roll Out"), P7 combat cheats (move-or-die, airstrike, megabots, walker/shufflebot, anime sword, unlimited fuel/air/RPM, arena-trap control), P8 ongoing balance via the sim.
 - `frcds_online_prd_v1.1.md` — online. **P1a netcode seams DONE on the sandbox branch** (`net` state, `'remote'` getInp bind, `netSerializeBall`/`netApplyBall`+JSON+`netLoopback`; smoke60). Next: P1b loop+2-tab BroadcastChannel demo, P2 real WebRTC 1v1 (Sam wants **BALL/shooter** first), splash ONLINE entry, REMOTE seat. Parsec = zero-dev interim.
 - `frcds_tournament_v2_prd_v1.0.md` — tournament is "super outdated". v2 = **8-alliance 3v3 brackets** (register ALLIANCE names, not individuals), all modes, registration UI fix (overlap/typing), map-select. NOT started.
 
