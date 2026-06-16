@@ -43,7 +43,9 @@ leave weapons at sane *functional* values (not 0%/100%, not crashing) and DON'T 
 - ✅ v5.1.99–107 (pre-overnight): flame turret-aim+feel, dozer grab-slam + charging-bull, RAM-only
   drop, bouncy tank shots, spinner nerf, flame LOS, HP→360, piston buff, CPU unstick, **BUZZSAW**.
   Sim @107: piston 62 · flame 50 · wedge 49 · spinner 38 · ram 6 (buzzsaw not yet in the sim).
-- ▶ NEXT: BALANCE PASS (item 1) — add buzzsaw to bbbalance.js, then tighten the spread.
+- ✅ **P1 WEAPON ROSTER COMPLETE (v5.1.108–111):** sim set fixed (8 pickables, ram-baseline out, buzzsaw/flipper/pincer/kamikaze in); **BUZZSAW** (front spin-up cutter), **FLIPPER** (fling-back + ring-out), **PINCER** (grab+immobilize/drain-mob, 3v3), **KAMIKAZE** (RT self-destruct blast). 183 tests green. Balance deferred per Sam.
+- ▶ NEXT: **P2 PERKS slot** (Parting Gift = explosion-on-death, Flameproof, Minibot) — then P4 minibots, P5 synergies, P6 eggs, P7 cheats, P3 arena/map-select, P9 modes, ★ final balance.
+- Sim @111 (pre-balance, FYI): buzzsaw 71 · piston 64 · spinner 57 · flame 57 · flipper 43 · wedge 35 · pincer 29 · kamikaze 0 (1v1 self-destruct = draws).
 
 ## Morning deliverable
 A green, pushed `dev` with: a balanced weapon roster (incl. buzzsaw/flipper/pincer/kamikaze), the

@@ -419,6 +419,17 @@ src+=`
    const far=bbBotWith('none','balanced',1,2,true);far.x=300+RR*20;far.y=300;far.hp=BB.HP;far.inv=0;const b2=bbBotWith('kamikaze','balanced',0,3,true);b2.x=300;b2.y=300;b2.firing=true;bb2.bots=[b2,far];bb2.result=null;bb2.blasts=[];
    bbWeaponFire(1/60);ok('KAMIKAZE does NOT hit a foe outside the blast radius',far.hp===BB.HP);
    ok('KAMIKAZE is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='kamikaze')&&BB_ARMORY_W.some(w=>w.id==='kamikaze'));}
+  // ── v5.1.112: PERKS (3rd loadout slot) — data + effects (Parting Gift, Flameproof) ──
+  {ok('bbResolveLoadout carries the PERK slot',bbResolveLoadout({weapon:'spinner',armor:'balanced',perk:'flameproof'}).perk==='flameproof');
+   ok('a default loadout has no perk',bbResolveLoadout(null).perk==='none');
+   const fp=bbBotWith('none','balanced',1,1,true);fp.ld.perk='flameproof';fp.hp=BB.HP;fp.burn=0;bb2.bots=[bbBotWith('flame','balanced',0,0,true),fp];bb2.result=null;
+   bbApplyFlame(fp,50,0);ok('FLAMEPROOF perk: a bot takes NO flame damage',fp.hp===BB.HP&&(fp.burn||0)===0);
+   const np=bbBotWith('none','balanced',1,1,true);np.hp=BB.HP;np.burn=0;bb2.bots=[bbBotWith('flame','balanced',0,0,true),np];bbApplyFlame(np,50,0);ok('a NON-flameproof bot DOES take flame damage',np.hp<BB.HP);
+   const pg=bbBotWith('none','balanced',0,0,true);pg.ld.perk='partinggift';pg.x=300;pg.y=300;pg.hp=10;
+   const en=bbBotWith('none','balanced',1,1,true);en.x=300+RR*2;en.y=300;en.hp=BB.HP;en.inv=0;bb2.bots=[pg,en];bb2.result=null;bb2.blasts=[];bb2.deb=[];
+   const ehp0=en.hp;bbKill(pg,null);ok('PARTING GIFT perk: dying triggers a blast that damages a nearby ENEMY',en.hp<ehp0);
+   ok('bbArmEquip can set the perk slot',(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','partinggift')&&m2.tseats[0].loadout.perk==='partinggift';})());
+   ok('CPU loadout includes a perk field',!!bbCpuPickLoadout(3).perk);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
