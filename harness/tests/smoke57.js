@@ -558,10 +558,13 @@ src+=`
    bb2.bots=[kme];bb2.result=null;bb2.koth=null;bb2.map=TF2_MAPS[0];bbModeUpdate(0.1);
    ok('KOTH: a side alone on the hill banks time',bb2.koth.score[0]>0&&bb2.koth.score[1]===0);
    const ka=bbBotWith('none','balanced',0,0,true);ka.x=FW/2;ka.y=FH/2;const kb=bbBotWith('none','balanced',1,1,true);kb.x=FW/2;kb.y=FH/2;
-   bb2.bots=[ka,kb];bb2.koth={x:FW/2,y:FH/2,move:BB_KOTH_MOVE,score:[0,0]};bb2.result=null;bbModeUpdate(0.1);
+   bb2.bots=[ka,kb];bb2.koth={x:FW/2,y:FH/2,active:true,t:BB_KOTH_HOLD,score:[0,0]};bb2.result=null;bbModeUpdate(0.1);
    ok('KOTH: an evenly contested hill banks nothing',bb2.koth.score[0]===0&&bb2.koth.score[1]===0);
-   bb2.bots=[kme];kme.x=FW/2;kme.y=FH/2;bb2.koth={x:FW/2,y:FH/2,move:BB_KOTH_MOVE,score:[BB_KOTH_TARGET-0.01,0]};bb2.result=null;bbModeUpdate(0.1);
+   bb2.bots=[kme];kme.x=FW/2;kme.y=FH/2;bb2.koth={x:FW/2,y:FH/2,active:true,t:BB_KOTH_HOLD,score:[BB_KOTH_TARGET-0.01,0]};bb2.result=null;bbModeUpdate(0.1);
    ok('KOTH: reaching the target wins',bb2.result===0);
+   // the hill DESPAWNS (a gap with no scoring), then re-appears elsewhere
+   bb2.bots=[kme];kme.x=FW/2;kme.y=FH/2;bb2.koth={x:FW/2,y:FH/2,active:false,t:0.05,score:[2,0]};bb2.result=null;const ks0=bb2.koth.score[0];const ox=bb2.koth.x;bbModeUpdate(0.1);
+   ok('KOTH: no scoring during the despawn gap, then a new hill appears',bb2.koth.score[0]===ks0&&bb2.koth.active===true);
    // VIP (assassinate the enemy VIP)
    ok('GAME MODE includes VIP',BB_MODES.some(m=>m.id==='vip'));
    m2.set.bbmode='vip';
@@ -587,7 +590,7 @@ src+=`
     ok('DOMINATION: a CPU outside the zone drives toward the center',dme.ctl.brain.inp.vx>0&&dme.ctl.brain.inp.vy>0);
     m2.set.bbmode='koth';
     const kc=bbBotWith('none','balanced',1,1,true);kc.x=100;kc.y=100;kc.h=0;const kf=bbBotWith('none','balanced',0,0,true);kf.x=140;kf.y=100;
-    bb2.bots=[kc,kf];bb2.koth={x:FW/2,y:FH/2,move:BB_KOTH_MOVE,score:[0,0]};bb2.result=null;bbCpuUpdate(1/60);
+    bb2.bots=[kc,kf];bb2.koth={x:FW/2,y:FH/2,active:true,t:BB_KOTH_HOLD,score:[0,0]};bb2.result=null;bbCpuUpdate(1/60);
     ok('KOTH: a CPU off the hill drives toward it',kc.ctl.brain.inp.vx>0&&kc.ctl.brain.inp.vy>0);
     m2.set.bbmode='sumo';
     const sme=bbBotWith('none','balanced',1,1,true);sme.x=FW/2;sme.y=FH/2-BB_RING*0.9;sme.h=0; // near the top ring edge
