@@ -73,6 +73,11 @@ src+=`
   startP2Ball();
   ok('1v1 (tfmt 1v1) still spawns exactly 2 mains, binds 0/1',b2.bots.length===2&&b2.bots[0].bind===0&&b2.bots[1].bind===1&&b2.bots[0].seat===0&&b2.bots[1].seat===0);
 
+  // ── v5.1.98: sensitivity keep-pace is 3v3-safe — EVERY CPU (both sides, any bind) matches the fastest human, not a 2-player 1-p index ──
+  {const sv=m2.sens,cs=capCpuSpeed;m2.sens=[1,2.0,1,1,1,1];capCpuSpeed=false;
+   ok('cpuPaceSens = max human sens for ALL binds (allies AND enemies, 3v3-safe)',cpuPaceSens(0)===2.0&&cpuPaceSens(1)===2.0&&cpuPaceSens(3)===2.0&&cpuPaceSens(5)===2.0);
+   m2.sens=sv;capCpuSpeed=cs;}
+
   console.log('--- ball 3v3: '+P+' pass, '+F+' fail ---');
 })();
 `;
