@@ -15,6 +15,10 @@ Status: **capture + plan.** Distills a live playtest brain-dump into a sequenced
 ## Already shipped (context)
 - **v5.1.95** — immobilized COUNT-OUT (no-end fix), HP 100→250, PISTON front-pierce, SPINNER bleed-on-bite + wall self-damage, FLAMETHROWER longer reach + FUEL gauge, RAM DASH = forward lunge along the nose, WEDGE pin/shove clarity + PINNED cue, HUD gauges.
 - **v5.1.96** — SPINNER front-pierce (bites the front too) + `harness/tests/bbbalance.js` (weapon win-rate simulator).
+- **v5.1.97 — P0 FLANKING BRAIN DONE** + combat-balance pass: CPU orbits to the rear/side (sim decisive 1%→68%; piston 4%→75%, ram 0%→50%). Spinner nerfed (slower spin-up, near-restart RPM loss + SELF-DAMAGE on every bite; WEDGE deflects it). Count-out is now STALEMATE-only (finish an immobile foe yourself). Piston always visibly extends (fire = RT or A). **Fuel/air DROPPED for now** (too complicated) — would return with a map refuel spot only once flame/piston are competitive enough to need balancing.
+
+## Current balance (CPU-vs-CPU, `bbbalance.js`, post-flanking)
+spinner 75% · piston 75% · ram/none 50% · flame 25% · wedge 0%. Flame + wedge lag because they still lack their P1 kit (flame TURRET-AIM so it can track flankers; wedge GRAB-SLAM so its control converts to damage). The spinner DEFLECT counter works (spinner self-destructs on a blade) but wedge has no offense to capitalize yet → P1.
 
 ## Headline finding from the balance sim (drives the priority)
 `bbbalance.js` (CPU-vs-CPU, all weapon matchups) shows **front-piercing weapons (spinner/flame) win ~100/75%, while wedge/ram/piston sit near 0%.** Root cause is **structural, not numeric**: the P1 CPU brain keeps its front to the foe and **never flanks**, so any weapon that can't pierce the front can never reach a rear/side. ⇒ **The #1 lever is a flanking CPU brain** (P0 below); weapon balance can't be tuned until the AI can actually use non-front weapons.
