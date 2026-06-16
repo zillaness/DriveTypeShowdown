@@ -579,6 +579,9 @@ src+=`
     const sfoe=bbBotWith('none','balanced',0,0,true);sfoe.x=FW/2;sfoe.y=FH/2-BB_RING*0.9-40;
     bb2.bots=[sme,sfoe];bb2.result=null;bbCpuUpdate(1/60);
     ok('SUMO: a CPU near the edge pulls back toward the center',sme.ctl.brain.inp.vy>0);
+    // v5.1.127: the in-match HUD hint is mode-specific
+    m2.set.bbmode='ko';const hKo=bbModeHint();m2.set.bbmode='sumo';const hSumo=bbModeHint();m2.set.bbmode='domination';const hDom=bbModeHint();m2.set.bbmode='vip';const hVip=bbModeHint();
+    ok('each GAME MODE shows its own objective hint',/SUMO/.test(hSumo)&&/DOMINATION/.test(hDom)&&/VIP/.test(hVip)&&hKo!==hSumo&&hSumo!==hDom&&hDom!==hVip);
     m2.set.bbmode=svmode;}
   }
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
