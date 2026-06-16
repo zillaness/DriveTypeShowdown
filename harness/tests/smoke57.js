@@ -452,6 +452,27 @@ src+=`
    const hp0=b.hp;for(let i=0;i<40;i++){bb2.cd=0;updateBB(1/60);}ok('MOVE OR DIE cheat: a stationary bot BLEEDS HP',b.hp<hp0);
    moveOrDie=false;const b2=bbBotWith('none','balanced',0,0,true);b2.x=400;b2.y=400;b2.hp=BB.HP;b2.mob=BB.MOB;b2._modX=400;b2._modY=400;bb2.bots=[b2,Object.assign(bbBotWith('none','balanced',1,1,true),{dead:true})];bb2.result=null;
    for(let i=0;i<40;i++){bb2.cd=0;updateBB(1/60);}ok('MOVE OR DIE off: a stationary bot is unharmed',b2.hp===BB.HP);moveOrDie=sv;}
+  // ── v5.1.117: P4 MINIBOTS — the MINIBOT perk deploys a harasser (shove + pin, no HP; retires with its deployer) ──
+  {ok('MINIBOT is a perk',BB_PERKS.some(p=>p.id==='minibot'));
+   ok('CPU perk roll can deploy a minibot',(()=>{for(let i=0;i<400;i++)if(bbCpuPickLoadout(2).perk==='minibot')return true;return false;})());
+   const o1=bbBotWith('wedge','balanced',0,0,true);o1.ld.perk='minibot';o1.x=200;o1.y=200;
+   const o2=bbBotWith('wedge','balanced',1,1,true);o2.ld.perk='none';o2.x=400;o2.y=400;
+   bb2.bots=[o1,o2];bb2.result=null;bb2.minis=bbMiniSpawn();
+   ok('only the MINIBOT-perk bot deploys a minibot (one, same side, owner linked)',bb2.minis.length===1&&bb2.minis[0].side===0&&bb2.minis[0].owner===o1);
+   ok('the minibot is SMALLER than a main bot',bbMiniRR()<RR);
+   // HARASS: a minibot in contact shoves + pins an opponent, deals NO HP damage
+   const own=bbBotWith('wedge','balanced',0,0,true);own.ld.perk='minibot';own.dead=false;
+   const en=bbBotWith('wedge','balanced',1,1,true);en.x=300;en.y=300;en.hp=BB.HP;en.mob=BB.MOB;en.pinT=0;
+   bb2.bots=[en];bb2.result=null;bb2.minis=[{x:285,y:300,h:0,side:0,owner:own,col:'#fff',dead:false}];
+   const ehp0=en.hp;bbMiniUpdate(1/60);
+   ok('minibot HARASSES: shoves the opponent (it moves) + pins it, NO HP damage',en.hp===ehp0&&(en.x!==300||en.y!==300)&&en.pinT>0);
+   // a minibot does NOT harass a same-side bot
+   const ally=bbBotWith('wedge','balanced',0,3,true);ally.x=300;ally.y=300;ally.pinT=0;ally.hp=BB.HP;
+   bb2.bots=[ally];bb2.minis=[{x:285,y:300,h:0,side:0,owner:own,col:'#fff',dead:false}];bbMiniUpdate(1/60);
+   ok('minibot does NOT pin a same-side bot',ally.pinT===0&&ally.hp===BB.HP);
+   // retires when its deployer is KO'd
+   own.dead=true;bb2.bots=[];bb2.minis=[{x:0,y:0,h:0,side:0,owner:own,col:'#fff',dead:false}];bbMiniUpdate(1/60);
+   ok('minibot RETIRES when its deployer is gone',bb2.minis[0].dead===true);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

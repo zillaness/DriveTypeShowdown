@@ -8,7 +8,7 @@ Self-contained context for continuing this project in a fresh thread.
 ## ⏩ LATEST STATE — 2026-06-16, **v5.1.116** (READ THIS; the older sections below are pre-v5.1.80 history)
 
 **Builds / branches:**
-- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.116.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it.
+- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.117.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it. (v5.1.117 = P4 MINIBOTS: the MINIBOT perk deploys a shove/pin harasser, `bb2.minis`.)
 - **`claude/online-net-5wehy1` = ONLINE sandbox** (isolated so online netcode can't risk the stable build). Build **`drive_showdown_v5.2.0.html`** — online P1a only (dormant in local play).
 - `claude/sharp-newton-kn5ulv` — stale/behind; ignore.
 

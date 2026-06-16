@@ -2,7 +2,7 @@
 
 ## 🆕 FRESH THREAD — START HERE (handoff 2026-06-16)
 You are continuing an autonomous RoboRumble build run. **Canonical branch = `dev`** (see `CLAUDE.md`).
-1. `git fetch origin dev` and make sure you're on it. Current tip = **`drive_showdown_v5.1.116.html`** (v5.1.116).
+1. `git fetch origin dev` and make sure you're on it. Current tip = **`drive_showdown_v5.1.117.html`** (v5.1.117).
 2. **Fresh container:** `./extract.sh && ./battery.sh` → must print `ALL GREEN` (extract writes `/tmp/g.js`; without it every smoke test ENOENTs — that's missing setup, not failure).
 3. Read this file's **Progress log** (below) for what's DONE + what's NEXT, and `MIGRATION.md` for project context.
 4. Continue the queue (NEXT = P4 minibots) one shippable version at a time. **Ritual per version:**
@@ -58,8 +58,9 @@ leave weapons at sane *functional* values (not 0%/100%, not crashing) and DON'T 
 - ✅ **P5 DRIVE SYNERGY (v5.1.114):** TANK-family drive shoves harder (×tankPush) — dozer push synergy.
 - ✅ **P6 BOT-NAME EGGS (v5.1.115):** Optimus/Bumblebee → paint ring + (steering drive) HEAL; Original Sin (tank+blade) → invuln wheels; achievement LS flags. (Full custom paint + achievement SCREEN = follow-up.)
 - ✅ **BALANCE PASS (done early — roster is final):** the 6 DAMAGE weapons are all in the 34–66% band (piston 65 · buzzsaw 64 · flame 61 · dozer 53 · spinner 43 · flipper 43). bbbalance.js now prints **"FIGHTERS WITHIN 34–66% BAND ✓"** and excludes pincer (29, control) + kamikaze (0, self-destruct) as 1v1-weak-BY-DESIGN utility/3v3 weapons. Re-run after any future weapon/perk change.
-- ▶ **NEXT (for the continuing window):** P4 minibots (+ wire the MINIBOT perk) → P7 combat cheats (move-or-die, megabots, airstrike, walker, anime sword, unlimited resources, arena traps) → P3 arena hazards + MAP-SELECT screen → P9 game modes (KOTH/CTF/push-ball/domination/sumo/VIP). Polish follow-ups: egg full-paint + achievement screen; pincer/kamikaze 3v3 feel.
-- **State: 19 commits this session (v5.1.99→115 + balance), all green on `dev`. P1 weapons · P2 perks · P5 synergy · P6 eggs · balance = DONE.**
+- ✅ **P4 MINIBOTS (v5.1.117):** the MINIBOT perk now deploys ONE small harasser per bot — `bb2.minis` (spawned in `startP2BB` via `bbMiniSpawn`, ticked by `bbMiniUpdate` in `updateBB`, drawn in `drawBB`). It chases the nearest opponent MAIN and only **shoves + briefly pins** it (`BB_W.miniKnock`/`miniPinT`) — **no HP damage, not a weapon** — and **retires when its deployer is KO'd**. `minibot` added to the CPU perk-roll pool so harassers appear in CPU play. 209 tests green. (Balance unaffected — perk, no weapon-stat change; sim still "WITHIN 34–66% BAND ✓".)
+- ▶ **NEXT (for the continuing window):** rest of P7 combat cheats (megabots, airstrike, walker/shufflebot, anime sword, unlimited resources, arena traps — move-or-die already shipped @116) → P3 arena hazards + MAP-SELECT screen → P9 game modes (KOTH/CTF/push-ball/domination/sumo/VIP). Polish follow-ups: egg full-paint + achievement screen; pincer/kamikaze 3v3 feel; minibot tuning + an actual repurposed-support-bot brain if it feels too rigid.
+- **State: 20 commits this session (v5.1.99→117 + balance), all green on `dev`. P1 weapons · P2 perks · P4 minibots · P5 synergy · P6 eggs · balance = DONE.**
 - **Reminders for whoever continues:** new weapon = BB_WEAPONS + BB_ARMORY_W entry + behavior (bbWeaponFire / contact loop) + brain fire (bbCpuUpdate) + render (bbDrawWeapon) + a smoke57 test + add to bbbalance.js WEAPONS. After git mv to the new version, you must Read the renamed file before Edit. Ritual: edit → git mv vN→vN+1 → sed extract.sh + MIGRATION → ./extract.sh && ./battery.sh (ALL GREEN) → commit "Release vN+1: …" → push dev.
 
 ## Morning deliverable

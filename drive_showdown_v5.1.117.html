@@ -3967,7 +3967,7 @@ function bbCpuPickLoadout(tier){ // P2.6: a CPU with no chosen loadout arms itse
   const ws=['spinner','piston','flame','wedge'],w=ws[Math.floor(Math.random()*ws.length)];let a;
   if((tier|0)>=2)a=(w==='spinner'||w==='wedge')?'hardplate':(w==='flame')?'heatshield':'balanced';
   else{const as=['hardplate','heatshield','light','balanced'];a=as[Math.floor(Math.random()*as.length)];}
-  const pk=['none','none','partinggift','flameproof'];return {weapon:w,armor:a,perk:pk[Math.floor(Math.random()*pk.length)]}; // v5.1.112: CPUs roll a perk too (so perks appear in play)
+  const pk=['none','none','partinggift','flameproof','minibot'];return {weapon:w,armor:a,perk:pk[Math.floor(Math.random()*pk.length)]}; // v5.1.112: CPUs roll a perk too (so perks appear in play); v5.1.117: minibot in the pool so harassers appear in CPU play
 }
 function bbSeatLoadRects(c){const y=c.y+122;return{wL:{x:c.x+138,y:y,w:20,h:20},wR:{x:c.x+250,y:y,w:20,h:20},aL:{x:c.x+330,y:y,w:20,h:20},aR:{x:c.x+474,y:y,w:20,h:20}};}
 function bbDrawSeatLoadout(i,c){const s=m2.tseats&&m2.tseats[i];if(!s)return;const ld=bbSeatLoadout(i),w=bbWeaponById(ld.weapon),a=bbArmorById(ld.armor),lr=bbSeatLoadRects(c);
@@ -4048,6 +4048,7 @@ function startP2BB(){cheatedRun=false;paused=false;
       ctl.brain=(r.type==='cpu')?{inp:{vx:0,vy:0,vr:0}}:null;
       const _ldSrc=bbLoadoutForBind(r.bind);const ld=bbResolveLoadout((r.type==='cpu'&&!_ldSrc)?bbCpuPickLoadout(r.tier|0):_ldSrc); // P2.1 loadout stats; P2.6: a CPU with no chosen loadout auto-arms (tier-scaled)
       return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:BB.HP,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
+  bb2.minis=bbMiniSpawn(); // v5.1.117 P4: deploy a harasser for each bot carrying the MINIBOT perk
   cpuH2H=null;
 }
 // RoboRumble RAM/DASH is always available (no RAMMING cheat needed) — LT (gamepad) / Shift (keyboard). Human-only in P1.
@@ -4104,7 +4105,7 @@ const BB_W={
   flameRangeK:6.4, flameArc:Math.PI*0.26, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, // FLAMETHROWER (v5.1.100): ~2× REACH + a NARROWER focused jet (per playtest), heat-up dwell, dps (re-tuned via the sim), heat cap (no fuel gauge), MOVE-mult while torching (plant-to-burn — the balance counter to the ARCADE turret kite; fuel parked)
   wedgeDmg:0.40, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:85, grabDmg:18, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.5, pincerGrabDur:1.8, pincerDrain:55, // WEDGE/DOZER: contact-dmg, grab arc, pinned speed mult, pin/grab DURATION, shove + v5.1.103 GRAB-AND-SLAM (grip seconds, cooldown, base wall-slam dmg ×speed), dozerCharge = forward boost while firing RT, dashBuff = RoboRumble LT-dash speed/range buff
   blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:4.6, kamiDmg:170, partingRK:3.8, partingDmg:95, // P2.3 FLAME blow-up; v5.1.111 KAMIKAZE self-destruct blast radius (×RR) + peak damage (falls off to 0.4× at the edge)
-  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary
+  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary; v5.1.117 P4 MINIBOT harasser (radius×RR, speed×SPD, shove px, pin-slow seconds)
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
   const id=(typeof p2cDriveDef!=='undefined')?p2cDriveDef(bind).id:'tank';
@@ -4241,6 +4242,39 @@ function bbGrabUpdate(dt){ // v5.1.103 DOZER grab-and-slam: a gripped foe is STU
     if(a.grabT<=0)bbGrabRelease(a); // grip expired
   }
 }
+// ── v5.1.117 P4 MINIBOTS: a bot carrying the MINIBOT perk deploys ONE small harasser — repurposed alliance support bot. ──
+// It chases the nearest opponent MAIN and only SHOVES + briefly PINS (slows) it — no HP damage, NOT a weapon. Retires when its deployer is KO'd.
+function bbMiniRR(){return RR*BB_W.miniRR;}
+function bbMiniSpawn(){ // one harasser per MINIBOT-perk bot, spawned just behind its deployer
+  const out=[];if(!bb2||!bb2.bots)return out;
+  for(const b of bb2.bots){if(bbPerkOf(b)!=='minibot')continue;
+    const a=b.h+Math.PI;out.push({x:b.x+Math.cos(a)*(RR+12),y:b.y+Math.sin(a)*(RR+12),h:b.h,side:b.side,owner:b,col:b.col,dead:false});}
+  return out;
+}
+function bbMiniUpdate(dt){ // harassers: chase nearest opponent main, shove + pin it (no HP); separate from bodies; retire with their deployer
+  if(!bb2||!bb2.minis||!bb2.minis.length)return;
+  const mrr=bbMiniRR();
+  for(const m of bb2.minis){
+    if(m.dead)continue;
+    if(!m.owner||m.owner.dead){m.dead=true;continue;}
+    let foe=null,bd=1e9;for(const f of bb2.bots){if(f.dead||f.side===m.side)continue;const d=Math.hypot(f.x-m.x,f.y-m.y);if(d<bd){bd=d;foe=f;}}
+    if(foe){const dx=foe.x-m.x,dy=foe.y-m.y,d=Math.hypot(dx,dy)||1,spd=SPD*BB_W.miniSpd;m.x+=dx/d*spd*dt;m.y+=dy/d*spd*dt;m.h=Math.atan2(dy,dx);}
+    if(!noClip)obsCheck(m,mrr);
+  }
+  const minD=RR+mrr;
+  for(const m of bb2.minis){if(m.dead)continue;
+    for(const b of bb2.bots){if(b.dead)continue;
+      const dx=b.x-m.x,dy=b.y-m.y,d=Math.hypot(dx,dy)||0.01;
+      if(d<minD){const nx=dx/d,ny=dy/d,ov=minD-d;
+        b.x+=nx*ov*0.7;b.y+=ny*ov*0.7;m.x-=nx*ov*0.3;m.y-=ny*ov*0.3; // the lighter mini yields most of the overlap
+        if(b.side!==m.side){b.x+=nx*BB_W.miniKnock;b.y+=ny*BB_W.miniKnock;b.pinT=Math.max(b.pinT||0,BB_W.miniPinT);} // HARASS: shove + brief pin-slow, no HP
+        if(!noClip){obsCheck(b,RR);obsCheck(m,mrr);}
+      }
+    }
+  }
+  const M=bb2.minis;for(let i=0;i<M.length;i++)for(let j=i+1;j<M.length;j++){const a=M[i],c=M[j];if(a.dead||c.dead)continue; // mini-mini separation (don't stack)
+    const dx=a.x-c.x,dy=a.y-c.y,d=Math.hypot(dx,dy)||0.01;if(d<mrr*2){const nx=dx/d,ny=dy/d,ov=mrr*2-d;a.x+=nx*ov*0.5;a.y+=ny*ov*0.5;c.x-=nx*ov*0.5;c.y-=ny*ov*0.5;}}
+}
 function updateBB(dt){
   if(!bb2)return;
   if(bb2.cd>0){const _p=Math.ceil(bb2.cd);bb2.cd-=dt;if(bb2.cd<=0)sfx('go');else if(Math.ceil(bb2.cd)<_p)sfx('count');return;}
@@ -4302,6 +4336,7 @@ function updateBB(dt){
     }
   }
   bbWeaponFire(dt); // PISTON strikes + FLAMETHROWER heat-up/burn (range-based)
+  bbMiniUpdate(dt); // v5.1.117 P4: deployed harasser minibots chase + shove/pin opponents
   // STALEMATE COUNT-OUT: only when NOTHING is happening — an immobilized bot taps out ONLY if its side has no mobile
   // opponent left to finish it (a true both-stuck standoff). If a foe can still move, let the player earn the kill.
   {const sideMobile=[false,false];for(const b of bb2.bots)if(!b.dead&&b.mob>0)sideMobile[b.side]=true;
@@ -4387,6 +4422,11 @@ function drawBB(){
     else if(b.pinT>0){ctx.fillStyle='#ffd740';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('⊗ PINNED',FX+b.x,FY+b.y+RR+20);}
     ctx.globalAlpha=1;
   }
+  // v5.1.117 P4: harasser minibots — small chassis, side-colored ring + heading wedge
+  for(const m of (bb2.minis||[])){if(m.dead)continue;const mrr=bbMiniRR();ctx.save();ctx.translate(FX+m.x,FY+m.y);ctx.rotate(m.h);
+    ctx.fillStyle='#14141e';ctx.strokeStyle=m.col;ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,mrr,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.fillStyle=m.col;ctx.beginPath();ctx.moveTo(mrr,0);ctx.lineTo(mrr*0.1,mrr*0.55);ctx.lineTo(mrr*0.1,-mrr*0.55);ctx.closePath();ctx.fill();
+    ctx.restore();}
   // explosions + KO debris (mutual-destruction blasts / chassis scatter)
   for(const bl of (bb2.blasts||[])){const k=1-bl.t/0.42,r=8+(bl.r-8)*k;ctx.globalAlpha=Math.max(0,bl.t/0.42);
     ctx.fillStyle='#ff5a1e33';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.fill();
