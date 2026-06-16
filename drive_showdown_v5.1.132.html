@@ -4025,6 +4025,13 @@ function bbCheckResult(lastKiller){ // last SIDE standing wins (KO); nobody left
     if(vd[0]){bb2.result=1;sfx('win');return;}
     if(vd[1]){bb2.result=0;sfx('win');return;}
   }
+  if(bbMode()==='stock'){ // v5.1.132 STOCK: a side is out only when it has NO bot alive AND no lives left to respawn
+    const inPlay=[false,false];for(const b of bb2.bots)if(!b.dead||b.lives>0)inPlay[b.side]=true;
+    if(!inPlay[0]&&!inPlay[1]){bb2.result='draw';sfx('win');}
+    else if(!inPlay[0]){bb2.result=1;sfx('win');}
+    else if(!inPlay[1]){bb2.result=0;sfx('win');}
+    return; // no last-standing shortcut while a side can still respawn
+  }
   const s=new Set();for(const b of bb2.bots)if(!b.dead)s.add(b.side);
   if(s.size===0){bb2.result='draw';sfx('win');return;}
   if(s.size===1){bb2.result=[...s][0];sfx('win');}
@@ -4072,7 +4079,8 @@ function startP2BB(){cheatedRun=false;paused=false;
       ctl.brain=(r.type==='cpu')?{inp:{vx:0,vy:0,vr:0}}:null;
       const _ldSrc=bbLoadoutForBind(r.bind);const ld=bbResolveLoadout((r.type==='cpu'&&!_ldSrc)?bbCpuPickLoadout(r.tier|0):_ldSrc); // P2.1 loadout stats; P2.6: a CPU with no chosen loadout auto-arms (tier-scaled)
       const _mhp=BB.HP*(megaBots?BB_W.megaHp:1); // v5.1.118 MEGABOTS: a giant HP pool (mhp = this bot's max, used by the HP bar)
-      return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:_mhp,mhp:_mhp,mega:!!megaBots,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
+      const _stock=(m2.set&&m2.set.bbmode==='stock')?BB_STOCK_LIVES:0; // v5.1.132 STOCK: extra lives (respawns)
+      return{x:sp.x,y:sp.y,h:sp.h,_sx:sp.x,_sy:sp.y,_sh:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:_mhp,mhp:_mhp,mega:!!megaBots,lives:_stock,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
   bb2.minis=bbMiniSpawn(); // v5.1.117 P4: deploy a harasser for each bot carrying the MINIBOT perk
   for(let _s=0;_s<2;_s++){const _v=bb2.bots.find(b=>b.side===_s);if(_v)_v.vip=true;} // v5.1.123 P9 VIP: the first bot per side is that side's VIP (used only in VIP mode)
   cpuH2H=null;
@@ -4319,8 +4327,10 @@ const BB_MODES=[
   {id:'vip',       name:'VIP — kill the enemy VIP'},
   {id:'ctf',       name:'CTF — capture the flag'},
   {id:'pushball',  name:'PUSH-BALL — shove the ball into their goal'},
+  {id:'stock',     name:'STOCK — limited lives, last alive wins'},
 ];
 const BB_PB_R=24, BB_PB_FRIC=0.94, BB_PB_PUSH=120, BB_PB_GOALH=220, BB_PB_GOALD=34, BB_PB_TARGET=3; // PUSH-BALL: ball radius, per-frame friction, push impulse, goal-mouth height, goal depth from each end wall, goals to win
+const BB_STOCK_LIVES=2, BB_STOCK_DELAY=1.2; // STOCK: extra lives per bot + respawn delay (seconds)
 const BB_RING=290; // SUMO ring radius (px from arena center)
 const BB_DOM_R=150, BB_DOM_TARGET=12; // DOMINATION control-zone radius + seconds of uncontested hold to win
 const BB_KOTH_R=130, BB_KOTH_TARGET=14, BB_KOTH_HOLD=8, BB_KOTH_GAP=1.6; // KOTH hill radius + seconds of majority-hold to win + how long a hill STAYS before despawning + the gap before the next one appears elsewhere
@@ -4335,6 +4345,7 @@ function bbModeHint(){const ctrl=' · LT/Shift = DASH · SPACE/RT = WEAPON';swit
   case'vip':return'VIP ♛ — destroy the enemy VIP to win (protect yours!)'+ctrl;
   case'ctf':return'CTF ⚑ — grab the enemy flag, bring it home (your flag must be home)'+ctrl;
   case'pushball':return'PUSH-BALL ⚽ — shove the ball into the ENEMY goal'+ctrl;
+  case'stock':return'STOCK ♥ — limited lives; respawn until they run out — last side alive wins'+ctrl;
   default:return'ROBORUMBLE — keep your FRONT to them · ram their REAR (HP) or SIDE (wheels)'+ctrl;}}
 function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing here (bbKill→bbCheckResult covers it)
   if(!bb2||bb2.result!==null)return;
@@ -4375,6 +4386,12 @@ function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing he
     if(Math.abs(pb.y-cy)<BB_PB_GOALH/2&&(pb.x<BB_PB_GOALD||pb.x>FW-BB_PB_GOALD)){const scorer=pb.x<BB_PB_GOALD?1:0;bb2.pscore[scorer]++;sfx('win');pb.x=cx;pb.y=cy;pb.vx=0;pb.vy=0;for(let s=0;s<2;s++)if(bb2.pscore[s]>=BB_PB_TARGET){bb2.result=s;break;}} // GOAL → reset to center
     if(pb.x<BB_PB_R){pb.x=BB_PB_R;pb.vx=Math.abs(pb.vx)*0.5;}else if(pb.x>FW-BB_PB_R){pb.x=FW-BB_PB_R;pb.vx=-Math.abs(pb.vx)*0.5;} // wall bounce (after the goal check)
     if(pb.y<BB_PB_R){pb.y=BB_PB_R;pb.vy=Math.abs(pb.vy)*0.5;}else if(pb.y>FH-BB_PB_R){pb.y=FH-BB_PB_R;pb.vy=-Math.abs(pb.vy)*0.5;}
+  }else if(mode==='stock'){ // STOCK: a KO'd bot RESPAWNS (after a short delay) until its lives run out; bbCheckResult ends it only when a side has no bots + no lives
+    for(const b of bb2.bots){if(b.dead&&b.lives>0){
+      if(b.respawnT==null)b.respawnT=BB_STOCK_DELAY;
+      b.respawnT-=dt;
+      if(b.respawnT<=0){b.lives--;b.dead=false;b.respawnT=null;b.hp=b.mhp||BB.HP;b.mob=(b.ld&&b.ld.mobMax)||BB.MOB;b.inv=1.2;b.spin=0;b.pinT=0;b.outT=0;b.burn=0;b.grab=null;b.held=null;b.wheels=[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false}));if(b._sx!=null){b.x=b._sx;b.y=b._sy;b.h=b._sh;}} // fresh chassis back at its spawn
+    }}
   }
 }
 // ── v5.1.120 P3 ARENA HAZARDS: per-map damage zones — a saw blade's position is a PURE fn of bb2.t (deterministic). RoboRumble-only (only updateBB calls this). ──
@@ -4613,8 +4630,9 @@ function drawBB(){
   ctx.globalAlpha=1;
   {const row=[0,0];for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];const left=b.side===0,x=left?10:CW-194,r=row[b.side]++,y=16+r*42;
     ctx.textAlign='left';ctx.font='bold 11px Courier New';ctx.fillStyle=b.col;
-    const st=b.dead?' ✕KO':((b.outT||0)>0?(' ⚠'+Math.max(1,Math.ceil(BB.countOut-b.outT))):(b.mob<=0?' ⚠STUCK':(b.pinT>0?' ⊗PIN':'')));
-    ctx.fillText((b.ctl.type==='cpu'?b.ctl.name:p2Name(b.ctl.bind))+st,x,y);
+    const stockTag=(bbMode()==='stock')?((b.dead&&b.lives>0)?' ↻'+Math.max(0,Math.ceil(b.respawnT||0)):' ♥'+(b.lives|0)):''; // STOCK: respawn timer or remaining lives
+    const st=(b.dead&&!(bbMode()==='stock'&&b.lives>0))?' ✕KO':((b.outT||0)>0?(' ⚠'+Math.max(1,Math.ceil(BB.countOut-b.outT))):(b.mob<=0?' ⚠STUCK':(b.pinT>0?' ⊗PIN':'')));
+    ctx.fillText((b.ctl.type==='cpu'?b.ctl.name:p2Name(b.ctl.bind))+st+stockTag,x,y);
     bbBar(x,y+5,184,7,b.mob/BB.MOB,'#ffd740');bbBar(x,y+15,184,7,b.hp/(b.mhp||BB.HP),'#ff5555');
     if(b.ld&&(b.ld.weapon==='spinner'||b.ld.weapon==='buzzsaw'))bbBar(x,y+24,184,4,(b.spin||0),'#9fd8ff');         // SPIN-up gauge (RPM) — spinner + buzzsaw
   }}

@@ -597,6 +597,22 @@ src+=`
    ok('PUSH-BALL: ball in the LEFT goal scores for side 1 + resets to center',bb2.pscore[1]===1&&Math.abs(bb2.pball.x-FW/2)<1);
    bb2.bots=[];bb2.pball={x:20,y:FH/2,vx:0,vy:0};bb2.pscore=[0,BB_PB_TARGET-1];bb2.result=null;bbModeUpdate(0.05);
    ok('PUSH-BALL: reaching the goal target wins',bb2.result===1);
+   // STOCK (limited lives + respawn)
+   ok('GAME MODE includes STOCK',BB_MODES.some(m=>m.id==='stock'));
+   m2.set.bbmode='stock';
+   const sb=bbBotWith('none','balanced',0,0,true);sb.lives=2;sb.dead=true;sb.hp=0;sb.respawnT=null;sb.mhp=BB.HP;sb._sx=70;sb._sy=FH/2;sb._sh=0;
+   bb2.bots=[sb];bb2.result=null;bbModeUpdate(0.05);
+   ok('STOCK: a downed bot with lives starts a respawn timer',sb.dead===true&&sb.respawnT>0);
+   bbModeUpdate(BB_STOCK_DELAY);
+   ok('STOCK: it respawns — alive, HP restored, a life spent',sb.dead===false&&sb.hp===BB.HP&&sb.lives===1);
+   const sa=bbBotWith('none','balanced',0,0,true);sa.dead=false;sa.lives=1;const se=bbBotWith('none','balanced',1,1,true);se.dead=true;se.lives=0;
+   bb2.bots=[sa,se];bb2.result=null;bbCheckResult(0);
+   ok('STOCK: a side with no living bots AND no lives loses',bb2.result===0);
+   const sa2=bbBotWith('none','balanced',0,0,true);sa2.dead=false;const se2=bbBotWith('none','balanced',1,1,true);se2.dead=true;se2.lives=1;
+   bb2.bots=[sa2,se2];bb2.result=null;bbCheckResult(0);
+   ok('STOCK: no premature win while a foe can still respawn',bb2.result===null);
+   m2.set.bbmode='stock';startBB(0,2);
+   ok('STOCK: bots spawn with lives',bb2.bots.every(b=>b.lives===BB_STOCK_LIVES));
    // VIP (assassinate the enemy VIP)
    ok('GAME MODE includes VIP',BB_MODES.some(m=>m.id==='vip'));
    m2.set.bbmode='vip';
