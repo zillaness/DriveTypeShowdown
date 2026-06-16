@@ -146,7 +146,7 @@ src+=`
    const c=bbBotWith('none','balanced',1,1,true),free=bbBotWith('none','balanced',1,2,true);c.pinT=0.25;free.pinT=0;
    ok('a WEDGE-pinned bot drives slower than a free one',bbSpeed(c)<bbSpeed(free));}
   // ── v5.1.95 COMBAT OVERHAUL: HP↑, piston front-pierce, spinner bleed/wall-self-dmg, flame fuel+range, count-out, forward dash ──
-  ok('bots have a lot more HP (250)',BB.HP===250);
+  ok('bots have a lot more HP (longer matches, v5.1.104: 360)',BB.HP===360&&BB.HP>250);
   {const v=bbBotWith('none','balanced',1,1,true);v.hp=BB.HP;v.inv=0;v.ld.take=1;v.ld.zone={front:1,side:1,rear:1};v.ld.arps='balanced';
    bb2.bots=[bbBotWith('piston','balanced',0,0,true),v];const hp0=v.hp;
    bbApplyHit(v,'front',40,0,v.x+10,v.y);ok('a plain FRONT hit is still immune (RAM shrugged off)',v.hp===hp0);
@@ -229,7 +229,7 @@ src+=`
    ok('drawBB renders dead-wheel marks without throwing',!dThrew);}
   // ── v5.1.79 P2.5: weapon/armor PICKER (grid tap-cyclers) + stat readout + round-trip to the spawned bot ──
   {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridSetCpu(0);
-   const ld=bbSeatLoadout(0);ok('a BB seat lazily gets a default loadout',ld.weapon==='none'&&ld.armor==='balanced');
+   const ld=bbSeatLoadout(0);ok('a BB seat lazily defaults to the DOZER blade (RAM-only no longer a default)',ld.weapon==='wedge'&&ld.armor==='balanced');
    bbCycleField(ld,'weapon',1);ok('cycling WEAPON from neutral advances to the first PICKABLE (spinner, not RAM)',ld.weapon===BB_WEAPONS[1].id);
    bbCycleField(ld,'weapon',-1);ok('v5.1.103: the cycler NEVER lands on RAM-ONLY/none — wraps among real weapons (→ last)',ld.weapon!=='none'&&ld.weapon===BB_WEAPONS[BB_WEAPONS.length-1].id);
    bbCycleField(ld,'armor',-1);ok('cycling ARMOR backward wraps to the last',ld.armor===BB_ARMOR[BB_ARMOR.length-1].id);
@@ -365,6 +365,14 @@ src+=`
    const c2=bbBotWith('spinner','balanced',1,1,true);bb2.bots=[a2,c2];a2.grab=c2;c2.held=a2;a2.grabT=0.02;
    bbGrabUpdate(0.03);ok('DOZER grip RELEASES when the grab timer expires (open space, no wall)',!a2.grab&&!c2.held);
    ok('a GRABBED foe is glued to the dozer blade front (chassis-forward)',(()=>{const a3=bbBotWith('wedge','balanced',0,0,true);a3.x=200;a3.y=200;a3.h=0;const c3=bbBotWith('spinner','balanced',1,1,true);bb2.bots=[a3,c3];a3.grab=c3;c3.held=a3;a3.grabT=1;bbGrabUpdate(1/60);return Math.abs(c3.x-(a3.x+RR*2))<1&&Math.abs(c3.y-a3.y)<1;})());}
+  // ── v5.1.104: FLAME line-of-sight — an obstacle between the flamer and the foe BLOCKS the burn (no flaming through walls) ──
+  {const fa=bbBotWith('flame','balanced',0,0,true);fa.x=100;fa.y=100;fa.h=0;fa.ctl.brain.fire=true;fa.heat={};
+   const fc=bbBotWith('none','balanced',1,1,true);fc.x=100+RR*3;fc.y=100;fc.hp=BB.HP;bb2.bots=[fa,fc];bb2.result=null;
+   const savedObs=tfObs;tfObs=[{x:100+RR*1.2,y:70,w:14,h:60}]; // a wall straddling the line between them
+   for(let i=0;i<60;i++){fa.firing=true;bbWeaponPre(1/60);bbWeaponFire(1/60);}
+   ok('FLAME LOS: an obstacle between the flamer and the foe BLOCKS the burn',fc.hp===BB.HP);
+   tfObs=null;fc.hp=BB.HP;fa.heat={};for(let i=0;i<60;i++){fa.firing=true;bbWeaponPre(1/60);bbWeaponFire(1/60);}
+   ok('FLAME with a CLEAR line still burns through',fc.hp<BB.HP);tfObs=savedObs;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
