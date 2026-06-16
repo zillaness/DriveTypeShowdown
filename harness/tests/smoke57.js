@@ -540,6 +540,17 @@ src+=`
    const foe2=bbBotWith('none','balanced',1,1,true);foe2.x=FW/2-50;foe2.y=FH/2;foe2.hp=BB.HP;
    bb2.bots=[safe2,foe2];bb2.result=null;bbModeUpdate(1/60);
    ok('SUMO: bots inside the ring are safe (no premature result)',safe2.dead===false&&foe2.dead===false&&bb2.result===null);
+   // DOMINATION (KOTH hold-point)
+   ok('GAME MODE includes DOMINATION',BB_MODES.some(m=>m.id==='domination'));
+   m2.set.bbmode='domination';
+   const dz=bbBotWith('none','balanced',0,0,true);dz.x=FW/2;dz.y=FH/2;
+   bb2.bots=[dz];bb2.result=null;bb2.dom=null;bb2.map=TF2_MAPS[0];bbModeUpdate(1.0);
+   ok('DOMINATION: holding the zone ALONE banks time',bb2.dom[0]>0&&bb2.dom[1]===0);
+   const da=bbBotWith('none','balanced',0,0,true);da.x=FW/2;da.y=FH/2;const db=bbBotWith('none','balanced',1,1,true);db.x=FW/2;db.y=FH/2;
+   bb2.bots=[da,db];bb2.dom=[0,0];bb2.result=null;bbModeUpdate(1.0);
+   ok('DOMINATION: a CONTESTED zone banks nothing',bb2.dom[0]===0&&bb2.dom[1]===0);
+   bb2.bots=[dz];bb2.dom=[BB_DOM_TARGET-0.01,0];bb2.result=null;bbModeUpdate(0.5);
+   ok('DOMINATION: reaching the target WINS the round',bb2.result===0);
    m2.set.bbmode=svmode;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();

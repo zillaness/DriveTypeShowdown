@@ -4295,16 +4295,23 @@ function bbMiniUpdate(dt){ // harassers: chase nearest opponent main, shove + pi
 }
 // ── v5.1.121 P9 GAME MODES: alternate RoboRumble win conditions (KO is the default, resolved by bbCheckResult). ──
 const BB_MODES=[
-  {id:'ko',  name:'KO — last bot standing'},
-  {id:'sumo',name:'SUMO — ring-out wins'},
+  {id:'ko',        name:'KO — last bot standing'},
+  {id:'sumo',      name:'SUMO — ring-out wins'},
+  {id:'domination',name:'DOMINATION — hold the zone'},
 ];
 const BB_RING=290; // SUMO ring radius (px from arena center)
+const BB_DOM_R=150, BB_DOM_TARGET=12; // DOMINATION control-zone radius + seconds of uncontested hold to win
 function bbMode(){return (m2.set&&m2.set.bbmode)||'ko';}
 function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing here (bbKill→bbCheckResult covers it)
   if(!bb2||bb2.result!==null)return;
-  const mode=bbMode();
-  if(mode==='sumo'){const cx=FW/2,cy=FH/2; // SUMO: a bot shoved outside the ring is rung out (eliminated). Winner falls out of bbCheckResult (last side standing).
+  const mode=bbMode(),cx=FW/2,cy=FH/2;
+  if(mode==='sumo'){ // SUMO: a bot shoved outside the ring is rung out (eliminated). Winner falls out of bbCheckResult (last side standing).
     for(const b of bb2.bots){if(b.dead)continue;if(Math.hypot(b.x-cx,b.y-cy)>BB_RING){b._rungOut=true;bbKill(b,null);}}
+  }else if(mode==='domination'){ // DOMINATION: hold the center zone UNCONTESTED to bank time; first side to BB_DOM_TARGET wins
+    if(!bb2.dom)bb2.dom=[0,0];const c=[0,0];
+    for(const b of bb2.bots){if(b.dead)continue;if(Math.hypot(b.x-cx,b.y-cy)<=BB_DOM_R)c[b.side]++;}
+    if(c[0]>0&&c[1]===0)bb2.dom[0]+=dt;else if(c[1]>0&&c[0]===0)bb2.dom[1]+=dt; // contested (both present) or empty = no progress
+    for(let s=0;s<2;s++)if(bb2.dom[s]>=BB_DOM_TARGET){bb2.result=s;sfx('win');break;}
   }
 }
 // ── v5.1.120 P3 ARENA HAZARDS: per-map damage zones — a saw blade's position is a PURE fn of bb2.t (deterministic). RoboRumble-only (only updateBB calls this). ──
@@ -4496,6 +4503,7 @@ function drawBB(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
   drawTFField();drawTFObstacles();drawBBHazards();
   if(bbMode()==='sumo'){ctx.save();ctx.strokeStyle='rgba(255,215,64,0.55)';ctx.lineWidth=4;ctx.setLineDash([14,10]);ctx.beginPath();ctx.arc(FX+FW/2,FY+FH/2,BB_RING,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();} // v5.1.121 P9 SUMO ring
+  if(bbMode()==='domination'){ctx.save();ctx.strokeStyle='rgba(105,240,174,0.6)';ctx.fillStyle='rgba(105,240,174,0.08)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+FW/2,FY+FH/2,BB_DOM_R,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();const d=bb2.dom||[0,0];for(let s=0;s<2;s++){const w=120,x=s===0?CW/2-w-8:CW/2+8;bbBar(x,46,w,8,clamp(d[s]/BB_DOM_TARGET,0,1),M2_COLS[s]);}} // v5.1.122 P9 DOMINATION zone + hold meters
   for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
     const blink=b.inv>0&&Math.floor(b.inv*12)%2===0;ctx.globalAlpha=blink?0.45:1;
     _noScoop=true;withBot(b.ctl.bind,b,()=>{drawRobot();});_noScoop=false; // RoboRumble: a weapon replaces the ball plow
