@@ -473,6 +473,22 @@ src+=`
    // retires when its deployer is KO'd
    own.dead=true;bb2.bots=[];bb2.minis=[{x:0,y:0,h:0,side:0,owner:own,col:'#fff',dead:false}];bbMiniUpdate(1/60);
    ok('minibot RETIRES when its deployer is gone',bb2.minis[0].dead===true);}
+  // ── v5.1.118: P7 combat cheats — UNLIMITED RESOURCES (no cooldowns) + MEGABOTS (giant HP + crushing ram) ──
+  {ok('UNLIMITED RESRC is a cheat',CHEATS.some(c=>c.name==='UNLIMITED RESRC'));
+   ok('MEGABOTS is a cheat',CHEATS.some(c=>c.name==='MEGABOTS'));
+   const sv1=bbUnlimited;bbUnlimited=true;
+   const pz=bbBotWith('piston','balanced',0,0,true);pz.pistCd=BB_W.pistCd;pz.grabCd=1;
+   const sp=bbBotWith('spinner','balanced',1,1,true);sp.spin=0;
+   bb2.bots=[pz,sp];bb2.result=null;bbWeaponPre(1/60);
+   ok('UNLIMITED RESOURCES zeroes weapon cooldowns',pz.pistCd===0&&pz.grabCd===0);
+   ok('UNLIMITED RESOURCES keeps the disc fully spun-up',sp.spin===1);
+   bbUnlimited=sv1;
+   const mega=bbBotWith('none','balanced',0,0,true);mega.mega=true;const norm=bbBotWith('none','balanced',0,0,true);
+   ok('MEGABOTS deal MORE ram damage',bbContactDmg(mega,20)>bbContactDmg(norm,20)&&Math.abs(bbContactDmg(mega,20)-20*BB_W.megaDmg)<1e-6);
+   ok('MEGABOTS HP multiplier is >1',BB_W.megaHp>1);
+   const svm=megaBots;megaBots=true;startBB(0,2);
+   ok('MEGABOTS spawn with a giant HP pool (hp + mhp scaled)',bb2.bots.every(b=>b.hp===BB.HP*BB_W.megaHp&&b.mhp>BB.HP&&b.mega===true));
+   megaBots=svm;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

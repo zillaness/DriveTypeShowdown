@@ -294,11 +294,12 @@ function applyKonamiSlider(i,mx){ // set CHEATS[i]'s slider value from a canvas 
 // konami cheat menu: toggleable fun modes (replaces the old auto-disc flip). arcadeMode adds the LT boost-tackle in 2P H2H ball+tank.
 let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0,moveOrDie=false; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides; v5.1.116 moveOrDie = RoboRumble anti-camp cheat
 let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,ballScale=1,robotScale=1,ballPups=false,ramCdMult=1; // more cheats (ramCdMult scales the RAM dash cooldown; SENS_MAX cheat lives by the sensitivity consts)
+let bbUnlimited=false,megaBots=false; // v5.1.118 P7 RoboRumble combat cheats: UNLIMITED RESOURCES (no weapon cooldowns) + MEGABOTS (giant HP + crushing ram)
 let iceSlip=1; // ICE SKATING slider: 1 = OFF (no ice), >1 = ice on, higher = more slip. Drives iceMode (=slip>1) + MOM.ice.fri = 0.4/iceSlip.
 let capCpuSpeed=false; // CAP CPU SPEED cheat: with MAX SENSITIVITY cranked, true = CPUs stay at base speed (only you go fast); false = CPUs keep pace (chaos). Ball/shooter only — tank/race CPUs never inherit sensitivity.
 let cheatedRun=false;paused=false; // set true while any cheat is active during a run/match; gates records + high scores
 const B2_BALL_CAP=72; // hard cap on balls in play (shared by EXTRA BALLS + MULTIBALL)
-function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1||moveOrDie;}
+function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1||moveOrDie||bbUnlimited||megaBots;}
 function cheated(){return anyCheat()||cheatedRun;} // a run is "tainted" if a cheat is on now OR was on at any point this run
 function cpuPaceSens(p){ // every ball/shooter CPU (both sides, all tiers) keeps pace with the FASTEST HUMAN = max sens in the match.
   // (v5.1.98: was m2.sens[1-p] — a 2-player index that broke in 3v3, so only some bots inherited the boost: allies fast, enemies slow.)
@@ -313,6 +314,8 @@ const CHEATS=[
   {name:'DISC🥏 MODE',  desc:'[SP+2P] Shooter shots fly forever as discs — ricochet off the walls instead of dying',   get:()=>frisbeeMode, tog:()=>{frisbeeMode=!frisbeeMode;}},
   {name:'BOUNCY BALLS',   desc:'[SP+2P] Low-friction pinball chaos — balls barely slow, shots ricochet',        get:()=>bouncyMode,  tog:()=>{bouncyMode=!bouncyMode;}},
   {name:'MOVE OR DIE',    desc:'[ROBORUMBLE] keep moving or you lose health — no camping',                     get:()=>moveOrDie,   tog:()=>{moveOrDie=!moveOrDie;}}, // v5.1.116 P7 combat cheat
+  {name:'UNLIMITED RESRC', desc:'[ROBORUMBLE] no weapon cooldowns — full-auto hammer/flipper, always-spun disc, instant grab', get:()=>bbUnlimited, tog:()=>{bbUnlimited=!bbUnlimited;}}, // v5.1.118 P7
+  {name:'MEGABOTS',       desc:'[ROBORUMBLE] giant HP pools + crushing ram damage — epic heavyweight slugfests (pair with ROBOT SIZE)', get:()=>megaBots, tog:()=>{megaBots=!megaBots;}}, // v5.1.118 P7
   {name:'MACHINE GUN',    desc:'[2P] Full-auto fire — OFF / YOU only / BOTH sides (tank AND shooter)',          get:()=>machineGun,  tog:()=>{machineGun=(machineGun+1)%3;}, show:v=>['OFF','YOU','BOTH'][v]||'OFF'},
   {name:'MULTIBALL',      desc:'[2P] Every goal spawns 2 more balls (ball + shooter, capped at '+B2_BALL_CAP+')', get:()=>multiBall,   tog:()=>{multiBall=!multiBall;}},
   {name:'STICKY PLOW',    desc:'[2P] Your bot gets the CHAMPION sticky plow — carry up to 5 (normal ball)',      get:()=>stickyPlow,  tog:()=>{stickyPlow=!stickyPlow;}},
@@ -331,7 +334,7 @@ function cheatMove(d){cheatIdx=(cheatIdx+d+CHEATS.length)%CHEATS.length;sfx('cli
 function cheatToggle(){const c=CHEATS[cheatIdx];if(c.slider){c.set(c.get()>=c.max?c.min:c.get()+c.step);}else c.tog();sfx('claim');}
 function cheatAdjust(d){const c=CHEATS[cheatIdx];if(c.slider){c.set(clamp(c.get()+d*c.step,c.min,c.max));sfx('click');}else{const nT=CHEATS.filter(z=>!z.slider).length;cheatIdx=(cheatIdx+(d>0?nT:-nT)+CHEATS.length)%CHEATS.length;sfx('click');}} // ◀▶: nudge a slider, else jump to the slider column
 function cheatsAllOff(){ // ⟲ TURN OFF ALL CHEATS button — reset every cheat to its default
-  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;
+  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;moveOrDie=false;bbUnlimited=false;megaBots=false;
   ballMult=1;iceSlip=1;iceMode=false;MOM.ice.fri=0.4;clearMomentum();
   SENS_MAX=SENS_MAX_BASE;ramCdMult=1;ballScale=1;BR=clamp(BR0,4,18);robotScale=1;setRobotScale(1);
   sfx('claim');}
@@ -4047,7 +4050,8 @@ function startP2BB(){cheatedRun=false;paused=false;
       if(gridOn){const _gs=m2.tseats[r.bind];ctl.name=(r.type==='cpu')?((r.side===0?'RED':'BLUE')+' '+(si+1)):((_gs&&_gs.name)||('PLAYER '+(si+1)));} // grid: player name / CPU side+slot
       ctl.brain=(r.type==='cpu')?{inp:{vx:0,vy:0,vr:0}}:null;
       const _ldSrc=bbLoadoutForBind(r.bind);const ld=bbResolveLoadout((r.type==='cpu'&&!_ldSrc)?bbCpuPickLoadout(r.tier|0):_ldSrc); // P2.1 loadout stats; P2.6: a CPU with no chosen loadout auto-arms (tier-scaled)
-      return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:BB.HP,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
+      const _mhp=BB.HP*(megaBots?BB_W.megaHp:1); // v5.1.118 MEGABOTS: a giant HP pool (mhp = this bot's max, used by the HP bar)
+      return{x:sp.x,y:sp.y,h:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:_mhp,mhp:_mhp,mega:!!megaBots,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
   bb2.minis=bbMiniSpawn(); // v5.1.117 P4: deploy a harasser for each bot carrying the MINIBOT perk
   cpuH2H=null;
 }
@@ -4105,7 +4109,7 @@ const BB_W={
   flameRangeK:6.4, flameArc:Math.PI*0.26, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, // FLAMETHROWER (v5.1.100): ~2× REACH + a NARROWER focused jet (per playtest), heat-up dwell, dps (re-tuned via the sim), heat cap (no fuel gauge), MOVE-mult while torching (plant-to-burn — the balance counter to the ARCADE turret kite; fuel parked)
   wedgeDmg:0.40, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:85, grabDmg:18, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.5, pincerGrabDur:1.8, pincerDrain:55, // WEDGE/DOZER: contact-dmg, grab arc, pinned speed mult, pin/grab DURATION, shove + v5.1.103 GRAB-AND-SLAM (grip seconds, cooldown, base wall-slam dmg ×speed), dozerCharge = forward boost while firing RT, dashBuff = RoboRumble LT-dash speed/range buff
   blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:4.6, kamiDmg:170, partingRK:3.8, partingDmg:95, // P2.3 FLAME blow-up; v5.1.111 KAMIKAZE self-destruct blast radius (×RR) + peak damage (falls off to 0.4× at the edge)
-  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary; v5.1.117 P4 MINIBOT harasser (radius×RR, speed×SPD, shove px, pin-slow seconds)
+  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, megaHp:2.6, megaDmg:1.55 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary; v5.1.117 P4 MINIBOT harasser (radius×RR, speed×SPD, shove px, pin-slow seconds)
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
   const id=(typeof p2cDriveDef!=='undefined')?p2cDriveDef(bind).id:'tank';
@@ -4164,10 +4168,10 @@ function bbSpinBite(att,foe){ // v5.1.107 spin-weapon bite gate: SPINNER bites 3
   return 0;
 }
 function bbContactDmg(att,ram){ // contact (ram) damage a weapon deals to the foe it's touching
-  const w=att.ld?att.ld.weapon:'none';
-  if(w==='spinner'&&(att.spin||0)>=BB_W.spinMin)return Math.max(ram,BB_W.spinDmg*att.spin); // spun-up edge bites regardless of closing speed
-  if(w==='wedge')return ram*BB_W.wedgeDmg;                                                  // control, not damage
-  return ram;
+  const w=att.ld?att.ld.weapon:'none',mg=att.mega?BB_W.megaDmg:1; // v5.1.118 MEGABOTS hit harder
+  if(w==='spinner'&&(att.spin||0)>=BB_W.spinMin)return Math.max(ram,BB_W.spinDmg*att.spin)*mg; // spun-up edge bites regardless of closing speed
+  if(w==='wedge')return ram*BB_W.wedgeDmg*mg;                                               // control, not damage
+  return ram*mg;
 }
 function bbApplyFlame(victim,dmg,owner){ // THERMAL: continuous, IGNORES directional armor (burns the FRONT too); feeds the blow-up meter (P2.3)
   if(victim.dead||dmg<=0)return;
@@ -4189,6 +4193,7 @@ function bbWeaponPre(dt){ // per-bot: cache FIRE input, ramp/decay SPINNER, deca
     if(b.pinT>0)b.pinT=Math.max(0,b.pinT-dt);
     if(b._pistFx>0)b._pistFx=Math.max(0,b._pistFx-dt);
     if(b.burn>0)b.burn=Math.max(0,b.burn-dt*BB_W.burnCool); // the blow-up meter cools when you're not being flamed — you must SUSTAIN it
+    if(bbUnlimited){b.pistCd=0;b.grabCd=0;if(w==='spinner'||w==='buzzsaw')b.spin=1;} // v5.1.118 UNLIMITED RESOURCES: weapons never cool down — full-auto strikes, always-spun disc, instant re-grab
   }
 }
 function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + FLAMETHROWER (heat-up, then armor-ignoring burn)
@@ -4438,7 +4443,7 @@ function drawBB(){
     ctx.textAlign='left';ctx.font='bold 11px Courier New';ctx.fillStyle=b.col;
     const st=b.dead?' ✕KO':((b.outT||0)>0?(' ⚠'+Math.max(1,Math.ceil(BB.countOut-b.outT))):(b.mob<=0?' ⚠STUCK':(b.pinT>0?' ⊗PIN':'')));
     ctx.fillText((b.ctl.type==='cpu'?b.ctl.name:p2Name(b.ctl.bind))+st,x,y);
-    bbBar(x,y+5,184,7,b.mob/BB.MOB,'#ffd740');bbBar(x,y+15,184,7,b.hp/BB.HP,'#ff5555');
+    bbBar(x,y+5,184,7,b.mob/BB.MOB,'#ffd740');bbBar(x,y+15,184,7,b.hp/(b.mhp||BB.HP),'#ff5555');
     if(b.ld&&(b.ld.weapon==='spinner'||b.ld.weapon==='buzzsaw'))bbBar(x,y+24,184,4,(b.spin||0),'#9fd8ff');         // SPIN-up gauge (RPM) — spinner + buzzsaw
   }}
   ctx.textAlign='center';ctx.font='bold 13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText(fmt(Math.max(0,bb2.t)),CW/2,20);
