@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: frc_drive_showdown_v5.1.90.html
-  version: 5.1.90
+  file: frc_drive_showdown_v5.1.91.html
+  version: 5.1.91
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-16
@@ -2621,6 +2621,13 @@ function b2Sticky(dt){
     }
   }
 }
+// MOMENTUM-AWARE SHOVE (v5.1.91): split a bot-bot overlap by who's driving into the contact.
+// n points c→a; sa/sc = each bot's drive speed along n toward the other. Returns {wa,wc} (sums to 1, so total separation is preserved):
+// the bot pushing harder yields LESS. Equal push OR both idle → even 50/50 (byte-identical to the old behavior), keeping it mirror-fair.
+function b2ShoveWeights(av,cv,nx,ny){
+  const sa=Math.max(0,-(av.vx*nx+av.vy*ny)),sc=Math.max(0,(cv.vx*nx+cv.vy*ny)),sum=sa+sc;
+  return sum>20?{wa:sc/sum,wc:sa/sum}:{wa:0.5,wc:0.5};
+}
 function updateP2Ball(dt){
   if(!b2)return;
   if(b2.cd>0){const _pc=Math.ceil(b2.cd);b2.cd-=dt;if(b2.cd<=0)sfx('go');else if(Math.ceil(b2.cd)<_pc)sfx('count');return;}
@@ -2650,7 +2657,8 @@ function updateP2Ball(dt){
      if(d<RR*2+2){anyTouch=true;if(a.al!==c.al){touchOpp[i]=true;touchOpp[j]=true;}
        if(!b2.btTouch){const m=p2ImpactMag(a._inp,c._inp);p2Rumble(a.bind,m);p2Rumble(c.bind,m);}}
      if(!noClip&&d<RR*2){const nx=dx/d,ny=dy/d,ov=RR*2-d; // NO-CLIP: main bots phase through each other
-       a.x+=nx*ov*0.5;a.y+=ny*ov*0.5;c.x-=nx*ov*0.5;c.y-=ny*ov*0.5;
+       const {wa,wc}=b2ShoveWeights(a._inp,c._inp,nx,ny); // momentum-aware: the bot driving in holds ground, the other yields
+       a.x+=nx*ov*wa;a.y+=ny*ov*wa;c.x-=nx*ov*wc;c.y-=ny*ov*wc;
        b2Wall(a,RR);b2Wall(c,RR);}
    }
    b2.btTouch=anyTouch;
@@ -2845,6 +2853,15 @@ function achH2HResult(w){ // v3.11 achievements at the H2H match-result edge
   if(b2.sudden)achUnlock('golden');
   if(b2.realGoals&&b2.realGoals[w]===0&&b2.score[w]>0)achUnlock('noscore'); // won purely on opponent own-goals
 }
+// ── v5.1.91 ball 3v3 polish: per-main HUD roster (the scoreboard was alliance-level only) ──
+function b2MainCol(bo){ // match the on-field tag/ring: a distinct same-side shade at >2 mains, else the egg-or-team color (1v1/2v2 classic)
+  if(b2&&b2.bots&&b2.bots.length>2)return teamShade(bo.al,bo.seat||0);
+  const k=eggKind(m2.name&&m2.name[bo.bind]);return k?EGG_COLS[k]:M2_COLS[bo.al];
+}
+function b2HudRoster(al){ // per-main HUD rows for one side: {name,drive,col,mag,bind} (mag = filled magazine count in shooter, else -1)
+  return b2Mains(al).map(bo=>({name:p2Name(bo.bind),drive:(m2.drive[bo.bind]?m2.drive[bo.bind].name:''),
+    col:b2MainCol(bo),mag:m2.mode==='shooter'?Math.min((bo.intk?bo.intk.length:0),4):-1,bind:bo.bind}));
+}
 function drawP2Ball(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
   drawField(b2Mirrored());
@@ -2921,12 +2938,12 @@ function drawP2Ball(){
     ctx.fillText(fmt(rem),CW/2,30);ctx.globalAlpha=1;
   }else{ctx.fillStyle='#444460';ctx.font='bold 14px Courier New';ctx.fillText('—',CW/2,28);}
   ctx.fillStyle=M2_COLS[1];ctx.font='bold 22px Courier New';ctx.fillText(String(b2.score[1]),CW/2+60,30);
+  // per-MAIN roster: each side's mains stack name+drive(+magazine) in its own shade, so all 6 read in a 3v3 (was just the two binds 0/1)
   ctx.font='bold 11px Courier New';
-  const mag=p=>m2.mode==='shooter'?'  MAG '+'●'.repeat(Math.min(b2.bots[p].intk.length,4))+'○'.repeat(Math.max(0,4-b2.bots[p].intk.length)):''; // clamp: MACHINE GUN's big hopper would make repeat() throw on a negative count
-  ctx.textAlign='left';ctx.fillStyle=M2_COLS[0];
-  ctx.fillText(p2Name(0)+' '+(m2.drive[0]?m2.drive[0].name:'')+mag(0),8,18);
-  ctx.textAlign='right';ctx.fillStyle=M2_COLS[1];
-  ctx.fillText(mag(1)+'  '+(m2.drive[1]?m2.drive[1].name:'')+' '+p2Name(1),CW-8,18);
+  for(const al of [0,1]){const left=(al===0),x=left?8:CW-8;ctx.textAlign=left?'left':'right';
+    b2HudRoster(al).forEach((r,i)=>{const y=15+i*13;ctx.fillStyle=r.col;
+      const magStr=r.mag>=0?('  MAG '+'●'.repeat(r.mag)+'○'.repeat(4-r.mag)):''; // clamp keeps MACHINE GUN's big hopper from a negative repeat()
+      ctx.fillText(left?(r.name+' '+r.drive+magStr):(magStr+'  '+r.drive+' '+r.name),x,y);});}
   ctx.textAlign='center';ctx.font='10px Courier New';ctx.fillStyle='#444460';
   const sub=m2.set.format==='timed'?(b2.sudden?'⭐ SUDDEN DEATH — golden ball wins':''):(fmt(b2.t)+'  ·  FIRST TO '+m2.set.goalN+(b2.sudden?'  ·  ⭐ SUDDEN DEATH — golden ball wins':''));
   ctx.fillText((sub?sub+'  ·  ':'')+'[Esc] quit',CW/2,46);
@@ -7625,6 +7642,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.91 (2026-06-16): BALL 3v3 POLISH — per-main HUD roster + momentum-aware shove. (1) PER-MAIN HUD NAMES: the ball/shooter HUD named only binds 0/1 (the legacy 2-main assumption), so in a 3v3 the other four mains were unnamed up top. The HUD now stacks a roster down each side — every MAIN's name + drive (+ magazine dots in shooter), each drawn in that bot's own shade so the corner readout matches the on-field tag/ring (the alliance SCORE stays the headline; this adds the per-bot lineup). New pure helpers b2HudRoster(al) → {name,drive,col,mag,bind} per main and b2MainCol(bo) (same shade/egg logic as drawP2Tag). 1v1/2v2 unchanged (1 or 2 rows/side). (2) MOMENTUM-AWARE SHOVE: bot-bot overlap used to split 50/50 regardless of who was driving in, so you couldn't actually shove anyone in a scrum. New pure b2ShoveWeights(av,cv,nx,ny) splits the overlap by each bot's drive INTO the contact — the bot pushing harder holds ground, the one driven into yields — while the weights always sum to 1 (total separation preserved). Equal push OR both idle → even 50/50, byte-identical to before, so it stays mirror-fair and balance-neutral (balance suite still green). smoke58 +9 (roster shape/colors/binds + shove driver/idle/equal cases) → 30. Full battery green. Single file, no assets.
   v5.1.90 (2026-06-16): BATTLEBOTS GRID POLISH — per-seat stat bars + drag-to-copy a loadout (closes the v5.1.79 TODO). (1) PER-SEAT STAT BARS: every BattleBots grid seat now shows a compact 4-bar profile (SPD/MOB/DMG/TUF) in the left column under the preview, driven by the existing bbStatBars(ld) — so a loadout's trade-offs read at a glance while you pick (heavy spinner = high DMG/TUF, low SPD; light = the reverse). New bbSeatStatsRect(c) (geometry, sits inside the cell and clear of the loadout bar + SENS slider) + bbDrawSeatStats(i,c). (2) DRAG-TO-COPY: grab a seat's loadout BAR (the body, between the ◀▶ cyclers — which stay tap-cycle) and DROP it on another seat to clone its weapon+armor — arm a whole side the same way in two gestures. Valid drop seats get a dashed gold halo and a floating ⚔/🛡 chip follows the cursor; a successful drop deep-copies the loadout (no aliasing) and swallows the trailing click. Mouse + touch (touchscreen laptops/Chromebooks). New bbCopyLoadout(from,to) (pure, deep-copy, no-ops on same/empty seats), bbSeatAt(mx,my), bbSeatGripRect/bbLoadGripHit (grip excludes the cyclers), bbDrawLoadDrag(). smoke57 +11 → 119. Full battery green. Single file, no assets.
   v5.1.89 (2026-06-16): TANK POWER-UP HUD — readable, colored, on the field. The held-pickup readout in TANK FIGHT was monochrome emoji crammed onto the corner card's HP line (all one color, easy to miss mid-fight). New pure helper tankPupHud(t) returns the ordered badge list a tank currently holds — {id,icon,col,txt,kind} where kind is 'timer' (counting down, e.g. "5s"), 'ammo' (banked rounds, e.g. "×2") or 'charge' (one-shot shield, no number) — drawn by drawPupChips() as small COLORED slabs (each in its PUP_TYPES color, left accent bar + icon/text). Two placements off the one helper: (a) the corner cards now trail the HP/lives line with colored chips, (b) a NEW on-field loadout strip sits just under each live tank, so you read YOUR power-ups at YOUR tank without glancing to the corner — works for all N tanks (multi-tank up to 4v4). A banked explosive/piercing stack flips from an "×N" ammo chip to a countdown timer chip once a MACHINE-GUN barrage banks it. No engine/balance change (display only). smoke55 +8 (tankPupHud order/kind/txt/color + barrage flip + drawPupChips left/right/center no-throw) → 53. Full battery green. Single file, no assets.
   v5.1.88 (2026-06-16): TANK — EXPLOSIVE blast radius DOUBLED (80→160). The 💥 explosive-ammo area blast in TANK FIGHT now has 2× the radius (TF2_BLAST_R 80→160), so a detonation catches foes much farther out — the one constant scales both the damage check (≤ TF2_BLAST_R+RR) and the expanding visual ring. smoke55 +1 (a foe ~130px out, missed by the old radius, is now caught) → 45. Full battery green. Single file, no assets.

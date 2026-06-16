@@ -35,6 +35,24 @@ src+=`
   let dThrew=false;try{drawP2Ball();}catch(e){dThrew=true;console.log('   draw error:',e.message);}
   ok('drawP2Ball renders 6 bots without throwing',!dThrew);
 
+  // ── 2b. per-main HUD roster: every main is named, side-colored (not just binds 0/1) ──
+  {const rR=b2HudRoster(0),rB=b2HudRoster(1);
+   ok('b2HudRoster lists all 3 mains per side',rR.length===3&&rB.length===3);
+   ok('each roster row carries name + drive + color + bind',rR.every(r=>typeof r.name==='string'&&typeof r.drive==='string'&&!!r.col&&typeof r.bind==='number'));
+   ok('roster binds match the side mains',rR.map(r=>r.bind).sort().join('')===b2Mains(0).map(b=>b.bind).sort().join(''));
+   ok('>2 mains → same-side rows get DISTINCT shades',new Set(rR.map(r=>r.col)).size===3);
+   ok('normal mode roster has no magazine (mag=-1)',rR.every(r=>r.mag===-1));}
+
+  // ── 2c. momentum-aware shove (b2ShoveWeights): driver holds, idle yields; equal/idle = even 50/50 ──
+  {const n={x:1,y:0}; // contact normal points c→a along +x
+   const idle={vx:0,vy:0},push={vx:300,vy:0}; // +x drive
+   ok('both idle → even 50/50 split (unchanged)',(()=>{const w=b2ShoveWeights(idle,idle,n.x,n.y);return Math.abs(w.wa-0.5)<1e-9&&Math.abs(w.wc-0.5)<1e-9;})());
+   ok('equal opposing push → even 50/50',(()=>{const w=b2ShoveWeights({vx:-300,vy:0},{vx:300,vy:0},n.x,n.y);return Math.abs(w.wa-0.5)<1e-9&&Math.abs(w.wc-0.5)<1e-9;})());
+   // c drives toward a (+x), a idle: a is driven into → a YIELDS more (wa>wc); weights still sum to 1
+   ok('c drives into idle a → a yields more, c holds',(()=>{const w=b2ShoveWeights(idle,push,n.x,n.y);return w.wa>0.99&&w.wc<0.01&&Math.abs(w.wa+w.wc-1)<1e-9;})());
+   // a drives toward c (-x), c idle: c yields more
+   ok('a drives into idle c → c yields more, a holds',(()=>{const w=b2ShoveWeights({vx:-300,vy:0},idle,n.x,n.y);return w.wc>0.99&&w.wa<0.01;})());}
+
   // ── 3. mixed 3v3 (3 human vs 3 CPU): human binds idle, CPUs get brains ──
   gridMixed('normal');
   ok('mixed: 3 human mains + 3 CPU mains',b2.bots.filter(b=>b.ctl.type!=='cpu').length===3&&b2.bots.filter(b=>b.ctl.type==='cpu').length===3);
