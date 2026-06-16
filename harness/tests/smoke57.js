@@ -431,6 +431,10 @@ src+=`
    const ehp0=en.hp;bbKill(pg,null);ok('PARTING GIFT perk: dying triggers a blast that damages a nearby ENEMY',en.hp<ehp0);
    ok('bbArmEquip can set the perk slot',(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','partinggift')&&m2.tseats[0].loadout.perk==='partinggift';})());
    ok('CPU loadout includes a perk field',!!bbCpuPickLoadout(3).perk);}
+  // ── v5.1.114: P5 DRIVE SYNERGY — TANK-family drive shoves harder ──
+  {ok('P5: TANK-family drive has a push buff (>1)',BB_W.tankPush>1);
+   ok('bbDriveFamily maps the main TANK drive to the tank family',(()=>{const sd=m2.drive[0];m2.drive[0]={kind:'main',idx:0};const r=bbDriveFamily(0);m2.drive[0]=sd;return r==='tank';})());
+   ok('bbDriveFamily maps SWERVE to the swerve family (no push buff)',(()=>{const sd=m2.drive[0];m2.drive[0]={kind:'main',idx:3};const r=bbDriveFamily(0);m2.drive[0]=sd;return r==='swerve';})());}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
