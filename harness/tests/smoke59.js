@@ -16,7 +16,7 @@ src+=`
     if(state==='empty'){out.push(['player',sub.player],['cpu',sub.cpu]);return out;}
     out.push(['rel',sub.rel],['grp',sub.grp],['dL',sub.dL],['dR',sub.dR]);
     if(state==='human-claimed'){out.push(['name',sub.name],['sens',sensRect(sub.sens)]);}
-    else if(state==='human-awaiting'){out.push(['name',sub.name],['touch',sub.touch]);}
+    else if(state==='human-awaiting'){out.push(['name',sub.name]);}
     else if(state==='cpu'){out.push(['tL',sub.tL],['tR',sub.tR]);}
     if(bb&&state!=='empty')for(const lr of loadRects(c))out.push(lr);
     return out.map(([n,r])=>[n,area(r)]);
@@ -33,14 +33,12 @@ src+=`
     for(const [n,r] of rs)if(r.x<c.x||r.y<c.y||r.x+r.w>c.x+c.w+1||r.y+r.h>c.y+c.h+1)oob.push(n);
     ok('['+mode+'/'+st+'] all controls inside the cell'+(oob.length?(' — OOB: '+oob.join(', ')):''),oob.length===0);
   }
-  // the BB loadout row must clear the human sens slider AND the USE-TOUCH button (the v5.1.81 fix)
+  // the BB loadout row must clear the human sens slider (the v5.1.81 fix; the USE-TOUCH button was removed in v5.1.87 — touch is claimed by tapping the seat)
   {m2.mode='battlebots';const sub=tankCellSub(0),c=tankCellRect(0),lr=bbSeatLoadRects(c);
-   ok('BB: loadout row clears the sens slider band',!overlap(sensRect(sub.sens),area(lr.wL))&&!overlap(sensRect(sub.sens),area(lr.aR)));
-   ok('BB: loadout row clears the USE-TOUCH button',!overlap(area(sub.touch),area(lr.wL))&&!overlap(area(sub.touch),area(lr.aR)));}
-  // tankfight sens/touch geometry is UNCHANGED by the BB-aware tweak (regression guard for v5.1.81)
+   ok('BB: loadout row clears the sens slider band',!overlap(sensRect(sub.sens),area(lr.wL))&&!overlap(sensRect(sub.sens),area(lr.aR)));}
+  // tankfight sens geometry is UNCHANGED by the BB-aware tweak (regression guard for v5.1.81)
   {m2.mode='tankfight';const c=tankCellRect(0),sub=tankCellSub(0);
-   ok('tankfight sens.y stays c.y+116',sub.sens.y===c.y+116);
-   ok('tankfight touch.y stays c.y+100',sub.touch.y===c.y+100);}
+   ok('tankfight sens.y stays c.y+116',sub.sens.y===c.y+116);}
 
   // monospace text-overflow: variable-length labels must not run under adjacent buttons (Courier New ≈ 0.6em advance)
   const txtW=(s,px)=>s.length*px*0.6;

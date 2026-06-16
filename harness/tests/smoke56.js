@@ -253,6 +253,9 @@ src+=`
    tankGridAddPlayer(0);
    ok('+ PLAYER makes a deviceless human seat named PLAYER 1',m2.tseats[0]&&m2.tseats[0].type==='human'&&!m2.tseats[0].dev&&m2.tseats[0].name==='PLAYER 1');
    ok('an unassigned player blocks START',tankGridCanStart()===false&&tankGridUnassigned()===true);
+   tankGridClick(tankCellRect(0).x+150,tankCellRect(0).y+125); // v5.1.87: tapping the awaiting seat (no USE-TOUCH button anymore) claims a touch controller
+   ok('tapping an awaiting seat claims a TOUCH controller',!!m2.tseats[0].dev&&m2.tseats[0].dev.type==='touchL');
+   m2.tseats[0].dev=null; // reset to awaiting for the keyboard-claim check below
    m2.tsel=0;tankGridClaimDev({type:'kb'});
    ok('pressing the keyboard assigns it (shows KEYBOARD, not touch)',m2.tseats[0].dev&&m2.tseats[0].dev.type==='kb'&&tankGridDevLabel(m2.tseats[0].dev)==='⌨ KEYBOARD');
    m2.tseats[0].name='BOB';m2.tsel=3;tankGridSetCpu(3);
