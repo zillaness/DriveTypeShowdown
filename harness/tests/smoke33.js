@@ -64,6 +64,19 @@ src+=`
    texts.length=0;tour={names:['A','B'],drv:[],policy:'open',seedMode:'rand',format:'single',mode:'battlebots',buf:'',seeds:[],M:[],qi:0};
    phase='p2tnames';drawTourNames();
    T('tournament registration is ALLIANCE-framed',texts.some(t=>/ALLIANCE/i.test(t)));}
+  // ── v5.1.135 TOURNAMENT v2: FRC alliance-selection draft (auto-draft model) ──
+  {const T=(l,c)=>console.log((c?'ok — ':'FAIL — ')+l);
+   const ranked=[];for(let i=0;i<24;i++)ranked.push(i); // 24 teams, seed order 0(best)..23
+   const al=tourAllianceDraft(ranked,8,3);
+   T('8 alliances of 3 from 24 teams',al.length===8&&al.every(a=>a.teams.length===3));
+   T('top 8 seeds are the captains',al.map(a=>a.captain).join(',')==='0,1,2,3,4,5,6,7');
+   T('serpentine: alliance 1 = seeds [0,8,23]',al[0].teams.join(',')==='0,8,23');
+   T('serpentine: alliance 8 = seeds [7,15,16]',al[7].teams.join(',')==='7,15,16');
+   const seen=new Set();let dup=false;for(const a of al)for(const t of a.teams){if(seen.has(t))dup=true;seen.add(t);}
+   T('no team is on two alliances; 24 teams placed',!dup&&seen.size===24);
+   // graceful with a short field (10 teams, 8 alliances of 3): captains fill, picks run out cleanly
+   const short=tourAllianceDraft([0,1,2,3,4,5,6,7,8,9],8,3);const st=new Set();let sdup=false;for(const a of short)for(const t of a.teams){if(st.has(t))sdup=true;st.add(t);}
+   T('short field drafts without crashing or duplicates',short.length===8&&!sdup&&st.size===10);}
   tour=null;bb2=null;console.log('done');
 })();
 `;

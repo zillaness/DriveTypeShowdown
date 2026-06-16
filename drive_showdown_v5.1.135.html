@@ -5074,6 +5074,18 @@ function tourSeedOrder(P){
   while(o.length<P){const n=o.length*2,t=[];for(const x of o){t.push(x);t.push(n+1-x);}o=t;}
   return o;
 }
+// v5.1.135 TOURNAMENT v2 — FRC alliance-selection draft (auto-draft, pure/headless). `ranked` = team ids best-first.
+// The top nA seeds are alliance captains; each drafts the best AVAILABLE non-captain in SERPENTINE order (1..nA, then nA..1)
+// until alliances hold `sz` teams. Returns [{captain, picks:[], teams:[captain,...picks]}]. NOTE: the captain-promotion
+// cascade (a captain recruiting a lower captain → next seed promoted) is a documented follow-up — pinned to the UI wiring.
+function tourAllianceDraft(ranked,nA,sz){
+  ranked=(ranked||[]).slice();nA=Math.max(1,nA|0);sz=Math.max(1,sz|0);
+  const captains=ranked.slice(0,nA),taken=new Set(captains),all=captains.map(c=>({captain:c,picks:[]}));
+  for(let r=0;r<sz-1;r++){const order=all.map((_,i)=>i);if(r%2===1)order.reverse();
+    for(const ai of order){let pick=null;for(const t of ranked){if(!taken.has(t)){pick=t;break;}}if(pick==null)continue;taken.add(pick);all[ai].picks.push(pick);}}
+  for(const a of all)a.teams=[a.captain].concat(a.picks);
+  return all;
+}
 function tourBuild(){
   // rank entrants: qualifier times ascending (Infinity = skipped → last), random otherwise
   const idx=tour.names.map((_,i)=>i);
