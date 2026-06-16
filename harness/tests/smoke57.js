@@ -402,6 +402,14 @@ src+=`
    const c2=bbBotWith('none','balanced',1,1,true);c2.x=FW-RR*1.3;c2.y=FH/2;c2.hp=BB.HP;c2.inv=0;bb2.bots=[a2,c2];
    bbWeaponFire(1/60);ok('FLIPPER RING-OUT: a foe flung into a WALL takes bonus impact damage',c2.hp<BB.HP-BB_W.flipDmg);
    ok('FLIPPER is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='flipper')&&BB_ARMORY_W.some(w=>w.id==='flipper'));}
+  // ── v5.1.110: PINCER — grab + IMMOBILIZE (hold + drain mobility), no slam/damage; a 3v3 role-player ──
+  {const a=bbBotWith('pincer','balanced',0,0,true);a.x=300;a.y=300;a.h=0;
+   const c=bbBotWith('none','balanced',1,1,true);c.mob=BB.MOB;c.hp=BB.HP;bb2.bots=[a,c];bb2.result=null;
+   a.grab=c;c.held=a;a.grabT=BB_W.pincerGrabDur;const mob0=c.mob,hp0=c.hp;
+   for(let i=0;i<30;i++)bbGrabUpdate(1/60);
+   ok('PINCER drains the held foe MOBILITY (immobilize) without big damage',c.mob<mob0&&c.hp===hp0);
+   ok('PINCER glues the held foe to its front',Math.abs(c.x-(a.x+RR*2))<1&&!!c.held);
+   ok('PINCER is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='pincer')&&BB_ARMORY_W.some(w=>w.id==='pincer'));}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
