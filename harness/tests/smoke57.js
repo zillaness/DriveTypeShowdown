@@ -410,6 +410,15 @@ src+=`
    ok('PINCER drains the held foe MOBILITY (immobilize) without big damage',c.mob<mob0&&c.hp===hp0);
    ok('PINCER glues the held foe to its front',Math.abs(c.x-(a.x+RR*2))<1&&!!c.held);
    ok('PINCER is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='pincer')&&BB_ARMORY_W.some(w=>w.id==='pincer'));}
+  // ── v5.1.111: KAMIKAZE — RT self-destruct, a big blast that takes nearby foes with it (3v3) ──
+  {const a=bbBotWith('kamikaze','balanced',0,0,true);a.x=300;a.y=300;a.firing=true;
+   const c=bbBotWith('none','balanced',1,1,true);c.x=300+RR*2;c.y=300;c.hp=BB.HP;c.inv=0;bb2.bots=[a,c];bb2.result=null;bb2.blasts=[];bb2.deb=[];
+   const hp0=c.hp;bbWeaponFire(1/60);
+   ok('KAMIKAZE self-destructs (the bot dies on RT)',a.dead===true);
+   ok('KAMIKAZE blast damages a nearby foe',c.hp<hp0);
+   const far=bbBotWith('none','balanced',1,2,true);far.x=300+RR*20;far.y=300;far.hp=BB.HP;far.inv=0;const b2=bbBotWith('kamikaze','balanced',0,3,true);b2.x=300;b2.y=300;b2.firing=true;bb2.bots=[b2,far];bb2.result=null;bb2.blasts=[];
+   bbWeaponFire(1/60);ok('KAMIKAZE does NOT hit a foe outside the blast radius',far.hp===BB.HP);
+   ok('KAMIKAZE is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='kamikaze')&&BB_ARMORY_W.some(w=>w.id==='kamikaze'));}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

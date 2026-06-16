@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.110.html
-  version: 5.1.110
+  file: drive_showdown_v5.1.111.html
+  version: 5.1.111
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-16
@@ -3844,6 +3844,7 @@ const BB_WEAPONS=[
   {id:'buzzsaw',name:'BUZZSAW',     cls:'kineticSpin',   weight:0.5, deal:1.70, take:1.35}, // v5.1.107 FRONT-only spin-up CUTTER: high dmg in the front arc (vs the spinner's lower-dmg 360° bite)
   {id:'flipper',name:'FLIPPER',     cls:'kineticStrike', weight:0.35,deal:0.90, take:1.00}, // v5.1.109 RT launcher: flings the foe BACK (ring-out into walls) — control + setup, low direct dmg
   {id:'pincer', name:'PINCER',      cls:'control',       weight:0.30,deal:0.50, take:0.95}, // v5.1.110 grab + IMMOBILIZE (hold + drain mobility) — a 3v3 role-player; weak 1v1, no big damage
+  {id:'kamikaze',name:'KAMIKAZE',   cls:'kineticStrike', weight:0.20,deal:1.00, take:1.10}, // v5.1.111 RT = SELF-DESTRUCT: a big blast that takes nearby foes with you (3v3; useless 1v1)
 ];
 const BB_ARMOR=[
   {id:'balanced',  name:'BALANCED',  rps:'balanced',  weight:0.0, take:1.00, zone:{front:1,side:1,rear:1}}, // default neutral
@@ -3906,7 +3907,7 @@ function bbDrawLoadDrag(){ // drop-target halos + the floating loadout chip that
   ctx.fillStyle='rgba(12,12,24,0.94)';rr(x+12,y-12,tw,24,7);ctx.fill();ctx.strokeStyle='#ffd740';ctx.lineWidth=1.5;rr(x+12,y-12,tw,24,7);ctx.stroke();
   ctx.fillStyle='#eaeaff';ctx.textAlign='left';ctx.fillText(txt,x+20,y+4);}
 // ── v5.1.94 ARMORY: a rail of weapon + armor chips you DRAG onto any seat to equip it (vs only the per-seat ◀▶ cyclers) ──
-const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'FLIP',ic:'🔃'},{id:'pincer',lab:'PINCE',ic:'🦀'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE — every bot has at least a blade; 'none' stays the internal neutral default
+const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'FLIP',ic:'🔃'},{id:'pincer',lab:'PINCE',ic:'🦀'},{id:'kamikaze',lab:'KAMI',ic:'💣'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE — every bot has at least a blade; 'none' stays the internal neutral default
 const BB_ARMORY_A=[{id:'balanced',lab:'BAL',ic:'⚖'},{id:'hardplate',lab:'HARD',ic:'🛡'},{id:'heatshield',lab:'HEAT',ic:'♨'},{id:'light',lab:'LIGHT',ic:'🪶'}];
 const BB_ARM_WCOL='#d9c08a', BB_ARM_ACOL='#8fbfd9'; // weapons warm, armor cool (match the seat ⚔/🛡 labels)
 function bbArmoryChips(){ // laid-out chip rects for the top rail: weapon group ⚔ … then armor group 🛡 …, centered
@@ -4072,6 +4073,7 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
       else if(wp==='flame')br.fire=dist<RR+RR*BB_W.flameRangeK;                                   // v5.1.99: the TURRET aims itself at the foe — torch steadily whenever in reach (no chassis-aim gate / flicker, so the dwell builds)
       else if(wp==='wedge')br.fire=aimed&&dist<RR*4.2;                                            // v5.1.103: CHARGE in from further (firing = a forward boost) to grab + slam
       else if(wp==='pincer')br.fire=aimed&&dist<RR*3;                                              // v5.1.110 PINCER: clamp a lined-up foe on contact
+      else if(wp==='kamikaze')br.fire=dist<RR*2.4;                                                 // v5.1.111 KAMIKAZE: detonate when a foe is in the blast (suicide attack)
     }
     // v5.1.106: STUCK → UNSTICK — if a bot TRIED to move but barely did (jammed on an obstacle / wall corner) for ~0.45s, break out: reverse away + sidestep for a beat (alternating sides so two stuck bots don't mirror each other)
     if(me._unstickT>0){me._unstickT-=dt;br.inp.vx=Math.cos(me._uAng)*SPD*T.spd;br.inp.vy=Math.sin(me._uAng)*SPD*T.spd;let dh=me._uAng-me.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;br.inp.vr=clamp(dh*5,-TSP*T.turn,TSP*T.turn);}
@@ -4087,7 +4089,7 @@ const BB_W={
   pistCd:0.85, pistDmg:60, pistRangeK:2.0, pistArc:Math.PI*0.6, pistKnock:34, pistFront:0.78, // PISTON (v5.1.105: WOEFULLY underpowered → buffed: dmg 40→60, cd 1.05→0.85, reach 1.7→2.0, front-pierce 0.55→0.78): cooldown, strike dmg, reach (RR+RR×K), front arc, knockback, FRONT-pierce fraction (a hammer dents an armored front)
   flameRangeK:6.4, flameArc:Math.PI*0.26, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, // FLAMETHROWER (v5.1.100): ~2× REACH + a NARROWER focused jet (per playtest), heat-up dwell, dps (re-tuned via the sim), heat cap (no fuel gauge), MOVE-mult while torching (plant-to-burn — the balance counter to the ARCADE turret kite; fuel parked)
   wedgeDmg:0.40, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:85, grabDmg:18, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.5, pincerGrabDur:1.8, pincerDrain:55, // WEDGE/DOZER: contact-dmg, grab arc, pinned speed mult, pin/grab DURATION, shove + v5.1.103 GRAB-AND-SLAM (grip seconds, cooldown, base wall-slam dmg ×speed), dozerCharge = forward boost while firing RT, dashBuff = RoboRumble LT-dash speed/range buff
-  blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, // P2.3 FLAME blow-up burn threshold, burn cool-down/s, blast radius (×RR), near-dead HP caught in a blast
+  blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:4.6, kamiDmg:170, // P2.3 FLAME blow-up; v5.1.111 KAMIKAZE self-destruct blast radius (×RR) + peak damage (falls off to 0.4× at the edge)
   wheelHp:40, faultK:0.22 // P2.4 per-corner wheel HP; handling-fault strength (turn-bias / strafe drift per dead wheel)
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
@@ -4178,6 +4180,12 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
         const wx=foe.x,wy=foe.y;obsCheck(foe,RR);
         if(Math.hypot(foe.x-wx,foe.y-wy)>2){foe.hp-=BB_W.flipWallDmg;foe.inv=BB.hitCd;sfx('hit');if(foe.side!==a.side)a.dmgDealt=(a.dmgDealt||0)+BB_W.flipWallDmg;} // RING-OUT: flung into a wall/obstacle = bonus impact damage (not inv-gated — it's the same one-shot flip event, cooldown prevents re-hits)
         if(foe.hp<=0)bbKill(foe,ai);}
+    }
+    if(w==='kamikaze'&&a.firing&&!a.dead){ // v5.1.111 SELF-DESTRUCT: one big blast that damages everyone nearby, then the bot goes with it
+      const oi=bb2.bots.indexOf(a),R=RR*BB_W.kamiRK;
+      if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:a.x,y:a.y,t:0.5,r:R});
+      for(const c of bb2.bots){if(c.dead||c===a)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);if(d<=R){const f=Math.max(0.4,1-d/R);c.hp-=BB_W.kamiDmg*f;c.inv=BB.hitCd;if(c.ctl)p2Rumble(c.ctl.bind,0.7);if(c.side!==a.side)a.dmgDealt=(a.dmgDealt||0)+BB_W.kamiDmg*f;if(c.hp<=0)bbKill(c,oi);}}
+      bbKill(a,null);continue;
     }
     if(w==='flame'){if(!a.heat)a.heat={};
       for(let ci=0;ci<bb2.bots.length;ci++){const c=bb2.bots[ci];if(c.dead||c.side===a.side){a.heat[ci]=0;continue;}
@@ -4304,6 +4312,10 @@ function bbDrawWeapon(b){ // P2.2 basic weapon cosmetics (the picker UI + polish
   }else if(w==='pincer'){ctx.rotate(b.h);const g=!!b.grab,o=g?RR*0.2:RR*0.55; // v5.1.110 two claw prongs that CLOSE when gripping
     ctx.strokeStyle=g?'#ff6a4d':'#9fb0c8';ctx.lineWidth=4;ctx.lineCap='round';
     ctx.beginPath();ctx.moveTo(RR*0.3,0);ctx.lineTo(RR*0.85,-o);ctx.lineTo(RR+10,-o*0.5);ctx.moveTo(RR*0.3,0);ctx.lineTo(RR*0.85,o);ctx.lineTo(RR+10,o*0.5);ctx.stroke();ctx.lineCap='butt';
+  }else if(w==='kamikaze'){ctx.rotate(b.h);const bl=(((bb2.t||0)*6|0)&1); // v5.1.111 a bomb with a blinking warning light + fuse
+    ctx.fillStyle='#2a2e3a';ctx.beginPath();ctx.arc(RR*0.75,0,RR*0.55,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=bl?'#ff4d4d':'#7a2a2a';ctx.beginPath();ctx.arc(RR*0.75,0,RR*0.2,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#ffd24d';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(RR*1.15,-RR*0.3);ctx.lineTo(RR*1.4,-RR*0.62);ctx.stroke();
   }else if(w==='flame'){ctx.rotate(b.weaponAng!=null?b.weaponAng:b.h); // v5.1.100: ANIMATED flame jet, drawn along the TURRET/chassis aim
     if(b.firing){const R=RR+RR*BB_W.flameRangeK,a=BB_W.flameArc,T=(bb2&&bb2.t)||0;
       const g=ctx.createLinearGradient(0,0,R,0);g.addColorStop(0,'#fff7c0e0');g.addColorStop(0.22,'#ffd24dcc');g.addColorStop(0.6,'#ff7a1e99');g.addColorStop(1,'#ff3b0a00');
@@ -7887,6 +7899,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.111 (2026-06-16): ROBORUMBLE — NEW WEAPON: KAMIKAZE (P1; COMPLETES the weapon roster). RT = SELF-DESTRUCT: one big blast (kamiRK 4.6×RR, kamiDmg 170, falloff to 0.4× at the edge) that damages every nearby bot, then the kamikaze dies (reuses bbKill + the blast/chain). Useless 1v1 (a mutual-destruction trade → sim 0% wins), a 3v3 play (take 2+ foes with you). New BB_WEAPONS/armory entry (💣 KAMI), a blinking-bomb render, the CPU detonates when a foe is in the blast. ★ P1 WEAPON ROSTER COMPLETE: spinner · buzzsaw · piston · flame · DOZER · flipper · pincer · kamikaze (8). smoke57 +4 → 183. Full battery green. Balance deferred to the end. Single file, no assets.
   v5.1.110 (2026-06-16): ROBORUMBLE — NEW WEAPON: PINCER (P1). Grab + IMMOBILIZE: on a firing front-arc contact it clamps the foe to its front (reusing the dozer grab machinery) and HOLDS it (pincerGrabDur 1.8s), grinding the foe's MOBILITY down (pincerDrain) so it's immobilized for teammates to pile on — NO slam, NO big damage. A 3v3 role-player (weak 1v1, sim 17%, by design). New BB_WEAPONS/armory entry (🦀 PINCE), a two-prong claw render that closes when gripping, the CPU clamps a lined-up foe. smoke57 +3 → 179. Full battery green. Balance deferred. Single file, no assets.
   v5.1.109 (2026-06-16): ROBORUMBLE — NEW WEAPON: FLIPPER (P1). A discrete RT launcher (front arc, cooldown — reuses the strike cd/fx) that FLINGS the foe BACK with big knockback (flipKnock 46), deals a little direct damage, disrupts a spinner's RPM + staggers; if the fling slams the foe into a WALL/obstacle it's a RING-OUT for bonus impact damage (reuses the obsCheck-clamp detection from the dozer slam). New BB_WEAPONS/armory entry (🔃 FLIP), a front flipper-plate render that snaps up on fire, the CPU fires it at a lined-up foe. (Ring-outs get much stronger once arena hazards/pits land — P3.) smoke57 +4 → 176. Full battery green. Balance still deferred (sim: buzzsaw 60 · piston 50 · spinner 40 · flame 40 · wedge 29 · flipper 20). Single file, no assets.
   v5.1.108 (2026-06-16): housekeeping for the overnight feature run. (1) bbbalance.js now scores the 5 PICKABLE weapons (added BUZZSAW; dropped RAM-ONLY/'none' — it's the no-weapon baseline, not balanced against). (2) SPINNER sustain eased (spinHitLoss 0.85→0.4, spinSelf 0.30→0.16, spinDmg 24→32) so it isn't structurally broken (sim 12%→25%) — a FUNCTIONAL value only; the FINAL balance pass is DEFERRED to after all weapons/perks exist (Sam: no point tuning while features keep reshuffling the balance). (3) OVERNIGHT_PLAN.md reordered: features first (flipper/pincer/kamikaze/perks/minibots/synergies/eggs/cheats/arena/modes), one big BALANCE pass LAST. Full battery green. Single file, no assets.
