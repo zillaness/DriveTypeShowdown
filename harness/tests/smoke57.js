@@ -508,6 +508,25 @@ src+=`
    ok('ANIME SWORD slashes a foe in the FRONT arc (damage + FX)',front.hp<fhp0&&sw._swordFx>0);
    ok('ANIME SWORD spares a foe BEHIND (outside the front arc)',back.hp===bhp0);
    ok('ANIME SWORD goes on cooldown after a swing',sw.swordCd>0);animeSword=svs;}
+  // ── v5.1.120: P3 ARENA HAZARDS — the DANGER ZONE map (acid pit + saw blades) + map-select includes it ──
+  {const hazMap=TF2_MAPS.find(m=>m.id==='hazard');
+   ok('a HAZARD arena (DANGER ZONE) exists with a pit + saws',!!hazMap&&hazMap.haz.some(h=>h.type==='pit')&&hazMap.haz.some(h=>h.type==='saw'));
+   ok('ARENA map-select includes every map (incl. the hazard arena)',(()=>{m2.mode='battlebots';const r=p2SettingsRows().find(r=>r.k==='map');return r&&r.vals.length===TF2_MAPS.length&&r.vals.indexOf(TF2_MAPS.indexOf(hazMap))>=0;})());
+   const pit=hazMap.haz.find(h=>h.type==='pit');
+   const inPit=bbBotWith('none','balanced',0,0,true);inPit.x=pit.x+pit.w/2;inPit.y=pit.y+pit.h/2;inPit.hp=BB.HP;inPit.inv=0;
+   const safe=bbBotWith('none','balanced',1,1,true);safe.x=80;safe.y=80;safe.hp=BB.HP;safe.inv=0;
+   bb2.bots=[inPit,safe];bb2.map=hazMap;bb2.t=0;bb2.result=null;
+   const ip0=inPit.hp,sf0=safe.hp;bbHazardUpdate(0.2);
+   ok('ACID PIT drains HP from a bot standing in it',inPit.hp<ip0);
+   ok('a bot OUTSIDE the hazards is unharmed',safe.hp===sf0);
+   // a bot sitting on a saw's current position takes contact damage
+   const saw=hazMap.haz.find(h=>h.type==='saw');bb2.t=0;const sp=bbHazPos(saw,0);
+   const onSaw=bbBotWith('none','balanced',0,0,true);onSaw.x=sp.x;onSaw.y=sp.y;onSaw.hp=BB.HP;onSaw.inv=0;
+   bb2.bots=[onSaw];const os0=onSaw.hp;bbHazardUpdate(1/60);
+   ok('a SAW BLADE bites a bot it touches',onSaw.hp<os0);
+   // an obstacle-free / hazard-free map runs the hazard pass as a no-op
+   const flat=bbBotWith('none','balanced',0,0,true);flat.hp=BB.HP;bb2.bots=[flat];bb2.map=TF2_MAPS[0];bbHazardUpdate(0.2);
+   ok('a non-hazard arena takes no hazard damage',flat.hp===BB.HP);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
