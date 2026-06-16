@@ -1,6 +1,6 @@
 ---
 file: frcds_roborumble_v2_prd_v1.0.md
-version: 1.0
+version: 1.1
 author: Sam Cao
 created: 2026-06-16
 last_updated: 2026-06-16
@@ -29,6 +29,7 @@ spinner 75% · piston 75% · ram/none 50% · flame 25% · wedge 0%. Flame + wedg
 The current `bbCpuUpdate` drives at the foe's rear but, mirrored, two bots just press front-to-front. Add real flanking: orbit to the foe's exposed side/rear, commit a hit, peel off, re-approach; respect obstacles (the CPU also gets stuck on map obstacles today — the sim runs obstacle-free to dodge this). Success = the balance sim resolves most matches decisively and wedge/ram/piston post non-trivial win rates. This is the gate for meaningful weapon tuning.
 
 ## P1 — WEAPON ROSTER redesign
+**STATUS (2026-06-16):** FLAME turret-aim **DONE** (v5.1.99–100, now **ARCADE-drive-only** per playtest — swerve/holo aim via chassis, tank/steer locked forward; + 2× range / narrow cone / animated / rumble); DOZER **rename + blade render DONE** (v5.1.101); SPINNER/PISTON front-pierce DONE. **NEXT = DOZER grab-and-slam + its chassis-forward RT ram charge** (the LT dash is now the directional dodge — see §8). See the ⭐ REORGANIZED ROADMAP below for the live sequence.
 Drop the placeholder, give each weapon a clear identity. Internal ids can stay (e.g. keep `'wedge'`); change DISPLAY + behavior.
 - **Drop "RAM ONLY"** (`none`) as a pickable option — every bot has at least a blade. (Keep `none` internally as the neutral default if cheaper, but it's not offered in the armory.)
 - **BULLDOZER BLADE** (rename from WEDGE): a real bulldozer-blade RENDER (low front plow, not the current look). Identity: control + **defense vs spinners** (a spinner that hits the blade deflects → takes self-damage + sheds spin, like a wall). Plus a **soft sticky GRAB**: ram a foe and you hold it ~1s and can **slam it into a wall** for damage. Synergizes with TANK drive (pushing). Good in 1v1 and 3v3.
@@ -74,6 +75,7 @@ RoboRumble-flavored, several cross-mode:
 - **ARENA TRAPS**: toggle hazards on/off — or a 2-player twist where one player works the traps with the mouse.
 - **WALKER / SHUFFLEBOT**: move SUPER slow but you can't be pushed (immovable).
 - **ANIME SWORD**.
+- **BOUNCY TANK SHOTS** (new, 2026-06-16): the existing BOUNCY BALLS cheat already ricochets *shooter* projectiles but NOT tank-fight bullets — extend `bouncyMode` to bounce `tf2.bullets` off the arena walls (with a bounce-count cap so they still expire). Sam: "would be very fun with bouncing shots." Small + self-contained; fulfills the cheat's own "shots ricochet" description.
 
 ## P8 — BALANCE TOOLING (extend `bbbalance.js`)
 - Add armor matchups + perks to the matrix; per-map runs once hazards land; a flanking-CPU rerun after P0.
@@ -97,11 +99,29 @@ Shares the MAP-SELECT screen (P3); ties into TOURNAMENT v2 (a mode per bracket).
 
 ---
 
-## Suggested sequence
-**P0 (flanking brain) first** — it unblocks balance and makes every non-front weapon viable. Then **P1 roster** (blade rename+render+grab-slam+spinner-defense; flipper; pincer; drop RAM; piston air tank; flame turret-aim), with `bbbalance.js` re-run after each weapon. **P2 perks** and **P4 minibots** pair naturally (minibot-as-perk). **P3 hazards + map-select** is a self-contained arena/UI chunk. **P5 synergies** + **P6 easter eggs** ride on the roster. **P7 cheats** are mostly small and can slot in opportunistically. **P8** runs throughout as the tuning gate.
+## ⭐ REORGANIZED ROADMAP — sequenced + status (2026-06-16, post-playtest #2)
+**✅ DONE:** P0 flanking brain · SPINNER/PISTON front-pierce · STALEMATE count-out · **FLAME turret-aim (ARCADE-only) + 2× range / narrow cone + animated render + RoboRumble RUMBLE (v5.1.99–100)** · **directional LT dash (dodge)** · **DOZER rename + bulldozer-blade render (v5.1.101)**.
+
+**▶ NOW — finish P1 WEAPON ROSTER (re-run `bbbalance.js` after each):**
+1. **DOZER grab-and-slam** + its **chassis-forward RT ram charge** (LT stays the dodge) — fixes wedge 0%. ← immediate next
+2. **FLIPPER** — fling the foe back (sets up ring-outs).
+3. **PINCER** — grab + immobilize (3v3 role).
+4. **Drop RAM-ONLY** as a pickable.
+5. (deferred) **PISTON air-tank** — only if piston needs the constraint.
+
+**THEN (resequenced, with dependencies):**
+- **P3 — ARENA: hazards + MAP-SELECT screen.** *Pulled EARLIER than the old order* — it UNBLOCKS ring-outs (flipper), the dozer-slam surfaces, AND most of the P9 game modes (capture-point placement, push-ball goals, KOTH hill spots) need per-map geometry + the select screen. The pivotal middle chunk.
+- **P2 — PERKS slot** + **P4 — MINIBOTS** (the minibot is a perk → build them together).
+- **P5 — DRIVE SYNERGIES** (tank push + blade; arcade benefit) → **P6 — BOT-NAME EGGS** (ride on the roster + synergies).
+- **P9 — GAME MODES** (needs P3): KOTH (classic / roaming / oddball) · CTF · PUSH-BALL/PAYLOAD (reuse the ball plow) · DOMINATION (per-map capture points) · SUMO ring-out · STOCK · JUGGERNAUT.
+- **P7 — COMBAT CHEATS** — small; slot in opportunistically (incl. the new **BOUNCY tank shots**, which is a quick standalone win any time).
+- **P8 — BALANCE TOOLING** — runs THROUGHOUT (the tuning gate; re-sim after every weapon/perk/map).
+
+**SEPARATE (non-RoboRumble backlog):** universal **SPLASH SETTINGS** — export/import SCORES · CONTROLS · HIGH SCORES · ACHIEVEMENTS · GHOSTS. Belongs with the setup/menu work, not this combat PRD.
 
 ## Constraints (unchanged)
 Single self-contained HTML file, no assets, no deps; exact-anchor patches with count-asserted tests; `node --check` + full battery green before each ship; headless harness can't verify render/feel (Sam's eyeball gate for those).
 
 ## CHANGELOG
+- v1.1 (2026-06-16, post-playtest #2): REORG. Marked DONE (flame turret-aim now ARCADE-only + 2× range/narrow cone/animated/rumble, directional LT dash, dozer rename+render). Added the ⭐ REORGANIZED ROADMAP that **pulls P3 (hazards + map-select) earlier** (it gates ring-outs + the P9 modes). Added **P9 GAME MODES** (KOTH variants, CTF, push-ball/payload, domination/capture-points, sumo, stock, juggernaut), **BOUNCY tank shots** to P7, the **DOZER grab-slam + chassis-forward RT ram** spec, and the dash-rule revision (LT dodge / RT ram). Flagged universal SPLASH SETTINGS as a separate non-combat backlog item.
 - v1.0 (2026-06-16): Initial capture from the playtest brain-dump. Records the balance-sim finding (flanking CPU is the gate), the full weapon roster + perks + minibots + hazards + map-select + drive synergies + bot-name easter eggs + combat cheats, and a suggested sequence. v5.1.95/96 shipped the first combat-feel pass + the sim.
