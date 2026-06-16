@@ -38,10 +38,12 @@ Drop the placeholder, give each weapon a clear identity. Internal ids can stay (
 - **SPINNER**: spin-up → more dmg, bleed-on-bite, wall self-damage, front-pierce (DONE). Tune after P0.
 - **FLIPPER** (new): flings the foe **BACK** with big horizontal knockback (top-down can't fling up). Sets up ring-outs into hazards (see P3).
 - **PINCER** (new): grabs + **immobilizes** the foe (hold/pin). Push/pin focus, *not* a damage weapon. A **3v3 role-player** (hold a foe while teammates pile on); weak in 1v1.
+- **BUZZSAW** (new, 2026-06-16 playtest): a spinning saw blade — unlike the SPINNER's single big kinetic BITE + fling, the buzzsaw is a **sustained CUT** that grinds HP continuously on front/side contact (lower per-hit, no big knockback). A grinder vs the spinner's sledgehammer.
+- **KAMIKAZE / SELF-DESTRUCT** (new, 2026-06-16 playtest): drive into a cluster and **trigger a LARGE explosion on RIGHT TRIGGER** — you DIE but take out (hopefully **more than one**) nearby bot with you. Useless in 1v1 (you'd just trade/suicide), a **3v3 play**. Reuse the flame blow-up blast at a bigger radius; related to the "Parting Gift" perk (P2) but here it's the whole weapon + PLAYER-triggered (not on-death).
 
 ## P2 — 3rd loadout slot: PERKS
 Add a third equip slot (weapon + armor + **perk**). Candidate perks:
-- **Explosion on death** (reuse the flame blow-up blast / mutual-destruction chain).
+- **Explosion on death** — aka **"PARTING GIFT"** (Sam's name) — reuse the flame blow-up blast / mutual-destruction chain.
 - **Flameproof** (immune to flame DPS + blow-up).
 - **Minibot** (deploy a harassing minibot — see P4).
 - (room to grow: thicker armor, faster spin-up, bigger fuel/air tank, etc.)

@@ -230,8 +230,8 @@ src+=`
   // ── v5.1.79 P2.5: weapon/armor PICKER (grid tap-cyclers) + stat readout + round-trip to the spawned bot ──
   {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridSetCpu(0);
    const ld=bbSeatLoadout(0);ok('a BB seat lazily gets a default loadout',ld.weapon==='none'&&ld.armor==='balanced');
-   bbCycleField(ld,'weapon',1);ok('cycling WEAPON advances to the next id',ld.weapon===BB_WEAPONS[1].id);
-   bbCycleField(ld,'weapon',-1);ok('cycling WEAPON back wraps to RAM ONLY',ld.weapon==='none');
+   bbCycleField(ld,'weapon',1);ok('cycling WEAPON from neutral advances to the first PICKABLE (spinner, not RAM)',ld.weapon===BB_WEAPONS[1].id);
+   bbCycleField(ld,'weapon',-1);ok('v5.1.103: the cycler NEVER lands on RAM-ONLY/none — wraps among real weapons (→ last)',ld.weapon!=='none'&&ld.weapon===BB_WEAPONS[BB_WEAPONS.length-1].id);
    bbCycleField(ld,'armor',-1);ok('cycling ARMOR backward wraps to the last',ld.armor===BB_ARMOR[BB_ARMOR.length-1].id);
    m2.tseats=null;}
   {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tour=null;tankGridSetCpu(0);tankGridSetCpu(3);
@@ -274,7 +274,7 @@ src+=`
   // ── v5.1.94 ARMORY: drag a weapon/armor chip from the rail onto a seat to equip ──
   {applyLayout('land2p');m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;phase='p2claim';tour=null;tankGridSetCpu(0);
    const chips=bbArmoryChips(),wChips=chips.filter(c=>c.kind==='weapon'),aChips=chips.filter(c=>c.kind==='armor');
-   ok('armory rail has every weapon + every armor chip',wChips.length===BB_WEAPONS.length&&aChips.length===BB_ARMOR.length);
+   ok('armory rail has every PICKABLE weapon (RAM-only dropped) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none').length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length);
    ok('armory chip ids match the real weapon/armor tables',wChips.every(c=>BB_WEAPONS.some(w=>w.id===c.id))&&aChips.every(c=>BB_ARMOR.some(a=>a.id===c.id)));
    ok('armory rail sits inside the canvas, above the seats',chips.every(c=>c.x>=0&&c.x+c.w<=CW&&c.y>=0&&c.y+c.h<=tankCellRect(0).y));
    const sp=wChips.find(c=>c.id==='spinner'),hit=bbArmoryHit(sp.x+sp.w/2,sp.y+sp.h/2);
@@ -354,6 +354,17 @@ src+=`
    m2.drive[0]={kind:'main',idx:0};bbWeaponPre(1/60);ok('TANK flame is NOT turreted either — locked forward',Math.abs(sv.weaponAng-sv.h)<1e-9);
    m2.drive[0]={kind:'main',idx:1};bbWeaponPre(1/60);ok('ARCADE flame IS turreted — weaponAng tracks the side foe (~-π/2)',Math.abs(sv.weaponAng-(-Math.PI/2))<0.15);
    m2.drive[0]=sd;}
+  // ── v5.1.103: DOZER grab-and-slam — a gripped foe STICKS to the blade front; charging it into a WALL crushes it ──
+  {const a=bbBotWith('wedge','balanced',0,0,true);a.x=FW-RR-1;a.y=FH/2;a.h=0;a._inp={vx:SPD,vy:0,vr:0}; // dozer at the RIGHT wall, charging +x
+   const c=bbBotWith('spinner','balanced',1,1,true);bb2.bots=[a,c];bb2.result=null;
+   a.grab=c;c.held=a;a.grabT=1.0;c.inv=0;const hp0=c.hp;
+   bbGrabUpdate(1/60); // glue c to the blade front (past the wall) → obsCheck clamps → SLAM
+   ok('DOZER glue+slam: a gripped foe crushed into a wall takes slam damage (hp '+c.hp.toFixed(0)+'<'+hp0.toFixed(0)+')',c.hp<hp0);
+   ok('DOZER releases the foe + sets a grab cooldown after a slam',!a.grab&&!c.held&&a.grabCd>0);
+   const a2=bbBotWith('wedge','balanced',0,0,true);a2.x=FW/2;a2.y=FH/2;a2.h=0;a2._inp={vx:0,vy:0,vr:0};
+   const c2=bbBotWith('spinner','balanced',1,1,true);bb2.bots=[a2,c2];a2.grab=c2;c2.held=a2;a2.grabT=0.02;
+   bbGrabUpdate(0.03);ok('DOZER grip RELEASES when the grab timer expires (open space, no wall)',!a2.grab&&!c2.held);
+   ok('a GRABBED foe is glued to the dozer blade front (chassis-forward)',(()=>{const a3=bbBotWith('wedge','balanced',0,0,true);a3.x=200;a3.y=200;a3.h=0;const c3=bbBotWith('spinner','balanced',1,1,true);bb2.bots=[a3,c3];a3.grab=c3;c3.held=a3;a3.grabT=1;bbGrabUpdate(1/60);return Math.abs(c3.x-(a3.x+RR*2))<1&&Math.abs(c3.y-a3.y)<1;})());}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

@@ -1,14 +1,14 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-16, at v5.1.102** (see ⏩ LATEST STATE below — much has changed since v5.1.80).
+**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-16, at v5.1.103** (see ⏩ LATEST STATE below — much has changed since v5.1.80).
 
 ---
 
-## ⏩ LATEST STATE — 2026-06-16, **v5.1.102** (READ THIS; the older sections below are pre-v5.1.80 history)
+## ⏩ LATEST STATE — 2026-06-16, **v5.1.103** (READ THIS; the older sections below are pre-v5.1.80 history)
 
 **Builds / branches:**
-- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.102.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it.
+- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.103.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it.
 - **`claude/online-net-5wehy1` = ONLINE sandbox** (isolated so online netcode can't risk the stable build). Build **`drive_showdown_v5.2.0.html`** — online P1a only (dormant in local play).
 - `claude/sharp-newton-kn5ulv` — stale/behind; ignore.
 
