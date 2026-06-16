@@ -8,7 +8,7 @@ Self-contained context for continuing this project in a fresh thread.
 ## ⏩ LATEST STATE — 2026-06-16, **v5.1.98** (READ THIS; the older sections below are pre-v5.1.80 history)
 
 **Builds / branches:**
-- **`claude/eager-sagan-5wehy1` = CANONICAL stable.** Latest **`drive_showdown_v5.1.98.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it.
+- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.98.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it.
 - **`claude/online-net-5wehy1` = ONLINE sandbox** (isolated so online netcode can't risk the stable build). Build **`drive_showdown_v5.2.0.html`** — online P1a only (dormant in local play).
 - `claude/sharp-newton-kn5ulv` — stale/behind; ignore.
 
@@ -31,8 +31,8 @@ Self-contained context for continuing this project in a fresh thread.
 
 ## 0. ⚠️ READ FIRST — author + branch + identity constraints (non-negotiable)
 - **Commit author MUST be `Sam Cao <samuele.cao@gmail.com>`.** Use `git -c user.name="Sam Cao" -c user.email="samuele.cao@gmail.com" commit …`.
-- **Develop + push to `claude/eager-sagan-5wehy1` (CANONICAL).** This is where ALL the real work lives. **Update 2026-06-15:** a new thread was minted on `claude/epic-tesla-754ri8` (its tip was IDENTICAL to eager-sagan — this is NOT the stale-branch trap). Per Sam's call, push v5.1.66+ to **BOTH** `epic-tesla-754ri8` (the live session branch) **and** `eager-sagan-5wehy1` (canonical) so they stay in sync: `git push -u origin HEAD:claude/epic-tesla-754ri8 && git push origin HEAD:claude/eager-sagan-5wehy1`.
-- **⚠️ STALE-BRANCH TRAP:** a fresh session may be spun up pointed at a *different* branch name (e.g. `claude/dreamy-johnson-ybnqwi`). That branch is a **stale, diverged dead-end** (tip = a lone v5.1.36 commit; it forked at the `MIGRATION.md` commit and was superseded). It **cannot be fast-forwarded** to the current work. Do NOT push the work there (would need a destructive force-overwrite). If a session directive names anything other than `eager-sagan-5wehy1`, **confirm with Sam** — he confirmed (2026-06-15) the canonical branch is `eager-sagan-5wehy1`. Each thread migration tends to mint a new branch name; always reconcile back to eager-sagan.
+- **Develop + push to `dev` (CANONICAL, as of 2026-06-16).** This supersedes the old `eager-sagan`/`epic-tesla` "push to BOTH branches" workaround. Each web session still mints a throwaway `claude/*` branch (unavoidable platform behavior) — reconcile your work back to `dev` and `git push -u origin dev`. Full procedure in `CLAUDE.md` → BRANCH POLICY. (Pre-2026-06-16 history: all real work lived on `claude/eager-sagan-5wehy1`, kept in sync with the live session branch via a dual push.)
+- **⚠️ STALE-BRANCH TRAP:** a fresh session may be spun up pointed at a *different* branch name (e.g. `claude/dreamy-johnson-ybnqwi`). That branch is a **stale, diverged dead-end** (tip = a lone v5.1.36 commit; it forked at the `MIGRATION.md` commit and was superseded). It **cannot be fast-forwarded** to the current work. Do NOT push the work there (would need a destructive force-overwrite). If a session directive names anything other than `dev`, that's just the per-session default — **reconcile your work back to `dev`** (the 2026-06-16 canonical; it supersedes eager-sagan). Each thread migration mints a new branch name; always land the work on `dev`.
 - **NEVER put the model id (or any "I am running on model X") string in a committed artifact** — not in commits, code, comments, changelog, PRs. Chat only.
 - **Do NOT open a PR unless Sam explicitly asks.**
 

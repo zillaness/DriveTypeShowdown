@@ -12,4 +12,4 @@ for f in harness/tests/smoke*.js; do
 done
 echo "=== balance ==="
 node harness/tests/balance.js /tmp/g.js 2>&1 | tail -1
-[ $fail -eq 0 ] && echo "ALL GREEN" || echo "SUITES FAILED"
+[ $fail -eq 0 ] && echo "ALL GREEN" || { echo "SUITES FAILED"; exit 1; }
