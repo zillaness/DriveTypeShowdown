@@ -230,8 +230,8 @@ src+=`
   // ── v5.1.79 P2.5: weapon/armor PICKER (grid tap-cyclers) + stat readout + round-trip to the spawned bot ──
   {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tankGridSetCpu(0);
    const ld=bbSeatLoadout(0);ok('a BB seat lazily defaults to the DOZER blade (RAM-only no longer a default)',ld.weapon==='wedge'&&ld.armor==='balanced');
-   bbCycleField(ld,'weapon',1);ok('cycling WEAPON from neutral advances to the first PICKABLE (spinner, not RAM)',ld.weapon===BB_WEAPONS[1].id);
-   bbCycleField(ld,'weapon',-1);ok('v5.1.103: the cycler NEVER lands on RAM-ONLY/none — wraps among real weapons (→ last)',ld.weapon!=='none'&&ld.weapon===BB_WEAPONS[BB_WEAPONS.length-1].id);
+   ld.weapon='spinner';bbCycleField(ld,'weapon',1);ok('cycling WEAPON advances to the next pickable (spinner→piston)',ld.weapon===BB_WEAPONS[2].id);
+   bbCycleField(ld,'weapon',-1);ok('cycling back returns + the cycler NEVER lands on RAM-ONLY/none',ld.weapon==='spinner'&&ld.weapon!=='none');
    bbCycleField(ld,'armor',-1);ok('cycling ARMOR backward wraps to the last',ld.armor===BB_ARMOR[BB_ARMOR.length-1].id);
    m2.tseats=null;}
   {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tour=null;tankGridSetCpu(0);tankGridSetCpu(3);
@@ -381,6 +381,17 @@ src+=`
    const m2b=bbBotWith('spinner','balanced',0,0,true);m2b.x=300;m2b.y=300;const f2=bbBotWith('spinner','balanced',1,1,true);f2.x=400;f2.y=300;bb2.bots=[m2b,f2];m2b._lx=m2b.x;m2b._ly=m2b.y;
    for(let i=0;i<45;i++){m2b._lx=m2b.x-5;m2b._ly=m2b.y;bbCpuUpdate(1/60);} // FREELY moving (5px/frame) → never flags stuck
    ok('CPU UNSTICK: a freely-moving bot is NOT flagged stuck',!(m2b._unstickT>0)&&(m2b._stk||0)<0.2);}
+  // ── v5.1.107: BUZZSAW — a FRONT-only spin-up cutter (high dmg in front; the SPINNER is the 360° one) ──
+  {const a=bbBotWith('buzzsaw','balanced',0,0,true);a.x=300;a.y=300;a.h=0;a.spin=1;
+   const front=bbBotWith('none','balanced',1,1,true);front.x=300+RR*2;front.y=300;bb2.bots=[a,front];
+   ok('bbSpinBite: a spun-up BUZZSAW bites a foe in its FRONT arc',bbSpinBite(a,front)>0);
+   const side=bbBotWith('none','balanced',1,2,true);side.x=300;side.y=300-RR*2; // due north — to the side
+   ok('bbSpinBite: BUZZSAW does NOT bite a foe to the SIDE (front-only, unlike the spinner)',bbSpinBite(a,side)===0);
+   const sp=bbBotWith('spinner','balanced',0,3,true);sp.x=300;sp.y=300;sp.h=0;sp.spin=1;
+   ok('bbSpinBite: a SPINNER bites 360° (the side foe too)',bbSpinBite(sp,side)>0);
+   ok('an un-spun BUZZSAW does not bite',(()=>{const u=bbBotWith('buzzsaw','balanced',0,0,true);u.x=300;u.y=300;u.h=0;u.spin=0.2;return bbSpinBite(u,front)===0;})());
+   ok('BUZZSAW shares the spinner spin-up ramp',(()=>{const u=bbBotWith('buzzsaw','balanced',0,0,true);u.spin=0;u.ctl.brain.fire=true;bb2.bots=[u];bbWeaponPre(0.5);return u.spin>0;})());
+   ok('BUZZSAW is a PICKABLE weapon in the armory + table',BB_WEAPONS.some(w=>w.id==='buzzsaw')&&BB_ARMORY_W.some(w=>w.id==='buzzsaw'));}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

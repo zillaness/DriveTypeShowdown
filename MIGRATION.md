@@ -1,14 +1,14 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-16, at v5.1.106** (see ⏩ LATEST STATE below — much has changed since v5.1.80).
+**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-16, at v5.1.107** (see ⏩ LATEST STATE below — much has changed since v5.1.80).
 
 ---
 
-## ⏩ LATEST STATE — 2026-06-16, **v5.1.106** (READ THIS; the older sections below are pre-v5.1.80 history)
+## ⏩ LATEST STATE — 2026-06-16, **v5.1.107** (READ THIS; the older sections below are pre-v5.1.80 history)
 
 **Builds / branches:**
-- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.106.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it.
+- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.107.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it.
 - **`claude/online-net-5wehy1` = ONLINE sandbox** (isolated so online netcode can't risk the stable build). Build **`drive_showdown_v5.2.0.html`** — online P1a only (dormant in local play).
 - `claude/sharp-newton-kn5ulv` — stale/behind; ignore.
 
@@ -18,7 +18,7 @@ Self-contained context for continuing this project in a fresh thread.
 
 **Shipped this session (v5.1.81→98):** BattleBots loadout picker/ARMORY (drag weapon/armor chips onto a seat), ball-3v3 polish (per-main HUD roster, momentum-aware shove), **SPLASH front door** (`phase==='splash'` = the hub; SINGLE PLAYER vs MULTIPLAYER + global SETTINGS; Esc-from-menu + `p2Exit` return here), cheats page fixed for portrait (1 column when `CW<560`), trademark scrub, then a big **ROBORUMBLE combat overhaul**: immobilized **COUNT-OUT** (STALEMATE-only — fires only when a side has no mobile foe), HP 100→250, **PISTON front-pierce** (+always-extends, fire=RT or A), **SPINNER** rework (slow spin-up, near-restart RPM loss + **self-damage** every bite, **WEDGE deflects it**, wall self-damage, **front-pierce**), **FLANKING CPU brain (P0 DONE — `bbCpuUpdate` orbits to the rear/side)**, flame reach+cone, forward-lunge dash, dropped flame fuel. v5.1.98 fixed 3v3 ball **CPU sensitivity** (`cpuPaceSens` = max human sens; was the 2-player `m2.sens[1-p]`).
 
-**TOOL:** `harness/tests/bbbalance.js` — RoboRumble WEAPON-BALANCE sim (seeded CPU-vs-CPU, every matchup → win-rate matrix). `./extract.sh && node harness/tests/bbbalance.js`. Current (v5.1.106): **wedge 62%, spinner 50%, flame 50%, piston 25%, ram 25%** — an **RPS spread** (Sam: "I like the whole rock-paper-scissors, certain weapons counter certain behaviours" → NOT chasing a flat 50%). Wedge/DOZER FIXED 0%→62% via grab-and-slam (beats spinner+flame; bare RAM dodges its committed charge + beats IT). **Low end to revisit (P8): piston + ram at 25%.**
+**TOOL:** `harness/tests/bbbalance.js` — RoboRumble WEAPON-BALANCE sim (seeded CPU-vs-CPU, every matchup → win-rate matrix). `./extract.sh && node harness/tests/bbbalance.js`. Current (v5.1.107): **wedge 62%, spinner 50%, flame 50%, piston 25%, ram 25%** — an **RPS spread** (Sam: "I like the whole rock-paper-scissors, certain weapons counter certain behaviours" → NOT chasing a flat 50%). Wedge/DOZER FIXED 0%→62% via grab-and-slam (beats spinner+flame; bare RAM dodges its committed charge + beats IT). **Low end to revisit (P8): piston + ram at 25%.**
 
 **Shipped this session on `dev` (v5.1.99 → v5.1.100) — FLAME P1 + feel pass (all from live playtest feedback):** (a) **TURRET-AIM** — flame aims independent of the chassis (`bbAimAngle`→`weaponAng`, fire+cone via `bbFoeArcAt`), now an **ARCADE-DRIVE PERK ONLY** (right-stick/mouse; **swerve/holo aim via the chassis, tank/steer locked forward** — gated on `p2cDriveDef(bind).id==='arcade'`); CPU flame **kites**. (b) **Rebalanced** (slow-while-torching `flameMoveMul:0.6` + dps 34→12) → **flame 25%→50%**. (c) **2× REACH + narrower jet** (`flameRangeK` 3.2→6.4, `flameArc` 0.52π→0.26π). (d) **ANIMATED** flame render (flickering tongues + nozzle flare + sparks, driven by match time). (e) **RoboRumble CONTROLLER RUMBLE** (`p2Rumble` in `bbApplyHit`/`bbApplyFlame`). (f) **DASH (LT/Shift) is DIRECTIONAL again** (dodge/escape; neutral stick = forward) — supersedes the old forward-only rule. Also: `battery.sh` exits non-zero on failure; `./extract.sh`-before-`./battery.sh` documented in `CLAUDE.md`. smoke57 → 158; full battery green.
 
