@@ -79,6 +79,22 @@ RoboRumble-flavored, several cross-mode:
 - Add armor matchups + perks to the matrix; per-map runs once hazards land; a flanking-CPU rerun after P0.
 - Goal: every weapon/armor/perk lands inside a sane win-rate band; the sim becomes the tuning gate (like `balance.js` for CPU tiers).
 
+## P9 — GAME MODES / OBJECTIVES (cross-mode: RoboRumble + Tank Fight) — LATE QUEUE
+Layer selectable objective modes on top of RoboRumble and Tank Fight (beyond last-bot / elimination). Sam's asks (2026-06-16 playtest):
+- **KING OF THE HILL (KOTH)** — three sub-variants:
+  - **Classic** — ONE fixed hill/zone; hold it to accrue time/score.
+  - **Roaming hill** — the hill **despawns and RESPAWNS at a new location** periodically (forces repositioning + a scramble for the next spot).
+  - **Oddball / carry-object** — **pick up an object and HOLD it to gain time**; on death you **DROP it** and someone else grabs it (a juggernaut-with-the-ball).
+- **CAPTURE THE FLAG (CTF)** — grab the enemy flag, return it to base ("pretty self-explanatory").
+- **Claude's suggested others (for Sam to pick from):**
+  - **SUMO / RING-OUT** — shove foes out of a shrinking arena; pairs perfectly with the FLIPPER + arena hazards (P3) + the DOZER push. Most on-theme for combat robots.
+  - **PAYLOAD / ESCORT** — push a cart/objective along a path to the enemy side; rewards TANK push + bulldozer (drive synergies, P5).
+  - **CONTROL / DOMINATION** — 2–3 simultaneous capture zones (multi-KOTH); great for 3v3.
+  - **STOCK / ELIMINATION** — lives-based last-team-standing (vs the current sudden KO).
+  - **JUGGERNAUT** — one buffed bot vs everyone; whoever kills it becomes the new juggernaut.
+  - (lower priority) **BOMB DELIVERY** (carry a bomb to a goal), **TERRITORY**, **HOARD/COLLECT** (gather scattered pickups).
+Shares the MAP-SELECT screen (P3); ties into TOURNAMENT v2 (a mode per bracket). Each mode = a score/time HUD + a win condition; reuse the ball/pickup + zone primitives where possible (the ball mode already has carry/drop + zones to borrow from).
+
 ---
 
 ## Suggested sequence
