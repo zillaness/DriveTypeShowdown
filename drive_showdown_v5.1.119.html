@@ -295,11 +295,12 @@ function applyKonamiSlider(i,mx){ // set CHEATS[i]'s slider value from a canvas 
 let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0,moveOrDie=false; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides; v5.1.116 moveOrDie = RoboRumble anti-camp cheat
 let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,ballScale=1,robotScale=1,ballPups=false,ramCdMult=1; // more cheats (ramCdMult scales the RAM dash cooldown; SENS_MAX cheat lives by the sensitivity consts)
 let bbUnlimited=false,megaBots=false; // v5.1.118 P7 RoboRumble combat cheats: UNLIMITED RESOURCES (no weapon cooldowns) + MEGABOTS (giant HP + crushing ram)
+let airStrike=false,animeSword=false; // v5.1.119 P7 RoboRumble combat cheats: AIRSTRIKE (periodic arena bombs) + ANIME SWORD (every bot gets a dramatic front-arc slash)
 let iceSlip=1; // ICE SKATING slider: 1 = OFF (no ice), >1 = ice on, higher = more slip. Drives iceMode (=slip>1) + MOM.ice.fri = 0.4/iceSlip.
 let capCpuSpeed=false; // CAP CPU SPEED cheat: with MAX SENSITIVITY cranked, true = CPUs stay at base speed (only you go fast); false = CPUs keep pace (chaos). Ball/shooter only — tank/race CPUs never inherit sensitivity.
 let cheatedRun=false;paused=false; // set true while any cheat is active during a run/match; gates records + high scores
 const B2_BALL_CAP=72; // hard cap on balls in play (shared by EXTRA BALLS + MULTIBALL)
-function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1||moveOrDie||bbUnlimited||megaBots;}
+function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1||moveOrDie||bbUnlimited||megaBots||airStrike||animeSword;}
 function cheated(){return anyCheat()||cheatedRun;} // a run is "tainted" if a cheat is on now OR was on at any point this run
 function cpuPaceSens(p){ // every ball/shooter CPU (both sides, all tiers) keeps pace with the FASTEST HUMAN = max sens in the match.
   // (v5.1.98: was m2.sens[1-p] — a 2-player index that broke in 3v3, so only some bots inherited the boost: allies fast, enemies slow.)
@@ -316,6 +317,8 @@ const CHEATS=[
   {name:'MOVE OR DIE',    desc:'[ROBORUMBLE] keep moving or you lose health — no camping',                     get:()=>moveOrDie,   tog:()=>{moveOrDie=!moveOrDie;}}, // v5.1.116 P7 combat cheat
   {name:'UNLIMITED RESRC', desc:'[ROBORUMBLE] no weapon cooldowns — full-auto hammer/flipper, always-spun disc, instant grab', get:()=>bbUnlimited, tog:()=>{bbUnlimited=!bbUnlimited;}}, // v5.1.118 P7
   {name:'MEGABOTS',       desc:'[ROBORUMBLE] giant HP pools + crushing ram damage — epic heavyweight slugfests (pair with ROBOT SIZE)', get:()=>megaBots, tog:()=>{megaBots=!megaBots;}}, // v5.1.118 P7
+  {name:'AIRSTRIKE',      desc:'[ROBORUMBLE] bombs rain on the arena every few seconds — chaos for everyone (side-agnostic)', get:()=>airStrike, tog:()=>{airStrike=!airStrike;}}, // v5.1.119 P7
+  {name:'ANIME SWORD',    desc:'[ROBORUMBLE] every bot gets a dramatic giant front-arc slash on a timer — big damage + knockback', get:()=>animeSword, tog:()=>{animeSword=!animeSword;}}, // v5.1.119 P7
   {name:'MACHINE GUN',    desc:'[2P] Full-auto fire — OFF / YOU only / BOTH sides (tank AND shooter)',          get:()=>machineGun,  tog:()=>{machineGun=(machineGun+1)%3;}, show:v=>['OFF','YOU','BOTH'][v]||'OFF'},
   {name:'MULTIBALL',      desc:'[2P] Every goal spawns 2 more balls (ball + shooter, capped at '+B2_BALL_CAP+')', get:()=>multiBall,   tog:()=>{multiBall=!multiBall;}},
   {name:'STICKY PLOW',    desc:'[2P] Your bot gets the CHAMPION sticky plow — carry up to 5 (normal ball)',      get:()=>stickyPlow,  tog:()=>{stickyPlow=!stickyPlow;}},
@@ -334,7 +337,7 @@ function cheatMove(d){cheatIdx=(cheatIdx+d+CHEATS.length)%CHEATS.length;sfx('cli
 function cheatToggle(){const c=CHEATS[cheatIdx];if(c.slider){c.set(c.get()>=c.max?c.min:c.get()+c.step);}else c.tog();sfx('claim');}
 function cheatAdjust(d){const c=CHEATS[cheatIdx];if(c.slider){c.set(clamp(c.get()+d*c.step,c.min,c.max));sfx('click');}else{const nT=CHEATS.filter(z=>!z.slider).length;cheatIdx=(cheatIdx+(d>0?nT:-nT)+CHEATS.length)%CHEATS.length;sfx('click');}} // ◀▶: nudge a slider, else jump to the slider column
 function cheatsAllOff(){ // ⟲ TURN OFF ALL CHEATS button — reset every cheat to its default
-  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;moveOrDie=false;bbUnlimited=false;megaBots=false;
+  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;moveOrDie=false;bbUnlimited=false;megaBots=false;airStrike=false;animeSword=false;
   ballMult=1;iceSlip=1;iceMode=false;MOM.ice.fri=0.4;clearMomentum();
   SENS_MAX=SENS_MAX_BASE;ramCdMult=1;ballScale=1;BR=clamp(BR0,4,18);robotScale=1;setRobotScale(1);
   sfx('claim');}
@@ -4109,7 +4112,7 @@ const BB_W={
   flameRangeK:6.4, flameArc:Math.PI*0.26, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, // FLAMETHROWER (v5.1.100): ~2× REACH + a NARROWER focused jet (per playtest), heat-up dwell, dps (re-tuned via the sim), heat cap (no fuel gauge), MOVE-mult while torching (plant-to-burn — the balance counter to the ARCADE turret kite; fuel parked)
   wedgeDmg:0.40, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:85, grabDmg:18, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.5, pincerGrabDur:1.8, pincerDrain:55, // WEDGE/DOZER: contact-dmg, grab arc, pinned speed mult, pin/grab DURATION, shove + v5.1.103 GRAB-AND-SLAM (grip seconds, cooldown, base wall-slam dmg ×speed), dozerCharge = forward boost while firing RT, dashBuff = RoboRumble LT-dash speed/range buff
   blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:4.6, kamiDmg:170, partingRK:3.8, partingDmg:95, // P2.3 FLAME blow-up; v5.1.111 KAMIKAZE self-destruct blast radius (×RR) + peak damage (falls off to 0.4× at the edge)
-  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, megaHp:2.6, megaDmg:1.55 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary; v5.1.117 P4 MINIBOT harasser (radius×RR, speed×SPD, shove px, pin-slow seconds)
+  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary; v5.1.117 P4 MINIBOT harasser (radius×RR, speed×SPD, shove px, pin-slow seconds)
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
   const id=(typeof p2cDriveDef!=='undefined')?p2cDriveDef(bind).id:'tank';
@@ -4280,6 +4283,29 @@ function bbMiniUpdate(dt){ // harassers: chase nearest opponent main, shove + pi
   const M=bb2.minis;for(let i=0;i<M.length;i++)for(let j=i+1;j<M.length;j++){const a=M[i],c=M[j];if(a.dead||c.dead)continue; // mini-mini separation (don't stack)
     const dx=a.x-c.x,dy=a.y-c.y,d=Math.hypot(dx,dy)||0.01;if(d<mrr*2){const nx=dx/d,ny=dy/d,ov=mrr*2-d;a.x+=nx*ov*0.5;a.y+=ny*ov*0.5;c.x-=nx*ov*0.5;c.y-=ny*ov*0.5;}}
 }
+function bbAirstrikeUpdate(dt){ // v5.1.119 P7 AIRSTRIKE: bombs rain on the arena on a timer — radial damage to EVERYONE (reuses bb2.blasts FX)
+  if(!airStrike||!bb2)return;
+  bb2.airT=(bb2.airT==null?BB_W.airCd:bb2.airT)-dt;
+  if(bb2.airT>0)return;
+  bb2.airT=BB_W.airCd;
+  const live=bb2.bots.filter(b=>!b.dead);if(!live.length)return;
+  const tgt=live[Math.floor(Math.random()*live.length)]; // bias strikes toward the action (a living bot) + jitter
+  const x=clamp(tgt.x+(Math.random()*2-1)*RR*2,RR,FW-RR),y=clamp(tgt.y+(Math.random()*2-1)*RR*2,RR,FH-RR),R=RR*BB_W.airR;
+  if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:x,y:y,t:0.5,r:R});sfx('hit');
+  for(const b of bb2.bots){if(b.dead)continue;const d=Math.hypot(b.x-x,b.y-y);if(d<=R){const f=Math.max(0.35,1-d/R);b.hp-=BB_W.airDmg*f;b.inv=BB.hitCd;if(b.ctl)p2Rumble(b.ctl.bind,0.6);if(b.hp<=0&&!b.dead)bbKill(b,null);}}
+}
+function bbSwordUpdate(dt){ // v5.1.119 P7 ANIME SWORD: every bot gets a dramatic periodic front-arc slash (big dmg + knockback, pierces the front)
+  if(!animeSword||!bb2)return;
+  for(let ai=0;ai<bb2.bots.length;ai++){const a=bb2.bots[ai];if(a.dead)continue;
+    if(a._swordFx>0)a._swordFx=Math.max(0,a._swordFx-dt);
+    a.swordCd=(a.swordCd==null?BB_W.swordCd:a.swordCd)-dt;
+    if(a.swordCd>0)continue;
+    a.swordCd=BB_W.swordCd;a._swordFx=0.25;sfx('hit');const R=RR+RR*BB_W.swordRange;
+    for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);
+      if(d<=R&&bbFoeAngOk(a,c,BB_W.swordArc)){bbApplyHit(c,bbHitLoc(c,a.x,a.y),BB_W.swordDmg,ai,a.x,a.y,0.7);
+        const m=d||1,nx=(c.x-a.x)/m,ny=(c.y-a.y)/m;c.x+=nx*BB_W.swordKnock;c.y+=ny*BB_W.swordKnock;obsCheck(c,RR);if(c.ctl)p2Rumble(c.ctl.bind,0.7);if(c.hp<=0)bbKill(c,ai);}}
+  }
+}
 function updateBB(dt){
   if(!bb2)return;
   if(bb2.cd>0){const _p=Math.ceil(bb2.cd);bb2.cd-=dt;if(bb2.cd<=0)sfx('go');else if(Math.ceil(bb2.cd)<_p)sfx('count');return;}
@@ -4342,6 +4368,8 @@ function updateBB(dt){
   }
   bbWeaponFire(dt); // PISTON strikes + FLAMETHROWER heat-up/burn (range-based)
   bbMiniUpdate(dt); // v5.1.117 P4: deployed harasser minibots chase + shove/pin opponents
+  bbSwordUpdate(dt); // v5.1.119 P7: ANIME SWORD periodic slash (cheat)
+  bbAirstrikeUpdate(dt); // v5.1.119 P7: AIRSTRIKE arena bombs (cheat)
   // STALEMATE COUNT-OUT: only when NOTHING is happening — an immobilized bot taps out ONLY if its side has no mobile
   // opponent left to finish it (a true both-stuck standoff). If a foe can still move, let the player earn the kill.
   {const sideMobile=[false,false];for(const b of bb2.bots)if(!b.dead&&b.mob>0)sideMobile[b.side]=true;
@@ -4419,6 +4447,7 @@ function drawBB(){
     ctx.strokeStyle='#ffffffcc';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,RR+13,b.h-BB.frontCone/2,b.h+BB.frontCone/2);ctx.stroke(); // FRONT-armor arc
     ctx.restore();
     bbDrawWeapon(b); // P2.2 weapon cosmetic
+    if(b._swordFx>0){ctx.save();ctx.translate(FX+b.x,FY+b.y);ctx.globalAlpha=Math.min(1,b._swordFx*5);ctx.strokeStyle='#bfeaff';ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,0,RR+RR*BB_W.swordRange,b.h-BB_W.swordArc/2,b.h+BB_W.swordArc/2);ctx.stroke();ctx.globalAlpha=1;ctx.restore();} // v5.1.119 ANIME SWORD slash arc
     bbDrawWheels(b); // P2.4 dead-wheel marks
     {const eg=bbNameEgg(b);if(eg){const pc=BB_EGG_PAINT[eg];ctx.save();ctx.translate(FX+b.x,FY+b.y);ctx.lineWidth=3;ctx.strokeStyle=pc[0];ctx.beginPath();ctx.arc(0,0,RR+5,-Math.PI/2,Math.PI/2);ctx.stroke();ctx.strokeStyle=pc[1];ctx.beginPath();ctx.arc(0,0,RR+5,Math.PI/2,Math.PI*1.5);ctx.stroke();if(bbEggActive(b)){ctx.fillStyle=pc[1];ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillText('★',0,-RR-9);}ctx.restore();}} // v5.1.115 P6 egg PAINT (two-tone ring; ★ = buff active)
     drawP2Tag(p,b,b.ctl.name||p2Name(b.ctl.bind),b.col); // show each bot's name above it, humans included

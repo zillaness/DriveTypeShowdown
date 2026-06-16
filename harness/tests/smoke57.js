@@ -489,6 +489,25 @@ src+=`
    const svm=megaBots;megaBots=true;startBB(0,2);
    ok('MEGABOTS spawn with a giant HP pool (hp + mhp scaled)',bb2.bots.every(b=>b.hp===BB.HP*BB_W.megaHp&&b.mhp>BB.HP&&b.mega===true));
    megaBots=svm;}
+  // ── v5.1.119: P7 combat cheats — AIRSTRIKE (arena bombs) + ANIME SWORD (front-arc slash) ──
+  {ok('AIRSTRIKE is a cheat',CHEATS.some(c=>c.name==='AIRSTRIKE'));
+   ok('ANIME SWORD is a cheat',CHEATS.some(c=>c.name==='ANIME SWORD'));
+   const sva=airStrike;airStrike=true;
+   const ab=bbBotWith('none','balanced',0,0,true);ab.x=300;ab.y=300;ab.hp=BB.HP;ab.inv=0;
+   bb2.bots=[ab];bb2.result=null;bb2.blasts=[];bb2.airT=0.02;const ahp0=ab.hp,nbl0=bb2.blasts.length;
+   bbAirstrikeUpdate(0.05); // pushes airT below 0 → a strike lands
+   ok('AIRSTRIKE drops a bomb (a blast appears) + damages a bot under it',bb2.blasts.length>nbl0&&ab.hp<ahp0);
+   ok('AIRSTRIKE resets its timer after a strike',bb2.airT>0);
+   airStrike=false;const ab2=bbBotWith('none','balanced',0,0,true);ab2.hp=BB.HP;bb2.bots=[ab2];bb2.blasts=[];bb2.airT=0.02;bbAirstrikeUpdate(0.05);
+   ok('AIRSTRIKE off: no bombs, no damage',bb2.blasts.length===0&&ab2.hp===BB.HP);airStrike=sva;
+   const svs=animeSword;animeSword=true;
+   const sw=bbBotWith('none','balanced',0,0,true);sw.x=300;sw.y=300;sw.h=0;sw.swordCd=0;
+   const front=bbBotWith('none','balanced',1,1,true);front.x=300+RR+10;front.y=300;front.h=0;front.hp=BB.HP;front.inv=0;
+   const back=bbBotWith('none','balanced',1,2,true);back.x=300-RR-10;back.y=300;back.h=0;back.hp=BB.HP;back.inv=0;
+   bb2.bots=[sw,front,back];bb2.result=null;const fhp0=front.hp,bhp0=back.hp;bbSwordUpdate(1/60);
+   ok('ANIME SWORD slashes a foe in the FRONT arc (damage + FX)',front.hp<fhp0&&sw._swordFx>0);
+   ok('ANIME SWORD spares a foe BEHIND (outside the front arc)',back.hp===bhp0);
+   ok('ANIME SWORD goes on cooldown after a swing',sw.swordCd>0);animeSword=svs;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
