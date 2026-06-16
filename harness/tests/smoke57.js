@@ -216,6 +216,25 @@ src+=`
    const lr=bbSeatLoadRects(tankCellRect(0));const before=m2.tseats[0].loadout.weapon;tankGridClick(lr.wR.x+10,lr.wR.y+10);
    ok('clicking the seat weapon ▶ cycles its loadout',m2.tseats[0].loadout.weapon!==before);
    m2.tseats=null;}
+  // ── v5.1.90 BB grid polish: per-seat stat bars + drag-to-copy a loadout between seats ──
+  {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;phase='p2claim';tour=null;
+   tankGridSetCpu(0);tankGridSetCpu(1);tankGridSetCpu(3);
+   m2.tseats[0].loadout={weapon:'spinner',armor:'hardplate'};m2.tseats[1].loadout={weapon:'none',armor:'balanced'};
+   ok('bbCopyLoadout clones weapon+armor onto another seat',bbCopyLoadout(0,1)&&m2.tseats[1].loadout.weapon==='spinner'&&m2.tseats[1].loadout.armor==='hardplate');
+   ok('bbCopyLoadout makes a NEW object (seats not aliased)',m2.tseats[1].loadout!==m2.tseats[0].loadout);
+   m2.tseats[1].loadout.weapon='flame';ok('editing the copy leaves the source intact',m2.tseats[0].loadout.weapon==='spinner');
+   ok('bbCopyLoadout no-ops for the same seat',bbCopyLoadout(0,0)===false);
+   ok('bbCopyLoadout no-ops onto an empty seat',bbCopyLoadout(0,2)===false&&!m2.tseats[2]);
+   const c=tankCellRect(0),lr=bbSeatLoadRects(c),g=bbSeatGripRect(c);
+   ok('bbLoadGripHit true on the loadout-bar body (between the cyclers)',bbLoadGripHit(0,(lr.wR.x+lr.aL.x)/2,g.y+13));
+   ok('bbLoadGripHit false on a cycler arrow (tap-cycle preserved)',!bbLoadGripHit(0,lr.wR.x+10,lr.wR.y+10));
+   ok('bbLoadGripHit false on an empty seat',!bbLoadGripHit(2,(lr.wR.x+lr.aL.x)/2,g.y+13));
+   ok('bbSeatAt maps a point to its cell',bbSeatAt(c.x+10,c.y+10)===0&&bbSeatAt(tankCellRect(4).x+10,tankCellRect(4).y+10)===4);
+   const sr=bbSeatStatsRect(c);
+   ok('bbSeatStatsRect sits inside the cell, clear of the loadout bar',sr.x>=c.x&&sr.x+sr.w<=g.x&&sr.y>=c.y&&sr.y+sr.h<=c.y+c.h);
+   bbLoadDrag={from:0,x:c.x+200,y:c.y+200};let gThrew=false;try{drawTankGrid();}catch(e){gThrew=true;console.log('   grid+drag draw err:',e.message);}bbLoadDrag=null;
+   ok('drawTankGrid renders stat bars + an active drag without throwing',!gThrew);
+   m2.tseats=null;}
   // ── v5.1.80 P2.6: CPU auto-arms + uses its weapon (tier-scaled) ──
   {const lo=bbCpuPickLoadout(3);ok('bbCpuPickLoadout returns a valid weapon+armor (armed)',BB_WEAPONS.some(w=>w.id===lo.weapon)&&BB_ARMOR.some(a=>a.id===lo.armor)&&lo.weapon!=='none');}
   {m2.mode='battlebots';m2.set.tfmt='1v1';m2.tseats=null;tour=null;m2.claim=[{type:'kb'},{type:'cpu',tier:3}];playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];
