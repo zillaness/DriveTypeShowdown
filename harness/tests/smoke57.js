@@ -373,6 +373,14 @@ src+=`
    ok('FLAME LOS: an obstacle between the flamer and the foe BLOCKS the burn',fc.hp===BB.HP);
    tfObs=null;fc.hp=BB.HP;fa.heat={};for(let i=0;i<60;i++){fa.firing=true;bbWeaponPre(1/60);bbWeaponFire(1/60);}
    ok('FLAME with a CLEAR line still burns through',fc.hp<BB.HP);tfObs=savedObs;}
+  // ── v5.1.106: CPU stuck-detection → UNSTICK (so bots stop jamming on the first obstacle) ──
+  {const me=bbBotWith('spinner','balanced',0,0,true);me.x=RR;me.y=RR;me.h=0;
+   const foe=bbBotWith('spinner','balanced',1,1,true);foe.x=500;foe.y=500;bb2.bots=[me,foe];bb2.result=null;bb2.t=1;me._lx=me.x;me._ly=me.y;
+   let unstuck=false;for(let i=0;i<45;i++){const px=me.x,py=me.y;bbCpuUpdate(1/60);me.x=px;me.y=py;if(me._unstickT>0)unstuck=true;} // hold position → simulate being JAMMED while it tries to move toward the foe
+   ok('CPU UNSTICK: a bot jammed in place (tried to move but did not) triggers an unstick maneuver',unstuck);
+   const m2b=bbBotWith('spinner','balanced',0,0,true);m2b.x=300;m2b.y=300;const f2=bbBotWith('spinner','balanced',1,1,true);f2.x=400;f2.y=300;bb2.bots=[m2b,f2];m2b._lx=m2b.x;m2b._ly=m2b.y;
+   for(let i=0;i<45;i++){m2b._lx=m2b.x-5;m2b._ly=m2b.y;bbCpuUpdate(1/60);} // FREELY moving (5px/frame) → never flags stuck
+   ok('CPU UNSTICK: a freely-moving bot is NOT flagged stuck',!(m2b._unstickT>0)&&(m2b._stk||0)<0.2);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
