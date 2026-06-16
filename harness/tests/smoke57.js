@@ -235,6 +235,27 @@ src+=`
    bbLoadDrag={from:0,x:c.x+200,y:c.y+200};let gThrew=false;try{drawTankGrid();}catch(e){gThrew=true;console.log('   grid+drag draw err:',e.message);}bbLoadDrag=null;
    ok('drawTankGrid renders stat bars + an active drag without throwing',!gThrew);
    m2.tseats=null;}
+  // ── v5.1.94 ARMORY: drag a weapon/armor chip from the rail onto a seat to equip ──
+  {applyLayout('land2p');m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;phase='p2claim';tour=null;tankGridSetCpu(0);
+   const chips=bbArmoryChips(),wChips=chips.filter(c=>c.kind==='weapon'),aChips=chips.filter(c=>c.kind==='armor');
+   ok('armory rail has every weapon + every armor chip',wChips.length===BB_WEAPONS.length&&aChips.length===BB_ARMOR.length);
+   ok('armory chip ids match the real weapon/armor tables',wChips.every(c=>BB_WEAPONS.some(w=>w.id===c.id))&&aChips.every(c=>BB_ARMOR.some(a=>a.id===c.id)));
+   ok('armory rail sits inside the canvas, above the seats',chips.every(c=>c.x>=0&&c.x+c.w<=CW&&c.y>=0&&c.y+c.h<=tankCellRect(0).y));
+   const sp=wChips.find(c=>c.id==='spinner'),hit=bbArmoryHit(sp.x+sp.w/2,sp.y+sp.h/2);
+   ok('bbArmoryHit finds the chip under the point',!!hit&&hit.kind==='weapon'&&hit.id==='spinner');
+   ok('bbArmoryHit misses below the rail (over the seats)',bbArmoryHit(sp.x+sp.w/2,tankCellRect(0).y+40)===null);
+   m2.tseats[0].loadout={weapon:'none',armor:'balanced'};
+   ok('dropping a WEAPON chip equips it',bbArmEquip(0,'weapon','spinner')&&m2.tseats[0].loadout.weapon==='spinner');
+   ok('dropping an ARMOR chip equips it',bbArmEquip(0,'armor','hardplate')&&m2.tseats[0].loadout.armor==='hardplate');
+   ok('a bogus chip id is rejected',!bbArmEquip(0,'weapon','laser')&&!bbArmEquip(0,'armor','adamantium'));
+   ok('dropping on an empty seat no-ops',!bbArmEquip(2,'weapon','spinner')&&!m2.tseats[2]);
+   // full drag→drop: grab a chip, drop over seat 0's cell
+   bbArmDrag={kind:'weapon',id:'flame',lab:'FLAME',ic:'F',x:sp.x,y:sp.y};
+   const dropSeat=bbSeatAt(tankCellRect(0).x+10,tankCellRect(0).y+10);
+   ok('drag→drop equips the carried weapon on the seat under the cursor',bbArmEquip(dropSeat,bbArmDrag.kind,bbArmDrag.id)&&m2.tseats[0].loadout.weapon==='flame');
+   let aThrew=false;try{drawTankGrid();}catch(e){aThrew=true;console.log('   armory draw err:',e.message);}
+   ok('drawTankGrid renders the armory rail + an active chip drag without throwing',!aThrew);
+   bbArmDrag=null;m2.tseats=null;}
   // ── v5.1.80 P2.6: CPU auto-arms + uses its weapon (tier-scaled) ──
   {const lo=bbCpuPickLoadout(3);ok('bbCpuPickLoadout returns a valid weapon+armor (armed)',BB_WEAPONS.some(w=>w.id===lo.weapon)&&BB_ARMOR.some(a=>a.id===lo.armor)&&lo.weapon!=='none');}
   {m2.mode='battlebots';m2.set.tfmt='1v1';m2.tseats=null;tour=null;m2.claim=[{type:'kb'},{type:'cpu',tier:3}];playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];
