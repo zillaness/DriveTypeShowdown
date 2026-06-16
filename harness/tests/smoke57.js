@@ -233,7 +233,17 @@ src+=`
    ld.weapon='spinner';bbCycleField(ld,'weapon',1);ok('cycling WEAPON advances to the next pickable (spinner→piston)',ld.weapon===BB_WEAPONS[2].id);
    bbCycleField(ld,'weapon',-1);ok('cycling back returns + the cycler NEVER lands on RAM-ONLY/none',ld.weapon==='spinner'&&ld.weapon!=='none');
    bbCycleField(ld,'armor',-1);ok('cycling ARMOR backward wraps to the last',ld.armor===BB_ARMOR[BB_ARMOR.length-1].id);
+   ld.perk='none';bbCycleField(ld,'perk',1);ok('cycling PERK from NONE → the first real perk',ld.perk===BB_PERKS[1].id&&ld.perk!=='none');
+   bbCycleField(ld,'perk',-1);ok('cycling PERK back returns to NONE',ld.perk==='none');
+   bbCycleField(ld,'perk',-1);ok('cycling PERK backward from NONE wraps to the last perk',ld.perk===BB_PERKS[BB_PERKS.length-1].id);
    m2.tseats=null;}
+  // ── v5.1.136: the 1v1 claim LAYOUT picker now exposes a PERK row + carries it through ──
+  {const r=bbClaimLoadRects(0);ok('1v1 claim loadout has a PERK row (◀▶)',!!(r.p&&r.p.l&&r.p.r));
+   if(!m2.bbLoadout)m2.bbLoadout=[null,null];m2.bbLoadout[0]=null;const ld=bbClaimEnsure(0);
+   ok('a fresh 1v1 claim loadout defaults perk = none',ld.perk==='none');
+   bbCycleField(ld,'perk',1);ok('the 1v1 perk cycler equips a real perk',ld.perk!=='none'&&BB_PERKS.some(p=>p.id===ld.perk));
+   ok('the chosen 1v1 perk resolves into the loadout',bbResolveLoadout(bbClaimLd(0)).perk===ld.perk);
+   m2.bbLoadout=[null,null];}
   {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;tour=null;tankGridSetCpu(0);tankGridSetCpu(3);
    m2.tseats[0].loadout={weapon:'spinner',armor:'hardplate'};m2.tseats[3].loadout={weapon:'flame',armor:'heatshield'};
    startP2BB();const red=bb2.bots.find(b=>b.ctl.bind===0),blue=bb2.bots.find(b=>b.ctl.bind===3);

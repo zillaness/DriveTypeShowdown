@@ -3898,7 +3898,7 @@ function bbLoadoutForBind(bind){ // MULTI grid seat loadout, else 1v1 claim load
 }
 // ── P2.5: weapon/armor loadout PICKER (tap-cyclers on each RoboRumble grid seat; the grid covers 1v1→3v3) ──
 function bbSeatLoadout(i){if(!m2.tseats||!m2.tseats[i])return {weapon:'wedge',armor:'balanced'};if(!m2.tseats[i].loadout)m2.tseats[i].loadout={weapon:'wedge',armor:'balanced'};return m2.tseats[i].loadout;} // v5.1.104: default picker seat = the DOZER blade (every bot has at least a blade; RAM-only is no longer a pickable/default)
-function bbCycleField(ld,field,dir){const list=field==='weapon'?BB_WEAPONS.filter(x=>x.id!=='none'):BB_ARMOR,ids=list.map(x=>x.id),n=ids.length,i=ids.indexOf(ld[field]),cur=(i<0)?(dir>0?-1:0):i;ld[field]=ids[((cur+dir)%n+n)%n];sfx('click');} // v5.1.103: the weapon cycler SKIPS RAM-ONLY ('none') — from neutral, ▶ → first pickable, ◀ → last
+function bbCycleField(ld,field,dir){const list=field==='weapon'?BB_WEAPONS.filter(x=>x.id!=='none'):field==='perk'?BB_PERKS:BB_ARMOR,ids=list.map(x=>x.id),n=ids.length,i=ids.indexOf(ld[field]),cur=(i<0)?(dir>0?-1:0):i;ld[field]=ids[((cur+dir)%n+n)%n];sfx('click');} // v5.1.103: the weapon cycler SKIPS RAM-ONLY ('none') — from neutral, ▶ → first pickable, ◀ → last; v5.1.136: 'perk' cycles BB_PERKS (incl. NONE)
 function bbStatBars(ld){const r=bbResolveLoadout(ld);return{speed:clamp((r.speedMul-0.45)/0.55,0,1),mob:clamp((r.mobMax/BB.MOB-1)/0.5,0,1),dmg:clamp((r.deal-0.6)/1.0,0,1),tough:clamp((1.4-r.take)/0.9,0,1)};} // 0..1 readout bars: SPEED / MOBILITY / DAMAGE / TOUGHNESS
 // ── v5.1.90 BB grid polish: per-seat stat bars + drag-to-copy a loadout between seats ──
 function bbSeatStatsRect(c){return{x:c.x+12,y:c.y+108,w:90,h:38};} // 4 thin SPD/MOB/DMG/TUF bars in the left column, under the preview, clear of the loadout bar (c.x+108+) and the SENS slider (c.x+120+)
@@ -5582,6 +5582,8 @@ function p2Click(mx,my){
         if(inR(mx,my,lr.w.r)){bbCycleField(bbClaimEnsure(pl),'weapon',1);return;}
         if(inR(mx,my,lr.a.l)){bbCycleField(bbClaimEnsure(pl),'armor',-1);return;}
         if(inR(mx,my,lr.a.r)){bbCycleField(bbClaimEnsure(pl),'armor',1);return;}
+        if(inR(mx,my,lr.p.l)){bbCycleField(bbClaimEnsure(pl),'perk',-1);return;}
+        if(inR(mx,my,lr.p.r)){bbCycleField(bbClaimEnsure(pl),'perk',1);return;}
         if(inR(mx,my,lr.auto)){bbClaimAutobuild(pl);return;}}
       const cbd=m2.claim[pl],isCpu=cbd&&cbd.type==='cpu';
       if(isCpu&&inR(mx,my,p2cTierRect(pl,-1))){sfx('click');cbd.tier=((cbd.tier|0)+CPU_TIERS.length-1)%CPU_TIERS.length;return;}
@@ -5629,14 +5631,15 @@ function p2cTouchRect(pl){const cx=p2cCol(pl);return{x:cx-150,y:584,w:300,h:26};
 function p2cCpuRect(){return{x:120,y:CH-78,w:180,h:34};}
 function p2cSwapRect(){return{x:CW-300,y:CH-78,w:180,h:34};}
 // ── RoboRumble 1v1 claim "layout": weapon/armor cyclers + AUTOBUILD, per side in m2.bbLoadout (read by bbLoadoutForBind). Sits where the drive stat bars go in other modes. ──
-function bbClaimLoadRects(pl){const cx=p2cCol(pl);return{w:{l:{x:cx-150,y:356,w:26,h:26},r:{x:cx+124,y:356,w:26,h:26}},a:{l:{x:cx-150,y:392,w:26,h:26},r:{x:cx+124,y:392,w:26,h:26}},auto:{x:cx-100,y:424,w:200,h:28}};}
+function bbClaimLoadRects(pl){const cx=p2cCol(pl);return{w:{l:{x:cx-150,y:356,w:26,h:26},r:{x:cx+124,y:356,w:26,h:26}},a:{l:{x:cx-150,y:388,w:26,h:26},r:{x:cx+124,y:388,w:26,h:26}},p:{l:{x:cx-150,y:420,w:26,h:26},r:{x:cx+124,y:420,w:26,h:26}},auto:{x:cx-100,y:450,w:200,h:24}};} // v5.1.136: tighter pitch + a PERK row + a slimmer AUTOBUILD, all above the controller box (y=484)
 function bbClaimLd(pl){return (m2.bbLoadout&&m2.bbLoadout[pl])||null;} // null = "default" (CPU auto-arms at spawn, human stays RAM/neutral — see startP2BB)
-function bbClaimEnsure(pl){if(!m2.bbLoadout)m2.bbLoadout=[null,null];if(!m2.bbLoadout[pl])m2.bbLoadout[pl]={weapon:'wedge',armor:'balanced'};return m2.bbLoadout[pl];} // v5.1.104: default 1v1 claim loadout = the DOZER blade (no RAM-only default)
+function bbClaimEnsure(pl){if(!m2.bbLoadout)m2.bbLoadout=[null,null];if(!m2.bbLoadout[pl])m2.bbLoadout[pl]={weapon:'wedge',armor:'balanced',perk:'none'};return m2.bbLoadout[pl];} // v5.1.104: default 1v1 claim loadout = the DOZER blade (no RAM-only default); v5.1.136: + perk slot (NONE default)
 function bbClaimAutobuild(pl){if(!m2.bbLoadout)m2.bbLoadout=[null,null];const c=m2.claim&&m2.claim[pl],tier=(c&&c.type==='cpu')?(c.tier|0):2;m2.bbLoadout[pl]=bbCpuPickLoadout(tier);sfx('click');} // roll a concrete weapon+armor you can then tweak
 function bbDrawClaimLoadout(pl,isCpu){const cx=p2cCol(pl),col=M2_COLS[pl],r=bbClaimLoadRects(pl),ld=bbClaimLd(pl);
-  ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillStyle='#888aa8';ctx.fillText(isCpu&&!ld?'⚙ LAYOUT — auto-armed at start · tap to customize':'⚙ LAYOUT — weapon & armor',cx,340);
+  ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillStyle='#888aa8';ctx.fillText(isCpu&&!ld?'⚙ LAYOUT — auto-armed at start · tap to customize':'⚙ LAYOUT — weapon · armor · perk',cx,338);
   const rows=[{ic:'⚔',name:ld?bbWeaponById(ld.weapon).name:(isCpu?'AUTO':bbWeaponById('none').name),lr:r.w},
-              {ic:'🛡',name:ld?bbArmorById(ld.armor).name:(isCpu?'AUTO':bbArmorById('balanced').name),lr:r.a}];
+              {ic:'🛡',name:ld?bbArmorById(ld.armor).name:(isCpu?'AUTO':bbArmorById('balanced').name),lr:r.a},
+              {ic:'✦',name:ld?bbPerkById(ld.perk||'none').name:(isCpu?'AUTO':bbPerkById('none').name),lr:r.p}];
   for(const row of rows){
     ctx.font='14px Courier New';ctx.textAlign='left';ctx.fillStyle='#cfc0a0';ctx.fillText(row.ic,row.lr.l.x-28,row.lr.l.y+19);
     for(const ar of [row.lr.l,row.lr.r]){ctx.fillStyle='rgba(40,40,62,0.7)';rr(ar.x,ar.y,ar.w,ar.h,6);ctx.fill();ctx.strokeStyle='#4a4a6a';ctx.lineWidth=1;rr(ar.x,ar.y,ar.w,ar.h,6);ctx.stroke();ctx.fillStyle='#aab';ctx.textAlign='center';ctx.font='bold 15px Courier New';ctx.fillText(ar===row.lr.l?'◀':'▶',ar.x+ar.w/2,ar.y+19);}

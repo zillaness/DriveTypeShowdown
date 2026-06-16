@@ -59,7 +59,7 @@ src+=`
    for(let pl=0;pl<2;pl++){const cx=p2cCol(pl),lr=bbClaimLoadRects(pl),card=p2cCardRect(pl);
     const ctrlBox={x:cx-180,y:484,w:360,h:40};
     const a0=p2cArrowRect(pl,-1),a1=p2cArrowRect(pl,1),driveArrowsBottom=Math.max(a0.y+a0.h,a1.y+a1.h);
-    const rects=[['wL',lr.w.l],['wR',lr.w.r],['aL',lr.a.l],['aR',lr.a.r],['auto',lr.auto]];let bad=[];
+    const rects=[['wL',lr.w.l],['wR',lr.w.r],['aL',lr.a.l],['aR',lr.a.r],['pL',lr.p.l],['pR',lr.p.r],['auto',lr.auto]];let bad=[];
     for(const [n,r] of rects){
       if(overlap(r,ctrlBox))bad.push(n+'×ctrlBox');
       if(r.y<driveArrowsBottom)bad.push(n+'×driveArrows');
