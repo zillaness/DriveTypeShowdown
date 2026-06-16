@@ -85,12 +85,15 @@ src+=`
    t.aimT=0;
    {const _mv=mouseAim;mouseAim=true;playerBind[0]={type:'kb'};t.x=600;t.y=300;mouseX=FX+600;mouseY=FY+120; // keyboard arcade + Mouse-Aim ON → aim from the tank toward the cursor (straight up = -π/2)
     ok('arcade+kb (Mouse-Aim ON): turret aims from the tank toward the mouse',Math.abs(tankTurretAim(t,0)+Math.PI/2)<1e-9);
-    mouseAim=false;ok('arcade+kb (Mouse-Aim OFF): no mouse turret aim',tankTurretAim(t,0)===null);
-    // v5.1.83: arcade + Mouse-Aim → left-click FIRES the cannon (tankFire OR-in)
-    mouseAim=true;mouseBtnHeld=true;ok('arcade+kb+Mouse-Aim: left-click FIRES the cannon',tankFire(0)===true);
-    mouseAim=false;ok('Mouse-Aim OFF: a click does NOT fire',tankFire(0)===false);
-    mouseAim=true;mouseBtnHeld=false;ok('no button held: a click does NOT fire',tankFire(0)===false);
-    {const _da=m2.drive[0];mouseBtnHeld=true;m2.drive[0]={kind:'main',idx:3,name:'FS',c:'#fff'};ok('non-arcade drive: a click does NOT fire',tankFire(0)===false);m2.drive[0]=_da;}
+    mouseAim=false;ok('arcade+kb: turret STILL aims to mouse with Mouse-Aim OFF (arcade auto mouse-aim)',Math.abs(tankTurretAim(t,0)+Math.PI/2)<1e-9);
+    // v5.1.85: left-click FIRES when the bot is mouse-aiming — arcade ALWAYS; any drive when global Mouse-Aim ON
+    mouseBtnHeld=true;mouseAim=false;ok('arcade + click: FIRES even with Mouse-Aim OFF (arcade always mouse-aims)',tankFire(0)===true);
+    mouseAim=true;ok('arcade + click + Mouse-Aim ON: FIRES',tankFire(0)===true);
+    mouseBtnHeld=false;ok('arcade, no button held: does NOT fire',tankFire(0)===false);
+    {const _da=m2.drive[0];m2.drive[0]={kind:'main',idx:3,name:'FS',c:'#fff'}; // non-arcade
+     mouseBtnHeld=true;mouseAim=true;ok('non-arcade + click + Mouse-Aim ON: FIRES (all bots in mouse-aim mode)',tankFire(0)===true);
+     mouseAim=false;ok('non-arcade + click + Mouse-Aim OFF: does NOT fire',tankFire(0)===false);
+     m2.drive[0]=_da;}
     mouseBtnHeld=false;mouseAim=false;
     // arcade redirects Mouse-Aim from the CHASSIS to the turret: mouseAimVr is suppressed while the turret handles aim
     mouseAim=true;steerMode=false;tankAimLockStick=true;
