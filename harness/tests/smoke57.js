@@ -430,6 +430,16 @@ src+=`
    ok('PINCER drains the held foe MOBILITY (immobilize) without big damage',c.mob<mob0&&c.hp===hp0);
    ok('PINCER glues the held foe to its front',Math.abs(c.x-(a.x+RR*2))<1&&!!c.held);
    ok('PINCER is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='pincer')&&BB_ARMORY_W.some(w=>w.id==='pincer'));}
+  // ── v5.1.139: PINCER actually CLAMPS on a firing front-arc ram (the trigger path) + lunges + opens ──
+  {ok('PINCER has a forward LUNGE while firing',BB_W.pincerLunge>1);
+   ok('PINCER clamp arc is wide enough to catch a foe',BB_W.pincerArc>=Math.PI*0.5);
+   const sv=m2.set.bbmode;m2.set.bbmode='ko';
+   const a=bbBotWith('pincer','balanced',0,0,true);a.x=300;a.y=300;a.h=0;a.grabCd=0;
+   const c=bbBotWith('none','balanced',1,1,true);c.x=300+RR*1.5;c.y=300;c.h=Math.PI;c.hp=BB.HP;c.inv=0;
+   a.ctl.brain.fire=true;a.ctl.brain.inp={vx:0,vy:0,vr:0};
+   bb2.bots=[a,c];bb2.result=null;bb2.cd=0;bb2.t=1;updateBB(1/60);
+   ok('PINCER grabs + controls a foe on a firing front-arc ram',a.grab===c&&c.held===a);
+   m2.set.bbmode=sv;}
   // ── v5.1.111: KAMIKAZE — RT self-destruct, a big blast that takes nearby foes with it (3v3) ──
   {const a=bbBotWith('kamikaze','balanced',0,0,true);a.x=300;a.y=300;a.firing=true;
    const c=bbBotWith('none','balanced',1,1,true);c.x=300+RR*2;c.y=300;c.hp=BB.HP;c.inv=0;bb2.bots=[a,c];bb2.result=null;bb2.blasts=[];bb2.deb=[];
