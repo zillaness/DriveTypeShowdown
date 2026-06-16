@@ -56,6 +56,21 @@ src+=`
    ok('weapon name ("'+wLong+'") fits between its ◀▶',txtW(wLong,11)<=(lr.wR.x-(lr.wL.x+lr.wL.w)));
    ok('armor name ("'+aLong+'") fits between its ◀▶',txtW(aLong,11)<=(lr.aR.x-(lr.aL.x+lr.aL.w)));}
 
+  // ── 1v1 BattleBots claim card: the LAYOUT picker (weapon/armor + AUTOBUILD) must clear the drive arrows above AND the controller box below (the AUTOBUILD-vs-description fix) ──
+  {m2.mode='battlebots';
+   for(let pl=0;pl<2;pl++){const cx=p2cCol(pl),lr=bbClaimLoadRects(pl),card=p2cCardRect(pl);
+    const ctrlBox={x:cx-180,y:484,w:360,h:40};
+    const a0=p2cArrowRect(pl,-1),a1=p2cArrowRect(pl,1),driveArrowsBottom=Math.max(a0.y+a0.h,a1.y+a1.h);
+    const rects=[['wL',lr.w.l],['wR',lr.w.r],['aL',lr.a.l],['aR',lr.a.r],['auto',lr.auto]];let bad=[];
+    for(const [n,r] of rects){
+      if(overlap(r,ctrlBox))bad.push(n+'×ctrlBox');
+      if(r.y<driveArrowsBottom)bad.push(n+'×driveArrows');
+      if(r.x<card.x||r.y<card.y||r.x+r.w>card.x+card.w+1||r.y+r.h>card.y+card.h+1)bad.push(n+' OOB');
+    }
+    for(let i=0;i<rects.length;i++)for(let j=i+1;j<rects.length;j++)if(overlap(rects[i][1],rects[j][1]))bad.push(rects[i][0]+'×'+rects[j][0]);
+    ok('1v1 BB claim card pl'+pl+': LAYOUT picker is collision-free'+(bad.length?(' — '+bad.join(', ')):''),bad.length===0);
+   }}
+
   console.log('--- grid layout audit: '+P+' pass, '+F+' fail ---');
 })();
 `;
