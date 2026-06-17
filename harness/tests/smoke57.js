@@ -614,6 +614,18 @@ src+=`
    bb2.bots=[trapped];bb2.map=TF2_MAPS[0];bb2.t=0;bbHazardUpdate(0.2);
    ok('ARENA TRAPS: the pit drains HP even on a plain arena',trapped.hp<BB.HP);
    arenaTraps=svtr;}
+   // v5.1.148 P7: HAZARD MASTER — mouse-operated crusher strike
+   {ok('HAZARD MASTER is a cheat',CHEATS.some(c=>c.name==='HAZARD MASTER'));
+    const svh=hazardMaster;hazardMaster=true;
+    const t=bbBotWith('none','balanced',0,0,true);t.x=400;t.y=400;t.hp=BB.HP;t.inv=0;
+    const far=bbBotWith('none','balanced',1,1,true);far.x=900;far.y=200;far.hp=BB.HP;
+    bb2.bots=[t,far];bb2.result=null;bb2.cd=0;bb2.hazCd=0;bb2.blasts=[];
+    const hp0=t.hp,fired=bbHazardStrike(400,400);
+    ok('HAZARD MASTER strike fires + damages bots in the blast radius',fired===true&&t.hp<hp0&&bb2.blasts.length>0);
+    ok('HAZARD MASTER strike spares a bot outside the radius',far.hp===BB.HP);
+    ok('HAZARD MASTER strike goes on cooldown (no instant re-fire)',bb2.hazCd>0&&bbHazardStrike(400,400)===false);
+    bb2.cd=3;bb2.hazCd=0;ok('HAZARD MASTER strike is blocked during the countdown',bbHazardStrike(400,400)===false);
+    hazardMaster=svh;}
    // v5.1.134 polish: RANDOM arena option
    {m2.mode='battlebots';const mr=p2SettingsRows().find(r=>r.k==='map');
     ok('ARENA selector offers RANDOM',mr&&mr.vals.indexOf('rand')>=0&&/RANDOM/i.test(mr.show('rand')));
