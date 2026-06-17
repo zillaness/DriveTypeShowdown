@@ -214,8 +214,8 @@ src+=`
    ok('drawBB renders all 4 weapons without throwing',!dThrew);}
   // ── v5.1.77 P2.3: FLAME blow-up + mutual-destruction DRAW + death FX ──
   {const x=bbBotWith('none','balanced',1,1,true);x.hp=BB.HP;x.burn=0;bb2.bots=[bbBotWith('flame','balanced',0,0,false),x];bb2.result=null;bb2.blasts=[];bb2.deb=[]; // v5.1.176 HUMAN flamer (burnBuild full) — the blow-up threshold test uses the human build path
-   bbApplyFlame(x,BB_W.blowUp-2,0);const hpBefore=x.hp;ok('below the blow-up threshold: still alive (burn '+x.burn.toFixed(0)+', hp '+x.hp.toFixed(0)+')',!x.dead);
-   bbApplyFlame(x,4,0);ok('crossing the blow-up threshold DETONATES despite '+hpBefore.toFixed(0)+' HP left',x.dead===true&&x.hp===0);
+   bbApplyFlame(x,(BB_W.blowUp-2)/BB_W.burnBuild,0);const hpBefore=x.hp;ok('below the blow-up threshold: still alive (burn '+x.burn.toFixed(0)+', hp '+x.hp.toFixed(0)+')',!x.dead); // feed scaled by burnBuild so it lands just UNDER blowUp regardless of the fill rate
+   bbApplyFlame(x,4/BB_W.burnBuild,0);ok('crossing the blow-up threshold DETONATES despite '+hpBefore.toFixed(0)+' HP left',x.dead===true&&x.hp===0);
    ok('blow-up spawns an explosion blast + scatter debris',bb2.blasts.length>0&&bb2.deb.length>0);}
   {const b=bbBotWith('none','balanced',0,0,true);b.burn=30;bb2.bots=[b];bb2.result=null;
    for(let i=0;i<60;i++)bbWeaponPre(1/60);ok('the blow-up meter COOLS when not being flamed ('+b.burn.toFixed(0)+'<30)',b.burn<30);}
