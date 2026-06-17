@@ -3065,6 +3065,8 @@ const TF2_MAPS=[
     {type:'saw',cx:340,cy:320,axis:'y',amp:150,spd:1.5},
     {type:'saw',cx:860,cy:320,axis:'y',amp:150,spd:-1.5}],
    pup:[{x:600,y:90},{x:600,y:550},{x:160,y:320},{x:1040,y:320}]},
+  {id:'void',   name:'BLANK ARENA',   obs:[], // v5.1.163 a FULLY empty arena (no obstacles/cover) — clean CPU-vs-CPU testing. Appended last so existing map indices are unchanged.
+   pup:[{x:600,y:140},{x:600,y:500},{x:300,y:320},{x:900,y:320}]},
 ];
 const HAZ={pitDps:55, sawR:26, sawDmg:42, sawKnock:18}; // v5.1.120 P3 arena-hazard tunables: acid-pit HP drain/sec; sawblade radius / contact damage / knockback
 const PUP_TYPES=[
@@ -4109,7 +4111,7 @@ function bbKill(victim,owner){ // KO + explosion + MUTUAL-DESTRUCTION chain: a n
   victim.hp=0;victim.mob=0;victim.dead=true;sfx('boom');
   if(!bb2.blasts)bb2.blasts=[];if(!bb2.deb)bb2.deb=[];
   const R=RR*BB_W.blastRK;bb2.blasts.push({x:victim.x,y:victim.y,t:0.42,r:R});bbDeathFx(victim);
-  if((victim.ld&&victim.ld.perk)==='partinggift'){const PR=RR*BB_W.partingRK;bb2.blasts.push({x:victim.x,y:victim.y,t:0.5,r:PR});for(const o of bb2.bots){if(o===victim||o.dead||o.side===victim.side)continue;const d=Math.hypot(o.x-victim.x,o.y-victim.y);if(d<=PR){o.hp-=BB_W.partingDmg*Math.max(0.4,1-d/PR);o.inv=BB.hitCd;if(o.hp<=0&&!o.dead)bbKill(o,owner);}}} // v5.1.112 PARTING GIFT perk: a big EXPLOSION on death (take foes with you)
+  if((victim.ld&&victim.ld.perk)==='partinggift'){const PR=RR*BB_W.partingRK;bb2.blasts.push({x:victim.x,y:victim.y,t:0.6,r:PR,parting:true});sfx('explosion');for(const o of bb2.bots){if(o===victim||o.dead||o.side===victim.side)continue;const d=Math.hypot(o.x-victim.x,o.y-victim.y);if(d<=PR){o.hp-=BB_W.partingDmg*Math.max(0.5,1-d/PR);o.inv=BB.hitCd;if(o.ctl)p2Rumble(o.ctl.bind,0.8);if(o.hp<=0&&!o.dead)bbKill(o,owner);}}} // v5.1.163 PARTING GIFT: a big, DISTINCT gold blast on death (bigger radius + ~2× damage so it really takes foes with you)
   for(const o of bb2.bots){if(o===victim||o.dead)continue;if(o.hp<=BB_W.blastLethalHp&&Math.hypot(o.x-victim.x,o.y-victim.y)<=R)bbKill(o,owner);} // chain reaction
   if(owner!=null){const _k=bb2.bots[owner];if(_k&&!_k.dead&&bbPerkOf(_k)==='vampire'&&_k.side!==victim.side)_k.hp=Math.min(_k.mhp||BB.HP,_k.hp+BB_W.vampHeal);} // v5.1.155 VAMPIRE: destroying an enemy heals the killer
   bbCheckResult(owner);
@@ -4131,13 +4133,10 @@ function startP2BB(){cheatedRun=false;paused=false;
   // roster: the 6-seat grid when set (up to 3/side, mixed human/CPU rumble), else the legacy 1v1 / vs-CPU claim (tournaments/tests)
   const gridOn=tankGridActive();let roster;
   if(gridOn){tankGridApply();roster=tankRosterFromSeats(tankGridToSeats());}
-  else{const c0=!!(m2.claim[0]&&m2.claim[0].type==='cpu'),c1=!!(m2.claim[1]&&m2.claim[1].type==='cpu');roster=[];
-    if(c0&&c1)roster.push({side:0,bind:0,type:'cpu',tier:m2.claim[0].tier|0},{side:1,bind:1,type:'cpu',tier:m2.claim[1].tier|0}); // CPU vs CPU sim — one CPU per side
-    else{const cpuBind=c0?0:(c1?1:-1);
-      if(cpuBind<0)roster.push({side:0,bind:0,type:'human',tier:0},{side:1,bind:1,type:'human',tier:0});
-      else{for(let b=0;b<2;b++)if(m2.claim[b]&&m2.claim[b].type!=='cpu')roster.push({side:0,bind:b,type:'human',tier:0});
-        if(!roster.length)roster.push({side:0,bind:1-cpuBind,type:'human',tier:0});
-        roster.push({side:1,bind:cpuBind,type:'cpu',tier:(m2.claim[cpuBind].tier|0)});}}}
+  else{roster=[]; // v5.1.163 SIDE FIX: each claim SLOT keeps its own side (slot 0 = RED, slot 1 = BLUE) — a human who claimed the BLUE card now actually spawns BLUE (was hard-coded human→RED regardless of the picked side)
+    for(let b=0;b<2;b++){if(!m2.claim[b])continue;const isC=m2.claim[b].type==='cpu';roster.push({side:b,bind:b,type:isC?'cpu':'human',tier:isC?(m2.claim[b].tier|0):0});}
+    if(!roster.some(r=>r.side===0))roster.push({side:0,bind:0,type:'cpu',tier:1}); // fill any empty side with a CPU so the match is valid
+    if(!roster.some(r=>r.side===1))roster.push({side:1,bind:1,type:'cpu',tier:1});}
   const nSide=[roster.filter(r=>r.side===0).length,roster.filter(r=>r.side===1).length];
   const ys=[tf2SpawnYs(nSide[0]),tf2SpawnYs(nSide[1])],yIdx=[0,0],seat=[0,0];
   bb2={t:0,cd:3,result:null,repd:false,map:mp,fx:[],blasts:[],deb:[],
@@ -4213,12 +4212,12 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
 // ── RoboRumble P2.2: weapon FIRE behavior (SPINNER / PISTON / FLAMETHROWER / WEDGE; RAM is always-on) — all TUNABLE ──
 const BB_W={
   spinRamp:1.10, spinMin:0.55, spinDmg:32, spinKnock:2.0, spinHitLoss:0.4, spinWallDmg:18, spinWallLoss:0.90, spinFront:0.50, spinSelf:0.16, spinDeflect:2.5, buzzDmg:52, buzzArc:Math.PI*0.5, // BUZZSAW = a FRONT-only (buzzArc ≈ ±45°) high-dmg cutter sharing the SPINNER spin-up + self-dmg + wedge-deflect; SPINNER (v5.1.104: dmg 38→24 — it's the 360° weapon, so LOWER per-hit; the high-dmg front-only spin-up weapon is the BUZZSAW): + the bot takes spinSelf× of the damage it deals back into ITSELF on every bite (energy transfer), ×spinDeflect vs a WEDGE/blade (the anti-spinner counter — deflects, shreds the disc)
-  flipCd:0.85, flipArc:Math.PI*0.9, flipRangeK:2.0, flipKnock:82, flipDmg:28, flipWallDmg:90, flipFlySpd:1500, flipFlyT:0.6, // FLIPPER/PUSHER: v5.1.161 — fires on EDGE contact (reach RR*3=51 ≫ touching RR*2=34) with a near-180° arc (±81°) so you just need to face the foe, not hit its center; fling 1150→1500 + slower decay = sends them much further back; faster cd
+  flipCd:0.85, flipArc:Math.PI*0.9, flipRangeK:2.0, flipKnock:82, flipDmg:50, flipWallDmg:90, flipFlySpd:1500, flipFlyT:0.6, // FLIPPER/PUSHER: v5.1.161 — fires on EDGE contact (reach RR*3=51 ≫ touching RR*2=34) with a near-180° arc (±81°) so you just need to face the foe, not hit its center; fling 1150→1500 + slower decay = sends them much further back; faster cd
   pistCd:0.85, pistDmg:60, pistRangeK:2.0, pistArc:Math.PI*0.6, pistKnock:34, pistFront:0.78, // PISTON (v5.1.105: WOEFULLY underpowered → buffed: dmg 40→60, cd 1.05→0.85, reach 1.7→2.0, front-pierce 0.55→0.78): cooldown, strike dmg, reach (RR+RR×K), front arc, knockback, FRONT-pierce fraction (a hammer dents an armored front)
   flameRangeK:6.4, flameArc:Math.PI*0.26, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, // FLAMETHROWER (v5.1.100): ~2× REACH + a NARROWER focused jet (per playtest), heat-up dwell, dps (re-tuned via the sim), heat cap (no fuel gauge), MOVE-mult while torching (plant-to-burn — the balance counter to the ARCADE turret kite; fuel parked)
   wedgeDmg:0.40, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:85, grabDmg:18, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.8, pincerDrain:55, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, // v5.1.144 easier to land: wider arc (±63°) + a grab REACH (RR+RR×reachK ≈ 2.4×RR) so you don't need a perfect ram. WEDGE/DOZER: contact-dmg, grab arc, pinned speed mult, pin/grab DURATION, shove + v5.1.103 GRAB-AND-SLAM (grip seconds, cooldown, base wall-slam dmg ×speed), dozerCharge = forward boost while firing RT, dashBuff = RoboRumble LT-dash speed/range buff
-  blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:3.8, partingDmg:130, // v5.1.145 KAMIKAZE peak 420→640 (scaled to HP 560 so it still destroys/near-destroys the radius); PARTING GIFT 95→130. KAMIKAZE radius 9×RR, falls to 0.85× at the edge
-  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:1.65, drillRampT:1.7, drillMin:45, drillMax:175, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, repairArc:Math.PI*0.5, repairReachK:1.6, repairHps:70, repairMobps:55, repairWheelps:30, repairDmg:8, vampHeal:130, medicReachK:1.4, medicHps:42, medicMobps:90, medicWheelps:55, medicSpd:1.05, reactDmg:120, // v5.1.161 PIT STOP = a deployed MEDIC drone (reach, HP/s, mobility/s, wheel-HP/s, speed); v5.1.160 DRILL reach FIX (0.7→1.3: RR*1.7=28.9 sat UNDER touching RR*2=34 so it whiffed at contact; now RR*2.3=39 bites) + faster ramp + higher DPS; raw HP damage already PENETRATES the front (no zone armor); REACTIVE reflect 85→120
+  blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:4.4, partingDmg:240, // v5.1.145 KAMIKAZE peak 420→640 (scaled to HP 560 so it still destroys/near-destroys the radius); PARTING GIFT 95→130. KAMIKAZE radius 9×RR, falls to 0.85× at the edge
+  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:1.65, drillRampT:1.7, drillMin:45, drillMax:175, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, repairArc:Math.PI*0.5, repairReachK:1.6, repairHps:70, repairMobps:55, repairWheelps:30, repairDmg:8, vampHeal:130, medicReachK:2.6, medicHps:42, medicMobps:90, medicWheelps:55, medicSpd:1.05, reactDmg:120, // v5.1.161 PIT STOP = a deployed MEDIC drone (reach, HP/s, mobility/s, wheel-HP/s, speed); v5.1.160 DRILL reach FIX (0.7→1.3: RR*1.7=28.9 sat UNDER touching RR*2=34 so it whiffed at contact; now RR*2.3=39 bites) + faster ramp + higher DPS; raw HP damage already PENETRATES the front (no zone armor); REACTIVE reflect 85→120
   miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, miniHp:55, miniDps:80, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, airTele:1.2, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary; v5.1.117 P4 MINIBOT harasser (radius×RR, speed×SPD, shove px, pin-slow seconds)
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
@@ -4259,8 +4258,10 @@ function bbWeaponFiring(b){ // is this bot firing its weapon (RT / Space / touch
   if(d.type==='touchL')return p2TFire[0];if(d.type==='touchR')return p2TFire[1];
   return false;
 }
-function bbFoeAngOk(a,c,arc){let dh=Math.atan2(c.y-a.y,c.x-a.x)-a.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;return Math.abs(dh)<=arc/2;} // c within a's front arc
-function bbFoeArcAt(a,c,arc,aim){let dh=Math.atan2(c.y-a.y,c.x-a.x)-(aim!=null?aim:a.h);while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;return Math.abs(dh)<=arc/2;} // c within a's WEAPON arc, aimed at `aim` (a TURRET angle) instead of the chassis heading
+// v5.1.163 RADIUS-AWARE: a weapon connects when the foe's BODY overlaps the arc — not only when its dead-center is inside it. Add the foe's subtended half-angle (capped at the touching value ~30°), so a foe pressed against you is hittable across a much wider effective arc (fixes "you must hit the exact center even when the weapon is inside the frame").
+function bbFoeSub(a,c){const d=Math.hypot(c.x-a.x,c.y-a.y);return Math.min(0.5236,Math.asin(Math.min(1,RR/Math.max(d,RR))));}
+function bbFoeAngOk(a,c,arc){let dh=Math.atan2(c.y-a.y,c.x-a.x)-a.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;return Math.abs(dh)<=arc/2+bbFoeSub(a,c);} // c within a's front arc (+ the foe's body width)
+function bbFoeArcAt(a,c,arc,aim){let dh=Math.atan2(c.y-a.y,c.x-a.x)-(aim!=null?aim:a.h);while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;return Math.abs(dh)<=arc/2+bbFoeSub(a,c);} // c within a's WEAPON arc, aimed at `aim` (a TURRET angle) instead of the chassis heading
 function bbFlameLOS(a,c){const obs=(typeof tfObs!=='undefined'&&tfObs)?tfObs:(typeof TF_OBS!=='undefined'?TF_OBS:null);if(!obs||!obs.length)return true;for(let s=1;s<8;s++){const t=s/8,x=a.x+(c.x-a.x)*t,y=a.y+(c.y-a.y)*t;for(const o of obs)if(x>o.x&&x<o.x+o.w&&y>o.y&&y<o.y+o.h)return false;}return true;} // v5.1.104: the flame is BLOCKED by obstacles between it and the foe — no burning THROUGH walls
 function bbIsTurret(w){return w==='flame';} // v5.1.99: TURRETED weapons aim independent of the chassis (right stick / mouse for humans, foe-track for CPUs)
 function bbAimAngle(b){ // v5.1.100 turret aim — the independent aim is an ARCADE-DRIVE PERK ONLY (the one-stick drive frees a hand to aim, exactly like the tank cannon). SWERVE/HOLO already aim by rotating the chassis while strafing (no turret needed); TANK/STEER are locked forward (their tradeoff). Non-arcade → fire along the chassis (b.h).
@@ -4405,13 +4406,14 @@ function bbMiniUpdate(dt){ // harassers: chase nearest opponent main, shove + pi
         const mhp=f.mhp||BB.HP,mm=(f.ld&&f.ld.mobMax)||BB.MOB,dw=f.wheels?f.wheels.filter(w=>w&&(w.dead||w.hp<BB_W.wheelHp)).length:0;
         const n=(1-f.hp/mhp)+dw*0.4+(1-(f.mob||0)/mm)*0.3;
         if(n>need){need=n;tgt=f;}}
+      const reach=RR+RR*BB_W.medicReachK; // v5.1.163 patch EVERY ally in reach (HP + mobility + tires), not just the neediest — so allies' wheels get fixed too, not only the owner
       const follow=(tgt&&need>0.04)?tgt:m.owner; // nothing hurt → hover by the owner
       if(follow){const dx=follow.x-m.x,dy=follow.y-m.y,d=Math.hypot(dx,dy)||1,spd=SPD*BB_W.medicSpd;
-        if(d>RR+6){m.x+=dx/d*spd*dt;m.y+=dy/d*spd*dt;}m.h=Math.atan2(dy,dx);}
-      if(tgt&&need>0.04&&Math.hypot(tgt.x-m.x,tgt.y-m.y)<=RR+RR*BB_W.medicReachK){ // in reach → repair this frame
-        const mhp=tgt.mhp||BB.HP;if(tgt.hp<mhp)tgt.hp=Math.min(mhp,tgt.hp+BB_W.medicHps*dt);
-        const mm=(tgt.ld&&tgt.ld.mobMax)||BB.MOB;if(tgt.mob<mm)tgt.mob=Math.min(mm,tgt.mob+BB_W.medicMobps*dt);
-        if(tgt.wheels)for(const w of tgt.wheels){if(w&&(w.dead||w.hp<BB_W.wheelHp)){w.hp=Math.min(BB_W.wheelHp,(w.hp||0)+BB_W.medicWheelps*dt);if(w.hp>0)w.dead=false;break;}} // re-weld one wheel at a time
+        if(d>reach*0.7){m.x+=dx/d*spd*dt;m.y+=dy/d*spd*dt;}m.h=Math.atan2(dy,dx);} // v5.1.163 HOVER at heal range (out of the melee) instead of diving onto the ally
+      for(const f of bb2.bots){if(f.dead||f.side!==m.side)continue;if(Math.hypot(f.x-m.x,f.y-m.y)>reach)continue;
+        const mhp=f.mhp||BB.HP;if(f.hp<mhp)f.hp=Math.min(mhp,f.hp+BB_W.medicHps*dt);
+        const mm=(f.ld&&f.ld.mobMax)||BB.MOB;if(f.mob<mm)f.mob=Math.min(mm,f.mob+BB_W.medicMobps*dt);
+        if(f.wheels)for(const w of f.wheels){if(w&&(w.dead||w.hp<BB_W.wheelHp)){w.hp=Math.min(BB_W.wheelHp,(w.hp||0)+BB_W.medicWheelps*dt);if(w.hp>0)w.dead=false;break;}} // re-weld one wheel at a time
         m._healFx=0.16;
       }
       if(!noClip)obsCheck(m,mrr);
@@ -4424,16 +4426,16 @@ function bbMiniUpdate(dt){ // harassers: chase nearest opponent main, shove + pi
   const minD=RR+mrr;
   for(const m of bb2.minis){if(m.dead)continue;
     m.hurtFx=Math.max(0,(m.hurtFx||0)-dt);
+    if(m.kind==='medic')continue; // v5.1.163 the MEDIC is a friendly support drone: it never shoves anyone (annoying) and can't be destroyed — skip all body contact
     for(const b of bb2.bots){if(b.dead)continue;
       const dx=b.x-m.x,dy=b.y-m.y,d=Math.hypot(dx,dy)||0.01;
       if(d<minD){const nx=dx/d,ny=dy/d,ov=minD-d;
         b.x+=nx*ov*0.7;b.y+=ny*ov*0.7;m.x-=nx*ov*0.3;m.y-=ny*ov*0.3; // the lighter mini yields most of the overlap
-        if(b.side!==m.side){ // v5.1.161 minis are now DESTRUCTIBLE: an enemy in contact grinds the mini down (weapon/spin adds bite); medics don't harass but can still be destroyed
-          let dps=BB_W.miniDps;const sp=bbSpinBite(b,m);if(sp)dps+=(b.ld&&b.ld.weapon==='buzzsaw'?BB_W.buzzDmg:BB_W.spinDmg)*sp*0.7;
-          if(b.firing&&b.ld&&(b.ld.weapon==='piston'||b.ld.weapon==='drill'||b.ld.weapon==='flame'))dps+=60;
-          m.hp-=dps*dt;m.hurtFx=0.12;
-          if(m.kind!=='medic'){b.x+=nx*BB_W.miniKnock;b.y+=ny*BB_W.miniKnock;b.pinT=Math.max(b.pinT||0,BB_W.miniPinT);} // HARASS: shove + brief pin-slow, no HP (medic never harasses)
-          if(m.hp<=0){m.dead=true;if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:m.x,y:m.y,t:0.3,r:mrr*2.6});sfx('hit');}
+        if(b.side!==m.side){ // v5.1.163 a harasser is destroyed only by an actual WEAPON hit (spinner/buzzsaw bite or a firing piston/drill/flame) — plain ram contact just bumps it, no kill
+          let dps=0;const sp=bbSpinBite(b,m);if(sp)dps+=(b.ld&&b.ld.weapon==='buzzsaw'?BB_W.buzzDmg:BB_W.spinDmg)*sp;
+          if(b.firing&&b.ld&&(b.ld.weapon==='piston'||b.ld.weapon==='drill'||b.ld.weapon==='flame'))dps+=BB_W.miniDps;
+          if(dps>0){m.hp-=dps*dt;m.hurtFx=0.12;if(m.hp<=0){m.dead=true;if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:m.x,y:m.y,t:0.3,r:mrr*2.6});sfx('hit');}}
+          b.x+=nx*BB_W.miniKnock;b.y+=ny*BB_W.miniKnock;b.pinT=Math.max(b.pinT||0,BB_W.miniPinT); // HARASS: shove + brief pin-slow (no HP to the bot)
         }
         if(!noClip){obsCheck(b,RR);obsCheck(m,mrr);}
       }
@@ -4602,7 +4604,7 @@ function bbSwordUpdate(dt){ // v5.1.119 P7 ANIME SWORD: every bot gets a dramati
     if(a._swordFx>0)a._swordFx=Math.max(0,a._swordFx-dt);
     a.swordCd=(a.swordCd==null?BB_W.swordCd:a.swordCd)-dt;
     if(a.swordCd>0)continue;
-    a.swordCd=BB_W.swordCd;a._swordFx=0.25;sfx('hit');const R=RR+RR*BB_W.swordRange;
+    a.swordCd=BB_W.swordCd;a._swordFx=0.4;sfx('explosion');const R=RR+RR*BB_W.swordRange;
     for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);
       if(d<=R&&bbFoeAngOk(a,c,BB_W.swordArc)){bbApplyHit(c,bbHitLoc(c,a.x,a.y),BB_W.swordDmg,ai,a.x,a.y,0.7);
         const m=d||1,nx=(c.x-a.x)/m,ny=(c.y-a.y)/m;c.x+=nx*BB_W.swordKnock;c.y+=ny*BB_W.swordKnock;obsCheck(c,RR);if(c.ctl)p2Rumble(c.ctl.bind,0.7);if(c.hp<=0)bbKill(c,ai);}}
@@ -4802,7 +4804,11 @@ function drawBB(){
     ctx.strokeStyle='#ffffffcc';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,RR+13,b.h-BB.frontCone/2,b.h+BB.frontCone/2);ctx.stroke(); // FRONT-armor arc
     ctx.restore();
     bbDrawWeapon(b); // P2.2 weapon cosmetic
-    if(b._swordFx>0){ctx.save();ctx.translate(FX+b.x,FY+b.y);ctx.globalAlpha=Math.min(1,b._swordFx*5);ctx.strokeStyle='#bfeaff';ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,0,RR+RR*BB_W.swordRange,b.h-BB_W.swordArc/2,b.h+BB_W.swordArc/2);ctx.stroke();ctx.globalAlpha=1;ctx.restore();} // v5.1.119 ANIME SWORD slash arc
+    if(b._swordFx>0){ctx.save();ctx.translate(FX+b.x,FY+b.y);const a0=Math.min(1,b._swordFx*3),R2=RR+RR*BB_W.swordRange,h0=b.h-BB_W.swordArc/2,h1=b.h+BB_W.swordArc/2; // v5.1.163 ANIME SWORD slash: a dramatic bright sweep (glow + white core + flash) so it's unmistakable
+      ctx.globalAlpha=a0*0.5;ctx.fillStyle='#bfeaff';ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,R2,h0,h1);ctx.closePath();ctx.fill();
+      ctx.globalAlpha=a0;ctx.strokeStyle='#dff4ff';ctx.lineWidth=8;ctx.beginPath();ctx.arc(0,0,R2,h0,h1);ctx.stroke();
+      ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,R2,h0,h1);ctx.stroke();
+      ctx.globalAlpha=1;ctx.restore();}
     bbDrawWheels(b); // P2.4 dead-wheel marks
     {const eg=bbNameEgg(b);if(eg){const pc=BB_EGG_PAINT[eg];ctx.save();ctx.translate(FX+b.x,FY+b.y);ctx.lineWidth=3;ctx.strokeStyle=pc[0];ctx.beginPath();ctx.arc(0,0,RR+5,-Math.PI/2,Math.PI/2);ctx.stroke();ctx.strokeStyle=pc[1];ctx.beginPath();ctx.arc(0,0,RR+5,Math.PI/2,Math.PI*1.5);ctx.stroke();if(bbEggActive(b)){ctx.fillStyle=pc[1];ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillText('★',0,-RR-9);}ctx.restore();}} // v5.1.115 P6 egg PAINT (two-tone ring; ★ = buff active)
     drawP2Tag(p,b,b.ctl.name||p2Name(b.ctl.bind),b.col); // show each bot's name above it, humans included
@@ -4816,7 +4822,11 @@ function drawBB(){
   for(const m of (bb2.minis||[])){if(m.dead)continue;const mrr=bbMiniRR();
     if(m.hurtFx>0){ctx.save();ctx.globalAlpha=clamp(m.hurtFx/0.12,0,1)*0.8;ctx.strokeStyle='#ff5252';ctx.lineWidth=2;ctx.beginPath();ctx.arc(FX+m.x,FY+m.y,mrr+2,0,Math.PI*2);ctx.stroke();ctx.restore();} // v5.1.161 hit flash (minis are destructible)
     if(m.kind==='medic'){ // v5.1.161 PIT STOP medic drone: a green body with a white + cross, a healing-pulse ring when patching
-      if(m._healFx>0){ctx.save();ctx.globalAlpha=clamp(m._healFx/0.16,0,1)*0.7;ctx.strokeStyle='#69f0ae';ctx.lineWidth=2;ctx.beginPath();ctx.arc(FX+m.x,FY+m.y,mrr+5+(0.16-m._healFx)*40,0,Math.PI*2);ctx.stroke();ctx.restore();}
+      if(m._healFx>0){ctx.save();ctx.globalAlpha=clamp(m._healFx/0.16,0,1)*0.7;ctx.strokeStyle='#69f0ae';ctx.lineWidth=2;ctx.beginPath();ctx.arc(FX+m.x,FY+m.y,mrr+5+(0.16-m._healFx)*40,0,Math.PI*2);ctx.stroke();ctx.restore();
+        const reach=RR+RR*BB_W.medicReachK,T=(bb2.t||0); // v5.1.163 welding BEAM + sparks to each ally being patched (so you can SEE the repair working)
+        for(const f of bb2.bots){if(f.dead||f.side!==m.side)continue;if(Math.hypot(f.x-m.x,f.y-m.y)>reach)continue;
+          ctx.save();ctx.globalAlpha=0.8;ctx.strokeStyle=((T*30|0)&1)?'#7CFC8A':'#bfffd0';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(FX+m.x,FY+m.y);ctx.lineTo(FX+f.x,FY+f.y);ctx.stroke();
+          ctx.fillStyle='#fff7c0';for(let s=0;s<5;s++){const a2=T*42+s*1.7,rd=3+(s%3)*4;ctx.globalAlpha=0.5+0.4*Math.sin(T*30+s);ctx.beginPath();ctx.arc(FX+f.x+Math.cos(a2)*rd,FY+f.y+Math.sin(a2)*rd,1.3,0,Math.PI*2);ctx.fill();}ctx.restore();}}
       ctx.save();ctx.translate(FX+m.x,FY+m.y);
       ctx.fillStyle='#0e1f16';ctx.strokeStyle='#69f0ae';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,mrr,0,Math.PI*2);ctx.fill();ctx.stroke();
       ctx.strokeStyle='#eafff2';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,-mrr*0.6);ctx.lineTo(0,mrr*0.6);ctx.moveTo(-mrr*0.6,0);ctx.lineTo(mrr*0.6,0);ctx.stroke();
@@ -4832,6 +4842,11 @@ function drawBB(){
       for(let ri=0;ri<3;ri++){const rad=bl.r*clamp(p*1.12+ri*0.16,0,1.15);ctx.globalAlpha=a0;ctx.strokeStyle=['#fff3c4','#ffb24d','#ff5a1e'][ri];ctx.lineWidth=6-ri*1.6;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,Math.max(1,rad),0,Math.PI*2);ctx.stroke();} // shockwave rings
       const fl=Math.max(0,(bl.t-life*0.55)/(life*0.45));ctx.globalAlpha=fl;ctx.fillStyle='#fff7e0';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,bl.r*0.42*(1-p),0,Math.PI*2);ctx.fill(); // core flash (early)
       ctx.globalAlpha=1;continue;}
+    if(bl.parting){const life=0.6,p=clamp(1-bl.t/life,0,1),a0=Math.max(0,bl.t/life),r2=10+(bl.r-10)*p; // v5.1.163 PARTING GIFT: a DISTINCT gold/green double-ring pop with a 🎁 so you can tell the perk fired
+      ctx.globalAlpha=a0*0.5;ctx.fillStyle='#ffd74033';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=a0;ctx.strokeStyle='#ffd740';ctx.lineWidth=4;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle='#7CFC8A';ctx.lineWidth=2;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2*0.7,0,Math.PI*2);ctx.stroke();
+      if(p<0.5){ctx.globalAlpha=1-p*2;ctx.font='bold 18px Courier New';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('🎁',FX+bl.x,FY+bl.y+6);}ctx.globalAlpha=1;continue;}
     const k=1-bl.t/0.42,r=8+(bl.r-8)*k;ctx.globalAlpha=Math.max(0,bl.t/0.42);
     ctx.fillStyle='#ff5a1e33';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='#ff8a3d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.stroke();}
