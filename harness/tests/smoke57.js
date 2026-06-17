@@ -651,6 +651,16 @@ src+=`
    ok('ANIME SWORD slashes a foe in the FRONT arc (damage + FX)',front.hp<fhp0&&sw._swordFx>0);
    ok('ANIME SWORD spares a foe BEHIND (outside the front arc)',back.hp===bhp0);
    ok('ANIME SWORD goes on cooldown after a swing',sw.swordCd>0);animeSword=svs;}
+  // ── v5.1.172: P7 TANK INVASION — every bot mounts the Tank-Fight cannon, auto-firing shells at the nearest enemy ──
+  {const svt=tankPort;tankPort=true;
+   const gun=bbBotWith('wedge','balanced',0,0,true);gun.x=200;gun.y=300;gun.h=0;
+   const tgt=bbBotWith('wedge','balanced',1,1,true);tgt.x=320;tgt.y=300;tgt.hp=BB.HP;tgt.inv=0;
+   bb2.bots=[gun,tgt];bb2.result=null;bb2.shells=[];gun._tpCd=0; // fire on the first tick
+   const thp0=tgt.hp;for(let i=0;i<90;i++)bbTankPortUpdate(1/60);
+   ok('TANK INVASION: a bot auto-fires a shell',bb2.shells.length>0||tgt.hp<thp0);
+   ok('TANK INVASION: the cannon tracks + the shell damages the nearest enemy',gun._tpAim!=null&&tgt.hp<thp0);
+   const svp=tankPort;tankPort=false;bb2.shells=[];const tg2=bbBotWith('wedge','balanced',1,2,true);tg2.x=320;tg2.y=300;tg2.hp=BB.HP;bb2.bots=[gun,tg2];gun._tpCd=0;const h2=tg2.hp;for(let i=0;i<30;i++)bbTankPortUpdate(1/60);
+   ok('TANK INVASION off: no shells, no damage',bb2.shells.length===0&&tg2.hp===h2);tankPort=svt;}
   // ── v5.1.120: P3 ARENA HAZARDS — the DANGER ZONE map (acid pit + saw blades) + map-select includes it ──
   {const hazMap=TF2_MAPS.find(m=>m.id==='hazard');
    ok('a HAZARD arena (DANGER ZONE) exists with a pit + saws',!!hazMap&&hazMap.haz.some(h=>h.type==='pit')&&hazMap.haz.some(h=>h.type==='saw'));

@@ -296,13 +296,14 @@ let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoost
 let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,ballScale=1,robotScale=1,ballPups=false,ramCdMult=1; // more cheats (ramCdMult scales the RAM dash cooldown; SENS_MAX cheat lives by the sensitivity consts)
 let bbUnlimited=false,megaBots=false; // v5.1.118 P7 RoboRumble combat cheats: UNLIMITED RESOURCES (no weapon cooldowns) + MEGABOTS (giant HP + crushing ram)
 let airStrike=false,animeSword=false; // v5.1.119 P7 RoboRumble combat cheats: AIRSTRIKE (periodic arena bombs) + ANIME SWORD (every bot gets a dramatic front-arc slash)
+let tankPort=false; // v5.1.172 P7 RoboRumble combat cheat: TANK INVASION — every bot also mounts a TANK-FIGHT cannon that auto-fires shells at the nearest enemy
 let arenaTraps=false; // v5.1.133 P7: ARENA TRAPS cheat — turn ANY arena into the DANGER ZONE (acid pit + saw blades) regardless of the chosen map
 let hazardMaster=false; // v5.1.148 P7: HAZARD MASTER — the MOUSE operates the arena traps; click to call down a crusher strike at the cursor (cooldown)
 let iceSlip=1; // ICE SKATING slider: 1 = OFF (no ice), >1 = ice on, higher = more slip. Drives iceMode (=slip>1) + MOM.ice.fri = 0.4/iceSlip.
 let capCpuSpeed=false; // CAP CPU SPEED cheat: with MAX SENSITIVITY cranked, true = CPUs stay at base speed (only you go fast); false = CPUs keep pace (chaos). Ball/shooter only — tank/race CPUs never inherit sensitivity.
 let cheatedRun=false;paused=false; // set true while any cheat is active during a run/match; gates records + high scores
 const B2_BALL_CAP=72; // hard cap on balls in play (shared by EXTRA BALLS + MULTIBALL)
-function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1||moveOrDie||bbUnlimited||megaBots||airStrike||animeSword||arenaTraps||hazardMaster;}
+function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1||moveOrDie||bbUnlimited||megaBots||airStrike||animeSword||tankPort||arenaTraps||hazardMaster;}
 function cheated(){return anyCheat()||cheatedRun;} // a run is "tainted" if a cheat is on now OR was on at any point this run
 function cpuPaceSens(p){ // every ball/shooter CPU (both sides, all tiers) keeps pace with the FASTEST HUMAN = max sens in the match.
   // (v5.1.98: was m2.sens[1-p] — a 2-player index that broke in 3v3, so only some bots inherited the boost: allies fast, enemies slow.)
@@ -334,6 +335,7 @@ const CHEATS=[ // v5.1.158: grouped by THEME with each slider beside its related
   {name:'MEGABOTS',       desc:'[ROBORUMBLE] giant HP pools + crushing ram damage — epic heavyweight slugfests (pair with ROBOT SIZE)', get:()=>megaBots, tog:()=>{megaBots=!megaBots;}}, // v5.1.118 P7
   {name:'AIRSTRIKE',      desc:'bombs rain every few seconds — KOs in RoboRumble, STUNS in tank & ball (side-agnostic)', get:()=>airStrike, tog:()=>{airStrike=!airStrike;}}, // v5.1.119 P7; v5.1.159 cross-mode (tank/ball stun)
   {name:'ANIME SWORD',    desc:'[ROBORUMBLE] every bot gets a dramatic giant front-arc slash on a timer — big damage + knockback', get:()=>animeSword, tog:()=>{animeSword=!animeSword;}}, // v5.1.119 P7
+  {name:'TANK INVASION',  desc:'[ROBORUMBLE] port in the TANK-FIGHT cannon — every bot auto-fires shells at the nearest enemy (ranged combat on top of its weapon)', get:()=>tankPort, tog:()=>{tankPort=!tankPort;}}, // v5.1.172 P7
   {name:'ARENA TRAPS',    desc:'[ROBORUMBLE] turn ANY arena into the DANGER ZONE — a central acid pit + two saw blades', get:()=>arenaTraps, tog:()=>{arenaTraps=!arenaTraps;}}, // v5.1.133 P7
   {name:'HAZARD MASTER',  desc:'[ROBORUMBLE] operate the traps with the MOUSE — click in the arena to call down a crusher strike (cooldown)', get:()=>hazardMaster, tog:()=>{hazardMaster=!hazardMaster;}}, // v5.1.148 P7 controllable hazards
 ];
@@ -341,7 +343,7 @@ function cheatMove(d){cheatIdx=(cheatIdx+d+CHEATS.length)%CHEATS.length;sfx('cli
 function cheatToggle(){const c=CHEATS[cheatIdx];if(c.slider){c.set(c.get()>=c.max?c.min:c.get()+c.step);}else c.tog();sfx('claim');}
 function cheatAdjust(d){const c=CHEATS[cheatIdx];if(c.slider){c.set(clamp(c.get()+d*c.step,c.min,c.max));sfx('click');}else{const half=Math.ceil(CHEATS.length/2);cheatIdx=(cheatIdx+(d>0?half:-half)+CHEATS.length)%CHEATS.length;sfx('click');}} // v5.1.158 ◀▶: nudge a slider, else jump to the other column
 function cheatsAllOff(){ // ⟲ TURN OFF ALL CHEATS button — reset every cheat to its default
-  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;moveOrDie=false;bbUnlimited=false;megaBots=false;airStrike=false;animeSword=false;arenaTraps=false;hazardMaster=false;
+  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;moveOrDie=false;bbUnlimited=false;megaBots=false;airStrike=false;animeSword=false;tankPort=false;arenaTraps=false;hazardMaster=false;
   ballMult=1;iceSlip=1;iceMode=false;MOM.ice.fri=0.4;clearMomentum();
   SENS_MAX=SENS_MAX_BASE;ramCdMult=1;ballScale=1;BR=clamp(BR0,4,18);robotScale=1;setRobotScale(1);
   sfx('claim');}
@@ -4223,7 +4225,7 @@ const BB_W={
   wedgeDmg:0.62, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:115, grabDmg:28, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.8, pincerDrain:55, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, // v5.1.166 WEDGE/DOZER buffed (contact 0.40→0.62, slam 85→115, grab 18→28 — it read as weak). Wider arc (±63°) + grab REACH ≈ 2.4×RR so no perfect ram needed. dozerCharge = forward boost while firing RT, dashBuff = LT-dash buff
   blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:4.5, partingDmg:320, // v5.1.171 burnCool held at 9 (even 8 snowballed the CPU flame to 81%+ — it's extremely sim-sensitive); the VISIBLE blow-up meter is the real flame fix. PARTING GIFT = ½ a kamikaze (radius 4.5×RR, dmg 320). KAMIKAZE radius 9×RR, falls to 0.85× at the edge
   wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:1.65, drillRampT:1.3, drillMin:195, drillMax:350, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, repairArc:Math.PI*0.5, repairReachK:1.6, repairHps:70, repairMobps:55, repairWheelps:30, repairDmg:8, vampHeal:130, medicReachK:2.6, medicHp:90, medicHps:42, medicMobps:90, medicWheelps:26, medicSpd:1.05, reactDmg:120, // v5.1.166 DRILL buffed (ramp 1.7→1.4, dps 45→80 / 175→250 — it read as weak); MEDIC now has its own HP (90, destructible) + heals tires less (55→26); v5.1.161 PIT STOP medic; raw HP damage PENETRATES the front; REACTIVE reflect 120
-  miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, miniHp:55, miniDps:80, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, airTele:1.2, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary; v5.1.117 P4 MINIBOT harasser (radius×RR, speed×SPD, shove px, pin-slow seconds)
+  miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, miniHp:55, miniDps:80, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, airTele:1.2, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14, tankPortCd:0.55, tankPortSpd:400, tankPortDmg:42, tankPortLife:2.0 // v5.1.172 TANK INVASION: the SAME cannon as Tank-Fight — shell speed 400px/s (matches tf2Shoot) + quick reload; damage scaled for RoboRumble's bigger HP pools
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
   const id=(typeof p2cDriveDef!=='undefined')?p2cDriveDef(bind).id:'tank';
@@ -4619,6 +4621,28 @@ function bbSwordUpdate(dt){ // v5.1.119 P7 ANIME SWORD: every bot gets a dramati
         const m=d||1,nx=(c.x-a.x)/m,ny=(c.y-a.y)/m;c.x+=nx*BB_W.swordKnock;c.y+=ny*BB_W.swordKnock;obsCheck(c,RR);if(c.ctl)p2Rumble(c.ctl.bind,0.7);if(c.hp<=0)bbKill(c,ai);}}
   }
 }
+function bbTankPortUpdate(dt){ // v5.1.172 P7 TANK INVASION: every RoboRumble bot mounts a TANK-FIGHT cannon that auto-tracks + shells the nearest enemy
+  if(!tankPort||!bb2)return;
+  if(!bb2.shells)bb2.shells=[];
+  for(let i=0;i<bb2.bots.length;i++){const b=bb2.bots[i];if(b.dead)continue;
+    let foe=null,fd=1e9;for(const c of bb2.bots){if(c.dead||c.side===b.side)continue;const d=Math.hypot(c.x-b.x,c.y-b.y);if(d<fd){fd=d;foe=c;}} // turret tracks the nearest enemy
+    if(foe)b._tpAim=Math.atan2(foe.y-b.y,foe.x-b.x);
+    b._tpCd=(b._tpCd==null?Math.random()*BB_W.tankPortCd:b._tpCd)-dt;
+    if(b._tpCd<=0&&foe){b._tpCd=BB_W.tankPortCd;const ang=b._tpAim,sp=BB_W.tankPortSpd;
+      bb2.shells.push({x:b.x+Math.cos(ang)*(RR+5),y:b.y+Math.sin(ang)*(RR+5),vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,t:BB_W.tankPortLife,owner:i,side:b.side});
+      b._tpFx=0.12;sfx('shoot');if(b.ctl)p2Rumble(b.ctl.bind,0.5,'thump');}
+    if(b._tpFx>0)b._tpFx=Math.max(0,b._tpFx-dt);
+  }
+  for(const s of bb2.shells){if(s.dead)continue;
+    s.t-=dt;if(s.t<=0){s.dead=true;continue;}
+    s.x+=s.vx*dt;s.y+=s.vy*dt;
+    if(s.x<0||s.x>FW||s.y<0||s.y>FH){s.dead=true;continue;}
+    if(tfObs)for(const o of tfObs){if(s.x>o.x&&s.x<o.x+o.w&&s.y>o.y&&s.y<o.y+o.h){s.dead=true;break;}}
+    if(s.dead)continue;
+    for(const c of bb2.bots){if(c.dead||c.side===s.side)continue;if(Math.hypot(c.x-s.x,c.y-s.y)<=RR){s.dead=true;bbApplyHit(c,bbHitLoc(c,s.x,s.y),BB_W.tankPortDmg,s.owner,s.x,s.y,0.5);if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:s.x,y:s.y,t:0.2,r:RR*1.2});break;}} // shells partly pierce the front (0.5)
+  }
+  bb2.shells=bb2.shells.filter(s=>!s.dead);
+}
 function updateBB(dt){
   if(!bb2)return;
   if(bb2.cd>0){const _p=Math.ceil(bb2.cd);bb2.cd-=dt;if(bb2.cd<=0)sfx('go');else if(Math.ceil(bb2.cd)<_p)sfx('count');return;}
@@ -4690,6 +4714,7 @@ function updateBB(dt){
   bbHazardUpdate(dt); // v5.1.120 P3: arena hazards (acid pit + saw blades) damage bots
   bbModeUpdate(dt); // v5.1.121 P9: game-mode win conditions (sumo ring-out, etc.)
   bbSwordUpdate(dt); // v5.1.119 P7: ANIME SWORD periodic slash (cheat)
+  bbTankPortUpdate(dt); // v5.1.172 P7: TANK INVASION cannon shells (cheat)
   bbAirstrikeUpdate(dt); // v5.1.119 P7: AIRSTRIKE arena bombs (cheat)
   if(bb2.hazCd>0)bb2.hazCd=Math.max(0,bb2.hazCd-dt); // v5.1.148 HAZARD MASTER strike cooldown
   // STALEMATE COUNT-OUT: only when NOTHING is happening — an immobilized bot taps out ONLY if its side has no mobile
@@ -4815,6 +4840,11 @@ function drawBB(){
       if(bf>0.8){ctx.globalAlpha=0.55+0.45*Math.sin((bb2.t||0)*22);ctx.fillStyle='#fff7c0';ctx.font='bold 14px Courier New';ctx.textAlign='center';ctx.fillText('🔥',0,-RR-12);ctx.globalAlpha=1;}}
     ctx.restore();
     bbDrawWeapon(b); // P2.2 weapon cosmetic
+    if(tankPort&&b._tpAim!=null){ctx.save();ctx.translate(FX+b.x,FY+b.y);ctx.rotate(b._tpAim);const rec=(b._tpFx>0)?3:0; // v5.1.172 TANK INVASION turret: a barrel that tracks the nearest enemy + recoils/flashes on fire
+      ctx.fillStyle='#3a4250';ctx.beginPath();ctx.arc(0,0,RR*0.5,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#11151c';ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle='#566270';ctx.fillRect(RR*0.2-rec,-3.5,RR*0.95,7);ctx.strokeStyle='#11151c';ctx.lineWidth=1.5;ctx.strokeRect(RR*0.2-rec,-3.5,RR*0.95,7);
+      if(b._tpFx>0){ctx.globalAlpha=b._tpFx/0.12;ctx.fillStyle='#fff7c0';ctx.beginPath();ctx.arc(RR*1.15-rec,0,5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
+      ctx.restore();}
     if(b._swordFx>0){ctx.save();ctx.translate(FX+b.x,FY+b.y);const a0=Math.min(1,b._swordFx*3),R2=RR+RR*BB_W.swordRange,h0=b.h-BB_W.swordArc/2,h1=b.h+BB_W.swordArc/2; // v5.1.163 ANIME SWORD slash: a dramatic bright sweep (glow + white core + flash) so it's unmistakable
       ctx.globalAlpha=a0*0.5;ctx.fillStyle='#bfeaff';ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,R2,h0,h1);ctx.closePath();ctx.fill();
       ctx.globalAlpha=a0;ctx.strokeStyle='#dff4ff';ctx.lineWidth=8;ctx.beginPath();ctx.arc(0,0,R2,h0,h1);ctx.stroke();
@@ -4847,6 +4877,9 @@ function drawBB(){
     ctx.fillStyle=m.col;ctx.beginPath();ctx.moveTo(mrr,0);ctx.lineTo(mrr*0.1,mrr*0.55);ctx.lineTo(mrr*0.1,-mrr*0.55);ctx.closePath();ctx.fill();
     ctx.restore();}
   // explosions + KO debris (mutual-destruction blasts / chassis scatter)
+  for(const s of (bb2.shells||[])){const col=(bb2.bots[s.owner]?bb2.bots[s.owner].col:M2_COLS[0]),ang=Math.atan2(s.vy,s.vx); // v5.1.172 TANK INVASION shell — drawn exactly like the Tank-Fight bullet (owner-shade round + tracer)
+    ctx.strokeStyle=col+'44';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(FX+s.x-Math.cos(ang)*16,FY+s.y-Math.sin(ang)*16);ctx.lineTo(FX+s.x,FY+s.y);ctx.stroke();
+    ctx.beginPath();ctx.arc(FX+s.x,FY+s.y,4,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();ctx.strokeStyle='#ffffff66';ctx.lineWidth=1;ctx.stroke();}
   for(const bl of (bb2.blasts||[])){
     if(bl.kami){const life=bl.max||0.7,p=clamp(1-bl.t/life,0,1),a0=Math.max(0,bl.t/life); // v5.1.138 KAMIKAZE shockwave: a fireball + expanding multi-ring blast + a bright core flash
       ctx.globalAlpha=a0*0.45;ctx.fillStyle='#ff7a2e';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,bl.r*Math.min(1,p*1.05),0,Math.PI*2);ctx.fill(); // fireball
