@@ -106,11 +106,13 @@ buff/nerf feedback (do NOT guess balance changes tonight).
    reshuffle (Sam to decide); heatshield-vs-flameproof-perk overlap (kept — armor frees the perk slot).
 
 **NEXT (Sam's stated priorities, in order):**
-A. **PERKS in the 3v3 grid** — today only weapon+armor are pickable per-seat in the MULTI grid; add the
-   perk cycler there ("a pretty big thing" — Sam).
-B. **DOMINATION = multi-point** — Sam: the current single center zone is *incorrect*; it should have
-   **≥3 capture points**, not one. Rework `bbMode` domination to multiple control points.
+A. ✅ **PERKS in the 3v3 grid (v5.1.186)** — were already pickable via mouse/touch (cyclers + drag-drop
+   since v5.1.173) + carry to the match; the gap was GAMEPAD — added Y=weapon/X=armor/A=perk nav + hint.
+B. ✅ **DOMINATION = multi-point (v5.1.187)** — reworked to 3 control points (triangle) with persistent
+   ownership; hold more points → score faster; CPU captures the nearest un-owned point; 3 tinted zones.
 C. Later / not yet: Tournament v2 (nobody's used it yet), moving game modes to TANK (don't need stock).
+   Combat: jet/pusher real-play tuning (pending Sam's 3v3 walled-map read); piston air-tank / flame fuel
+   (only if those need reining in); polish (map gallery, egg paint+achievements, drag-drop discoverability).
 
 **STATUS: tip v5.1.180, all green on `dev`. Balance pass DONE. NEXT = perks-in-grid, then domination multi-point.**
 
