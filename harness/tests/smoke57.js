@@ -737,6 +737,18 @@ src+=`
    const e2=bbBotWith('none','balanced',1,2,true);e2.x=400+RR;e2.y=300;e2.hp=BB.HP;e2.inv=0;e2.mob=BB.MOB;e2._botSlamCd=0;
    bb2.bots=[F,e1,e2];bb2.t=1;const h1=e1.hp,h2=e2.hp;updateBB(1/60);m2.drive=svdrv;
    ok('SLAM-INTO-BOT: a flung bot crashing into another bot damages BOTH',e1.hp<h1&&e2.hp<h2);}
+  // ── v5.1.186 PERKS in the 3v3 GRID: cycle (mouse + gamepad), drop a chip, carry to the match ──
+  {const svm=m2.mode,svf=m2.set.tfmt;m2.mode='battlebots';m2.set.tfmt='multi';tankGridInit();
+   m2.tseats[0]={type:'human',dev:{type:'gp',gp:0},tier:1,drive:{kind:'main',idx:1,name:'a',c:'#f00'},sens:1,name:'P'};
+   const ld=bbSeatLoadout(0);ld.perk='none';
+   bbCycleField(ld,'perk',1);ok('grid: perk cycler advances from NONE to a real perk',ld.perk!=='none'&&BB_PERKS_PICK.some(p=>p.id===ld.perk));
+   const p1=ld.perk;bbCycleField(ld,'perk',1);ok('grid: perk cycler steps to the next perk',ld.perk!==p1);
+   bbArmEquip(0,'perk','vampire');ok('grid: dropping a PERK chip on a seat sets it',bbSeatLoadout(0).perk==='vampire');
+   ok('grid: the seat PERK carries into the match loadout',tankGridActive()&&bbLoadoutForBind(0)&&bbLoadoutForBind(0).perk==='vampire'&&bbResolveLoadout(bbLoadoutForBind(0)).perk==='vampire');
+   bbSeatLoadout(0).perk='vampire';const sgb=gpBtnsAll,sgp=gpPrevAll,sga=gpAxesAll,sgn=gpNavLast;
+   gpBtnsAll=[[]];gpPrevAll=[[]];gpAxesAll=[{lx:0,ly:0}];gpBtnsAll[0][0]=true;gpNavLast=-1e9;tankGridGpNav();
+   ok('grid GAMEPAD: A cycles the PERK (pad players can pick perks too)',bbSeatLoadout(0).perk!=='vampire'&&BB_PERKS_PICK.some(p=>p.id===bbSeatLoadout(0).perk));
+   gpBtnsAll=sgb;gpPrevAll=sgp;gpAxesAll=sga;gpNavLast=sgn;m2.mode=svm;m2.set.tfmt=svf;}
   // ── v5.1.120: P3 ARENA HAZARDS — the DANGER ZONE map (acid pit + saw blades) + map-select includes it ──
   {const hazMap=TF2_MAPS.find(m=>m.id==='hazard');
    ok('a HAZARD arena (DANGER ZONE) exists with a pit + saws',!!hazMap&&hazMap.haz.some(h=>h.type==='pit')&&hazMap.haz.some(h=>h.type==='saw'));
