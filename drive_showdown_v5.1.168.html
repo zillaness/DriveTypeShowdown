@@ -4849,13 +4849,12 @@ function drawBB(){
       for(let ri=0;ri<3;ri++){const rad=bl.r*clamp(p*1.12+ri*0.16,0,1.15);ctx.globalAlpha=a0;ctx.strokeStyle=['#fff3c4','#ffb24d','#ff5a1e'][ri];ctx.lineWidth=6-ri*1.6;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,Math.max(1,rad),0,Math.PI*2);ctx.stroke();} // shockwave rings
       const fl=Math.max(0,(bl.t-life*0.55)/(life*0.45));ctx.globalAlpha=fl;ctx.fillStyle='#fff7e0';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,bl.r*0.42*(1-p),0,Math.PI*2);ctx.fill(); // core flash (early)
       ctx.globalAlpha=1;continue;}
-    if(bl.parting){const life=bl.max||0.9,p=clamp(1-bl.t/life,0,1),a0=Math.max(0,bl.t/life),r2=12+(bl.r-12)*Math.min(1,p*1.6); // v5.1.166 PARTING GIFT: an UNMISSABLE gold burst — fireball fill + triple ring + a rising 🎁 PARTING GIFT! caption
+    if(bl.parting){const life=bl.max||0.9,p=clamp(1-bl.t/life,0,1),a0=Math.max(0,bl.t/life),r2=12+(bl.r-12)*Math.min(1,p*1.6); // v5.1.168 PARTING GIFT: a distinct gold burst — fireball fill + triple ring + a 🎁 glyph (no text caption)
       ctx.globalAlpha=a0*0.6;const g=ctx.createRadialGradient(FX+bl.x,FY+bl.y,2,FX+bl.x,FY+bl.y,r2);g.addColorStop(0,'#fff7c0');g.addColorStop(0.5,'#ffd740aa');g.addColorStop(1,'#ff8a0000');ctx.fillStyle=g;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2,0,Math.PI*2);ctx.fill();
       ctx.globalAlpha=a0;ctx.strokeStyle='#ffe680';ctx.lineWidth=5;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2,0,Math.PI*2);ctx.stroke();
       ctx.strokeStyle='#ffd740';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2*0.78,0,Math.PI*2);ctx.stroke();
       ctx.strokeStyle='#7CFC8A';ctx.lineWidth=2;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2*0.5,0,Math.PI*2);ctx.stroke();
-      ctx.globalAlpha=Math.min(1,a0*1.4);const ty=FY+bl.y-r2-10-p*22;ctx.font='bold 26px Courier New';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('🎁',FX+bl.x,FY+bl.y+8);
-      ctx.font='bold 13px Courier New';ctx.lineWidth=3;ctx.strokeStyle='#3a2a00';ctx.strokeText('PARTING GIFT!',FX+bl.x,ty);ctx.fillStyle='#ffe680';ctx.fillText('PARTING GIFT!',FX+bl.x,ty);ctx.globalAlpha=1;continue;}
+      ctx.globalAlpha=Math.min(1,a0*1.4);ctx.font='bold 26px Courier New';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('🎁',FX+bl.x,FY+bl.y+8);ctx.globalAlpha=1;continue;}
     const k=1-bl.t/0.42,r=8+(bl.r-8)*k;ctx.globalAlpha=Math.max(0,bl.t/0.42);
     ctx.fillStyle='#ff5a1e33';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='#ff8a3d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.stroke();}
