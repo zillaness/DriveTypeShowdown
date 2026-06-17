@@ -3957,15 +3957,15 @@ const BB_WEAPONS=[
 const BB_ARMOR=[ // v5.1.156: spd (speed mult), hpMul (HP-pool mult), runflat (never fully immobilized), reactive (reflect on first hit per zone)
   {id:'balanced',  name:'BALANCED',  rps:'balanced',  weight:0.0, take:1.00, zone:{front:1,side:1,rear:1}}, // default neutral
   {id:'hardplate', name:'HARDPLATE', rps:'hardplate', weight:0.45,take:0.62, hpMul:1.45, zone:{front:1,side:1,rear:0.85}}, // v5.1.179 BUFF: lighter (weight 0.6→0.45 — the speed penalty was crippling it) + bigger HP pool (1.35→1.45). Kinetic-tough, thermal-weak
-  {id:'heatshield',name:'HEATSHIELD',rps:'heatshield',weight:0.25,take:0.80, zone:{front:1,side:1,rear:1}},     // v5.1.179 BUFF: tougher (take 0.90→0.80) + lighter (0.4→0.25). ARMOR-slot thermal resist (rps halves flame) — distinct from the FLAMEPROOF *perk* (full immunity but costs your perk slot); heatshield frees the perk + still helps vs kinetic
+  {id:'heatshield',name:'HEATSHIELD',rps:'heatshield',weight:0.25,take:0.82, zone:{front:1,side:1,rear:1}},     // v5.1.181 FLAMETHROWER-PROOF (full flame immunity, like the perk — see bbApplyFlame) + GENERAL damage reduction elsewhere (take 0.82, kinetic rps now neutral → a real ~18% cut vs everything). The FLAMEPROOF perk still earns its slot: it lets a DIFFERENT armor (e.g. hardplate) also be flame-immune
   {id:'light',     name:'LIGHT',     rps:'light',     weight:0.0, take:1.30, spd:1.3, hpMul:0.9, zone:{front:1,side:1,rear:1}}, // v5.1.156 BIG speed boost, fast + fragile
-  {id:'runflat',   name:'RUNFLAT',   rps:'balanced',  weight:0.2, take:1.00, runflat:true, spd:0.95, zone:{front:1,side:1,rear:1}}, // v5.1.156 wheels can't immobilize you — damaged = slow but you keep crawling
+  {id:'runflat',   name:'RUNFLAT',   rps:'balanced',  weight:0.0, take:1.00, runflat:true, zone:{front:1,side:1,rear:1}}, // v5.1.181 NEUTRAL base (balanced speed + no damage mod) + the RUNFLAT ability: popped tires keep driving at a usable crawl (runflatKeep) instead of freezing — situational / 3v3-leaning
   {id:'reactive',  name:'REACTIVE',  rps:'hardplate', weight:0.45,take:1.00, reactive:true, zone:{front:1,side:1,rear:1}}, // v5.1.157 damages the attacker the FIRST hit on each side
 ];
 const BB_RPS={ // damage ×factor: weapon class vs armor RPS class (1 = neutral)
   none:         {balanced:1, hardplate:1,   heatshield:1,   light:1},
-  kineticSpin:  {balanced:1, hardplate:0.6, heatshield:1.3, light:1.5},
-  kineticStrike:{balanced:1, hardplate:0.6, heatshield:1.3, light:1.5},
+  kineticSpin:  {balanced:1, hardplate:0.6, heatshield:1.0, light:1.5},
+  kineticStrike:{balanced:1, hardplate:0.6, heatshield:1.0, light:1.5},
   thermal:      {balanced:1, hardplate:1.5, heatshield:0.5, light:1.2}, // flame beats turtles, folds to heatshield
   control:      {balanced:1, hardplate:1.0, heatshield:1.0, light:1.0},
 };
@@ -4022,19 +4022,27 @@ const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON'
 const BB_ARMORY_A=[{id:'balanced',lab:'BAL',ic:'⚖'},{id:'hardplate',lab:'HARD',ic:'🛡'},{id:'heatshield',lab:'HEAT',ic:'♨'},{id:'light',lab:'LIGHT',ic:'🪶'},{id:'runflat',lab:'RUN',ic:'🛞'},{id:'reactive',lab:'REACT',ic:'💥'}]; // v5.1.156 RUNFLAT; v5.1.157 REACTIVE
 const BB_PERKS=[ // v5.1.112 P2: a 3rd loadout slot — PERK (id stays in ld.perk; 'none' kept ONLY as the no-effect fallback, NOT pickable since v5.1.155)
   {id:'none',       name:'NO PERK',      lab:'NONE', ic:'∅'},
-  {id:'partinggift',name:'PARTING GIFT', lab:'GIFT', ic:'🎁'}, // a big EXPLOSION on death (take foes with you)
+  {id:'partinggift',name:'PARTING GIFT', lab:'BOOM', ic:'🧨'}, // v5.1.181 a big EXPLOSION on death (take foes with you) — NO present theme, just a blast (icon 🎁→🧨, lab GIFT→BOOM)
   {id:'flameproof', name:'FLAMEPROOF',   lab:'PROOF',ic:'🧯'}, // immune to flame DPS + blow-up
   {id:'minibot',    name:'MINIBOT',      lab:'MINI', ic:'🤖'}, // deploy a harasser
   {id:'vampire',    name:'VAMPIRE',      lab:'VAMP', ic:'🧛'}, // v5.1.155 destroy an enemy → heal a chunk
   {id:'sparetire',  name:'SPARE TIRE',   lab:'SPARE',ic:'🛞'}, // v5.1.155 the first wheel to die is instantly re-welded (once)
   {id:'pitstop',    name:'PIT STOP',     lab:'PIT',  ic:'⛽'}, // v5.1.161 deploys a MEDIC drone that patches YOUR & allies' HP + mobility + wheels (any build wants it)
+  {id:'adrenaline', name:'ADRENALINE',   lab:'RAGE', ic:'💢'}, // v5.1.181 BERSERK: you deal MORE damage the lower your HP (closer to death = harder hits)
+  {id:'painkiller', name:'PAINKILLER',   lab:'PAIN', ic:'💊'}, // v5.1.181 DELAY mobility damage: stay fully mobile for a grace window after the first hit, THEN the damage catches up
+  {id:'laststand',  name:'LAST STAND',   lab:'STAND',ic:'💀'}, // v5.1.181 on (would-be) DEATH: a short INVULNERABLE + perfect-mobility window — one last chance to take the foe with you
 ];
 const BB_PERKS_PICK=BB_PERKS.filter(p=>p.id!=='none'); // v5.1.155 PICKABLE perks (NONE removed — everyone takes a real perk)
 function bbPerkById(id){return BB_PERKS.find(p=>p.id===id)||BB_PERKS[0];}
 function bbPerkOf(b){return (b&&b.ld&&b.ld.perk)||'none';}
+function bbAdrenaline(atk){ // v5.1.181 ADRENALINE: damage scales UP as the attacker nears death (×1 at full HP → ×(1+adrenalineMax) at death's door)
+  if(!atk||bbPerkOf(atk)!=='adrenaline')return 1;
+  const frac=clamp((atk.hp||0)/(atk.mhp||BB.HP),0,1);return 1+BB_W.adrenalineMax*(1-frac);
+}
 const BB_ARM_WCOL='#d9c08a', BB_ARM_ACOL='#8fbfd9', BB_ARM_PCOL='#a6d9a0'; // weapons warm, armor cool, perks green (match the seat ⚔/🛡/✦ labels)
 function bbArmoryChips(){ // laid-out chip rects for the top rail: weapon group ⚔ … armor 🛡 … perk ✦, centered (v5.1.113: + PERK group)
-  const cw=44,gap=3,LBL=18,GRP=14,cy=85,ch=26; // v5.1.157 tighter chips so 10 weapons + 6 armor + 6 perks still fit the rail
+  const gap=3,LBL=18,GRP=14,cy=85,ch=26,N=BB_ARMORY_W.length+BB_ARMORY_A.length+BB_PERKS_PICK.length;
+  const cw=clamp(Math.floor((CW-10-3*LBL-2*GRP-(N-3)*gap)/N),22,44); // v5.1.181 chips SHRINK to fit the canvas as the roster grows (was fixed 44 → overflowed at 11 weapons + 9 perks)
   const wW=LBL+BB_ARMORY_W.length*(cw+gap)-gap, aW=LBL+BB_ARMORY_A.length*(cw+gap)-gap, pW=LBL+BB_PERKS_PICK.length*(cw+gap)-gap, total=wW+GRP+aW+GRP+pW;
   let x=Math.round((CW-total)/2);const out=[];
   out.push({kind:'wlabel',ic:'⚔',x:x,y:cy,w:16,h:ch});x+=LBL;
@@ -4094,9 +4102,12 @@ function bbDrawSeatLoadout(i,c){const s=m2.tseats&&m2.tseats[i];if(!s)return;con
   for(const r of [lr.wL,lr.wR,lr.aL,lr.aR,lr.pL,lr.pR]){ctx.fillStyle='rgba(40,40,62,0.7)';rr(r.x,r.y,r.w,r.h,5);ctx.fill();ctx.strokeStyle='#4a4a6a';ctx.lineWidth=1;rr(r.x,r.y,r.w,r.h,5);ctx.stroke();}
   ctx.fillStyle='#aab';ctx.textAlign='center';ctx.font='bold 11px Courier New';ctx.fillText('◀',lr.wL.x+9,lr.wL.y+15);ctx.fillText('▶',lr.wR.x+9,lr.wR.y+15);ctx.fillText('◀',lr.aL.x+9,lr.aL.y+15);ctx.fillText('▶',lr.aR.x+9,lr.aR.y+15);ctx.fillText('◀',lr.pL.x+9,lr.pL.y+15);ctx.fillText('▶',lr.pR.x+9,lr.pR.y+15);
   ctx.font='bold 10px Courier New';ctx.fillStyle='#eaeaff';ctx.fillText(wlab,(lr.wL.x+lr.wL.w+lr.wR.x)/2,lr.wL.y+14);ctx.fillText(alab,(lr.aL.x+lr.aL.w+lr.aR.x)/2,lr.aL.y+14);ctx.fillStyle='#e8d0ff';ctx.fillText(plab,(lr.pL.x+lr.pL.w+lr.pR.x)/2,lr.pL.y+14);}
-function bbSpeed(b){const mm=(b.ld&&b.ld.mobMax)||BB.MOB,sm=(b.ld&&b.ld.speedMul!=null)?b.ld.speedMul:1,pn=(b.pinT>0)?BB_W.wedgePin:1,fl=((b._flameSlowT||0)>0)?BB_W.flameSlowMul:1; // v5.1.180 fl = a HUMAN flamethrower's STICKINESS slow (you have to work out of the cone)
-  if(b.mob<=0)return (b.ld&&b.ld.runflat)?BB.mobFloor*0.7*sm*pn*fl*BB.spd:0; // v5.1.156 RUNFLAT: keep crawling at a floor instead of full immobilization
-  return (BB.mobFloor+(1-BB.mobFloor)*(b.mob/mm))*sm*pn*fl*BB.spd;} // v5.1.143 nimbler base (×BB.spd) + mobFloor so mobility damage hurts less
+function bbSpeed(b){const mm=(b.ld&&b.ld.mobMax)||BB.MOB,sm=(b.ld&&b.ld.speedMul!=null)?b.ld.speedMul:1;
+  if((b._lastStandT||0)>0)return sm*BB_W.lastStandSpd*BB.spd; // v5.1.181 LAST STAND: perfect (+boosted) mobility during the death window — ignore drain / pin / slow
+  const pn=(b.pinT>0)?BB_W.wedgePin:1,fl=((b._flameSlowT||0)>0)?BB_W.flameSlowMul:1; // v5.1.180 fl = a HUMAN flamethrower's STICKINESS slow (you have to work out of the cone)
+  const meff=(bbPerkOf(b)==='painkiller'&&(b._painT||0)>0)?mm:b.mob; // v5.1.181 PAINKILLER: during the grace window you drive at FULL mobility despite the drain — then the damage catches up
+  if(meff<=0)return (b.ld&&b.ld.runflat)?(BB.mobFloor+(1-BB.mobFloor)*BB_W.runflatKeep)*sm*pn*fl*BB.spd:0; // v5.1.181 RUNFLAT: popped tires still drive at a USABLE crawl (runflatKeep), not frozen
+  return (BB.mobFloor+(1-BB.mobFloor)*(meff/mm))*sm*pn*fl*BB.spd;} // v5.1.143 nimbler base (×BB.spd) + mobFloor so mobility damage hurts less
 function bbHitLoc(victim,fromX,fromY){ // contact point (toward the other bot) classified by the VICTIM's heading
   let d=Math.atan2(fromY-victim.y,fromX-victim.x)-victim.h;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;d=Math.abs(d);
   if(d<=BB.frontCone/2)return'front';        // facing the hit = armored (kinetic immune)
@@ -4104,7 +4115,7 @@ function bbHitLoc(victim,fromX,fromY){ // contact point (toward the other bot) c
   return'side';                              // flank = MOBILITY first, then HP
 }
 function bbApplyHit(victim,loc,dmg,owner,fromX,fromY,frontPierce){ // kinetic hit: front immune (unless PIERCING), rear→HP, side→mobility (+ a corner WHEEL) then spillover
-  if(victim.dead||victim.inv>0||dmg<=0)return;
+  if(victim.dead||victim.inv>0||dmg<=0||(victim._lastStandT>0))return; // v5.1.181 LAST STAND: invulnerable during its window
   if(victim.ld&&victim.ld.reactive&&owner!=null&&bb2&&bb2.bots[owner]){ // v5.1.160 REACTIVE ARMOR: the FIRST hit on each side (front / side ×2 / rear) is fully ABSORBED (no damage taken) AND blasts the attacker for meaningful damage; then that side's charge is spent
     if(!victim._react)victim._react={front:1,side:2,rear:1};
     if(victim._react[loc]>0){victim._react[loc]--;
@@ -4117,14 +4128,15 @@ function bbApplyHit(victim,loc,dmg,owner,fromX,fromY,frontPierce){ // kinetic hi
   // P2.1 loadout factors (all neutral at default → P1 byte-identical): attacker damage-DEALT × victim damage-TAKEN × per-zone armor × weapon-vs-armor RPS
   const atk=(owner!=null&&bb2&&bb2.bots[owner])?bb2.bots[owner]:null;
   const deal=(atk&&atk.ld)?atk.ld.deal:1,take=(victim.ld)?victim.ld.take:1,zm=(victim.ld&&victim.ld.zone&&victim.ld.zone[loc]!=null)?victim.ld.zone[loc]:1;
-  dmg=dmg*deal*take*zm*bbRps(atk&&atk.ld?atk.ld.wcls:'none',victim.ld?victim.ld.arps:'balanced');
+  dmg=dmg*deal*take*zm*bbRps(atk&&atk.ld?atk.ld.wcls:'none',victim.ld?victim.ld.arps:'balanced')*bbAdrenaline(atk); // v5.1.181 ADRENALINE: the attacker hits harder the closer IT is to death
   if(victim.ctl)p2Rumble(victim.ctl.bind,clamp(dmg/55,0.18,0.8));if(atk&&atk.ctl)p2Rumble(atk.ctl.bind,clamp(dmg/70,0.35,0.9),'bite'); // v5.1.165 victim feels the HIT; attacker gets the BITE (you're dealing damage), scaled by how hard
   if(loc==='front'){ // an armored front shrugs off RAM/contact; an armor-PIERCING striker (PISTON/hammer) still cracks it for a fraction
     if(!(frontPierce>0)){victim.inv=BB.hitCd;return;} // shrugged off (brief contact cd so it isn't a per-frame grind)
     victim.hp-=dmg*frontPierce;
   }
   else if(loc==='rear')victim.hp-=dmg;
-  else{const m=victim.mob;if(m>0){victim.mob=Math.max(0,m-dmg);const spill=dmg-m;if(spill>0)victim.hp-=spill;}else victim.hp-=dmg;bbWheelDamage(victim,dmg,fromX,fromY);} // SIDE: drain mobility→HP, AND chew a corner wheel (P2.4)
+  else{if(bbPerkOf(victim)==='painkiller'&&!victim._painUsed){victim._painUsed=true;victim._painT=BB_W.painkillerDelay;} // v5.1.181 PAINKILLER: the first mobility hit starts a grace window — you stay fully mobile, THEN the damage catches up
+    const m=victim.mob;if(m>0){victim.mob=Math.max(0,m-dmg);const spill=dmg-m;if(spill>0)victim.hp-=spill;}else victim.hp-=dmg;bbWheelDamage(victim,dmg,fromX,fromY);} // SIDE: drain mobility→HP, AND chew a corner wheel (P2.4)
   victim.inv=BB.hitCd;sfx('hit');
   if(owner!=null&&bb2.bots[owner]&&bb2.bots[owner].side!==victim.side)bb2.bots[owner].dmgDealt=(bb2.bots[owner].dmgDealt||0)+dmg; // for a future judges' decision
   if(victim.hp<=0)bbKill(victim,owner);
@@ -4145,7 +4157,13 @@ function bbCheckResult(lastKiller){ // last SIDE standing wins (KO); nobody left
 }
 function bbKill(victim,owner){ // KO + explosion + MUTUAL-DESTRUCTION chain: a near-dead bot caught in the blast also dies
   if(victim.dead)return;
-  victim.hp=0;victim.mob=0;victim.dead=true;sfx('boom');
+  if(bbPerkOf(victim)==='laststand'&&!victim._lastStandUsed&&!(victim._lastStandT>0)){ // v5.1.181 LAST STAND: cheat death ONCE — a short INVULNERABLE + perfect-mobility window to take the foe with you (then you finally break down)
+    victim._lastStandUsed=true;victim._lastStandT=BB_W.lastStandDur;victim._lastStandKiller=owner;
+    victim.hp=Math.max(victim.hp,1);victim.mob=(victim.ld&&victim.ld.mobMax)||BB.MOB;victim.inv=0;victim.burn=0;
+    sfx('powerup');if(victim.ctl)p2Rumble(victim.ctl.bind,1,'heavy');if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:victim.x,y:victim.y,t:0.5,r:RR*2.6});
+    return; // do NOT die yet
+  }
+  victim.hp=0;victim.mob=0;victim.dead=true;victim._lastStandT=0;sfx('boom');
   if(!bb2.blasts)bb2.blasts=[];if(!bb2.deb)bb2.deb=[];
   const R=RR*BB_W.blastRK;bb2.blasts.push({x:victim.x,y:victim.y,t:0.42,r:R});bbDeathFx(victim);
   if((victim.ld&&victim.ld.perk)==='partinggift'){const PR=RR*BB_W.partingRK;bb2.blasts.push({x:victim.x,y:victim.y,t:0.9,max:0.9,r:PR,parting:true});sfx('explosion');for(const o of bb2.bots){if(o===victim||o.dead||o.side===victim.side)continue;const d=Math.hypot(o.x-victim.x,o.y-victim.y);if(d<=PR){o.hp-=BB_W.partingDmg*Math.max(0.6,1-d/PR);o.inv=BB.hitCd;if(o.ctl)p2Rumble(o.ctl.bind,0.9,'heavy');if(o.hp<=0&&!o.dead)bbKill(o,owner);}}} // v5.1.173 PARTING GIFT: a big gold blast on death — ≥0.6× even at the edge so it really takes foes with you
@@ -4252,9 +4270,9 @@ const BB_W={
   spinRamp:1.10, spinMin:0.55, spinDmg:40, spinKnock:2.0, spinReach:0.85, spinReachCd:0.20, spinHitLoss:0.4, spinWallDmg:18, spinWallLoss:0.90, spinFront:0.50, spinSelf:0.16, spinDeflect:2.5, buzzDmg:52, buzzArc:Math.PI*0.5, // v5.1.179 SPINNER buffed: dmg 32→36 + REACH (spinReach: the spun-up disc bites 360° out to RR*2+RR*spinReach, not just on body contact; spinReachCd gates the extended-bite DPS). BUZZSAW = FRONT-only (buzzArc ±45°) high-dmg cutter; spinner = lower-per-hit 360°
   flipCd:0.85, flipArc:Math.PI*0.9, flipRangeK:2.0, flipKnock:110, flipDmg:28, flipWallDmg:40, flipFlySpd:1750, flipFlyT:0.68, // FLIPPER/PUSHER: v5.1.170 LESS initial-push damage (50→28) + the big fun PUSH kept (knock 110, fling 1750, 0.68s); wall/obstacle slam is just EXTRA damage now (62→40, not a ring-out KO). Fires on EDGE contact, near-180° arc
   pistCd:0.85, pistDmg:60, pistRangeK:2.6, pistArc:Math.PI*0.6, pistKnock:34, pistFront:0.78, // PISTON: v5.1.169 contact detected across the WHOLE stroke (+ radius-aware so partial/edge contact at the end still lands damage); push kept at its existing 34 (NOT increased); damage 60; reach 2.6, spike animates to full reach
-  flameRangeK:7.6, flameArc:Math.PI*0.20, flameHitArc:Math.PI*0.34, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, flameSlowMul:0.68, flameSlowT:0.22, // FLAMETHROWER: v5.1.173 wider DAMAGE arc than the visual jet; v5.1.180 flameSlowMul/flameSlowT = HUMAN-only STICKINESS (the burn slows the victim to flameSlowMul× for flameSlowT s, refreshed each frame in the cone)
+  flameRangeK:7.6, flameArc:Math.PI*0.20, flameHitArc:Math.PI*0.34, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, flameSlowMul:0.68, flameSlowT:0.22, adrenalineMax:0.85, painkillerDelay:6.0, lastStandDur:12.0, lastStandSpd:1.18, runflatKeep:0.40, // v5.1.181 PERKS: ADRENALINE = up to +85% damage at death's door; PAINKILLER = 6s mobility grace; LAST STAND = 12s invuln+perfect-mobility death window. runflatKeep = mobility a popped-tire RUNFLAT bot retains (~70% of healthy speed — noticeably slower but still fighting; runflat stays situational/3v3-leaning by design) // FLAMETHROWER: v5.1.173 wider DAMAGE arc than the visual jet; v5.1.180 flameSlowMul/flameSlowT = HUMAN-only STICKINESS (the burn slows the victim to flameSlowMul× for flameSlowT s, refreshed each frame in the cone)
   wedgeDmg:0.82, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:152, grabDmg:40, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.8, pincerDrain:55, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, // v5.1.166 WEDGE/DOZER buffed (contact 0.40→0.62, slam 85→115, grab 18→28 — it read as weak). Wider arc (±63°) + grab REACH ≈ 2.4×RR so no perfect ram needed. dozerCharge = forward boost while firing RT, dashBuff = LT-dash buff
-  blowUp:46, burnCool:4, burnBuild:1.0, burnBuildCpu:0.60, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:4.5, partingDmg:480, // v5.1.176 BLOW-UP ring DECOUPLED human/CPU: a HUMAN heats it fast (burnBuild, ~6s sustained → satisfying) while a CPU heats slowly (burnBuildCpu, sim-balanced). burnCool 4 = the ring UNFILLS SLOWLY (lingers, doesn't vanish) on contact break. KAMIKAZE 9×RR; PARTING GIFT inner boom
+  blowUp:46, burnCool:4, burnBuild:1.0, burnBuildCpu:0.60, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:6.0, partingDmg:480, // v5.1.176 BLOW-UP ring DECOUPLED human/CPU: a HUMAN heats it fast (burnBuild, ~6s sustained → satisfying) while a CPU heats slowly (burnBuildCpu, sim-balanced). burnCool 4 = the ring UNFILLS SLOWLY (lingers, doesn't vanish) on contact break. KAMIKAZE 9×RR; PARTING GIFT inner boom
   wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:2.15, drillRampT:1.05, drillStick:90, drillMin:255, drillMax:470, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, repairArc:Math.PI*0.5, repairReachK:1.6, repairHps:70, repairMobps:55, repairWheelps:30, repairDmg:8, vampHeal:130, medicReachK:2.6, medicHp:90, medicHps:42, medicMobps:90, medicWheelps:26, medicSpd:1.05, reactDmg:120, // v5.1.166 DRILL buffed (ramp 1.7→1.4, dps 45→80 / 175→250 — it read as weak); MEDIC now has its own HP (90, destructible) + heals tires less (55→26); v5.1.161 PIT STOP medic; raw HP damage PENETRATES the front; REACTIVE reflect 120
   miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, miniHp:55, miniDps:80, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, airTele:1.2, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14, tankPortCd:0.55, tankPortSpd:400, tankPortDmg:42, tankPortLife:2.0, cannonCd:0.8, cannonSpd:500, cannonDmg:95, cannonLife:1.9, cannonRangeK:7.0, cannonKnock:10 // v5.1.172 TANK INVASION cheat shells; v5.1.175 CANNON weapon: reload(s), shell speed, damage, life(s), CPU fire range×RR, shell knockback
 };
@@ -4341,10 +4359,10 @@ function bbContactDmg(att,ram){ // contact (ram) damage a weapon deals to the fo
   return ram*mg;
 }
 function bbApplyFlame(victim,dmg,owner){ // THERMAL: continuous, IGNORES directional armor (burns the FRONT too); feeds the blow-up meter (P2.3)
-  if(victim.dead||dmg<=0)return;
-  if((victim.ld&&victim.ld.perk)==='flameproof')return; // v5.1.112 FLAMEPROOF perk: immune to flame DPS + blow-up
+  if(victim.dead||dmg<=0||(victim._lastStandT>0))return; // v5.1.181 LAST STAND: invulnerable during its window
+  if((victim.ld&&victim.ld.perk)==='flameproof'||(victim.ld&&victim.ld.armor==='heatshield'))return; // v5.1.112 FLAMEPROOF perk OR v5.1.181 HEATSHIELD armor: immune to flame DPS + blow-up
   const atk=(owner!=null&&bb2&&bb2.bots[owner])?bb2.bots[owner]:null;
-  const deal=(atk&&atk.ld)?atk.ld.deal:1,take=victim.ld?victim.ld.take:1,rps=bbRps(atk&&atk.ld?atk.ld.wcls:'thermal',victim.ld?victim.ld.arps:'balanced');
+  const deal=((atk&&atk.ld)?atk.ld.deal:1)*bbAdrenaline(atk),take=victim.ld?victim.ld.take:1,rps=bbRps(atk&&atk.ld?atk.ld.wcls:'thermal',victim.ld?victim.ld.arps:'balanced'); // v5.1.181 ADRENALINE scales flame HP damage too
   const bld=(atk&&atk.ctl&&atk.ctl.type==='cpu')?BB_W.burnBuildCpu:BB_W.burnBuild; // v5.1.176 DECOUPLED: a HUMAN's flame heats the ring fast (satisfying, achievable blow-up); a CPU's heats slowly (kept balanced — the CPU sustains contact perfectly, so a fast build there = auto-win)
   victim.burn=(victim.burn||0)+dmg*rps*bld;  // BLOW-UP meter: RPS-scaled (hardplate ignites fast, heatshield resists) — armor can't stop the heat building
   if(atk&&atk.ctl&&atk.ctl.type!=='cpu')victim._flameSlowT=BB_W.flameSlowT; // v5.1.180 STICKINESS (HUMAN flame only): the burn SLOWS the victim, so they must work out of the cone — refreshed each burning frame, decays fast once they escape (CPU flame skips it: the CPU sustains perfectly, a slow there = oppressive)
@@ -4363,6 +4381,8 @@ function bbWeaponPre(dt){ // per-bot: cache FIRE input, ramp/decay SPINNER, deca
     if(b._pistFx>0)b._pistFx=Math.max(0,b._pistFx-dt);
     if(b.burn>0)b.burn=Math.max(0,b.burn-dt*BB_W.burnCool); // the blow-up meter cools when you're not being flamed — you must SUSTAIN it
     if(b._flameSlowT>0)b._flameSlowT=Math.max(0,b._flameSlowT-dt); // v5.1.180 flame-stickiness slow decays once out of the cone
+    if(b._painT>0)b._painT=Math.max(0,b._painT-dt); // v5.1.181 PAINKILLER grace ticks down → then the banked mobility damage takes effect
+    if(b._lastStandT>0){b._lastStandT=Math.max(0,b._lastStandT-dt);b.mob=(b.ld&&b.ld.mobMax)||BB.MOB;if(b._lastStandT<=0)bbKill(b,b._lastStandKiller);} // v5.1.181 LAST STAND window ticks down → then you finally break down
     if(bbUnlimited){b.pistCd=0;b.grabCd=0;if(w==='spinner'||w==='buzzsaw')b.spin=1;} // v5.1.118 UNLIMITED RESOURCES: weapons never cool down — full-auto strikes, always-spun disc, instant re-grab
   }
 }
@@ -4395,7 +4415,7 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
     }
     if(w==='flame'){if(!a.heat)a.heat={};
       for(let ci=0;ci<bb2.bots.length;ci++){const c=bb2.bots[ci];if(c.dead||c.side===a.side){a.heat[ci]=0;continue;}
-        const d=Math.hypot(c.x-a.x,c.y-a.y),hot=a.firing&&d<=RR+RR*BB_W.flameRangeK&&bbFoeArcAt(a,c,BB_W.flameHitArc,a.weaponAng!=null?a.weaponAng:a.h)&&bbFlameLOS(a,c); // v5.1.173: DAMAGE arc (flameHitArc) is wider than the visual jet so it burns when the flame is over the bot; + line-of-sight
+        const d=Math.hypot(c.x-a.x,c.y-a.y),hot=a.firing&&d<=RR*2+RR*BB_W.flameRangeK&&bbFoeArcAt(a,c,BB_W.flameHitArc,a.weaponAng!=null?a.weaponAng:a.h)&&bbFlameLOS(a,c); // v5.1.181 +RR so the jet burns when it reaches the foe's BODY (the visual jet, drawn length R from the attacker's CENTER, touches the foe's EDGE at d=R+RR — the old d<=R missed by ~a bot-radius: "flame touching but no damage"). DAMAGE arc (flameHitArc) wider than the visual jet; + line-of-sight
         if(hot){a.heat[ci]=Math.min(BB_W.flameHeatMax,(a.heat[ci]||0)+dt);if(a.heat[ci]>=BB_W.flameDwell){bbApplyFlame(c,BB_W.flameDps*dt,ai);if(a.ctl)p2Rumble(a.ctl.bind,0.5,'bite');if(c.ctl)p2Rumble(c.ctl.bind,0.22);}} // v5.1.165 BITE feedback when the flame is actually burning a foe (dealing damage)
         else a.heat[ci]=Math.max(0,(a.heat[ci]||0)-dt*1.5);
       }
@@ -4907,6 +4927,9 @@ function drawBB(){
     ctx.save();ctx.translate(FX+b.x,FY+b.y);
     p2AllianceRing(p,b.col);
     ctx.strokeStyle='#ffffffcc';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,RR+13,b.h-BB.frontCone/2,b.h+BB.frontCone/2);ctx.stroke(); // FRONT-armor arc
+    if((b._lastStandT||0)>0){const pulse=0.5+0.5*Math.sin((bb2.t||0)*16),AR=RR+9; // v5.1.181 LAST STAND: a pulsing red/gold aura + a countdown — you're invulnerable, take the foe with you
+      ctx.save();ctx.shadowColor='#ff2d2d';ctx.shadowBlur=10+8*pulse;ctx.strokeStyle='rgba(255,60,60,'+(0.55+0.35*pulse)+')';ctx.lineWidth=3.5;ctx.beginPath();ctx.arc(0,0,AR,0,Math.PI*2);ctx.stroke();ctx.restore();
+      ctx.fillStyle='#fff2a8';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('💀 '+Math.ceil(b._lastStandT)+'s',0,-RR-20);}
     if((b.burn||0)>0){const bf=clamp(b.burn/BB_W.blowUp,0,1),BR=RR+22,col=bf>0.66?'#ff3b0a':bf>0.33?'#ff8a2e':'#ffd24d'; // v5.1.176 BLOW-UP RING: a BIG meter ring well OUTSIDE the alliance/front rings — a dark track + a glowing yellow→orange→red fill that climbs (slowly) toward detonation
       ctx.beginPath();ctx.arc(0,0,BR,0,Math.PI*2);ctx.strokeStyle='rgba(0,0,0,0.5)';ctx.lineWidth=6;ctx.stroke(); // dark TRACK (so the fill reads against the arena)
       ctx.save();ctx.shadowColor=col;ctx.shadowBlur=8;ctx.strokeStyle=col;ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.arc(0,0,BR,-Math.PI/2,-Math.PI/2+bf*Math.PI*2);ctx.stroke();ctx.lineCap='butt';ctx.restore(); // glowing FILL
@@ -4959,11 +4982,11 @@ function drawBB(){
       for(let ri=0;ri<3;ri++){const rad=bl.r*clamp(p*1.12+ri*0.16,0,1.15);ctx.globalAlpha=a0;ctx.strokeStyle=['#fff3c4','#ffb24d','#ff5a1e'][ri];ctx.lineWidth=6-ri*1.6;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,Math.max(1,rad),0,Math.PI*2);ctx.stroke();} // shockwave rings
       const fl=Math.max(0,(bl.t-life*0.55)/(life*0.45));ctx.globalAlpha=fl;ctx.fillStyle='#fff7e0';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,bl.r*0.42*(1-p),0,Math.PI*2);ctx.fill(); // core flash (early)
       ctx.globalAlpha=1;continue;}
-    if(bl.parting){const life=bl.max||0.9,p=clamp(1-bl.t/life,0,1),a0=Math.max(0,bl.t/life),r2=12+(bl.r-12)*Math.min(1,p*1.6); // v5.1.168 PARTING GIFT: a distinct gold burst — fireball fill + triple ring + a 🎁 glyph (no text caption)
-      ctx.globalAlpha=a0*0.6;const g=ctx.createRadialGradient(FX+bl.x,FY+bl.y,2,FX+bl.x,FY+bl.y,r2);g.addColorStop(0,'#fff7c0');g.addColorStop(0.5,'#ffd740aa');g.addColorStop(1,'#ff8a0000');ctx.fillStyle=g;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2,0,Math.PI*2);ctx.fill();
-      ctx.globalAlpha=a0;ctx.strokeStyle='#ffe680';ctx.lineWidth=5;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2,0,Math.PI*2);ctx.stroke();
-      ctx.strokeStyle='#ffd740';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2*0.78,0,Math.PI*2);ctx.stroke();
-      ctx.strokeStyle='#7CFC8A';ctx.lineWidth=2;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2*0.5,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;continue;} // v5.1.173 gold burst only (🎁 glyph removed)
+    if(bl.parting){const life=bl.max||0.9,p=clamp(1-bl.t/life,0,1),a0=Math.max(0,bl.t/life),r2=12+(bl.r-12)*Math.min(1,p*1.6); // v5.1.181 PARTING GIFT = just a big FIERY EXPLOSION (no present/gift theme): white-hot core → orange → red, triple shock ring
+      ctx.globalAlpha=a0*0.62;const g=ctx.createRadialGradient(FX+bl.x,FY+bl.y,2,FX+bl.x,FY+bl.y,r2);g.addColorStop(0,'#fff7e0');g.addColorStop(0.4,'#ffb24daa');g.addColorStop(0.75,'#ff5a1e88');g.addColorStop(1,'#a8200000');ctx.fillStyle=g;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=a0;ctx.strokeStyle='#ffd9a0';ctx.lineWidth=5;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle='#ff8a3d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2*0.78,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle='#ff5a1e';ctx.lineWidth=2;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2*0.5,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;continue;} // fiery explosion, no glyph
     const k=1-bl.t/0.42,r=8+(bl.r-8)*k;ctx.globalAlpha=Math.max(0,bl.t/0.42);
     ctx.fillStyle='#ff5a1e33';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='#ff8a3d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.stroke();}

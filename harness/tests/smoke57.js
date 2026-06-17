@@ -579,6 +579,27 @@ src+=`
    const h0=ally.hp,mob0=ally.mob;for(let i=0;i<160;i++)bbMiniUpdate(1/60); // drive the medic directly (no CPU wander) → it seeks + patches the hurt ally
    ok('PIT STOP medic heals a damaged ally (HP + mobility climb)',ally.hp>h0&&ally.mob>mob0);
    ok('PIT STOP medic re-welds a dead ally wheel',!ally.wheels[0].dead);}
+  // ── v5.1.181 NEW PERKS: ADRENALINE / PAINKILLER / LAST STAND ──
+  {ok('new perks exist: ADRENALINE, PAINKILLER, LAST STAND',['adrenaline','painkiller','laststand'].every(id=>BB_PERKS_PICK.some(p=>p.id===id)));
+   const ad=bbBotWith('none','balanced',0,0,true);ad.ld.perk='adrenaline';ad.mhp=BB.HP;
+   ad.hp=BB.HP;const full=bbAdrenaline(ad);ad.hp=BB.HP*0.05;const low=bbAdrenaline(ad);
+   ok('ADRENALINE: full HP = no bonus (×1)',Math.abs(full-1)<1e-9);
+   ok('ADRENALINE: near death deals much MORE (×>1.5)',low>1.5&&low<=1+BB_W.adrenalineMax+1e-9);
+   const pk=bbBotWith('none','balanced',1,1,true);pk.ld.perk='painkiller';pk.mob=0;pk._painUsed=true;pk._painT=BB_W.painkillerDelay;
+   const sFast=bbSpeed(pk);pk._painT=0;const sSlow=bbSpeed(pk);
+   ok('PAINKILLER: full speed during the grace window even at 0 mobility',sFast>0);
+   ok('PAINKILLER: once the grace ends, 0 mobility immobilizes as normal',sSlow===0&&sFast>sSlow);
+   startBB(0,2);bb2.cd=0;bb2.result=null;const ls=bbBotWith('none','balanced',0,0,true);ls.ld.perk='laststand';ls.x=300;ls.y=300;ls.hp=10;ls.inv=0;
+   const foe=bbBotWith('none','balanced',1,1,true);foe.hp=BB.HP;bb2.bots=[ls,foe];
+   bbKill(ls,1);ok('LAST STAND: a would-be KO instead grants a window (not dead)',!ls.dead&&(ls._lastStandT||0)>0&&ls._lastStandUsed===true);
+   const lhp=ls.hp;bbApplyHit(ls,'rear',200,1,ls.x+10,ls.y);ok('LAST STAND: INVULNERABLE during the window',ls.hp===lhp&&!ls.dead);
+   ls._lastStandT=0.01;bb2.bots=[ls,foe];bbWeaponPre(1/60);ok('LAST STAND: when the window expires, the bot finally dies',ls.dead===true);}
+  // ── v5.1.181 HEATSHIELD: flamethrower-proof + general damage reduction ──
+  {const hs=bbBotWith('none','heatshield',1,1,true);hs.x=300;hs.y=300;hs.h=0;hs.inv=0;hs.hp=BB.HP;hs.burn=0;
+   bbApplyFlame(hs,60,0);ok('HEATSHIELD: flamethrower-PROOF (no flame damage or burn)',hs.hp===BB.HP&&(hs.burn||0)===0);
+   hs.inv=0;const bal=bbBotWith('none','balanced',1,2,true);bal.x=300;bal.y=300;bal.h=0;bal.inv=0;bal.hp=BB.HP;
+   bbApplyHit(hs,'rear',100,null,hs.x,hs.y+10);bbApplyHit(bal,'rear',100,null,bal.x,bal.y+10);
+   ok('HEATSHIELD: general damage reduction vs kinetic (takes less than balanced)',(BB.HP-hs.hp)<(BB.HP-bal.hp)&&hs.hp<BB.HP);}
   // ── v5.1.157: REACTIVE armor — first hit on each zone zaps the attacker (limited charges) ──
   {const rv=bbBotWith('none','reactive',1,1,true);rv.x=300;rv.y=300;rv.h=0;rv.inv=0;rv.hp=BB.HP;
    const atk=bbBotWith('none','balanced',0,0,true);atk.x=200;atk.y=300;atk.hp=BB.HP;atk.inv=0;bb2.bots=[atk,rv];bb2.result=null;
