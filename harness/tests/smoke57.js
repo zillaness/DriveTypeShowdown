@@ -509,6 +509,19 @@ src+=`
    ok('DRILL ramp readout climbs as you keep it on the foe',ramp2>ramp1&&dr._drillFx>0&&ramp2<=1.0001);
    dr.firing=false;for(let i=0;i<200;i++)bbWeaponFire(1/60);
    ok('DRILL ramp readout falls back + glow turns OFF when idle',dr._drillRamp<0.05&&!(dr._drillFx>0));}
+  // ── v5.1.154: REPAIR TORCH — heals an ALLY (HP + mobility + wheels) in front; only chip damage to enemies ──
+  {ok('REPAIR TORCH is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='repair')&&BB_ARMORY_W.some(w=>w.id==='repair'));
+   const medic=bbBotWith('repair','balanced',0,0,true);medic.x=300;medic.y=300;medic.h=0;medic.firing=true;
+   const ally=bbBotWith('none','balanced',0,2,true);ally.x=300+RR;ally.y=300;ally.hp=200;ally.mhp=BB.HP;ally.mob=20;ally.wheels=[{hp:0,dead:true},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
+   bb2.bots=[medic,ally];bb2.result=null;const ahp0=ally.hp,amob0=ally.mob;for(let i=0;i<60;i++)bbWeaponFire(1/60);
+   ok('REPAIR heals an ally HP',ally.hp>ahp0);
+   ok('REPAIR restores allied mobility (tires)',ally.mob>amob0);
+   ok('REPAIR re-welds a dead wheel',ally.wheels[0].dead===false&&ally.wheels[0].hp>0);
+   ok('REPAIR does not over-heal past max HP',ally.hp<=ally.mhp+1e-6);
+   const enemy=bbBotWith('none','balanced',1,1,true);enemy.x=300+RR;enemy.y=300;enemy.hp=BB.HP;enemy.inv=0;
+   const med2=bbBotWith('repair','balanced',0,0,true);med2.x=300;med2.y=300;med2.h=0;med2.firing=true;
+   bb2.bots=[med2,enemy];const ehp0=enemy.hp;for(let i=0;i<10;i++)bbWeaponFire(1/60);
+   ok('REPAIR does only CHIP damage to an enemy',enemy.hp<ehp0&&enemy.hp>ehp0-30);}
   // ── v5.1.112: PERKS (3rd loadout slot) — data + effects (Parting Gift, Flameproof) ──
   {ok('bbResolveLoadout carries the PERK slot',bbResolveLoadout({weapon:'spinner',armor:'balanced',perk:'flameproof'}).perk==='flameproof');
    ok('a default loadout has no perk',bbResolveLoadout(null).perk==='none');
