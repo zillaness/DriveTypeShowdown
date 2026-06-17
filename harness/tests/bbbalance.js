@@ -21,7 +21,7 @@ src+=`
     const nan=!isFinite(bb2.bots[0].hp)||!isFinite(bb2.bots[1].hp);
     return {w:(res==='draw'?'draw':(res===aSide?'A':'B')),timedOut:timedOut,nan:nan};
   }
-  const WEAPONS=['spinner','buzzsaw','piston','flame','wedge','flipper','pincer','kamikaze','drill'],ARMOR='balanced',N=20; // the PICKABLE weapons (RAM-ONLY/'none' dropped — it's the no-weapon baseline, not balanced against)
+  const WEAPONS=['spinner','buzzsaw','piston','flame','wedge','flipper','pincer','kamikaze','drill','cannon'],ARMOR='balanced',N=20; // the PICKABLE weapons (RAM-ONLY/'none' dropped — it's the no-weapon baseline, not balanced against); v5.1.175 + CANNON
   const wins={},games={},matrix={};for(const w of WEAPONS){wins[w]=0;games[w]=0;}
   let total=0,draws=0,tos=0,nanc=0;
   console.log('RoboRumble weapon balance — '+N+' matches/matchup, armor='+ARMOR+', tier=CHAMPION, map=OPEN ARENA');

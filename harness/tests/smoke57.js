@@ -656,10 +656,10 @@ src+=`
    const gun=bbBotWith('wedge','balanced',0,0,true);gun.x=200;gun.y=300;gun.h=0;
    const tgt=bbBotWith('wedge','balanced',1,1,true);tgt.x=320;tgt.y=300;tgt.hp=BB.HP;tgt.inv=0;
    bb2.bots=[gun,tgt];bb2.result=null;bb2.shells=[];gun._tpCd=0; // fire on the first tick
-   const thp0=tgt.hp;for(let i=0;i<90;i++)bbTankPortUpdate(1/60);
-   ok('TANK INVASION: a bot auto-fires a shell',bb2.shells.length>0||tgt.hp<thp0);
+   const thp0=tgt.hp;for(let i=0;i<90;i++){bbTankPortUpdate(1/60);bbShellsUpdate(1/60);}
+   ok('TANK INVASION: a bot auto-fires a shell',gun._tpAim!=null&&tgt.hp<thp0);
    ok('TANK INVASION: the cannon tracks + the shell damages the nearest enemy',gun._tpAim!=null&&tgt.hp<thp0);
-   const svp=tankPort;tankPort=false;bb2.shells=[];const tg2=bbBotWith('wedge','balanced',1,2,true);tg2.x=320;tg2.y=300;tg2.hp=BB.HP;bb2.bots=[gun,tg2];gun._tpCd=0;const h2=tg2.hp;for(let i=0;i<30;i++)bbTankPortUpdate(1/60);
+   const svp=tankPort;tankPort=false;bb2.shells=[];const tg2=bbBotWith('wedge','balanced',1,2,true);tg2.x=320;tg2.y=300;tg2.hp=BB.HP;bb2.bots=[gun,tg2];gun._tpCd=0;const h2=tg2.hp;for(let i=0;i<30;i++){bbTankPortUpdate(1/60);bbShellsUpdate(1/60);}
    ok('TANK INVASION off: no shells, no damage',bb2.shells.length===0&&tg2.hp===h2);tankPort=svt;}
   // ── v5.1.174: AIM ASSIST (a smidge of magnetism) + RUMBLE toggle ──
   {const sa=aimAssist;aimAssist=true;
@@ -673,6 +673,18 @@ src+=`
    ok('AIM ASSIST toggles + persists intent',(()=>{const b4=aimAssist;toggleAimAssist();const r=aimAssist!==b4;toggleAimAssist();return r&&aimAssist===b4;})());
    ok('RUMBLE toggles',(()=>{const b4=rumbleOn;toggleRumble();const r=rumbleOn!==b4;toggleRumble();return r&&rumbleOn===b4;})());
    aimAssist=sa;}
+  // ── v5.1.175: CANNON — the tank-fight cannon as a PICKABLE weapon (RT fires shells at range; turreted aim) ──
+  {ok('CANNON is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='cannon')&&BB_ARMORY_W.some(w=>w.id==='cannon'));
+   ok('CANNON is a TURRET (aims independent of the chassis)',bbIsTurret('cannon')===true);
+   const cn=bbBotWith('cannon','balanced',0,0,true);cn.x=200;cn.y=300;cn.h=0;cn.ctl.brain.fire=true;cn.cannonCd=0;
+   const tg=bbBotWith('wedge','balanced',1,1,true);tg.x=340;tg.y=300;tg.hp=BB.HP;tg.inv=0;
+   bb2.bots=[cn,tg];bb2.result=null;bb2.shells=[];
+   bbWeaponPre(1/60);bbWeaponFire(1/60);
+   ok('CANNON fires a shell on RT',(bb2.shells||[]).length>0);
+   const h0=tg.hp;for(let i=0;i<90;i++){bbWeaponPre(1/60);bbShellsUpdate(1/60);}
+   ok('CANNON shell travels + damages a foe at range',tg.hp<h0);
+   const cn2=bbBotWith('cannon','balanced',0,0,true);cn2.x=200;cn2.y=300;cn2.ctl.brain.fire=false;cn2.cannonCd=0;bb2.bots=[cn2,tg];bb2.shells=[];
+   bbWeaponPre(1/60);bbWeaponFire(1/60);ok('CANNON holds fire when RT is up',(bb2.shells||[]).length===0);}
   // ── v5.1.120: P3 ARENA HAZARDS — the DANGER ZONE map (acid pit + saw blades) + map-select includes it ──
   {const hazMap=TF2_MAPS.find(m=>m.id==='hazard');
    ok('a HAZARD arena (DANGER ZONE) exists with a pit + saws',!!hazMap&&hazMap.haz.some(h=>h.type==='pit')&&hazMap.haz.some(h=>h.type==='saw'));
