@@ -4116,7 +4116,7 @@ function bbKill(victim,owner){ // KO + explosion + MUTUAL-DESTRUCTION chain: a n
   victim.hp=0;victim.mob=0;victim.dead=true;sfx('boom');
   if(!bb2.blasts)bb2.blasts=[];if(!bb2.deb)bb2.deb=[];
   const R=RR*BB_W.blastRK;bb2.blasts.push({x:victim.x,y:victim.y,t:0.42,r:R});bbDeathFx(victim);
-  if((victim.ld&&victim.ld.perk)==='partinggift'){const PR=RR*BB_W.partingRK;bb2.blasts.push({x:victim.x,y:victim.y,t:0.6,r:PR,parting:true});sfx('explosion');for(const o of bb2.bots){if(o===victim||o.dead||o.side===victim.side)continue;const d=Math.hypot(o.x-victim.x,o.y-victim.y);if(d<=PR){o.hp-=BB_W.partingDmg*Math.max(0.5,1-d/PR);o.inv=BB.hitCd;if(o.ctl)p2Rumble(o.ctl.bind,0.8);if(o.hp<=0&&!o.dead)bbKill(o,owner);}}} // v5.1.163 PARTING GIFT: a big, DISTINCT gold blast on death (bigger radius + ~2× damage so it really takes foes with you)
+  if((victim.ld&&victim.ld.perk)==='partinggift'){const PR=RR*BB_W.partingRK;bb2.blasts.push({x:victim.x,y:victim.y,t:0.9,max:0.9,r:PR,parting:true});sfx('explosion');for(const o of bb2.bots){if(o===victim||o.dead||o.side===victim.side)continue;const d=Math.hypot(o.x-victim.x,o.y-victim.y);if(d<=PR){o.hp-=BB_W.partingDmg*Math.max(0.5,1-d/PR);o.inv=BB.hitCd;if(o.ctl)p2Rumble(o.ctl.bind,0.8);if(o.hp<=0&&!o.dead)bbKill(o,owner);}}} // v5.1.163 PARTING GIFT: a big, DISTINCT gold blast on death (bigger radius + ~2× damage so it really takes foes with you)
   for(const o of bb2.bots){if(o===victim||o.dead)continue;if(o.hp<=BB_W.blastLethalHp&&Math.hypot(o.x-victim.x,o.y-victim.y)<=R)bbKill(o,owner);} // chain reaction
   if(owner!=null){const _k=bb2.bots[owner];if(_k&&!_k.dead&&bbPerkOf(_k)==='vampire'&&_k.side!==victim.side)_k.hp=Math.min(_k.mhp||BB.HP,_k.hp+BB_W.vampHeal);} // v5.1.155 VAMPIRE: destroying an enemy heals the killer
   bbCheckResult(owner);
@@ -4849,11 +4849,13 @@ function drawBB(){
       for(let ri=0;ri<3;ri++){const rad=bl.r*clamp(p*1.12+ri*0.16,0,1.15);ctx.globalAlpha=a0;ctx.strokeStyle=['#fff3c4','#ffb24d','#ff5a1e'][ri];ctx.lineWidth=6-ri*1.6;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,Math.max(1,rad),0,Math.PI*2);ctx.stroke();} // shockwave rings
       const fl=Math.max(0,(bl.t-life*0.55)/(life*0.45));ctx.globalAlpha=fl;ctx.fillStyle='#fff7e0';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,bl.r*0.42*(1-p),0,Math.PI*2);ctx.fill(); // core flash (early)
       ctx.globalAlpha=1;continue;}
-    if(bl.parting){const life=0.6,p=clamp(1-bl.t/life,0,1),a0=Math.max(0,bl.t/life),r2=10+(bl.r-10)*p; // v5.1.163 PARTING GIFT: a DISTINCT gold/green double-ring pop with a 🎁 so you can tell the perk fired
-      ctx.globalAlpha=a0*0.5;ctx.fillStyle='#ffd74033';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2,0,Math.PI*2);ctx.fill();
-      ctx.globalAlpha=a0;ctx.strokeStyle='#ffd740';ctx.lineWidth=4;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2,0,Math.PI*2);ctx.stroke();
-      ctx.strokeStyle='#7CFC8A';ctx.lineWidth=2;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2*0.7,0,Math.PI*2);ctx.stroke();
-      if(p<0.5){ctx.globalAlpha=1-p*2;ctx.font='bold 18px Courier New';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('🎁',FX+bl.x,FY+bl.y+6);}ctx.globalAlpha=1;continue;}
+    if(bl.parting){const life=bl.max||0.9,p=clamp(1-bl.t/life,0,1),a0=Math.max(0,bl.t/life),r2=12+(bl.r-12)*Math.min(1,p*1.6); // v5.1.166 PARTING GIFT: an UNMISSABLE gold burst — fireball fill + triple ring + a rising 🎁 PARTING GIFT! caption
+      ctx.globalAlpha=a0*0.6;const g=ctx.createRadialGradient(FX+bl.x,FY+bl.y,2,FX+bl.x,FY+bl.y,r2);g.addColorStop(0,'#fff7c0');g.addColorStop(0.5,'#ffd740aa');g.addColorStop(1,'#ff8a0000');ctx.fillStyle=g;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=a0;ctx.strokeStyle='#ffe680';ctx.lineWidth=5;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle='#ffd740';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2*0.78,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle='#7CFC8A';ctx.lineWidth=2;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r2*0.5,0,Math.PI*2);ctx.stroke();
+      ctx.globalAlpha=Math.min(1,a0*1.4);const ty=FY+bl.y-r2-10-p*22;ctx.font='bold 26px Courier New';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('🎁',FX+bl.x,FY+bl.y+8);
+      ctx.font='bold 13px Courier New';ctx.lineWidth=3;ctx.strokeStyle='#3a2a00';ctx.strokeText('PARTING GIFT!',FX+bl.x,ty);ctx.fillStyle='#ffe680';ctx.fillText('PARTING GIFT!',FX+bl.x,ty);ctx.globalAlpha=1;continue;}
     const k=1-bl.t/0.42,r=8+(bl.r-8)*k;ctx.globalAlpha=Math.max(0,bl.t/0.42);
     ctx.fillStyle='#ff5a1e33';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='#ff8a3d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.stroke();}
