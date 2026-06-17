@@ -205,6 +205,16 @@ src+=`
    ok('MOUSE-AIM turns toward the cursor (up='+up.toFixed(1)+' dn='+dn.toFixed(1)+')',up<-0.1&&dn>0.1);
    mouseAim=false;ok('MOUSE-AIM off leaves turn to keys (~0)',Math.abs(getInp({type:'kb'}).vr)<0.01);}
 
+  // ── v5.1.177 ABSOLUTE HEADING (snap-to-angle): the aim stick's ANGLE sets the chassis facing ──
+  {const sv=absHeading;absHeading=true;
+   ok('ABS-HEADING: stick UP (0,-1) faces up → turn negative',absHeadingVr(0,-1,0)<-0.1);
+   ok('ABS-HEADING: stick DOWN (0,1) faces down → turn positive',absHeadingVr(0,1,0)>0.1);
+   ok('ABS-HEADING: stick RIGHT (1,0) when already facing right → ~no turn',Math.abs(absHeadingVr(1,0,0))<0.01);
+   ok('ABS-HEADING: a centered stick (deadzone) → null (hold heading)',absHeadingVr(0.1,0.1,0)===null);
+   absHeading=false;ok('ABS-HEADING off → null (default rate-of-rotation)',absHeadingVr(0,-1,0)===null);
+   absHeading=true;const t1=toggleAbsHeading;t1();ok('toggleAbsHeading flips the flag',absHeading===false);t1();ok('toggleAbsHeading flips back',absHeading===true);
+   absHeading=sv;}
+
   // ── v5.1.53: beating SP with cheats on must NOT freeze (drawDone read best[k]=undefined → fmt(undefined) threw → killed the rAF loop) ──
   {holoMode=false;steerMode=false;obstacleCourse=false;curD=0;playT=12.34;cheatedRun=true;nameEntry={active:false};spGhostSaved=false;
    const k2=driveKey(DRIVES[0].id);delete best[k2];

@@ -159,6 +159,13 @@ let friendlyFire=false; try{friendlyFire=localStorage.getItem('frcds_ff')==='1';
 function toggleFriendlyFire(){friendlyFire=!friendlyFire;try{localStorage.setItem('frcds_ff',friendlyFire?'1':'0');}catch(e){}sfx('click');}
 let aimAssist=false; try{aimAssist=localStorage.getItem('frcds_aim')==='1';}catch(e){} // v5.1.174 a smidge of AIM ASSIST: gently rotate a human bot toward the nearest enemy in front (helps line up EVERY front-arc weapon) + biases the flame turret
 function toggleAimAssist(){aimAssist=!aimAssist;try{localStorage.setItem('frcds_aim',aimAssist?'1':'0');}catch(e){}sfx('click');}
+let absHeading=false; try{absHeading=localStorage.getItem('frcds_abshead')==='1';}catch(e){} // v5.1.177 ABSOLUTE HEADING (snap-to-angle): the aim stick's ANGLE sets the chassis's target facing (rotate toward it), vs the default rate-of-rotation (stick = turn SPEED). Twin-stick: left stick translates, right stick faces.
+function toggleAbsHeading(){absHeading=!absHeading;try{localStorage.setItem('frcds_abshead',absHeading?'1':'0');}catch(e){}sfx('click');}
+function absHeadingVr(rx,ry,h){ // v5.1.177 ABSOLUTE HEADING: a stick vector (rx,ry) past the deadzone sets the TARGET facing; return a proportional vr (TSP units) to rotate toward it, else null (off / centered → hold heading)
+  if(!absHeading||Math.hypot(rx,ry)<=0.5)return null;
+  let dh=Math.atan2(ry,rx)-h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
+  return clamp(dh*8,-1,1)*TSP;
+}
 let rumbleOn=true; try{rumbleOn=localStorage.getItem('frcds_rumble')!=='0';}catch(e){} // v5.1.174 controller VIBRATION toggle (default ON); the audio bump is separate (Sound)
 function toggleRumble(){rumbleOn=!rumbleOn;try{localStorage.setItem('frcds_rumble',rumbleOn?'1':'0');}catch(e){}sfx('click');}
 const AIM_ASSIST_CONE=0.36, AIM_ASSIST_PULL=6.0, AIM_ASSIST_RANGE_K=9; // only assists within ±~20° of where you're already pointing; turn-rate gain; range = RR×K
@@ -736,13 +743,14 @@ function settingsBack(){
 function settingsRowRect(i){return{x:10,y:68+i*50,w:CW-20,h:40};}
 function handleSettingsClick(mx,my){
   if(inR(mx,my,{x:4,y:8,w:56,h:28})){settingsBack();return;}
-  for(let i=0;i<6;i++){
+  for(let i=0;i<7;i++){
     if(inR(mx,my,settingsRowRect(i))){
       if(i===0){sfxUnlock();sfxToggle();}
       else if(i===1){toggleMouseAim();}
       else if(i===2){toggleFriendlyFire();}
       else if(i===3){toggleAimAssist();}
       else if(i===4){toggleRumble();}
+      else if(i===5){toggleAbsHeading();}
       else{cpuSettingsReturn='settings';cpuGpIdx=0;phase='cpuSettings';}
       return;
     }
@@ -762,6 +770,7 @@ function drawSettings(){
     {label:'Friendly Fire',val:friendlyFire,onCol:'#ff7043',hint:'OFF = hit enemies only · ON = ram/guns/blasts hit your own team too'},
     {label:'Aim Assist',val:aimAssist,onCol:'#ffd740',hint:'a smidge of magnetism — gently aims toward the nearest enemy (RoboRumble)'},
     {label:'Rumble',val:rumbleOn,onCol:'#ff66cc',hint:'controller vibration on weapon hits/spin (audio bump is separate)'},
+    {label:'Absolute Heading',val:absHeading,onCol:'#7CFC8A',hint:'snap-to-angle: right stick ANGLE = facing direction (vs default: stick = turn speed)'},
     {label:'CPU AI Settings',link:true,hint:'speed · behavior · presets'},
   ];
   for(let i=0;i<sRows.length;i++){
@@ -1312,6 +1321,7 @@ function getInp(bind){
     fwsVis.crab=throttle<0?-crabIn:crabIn;
   }
   {const _ma=mouseAimVr(bind);if(_ma!=null)vr=_ma;} // MOUSE-AIM override (non-steer drives)
+  if(!steerMode&&!tankAimLockStick&&typeof robot!=='undefined'&&robot){const _ah=absHeadingVr(jrx,jry,robot.h);if(_ah!=null)vr=_ah;} // v5.1.177 ABSOLUTE HEADING override (skips steer drives + arcade turret-lock; left stick still translates)
   return{vx:vx*sensitivity,vy:vy*sensitivity,vr:vr*sensitivity*rotRatio};
 }
 
@@ -1483,7 +1493,7 @@ function updateGamepad(){
   if(phase==='settings'){
     const now=performance.now(),rep=now-gpNavLast>180;
     const D=just(13)||(gpAxis.ly>0.55&&rep),U=just(12)||(gpAxis.ly<-0.55&&rep);
-    if(D){settingsGpIdx=Math.min(5,settingsGpIdx+1);gpNavLast=now;}
+    if(D){settingsGpIdx=Math.min(6,settingsGpIdx+1);gpNavLast=now;}
     if(U){settingsGpIdx=Math.max(0,settingsGpIdx-1);gpNavLast=now;}
     const sr=settingsRowRect(settingsGpIdx);
     if(just(0))handleSettingsClick(sr.x+sr.w/2,sr.y+20);
