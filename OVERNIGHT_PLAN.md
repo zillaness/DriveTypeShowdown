@@ -91,15 +91,20 @@ buff/nerf feedback (do NOT guess balance changes tonight).
    tank/steer fire forward). Sim ~61% (stronger for a human). + `bbreport.js` armor/perk sweep.
 2. ✅ **v5.1.176 flame BLOW-UP RING** — big distinct meter ring (dark track + glowing yellow→orange→red
    fill), slow unfill, **human/CPU decoupled** (human heats fast/satisfying, CPU slow/balanced; flame 55.6%).
-3. ▶ **ABSOLUTE HEADING CONTROL toggle (snap-to-angle)** — a settings toggle: the aim stick's/mouse's
-   ANGLE sets the robot's absolute facing (rotate toward it) instead of the default rate-of-rotation.
-   Works across drives; default OFF (preserves current feel); + smoke tests.
-4. **CANNON polish** — confirm arcade right-stick/mouse turret aim + aim-assist drive the cannon; fire
-   SFX; armory/HUD readability; shell/recoil render.
-5. **Trust the perk table** — normalize the `bots[0]` handicap in `bbreport.js` (a no-effect perk reads
-   ~25%, not 50%) so perk numbers are baseline-corrected; re-output.
-6. **Docs** — MIGRATION.md + HANDOFF: cannon, flame ring, heading toggle.
+3. ✅ **v5.1.177 ABSOLUTE HEADING toggle (snap-to-angle)** — Settings row + `absHeadingVr`; right-stick
+   ANGLE = chassis facing (rotate toward it) vs default rate-of-rotation; default OFF; skips steer +
+   arcade turret-lock; smoke54 +7.
+4. ✅ **v5.1.178 CANNON polish** — human aim path verified (arcade stick/mouse + aim-assist via
+   `bbAimAngle`→`weaponAng`); fire SFX present; + a RELOAD CUE (muzzle glows green when loaded, humans only).
+5. ✅ **Perk table trustworthy** — `bbreport.js` now measures a no-perk baseline (the bots[0] A/B handicap
+   = 25%) and normalizes: minibot/pitstop 100 · partinggift 85 · flameproof/vampire/sparetire ~50 (no 1v1 edge).
+6. ✅ **Docs** — MIGRATION.md recent-history refreshed (v5.1.175–178).
 7. **HOLD — BALANCE:** weapon/armor/perk buffs/nerfs wait for Sam's feedback on the table below.
+   **Suggested targets (Sam's call):** buff drill/wedge (34–37); buff hardplate/heatshield (tanky armor
+   shouldn't be worst, 35); shave flipper (70) a hair.
+
+**OVERNIGHT STATUS: queue items 1–6 DONE, all green on `dev` (tip v5.1.178). Only #7 (balance) remains
+— intentionally HELD for Sam's morning feedback.**
 
 **Balance snapshot @ v5.1.176 (for Sam's feedback):**
 - Weapons (sim win%): flipper 70 · buzzsaw 67 · piston 66 · **cannon 61** · flame 56 · pincer 53 ·
