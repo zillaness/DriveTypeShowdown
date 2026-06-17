@@ -136,7 +136,12 @@ src+=`
   konamiActive=true;drawKonami();
   {const rowsMax=Math.max.apply(null,drawKonami._rows.map(r=>r.y+r.h));const linkMax=Math.max.apply(null,(drawKonami._links||[{hy:0,hh:0}]).map(l=>l.hy+l.hh));
    ok('cheat menu fits ('+CHEATS.length+' cheats, rows→'+rowsMax.toFixed(0)+', links→'+linkMax.toFixed(0)+' < '+CH+')',rowsMax<CH-40&&linkMax<CH-8);
-   ok('toggles in the left column, sliders in the right',drawKonami._rows.every((r,i)=>CHEATS[i].slider?(r.x>CW/2):(r.x<CW/2)));
+   {const half=Math.ceil(CHEATS.length/2); // v5.1.158: two columns laid out IN ORDER (themed; sliders beside their toggles)
+    ok('cheats lay out in two columns in order (first half left, rest right)',drawKonami._rows.every((r,i)=>i<half?(r.x<CW/2):(r.x>CW/2)));
+    const mi=CHEATS.findIndex(c=>c.name==='MAX SENSITIVITY'),ci=CHEATS.findIndex(c=>c.name==='CAP CPU SPEED');
+    ok('MAX SENSITIVITY sits right next to CAP CPU SPEED',Math.abs(mi-ci)===1);
+    const ri=CHEATS.findIndex(c=>c.name==='RAMMING'),rci=CHEATS.findIndex(c=>c.name==='RAM COOLDOWN');
+    ok('RAM COOLDOWN sits beside RAMMING',Math.abs(ri-rci)===1);}
    const ex=drawKonami._exit,ao=drawKonami._alloff;
    ok('cheat menu has ✕ EXIT + ⟲ TURN OFF ALL buttons on-screen',!!ex&&!!ao&&ex.x>=0&&ex.x+ex.w<=CW&&ao.x>=0&&ao.x+ao.w<=CW);}
 

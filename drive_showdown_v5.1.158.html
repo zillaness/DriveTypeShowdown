@@ -311,11 +311,24 @@ function cpuPaceSens(p){ // every ball/shooter CPU (both sides, all tiers) keeps
   return capCpuSpeed?Math.min(s,SENS_MAX_BASE):s;}
 function mgOn(p){return machineGun===2||(machineGun===1&&m2.claim&&m2.claim[p]&&m2.claim[p].type!=='cpu');} // does side p get full-auto?
 // all cheats are independent — they mix and stack freely (e.g. machine-gun + bouncy + ultimate-ascent + extra-balls)
-const CHEATS=[
-  // ── toggles (left column) ──
+const CHEATS=[ // v5.1.158: grouped by THEME with each slider beside its related toggle (no more all-sliders-one-side). Two columns laid out IN ORDER.
+  // ── HANDLING / GENERAL (left column) ──
   {name:'RAMMING',        desc:'[2P] Left Trigger / Shift = boost tackle — ram & stun the enemy bot (ball + tank)',get:()=>arcadeMode, tog:()=>{arcadeMode=!arcadeMode;}},
+  {name:'RAM COOLDOWN',   desc:'[2P] Scales the RAM dash cooldown (needs RAMMING) — drag left to spam the dash', slider:true,min:0.1,max:1,step:0.1,get:()=>ramCdMult,set:v=>{ramCdMult=clamp(Math.round(v*10)/10,0.1,1);},show:v=>(BOOST.cd*v).toFixed(2)+'s'},
+  {name:'MAX SENSITIVITY', desc:'[SP+2P] Uncaps the sensitivity ceiling (normally 2×) so the SENS slider/bumpers can crank far higher — pair with the pause RATIO knob to stay drivable', slider:true,min:2,max:8,step:0.5,get:()=>SENS_MAX,set:v=>{SENS_MAX=clamp(Math.round(v*2)/2,2,8);},show:v=>v.toFixed(1)+'×'},
+  {name:'CAP CPU SPEED',  desc:'[2P] With MAX SENSITIVITY on: ON keeps CPUs at normal speed (only YOU go super-fast); OFF = CPUs keep pace (chaos). Ball/shooter only.', get:()=>capCpuSpeed,  tog:()=>{capCpuSpeed=!capCpuSpeed;}},
+  {name:'ICE SKATING',    desc:'[SP+2P] Low-friction gliding — 1.0× = OFF, higher = more slide / less control (all modes)', slider:true,min:1,max:5,step:0.5,get:()=>iceSlip,set:v=>{iceSlip=clamp(Math.round(v*2)/2,1,5);iceMode=iceSlip>1;MOM.ice.fri=0.4/iceSlip;clearMomentum();},show:v=>v<=1?'OFF':v.toFixed(1)+'×'},
+  {name:'NO-CLIP',        desc:'[2P] Phase through robots & obstacles (balls still collide) — ball/tank/race',   get:()=>noClip,      tog:()=>{noClip=!noClip;}},
+  {name:'ROBOT SIZE',     desc:'[SP+2P] Giant or tiny robots — ◀ ▶ or drag (big bots strain the race course)',  slider:true,min:0.5,max:1.5,step:0.1,get:()=>robotScale,set:v=>setRobotScale(v),show:v=>v.toFixed(1)+'×'},
   {name:'DISC🥏 MODE',  desc:'[SP+2P] Shooter shots fly forever as discs — ricochet off the walls instead of dying',   get:()=>frisbeeMode, tog:()=>{frisbeeMode=!frisbeeMode;}},
   {name:'BOUNCY BALLS',   desc:'[SP+2P] Low-friction pinball chaos — balls barely slow, shots ricochet',        get:()=>bouncyMode,  tog:()=>{bouncyMode=!bouncyMode;}},
+  {name:'MULTIBALL',      desc:'[2P] Every goal spawns 2 more balls (ball + shooter, capped at '+B2_BALL_CAP+')', get:()=>multiBall,   tog:()=>{multiBall=!multiBall;}},
+  {name:'EXTRA BALLS',    desc:'[2P] Multiply the balls in play (ball + shooter) — ◀ ▶ or drag to set',         slider:true,min:1,max:6,step:1,get:()=>ballMult,set:v=>{ballMult=clamp(Math.round(v),1,6);},show:v=>v+'×'},
+  // ── BALL/SHOOTER + ROBORUMBLE (right column) ──
+  {name:'BALL POWER-UPS', desc:'[2P] SPEED » pickups spawn on the field (ball + shooter) — grab to boost 8s',   get:()=>ballPups,    tog:()=>{ballPups=!ballPups;}},
+  {name:'BALL SIZE',      desc:'[SP+2P] Giant or tiny balls — ◀ ▶ or drag the track to set',                    slider:true,min:0.5,max:2,step:0.1,get:()=>ballScale,set:v=>{ballScale=clamp(Math.round(v*10)/10,0.5,2);BR=clamp(BR0*ballScale,4,18);},show:v=>v.toFixed(1)+'×'},
+  {name:'STICKY PLOW',    desc:'[2P] Your bot gets the CHAMPION sticky plow — carry up to 5 (normal ball)',      get:()=>stickyPlow,  tog:()=>{stickyPlow=!stickyPlow;}},
+  {name:'MACHINE GUN',    desc:'[2P] Full-auto fire — OFF / YOU only / BOTH sides (tank AND shooter)',          get:()=>machineGun,  tog:()=>{machineGun=(machineGun+1)%3;}, show:v=>['OFF','YOU','BOTH'][v]||'OFF'},
   {name:'MOVE OR DIE',    desc:'[ROBORUMBLE] keep moving or you lose health — no camping',                     get:()=>moveOrDie,   tog:()=>{moveOrDie=!moveOrDie;}}, // v5.1.116 P7 combat cheat
   {name:'UNLIMITED RESRC', desc:'[ROBORUMBLE] no weapon cooldowns — full-auto hammer/flipper, always-spun disc, instant grab', get:()=>bbUnlimited, tog:()=>{bbUnlimited=!bbUnlimited;}}, // v5.1.118 P7
   {name:'MEGABOTS',       desc:'[ROBORUMBLE] giant HP pools + crushing ram damage — epic heavyweight slugfests (pair with ROBOT SIZE)', get:()=>megaBots, tog:()=>{megaBots=!megaBots;}}, // v5.1.118 P7
@@ -323,23 +336,10 @@ const CHEATS=[
   {name:'ANIME SWORD',    desc:'[ROBORUMBLE] every bot gets a dramatic giant front-arc slash on a timer — big damage + knockback', get:()=>animeSword, tog:()=>{animeSword=!animeSword;}}, // v5.1.119 P7
   {name:'ARENA TRAPS',    desc:'[ROBORUMBLE] turn ANY arena into the DANGER ZONE — a central acid pit + two saw blades', get:()=>arenaTraps, tog:()=>{arenaTraps=!arenaTraps;}}, // v5.1.133 P7
   {name:'HAZARD MASTER',  desc:'[ROBORUMBLE] operate the traps with the MOUSE — click in the arena to call down a crusher strike (cooldown)', get:()=>hazardMaster, tog:()=>{hazardMaster=!hazardMaster;}}, // v5.1.148 P7 controllable hazards
-  {name:'MACHINE GUN',    desc:'[2P] Full-auto fire — OFF / YOU only / BOTH sides (tank AND shooter)',          get:()=>machineGun,  tog:()=>{machineGun=(machineGun+1)%3;}, show:v=>['OFF','YOU','BOTH'][v]||'OFF'},
-  {name:'MULTIBALL',      desc:'[2P] Every goal spawns 2 more balls (ball + shooter, capped at '+B2_BALL_CAP+')', get:()=>multiBall,   tog:()=>{multiBall=!multiBall;}},
-  {name:'STICKY PLOW',    desc:'[2P] Your bot gets the CHAMPION sticky plow — carry up to 5 (normal ball)',      get:()=>stickyPlow,  tog:()=>{stickyPlow=!stickyPlow;}},
-  {name:'NO-CLIP',        desc:'[2P] Phase through robots & obstacles (balls still collide) — ball/tank/race',   get:()=>noClip,      tog:()=>{noClip=!noClip;}},
-  {name:'BALL POWER-UPS', desc:'[2P] SPEED » pickups spawn on the field (ball + shooter) — grab to boost 8s',   get:()=>ballPups,    tog:()=>{ballPups=!ballPups;}},
-  {name:'CAP CPU SPEED',  desc:'[2P] With MAX SENSITIVITY on: ON keeps CPUs at normal speed (only YOU go super-fast); OFF = CPUs keep pace (chaos). Ball/shooter only.', get:()=>capCpuSpeed,  tog:()=>{capCpuSpeed=!capCpuSpeed;}},
-  // ── sliders (right column) ──
-  {name:'EXTRA BALLS',    desc:'[2P] Multiply the balls in play (ball + shooter) — ◀ ▶ or drag to set',         slider:true,min:1,max:6,step:1,get:()=>ballMult,set:v=>{ballMult=clamp(Math.round(v),1,6);},show:v=>v+'×'},
-  {name:'ICE SKATING',    desc:'[SP+2P] Low-friction gliding — 1.0× = OFF, higher = more slide / less control (all modes)', slider:true,min:1,max:5,step:0.5,get:()=>iceSlip,set:v=>{iceSlip=clamp(Math.round(v*2)/2,1,5);iceMode=iceSlip>1;MOM.ice.fri=0.4/iceSlip;clearMomentum();},show:v=>v<=1?'OFF':v.toFixed(1)+'×'},
-  {name:'MAX SENSITIVITY', desc:'[SP+2P] Uncaps the sensitivity ceiling (normally 2×) so the SENS slider/bumpers can crank far higher — pair with the pause RATIO knob to stay drivable', slider:true,min:2,max:8,step:0.5,get:()=>SENS_MAX,set:v=>{SENS_MAX=clamp(Math.round(v*2)/2,2,8);},show:v=>v.toFixed(1)+'×'},
-  {name:'RAM COOLDOWN',   desc:'[2P] Scales the RAM dash cooldown (needs RAMMING) — drag left to spam the dash', slider:true,min:0.1,max:1,step:0.1,get:()=>ramCdMult,set:v=>{ramCdMult=clamp(Math.round(v*10)/10,0.1,1);},show:v=>(BOOST.cd*v).toFixed(2)+'s'},
-  {name:'BALL SIZE',      desc:'[SP+2P] Giant or tiny balls — ◀ ▶ or drag the track to set',                    slider:true,min:0.5,max:2,step:0.1,get:()=>ballScale,set:v=>{ballScale=clamp(Math.round(v*10)/10,0.5,2);BR=clamp(BR0*ballScale,4,18);},show:v=>v.toFixed(1)+'×'},
-  {name:'ROBOT SIZE',     desc:'[SP+2P] Giant or tiny robots — ◀ ▶ or drag (big bots strain the race course)',  slider:true,min:0.5,max:1.5,step:0.1,get:()=>robotScale,set:v=>setRobotScale(v),show:v=>v.toFixed(1)+'×'},
 ];
 function cheatMove(d){cheatIdx=(cheatIdx+d+CHEATS.length)%CHEATS.length;sfx('click');}
 function cheatToggle(){const c=CHEATS[cheatIdx];if(c.slider){c.set(c.get()>=c.max?c.min:c.get()+c.step);}else c.tog();sfx('claim');}
-function cheatAdjust(d){const c=CHEATS[cheatIdx];if(c.slider){c.set(clamp(c.get()+d*c.step,c.min,c.max));sfx('click');}else{const nT=CHEATS.filter(z=>!z.slider).length;cheatIdx=(cheatIdx+(d>0?nT:-nT)+CHEATS.length)%CHEATS.length;sfx('click');}} // ◀▶: nudge a slider, else jump to the slider column
+function cheatAdjust(d){const c=CHEATS[cheatIdx];if(c.slider){c.set(clamp(c.get()+d*c.step,c.min,c.max));sfx('click');}else{const half=Math.ceil(CHEATS.length/2);cheatIdx=(cheatIdx+(d>0?half:-half)+CHEATS.length)%CHEATS.length;sfx('click');}} // v5.1.158 ◀▶: nudge a slider, else jump to the other column
 function cheatsAllOff(){ // ⟲ TURN OFF ALL CHEATS button — reset every cheat to its default
   arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;moveOrDie=false;bbUnlimited=false;megaBots=false;airStrike=false;animeSword=false;arenaTraps=false;hazardMaster=false;
   ballMult=1;iceSlip=1;iceMode=false;MOM.ice.fri=0.4;clearMomentum();
@@ -1915,15 +1915,15 @@ function drawKonami(){
    ctx.globalAlpha=1;}
   // ── cheat toggles (tight pitch so the full list fits) ──
   // two columns so the (growing) list stays compact
-  const nTog=CHEATS.filter(c=>!c.slider).length;
-  const colMax=portrait?CHEATS.length:Math.max(nTog,CHEATS.length-nTog);
+  const half=Math.ceil(CHEATS.length/2); // v5.1.158 two columns laid out IN ORDER (themed groups; sliders sit beside their toggles)
+  const colMax=portrait?CHEATS.length:half;
   const colW=portrait?Math.min(364,CW-32):Math.min(380,(CW-90)/2),colGap=30,rowH=portrait?18:22,rowPitch=portrait?21:26; // v5.1.133: tighter portrait pitch so the grown cheat list + links still fit one column
   const totalW=portrait?colW:colW*2+colGap,x0=Math.round((CW-totalW)/2);
   let rowY=Math.round(CH*(portrait?0.115:0.20));
   drawKonami._rows=[];
   for(let i=0;i<CHEATS.length;i++){
     const c=CHEATS[i],on=c.get(),sel=i===cheatIdx;
-    const col=portrait?0:(i<nTog?0:1),row=portrait?i:(i<nTog?i:i-nTog),rx=x0+col*(colW+colGap),y=rowY+row*rowPitch,rec={x:rx,y:y,w:colW,h:rowH};
+    const col=portrait?0:(i<half?0:1),row=portrait?i:(i<half?i:i-half),rx=x0+col*(colW+colGap),y=rowY+row*rowPitch,rec={x:rx,y:y,w:colW,h:rowH};
     drawKonami._rows.push(rec);
     ctx.fillStyle=sel?'rgba(255,70,70,0.26)':'rgba(180,30,30,0.12)';ctx.fillRect(rx,y,colW,rowH);
     ctx.strokeStyle=sel?'#ff7777':'#883333';ctx.lineWidth=sel?2:1;ctx.strokeRect(rx,y,colW,rowH);
