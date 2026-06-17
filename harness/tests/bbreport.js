@@ -36,12 +36,17 @@ src+=`
   const PERKS=['partinggift','flameproof','minibot','vampire','sparetire','pitstop'];
   console.log('\\nPERK relative strength — perked bot vs identical NO-PERK bot, '+N+' matches × '+SAMPLE.length+' weapons (50% = no effect in 1v1):');
   const pr=[];
+  // BASELINE: A-side win% with NO perk on either bot — isolates the sim's bots[0] A/B handicap so a no-effect perk normalizes to ~50%
+  let bw=0,bg=0;for(const wp of SAMPLE)for(let i=0;i<N;i++){const seed=(0xBA5E+wp.charCodeAt(0)*977+i*2654435761)>>>0;
+    const r=runMatch(wp,'balanced','none',wp,'balanced','none',seed,i%2);bw+=(r==='A')?1:(r==='draw'?0.5:0);bg++;}
+  const base=bg?bw/bg:0.5;
   for(const P of PERKS){let w8=0,g=0;
     for(const wp of SAMPLE)for(let i=0;i<N;i++){const seed=(0xC0FF+P.charCodeAt(1)*131+wp.charCodeAt(0)*977+i*2654435761)>>>0;
       const r=runMatch(wp,'balanced',P,wp,'balanced','none',seed,i%2);w8+=(r==='A')?1:(r==='draw'?0.5:0);g++;}
-    pr.push({p:P,r:g?w8/g:0});}
+    const raw=g?w8/g:0;pr.push({p:P,raw:raw,r:clamp(0.5+(raw-base),0,1)});} // normalized: 0.5 + (perk − baseline) → ~50% means "no 1v1 effect"
   pr.sort((x,y)=>y.r-x.r);
-  for(const o of pr)console.log('  '+pad(o.p,12)+(o.r*100).toFixed(1)+'%');
+  console.log('  (no-perk baseline A-side = '+(base*100).toFixed(1)+'% → normalized so 50% = no 1v1 effect)');
+  for(const o of pr)console.log('  '+pad(o.p,12)+(o.r*100).toFixed(1)+'%   (raw '+(o.raw*100).toFixed(0)+'%)');
   console.log('\\n(NOTE: 1v1 under-counts 3v3/team perks — PIT STOP/MINIBOT/PARTING GIFT shine most in 3v3; FLAMEPROOF only vs flame.)');
 })();
 `;
