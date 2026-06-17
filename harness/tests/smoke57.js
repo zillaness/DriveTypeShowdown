@@ -169,19 +169,24 @@ src+=`
    ok('RAM DASH lunges FORWARD along the nose (h=π/2 → +y), not the stick',a._inp.vy>50&&Math.abs(a._inp.vx)<1);}
   {startBB(0,2);bb2.cd=0;bb2.result=null;const a=bb2.bots[0],c=bb2.bots[1];
    a.x=100;a.y=100;c.x=1100;c.y=600;a.mob=0;c.mob=0;a.hp=50;c.hp=50;a.outT=0;c.outT=0;a.inv=0;c.inv=0;a.dead=false;c.dead=false;
+   a.ld.perk='none';c.ld.perk='none';bb2.minis=[]; // v5.1.161 no medic/harasser drone (a PIT STOP medic would heal the mobility back and prevent the count-out)
    let ended=false;for(let i=0;i<Math.ceil((BB.countOut+0.5)*60)&&!ended;i++){updateBB(1/60);if(bb2.result!==null)ended=true;}
    ok('both-immobilized match ENDS via count-out (no soft-lock)',bb2.result!==null);
    ok('immobilized bots are counted out (KO)',bb2.bots[0].dead&&bb2.bots[1].dead);}
   {const a=bbBotWith('flame','balanced',0,0,true);a.x=100;a.y=100;a.h=0;a.heat={};
    const c=bbBotWith('none','balanced',1,1,true);c.x=100+RR*3.5;c.y=100;c.hp=BB.HP;c.inv=0;c.burn=0;bb2.bots=[a,c];bb2.result=null;
    for(let i=0;i<70;i++){a.firing=true;bbWeaponFire(1/60);}ok('FLAME has more REACH (a foe ~3.5×RR out still burns)',c.hp<BB.HP);}
-  // spinner self-damage (energy transfer) + WEDGE deflection (the anti-spinner counter)
+  // v5.1.161: RECOIL self-damage REMOVED; SPINNER still sheds RPM per bite (re-spin); BUZZSAW holds its speed; WEDGE deflect still stalls a spinner
   {startBB(0,2);bb2.cd=0;bb2.result=null;const a=bbBotWith('spinner','balanced',0,0,true),c=bbBotWith('none','balanced',1,1,true);
    a.ctl.brain.fire=true;a.x=300;a.y=300;a.h=0;a.spin=1;a.mob=BB.MOB;a.hp=BB.HP;a.inv=0;c.x=300+RR*1.2;c.y=300;c.hp=BB.HP;c.mob=BB.MOB;c.inv=0;
-   bb2.bots=[a,c];const ahp0=a.hp;updateBB(1/60);ok('a SPINNER also damages ITSELF on a bite',a.hp<ahp0);}
+   bb2.bots=[a,c];const ahp0=a.hp,sp0=a.spin;updateBB(1/60);ok('a SPINNER no longer self-damages on a bite (recoil removed)',a.hp>=ahp0-0.001);
+   ok('a SPINNER still SHEDS RPM on a bite (must re-spin)',a.spin<sp0);}
+  {startBB(0,2);bb2.cd=0;bb2.result=null;const a=bbBotWith('buzzsaw','balanced',0,0,true),c=bbBotWith('none','balanced',1,1,true);
+   a.ctl.brain.fire=true;a.x=300;a.y=300;a.h=0;a.spin=1;a.mob=BB.MOB;a.hp=BB.HP;a.inv=0;c.x=300+RR*1.2;c.y=300;c.hp=BB.HP;c.mob=BB.MOB;c.inv=0;
+   bb2.bots=[a,c];const ahp0=a.hp;updateBB(1/60);ok('a BUZZSAW HOLDS its speed after a bite (no re-spin) + no self-damage',a.spin>=0.999&&a.hp>=ahp0-0.001);}
   {startBB(0,2);bb2.cd=0;bb2.result=null;const a=bbBotWith('spinner','balanced',0,0,true),w=bbBotWith('wedge','balanced',1,1,true);
    a.ctl.brain.fire=true;a.x=300;a.y=300;a.h=0;a.spin=1;a.mob=BB.MOB;a.hp=BB.HP;a.inv=0;w.x=300+RR*1.2;w.y=300;w.hp=BB.HP;w.mob=BB.MOB;w.inv=0;
-   bb2.bots=[a,w];const ahp0=a.hp;updateBB(1/60);ok('a WEDGE DEFLECTS a spinner — the disc fully stalls + self-damages',a.spin===0&&a.hp<ahp0);}
+   bb2.bots=[a,w];updateBB(1/60);ok('a WEDGE DEFLECTS a spinner — the disc fully stalls',a.spin===0);}
   // count-out gating: only a TRUE stalemate (no mobile foe), never an immobile bot a mobile foe can finish
   {startBB(0,2);bb2.cd=0;bb2.result=null;const a=bb2.bots[0],c=bb2.bots[1];
    a.x=100;a.y=100;a.mob=0;a.hp=BB.HP;a.outT=0;a.inv=0;a.dead=false;c.x=1100;c.y=600;c.mob=BB.MOB;c.hp=BB.HP;c.dead=false;
@@ -551,11 +556,15 @@ src+=`
    const st=bbBotWith('none','balanced',0,0,true);st.ld.perk='sparetire';st.wheels=[{hp:5,dead:false},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];st._spareUsed=false;
    bbWheelDamage(st,100,null,null);ok('SPARE TIRE: the first wheel survives (re-welded) once',st.wheels.every(w=>!w.dead)&&st._spareUsed===true);
    bbWheelDamage(st,100,null,null);ok('SPARE TIRE: the SECOND wheel to break is lost (spare spent)',st.wheels.some(w=>w.dead));
-   // PIT STOP: regen HP after a quiet spell
-   const ps=bbBotWith('none','balanced',0,0,true);ps.ld.perk='pitstop';ps.x=400;ps.y=400;ps.hp=200;ps.mhp=BB.HP;ps._lastHp=200;ps._pitHurt=0;
-   const dead2=bbBotWith('none','balanced',1,1,true);dead2.dead=true;bb2.bots=[ps,dead2];bb2.result=null;bb2.cd=0;bb2.t=BB_W.pitStopDelay+1;
-   const svd=m2.drive;m2.drive=[{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'}];
-   const ph0=ps.hp;for(let i=0;i<30;i++){bb2.cd=0;updateBB(1/60);}ok('PIT STOP: out-of-combat HP regen',ps.hp>ph0);m2.drive=svd;}
+   // PIT STOP: v5.1.161 deploys a MEDIC drone that patches an ally's HP + mobility + wheels
+   const ps=bbBotWith('none','balanced',0,0,true);ps.ld.perk='pitstop';ps.x=400;ps.y=400;ps.hp=BB.HP;ps.mhp=BB.HP;
+   const ally=bbBotWith('none','balanced',0,0,true);ally.ld.perk='none';ally.x=420;ally.y=400;ally.hp=150;ally.mhp=BB.HP;ally.mob=10;ally.wheels=[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false}));ally.wheels[0].dead=true;ally.wheels[0].hp=0;
+   const en=bbBotWith('none','balanced',1,1,true);en.dead=true;
+   bb2.bots=[ps,ally,en];bb2.result=null;bb2.cd=0;bb2.minis=bbMiniSpawn();
+   ok('PIT STOP deploys a MEDIC drone (owner-linked, same side)',bb2.minis.length===1&&bb2.minis[0].kind==='medic'&&bb2.minis[0].owner===ps&&bb2.minis[0].side===0);
+   const h0=ally.hp,mob0=ally.mob;for(let i=0;i<160;i++)bbMiniUpdate(1/60); // drive the medic directly (no CPU wander) → it seeks + patches the hurt ally
+   ok('PIT STOP medic heals a damaged ally (HP + mobility climb)',ally.hp>h0&&ally.mob>mob0);
+   ok('PIT STOP medic re-welds a dead ally wheel',!ally.wheels[0].dead);}
   // ── v5.1.157: REACTIVE armor — first hit on each zone zaps the attacker (limited charges) ──
   {const rv=bbBotWith('none','reactive',1,1,true);rv.x=300;rv.y=300;rv.h=0;rv.inv=0;rv.hp=BB.HP;
    const atk=bbBotWith('none','balanced',0,0,true);atk.x=200;atk.y=300;atk.hp=BB.HP;atk.inv=0;bb2.bots=[atk,rv];bb2.result=null;
