@@ -441,6 +441,12 @@ src+=`
    a.ctl.brain.fire=true;a.ctl.brain.inp={vx:0,vy:0,vr:0};
    bb2.bots=[a,c];bb2.result=null;bb2.cd=0;bb2.t=1;updateBB(1/60);
    ok('PINCER grabs + controls a foe on a firing front-arc ram',a.grab===c&&c.held===a);
+   // v5.1.144: reach-clamp — a lined-up foe within reach (NOT touching) is grabbed via bbWeaponFire (easier to land)
+   const pa=bbBotWith('pincer','balanced',0,0,true);pa.x=300;pa.y=300;pa.h=0;pa.firing=true;pa.grabCd=0;
+   const pf=bbBotWith('none','balanced',1,1,true);pf.x=300+RR*2.2;pf.y=300;pf.hp=BB.HP; // ~2.2×RR away → beyond contact (2×RR) but within reach (2.4×RR)
+   bb2.bots=[pa,pf];bb2.result=null;bbWeaponFire(1/60);
+   ok('PINCER reach-clamp grabs a lined-up foe that is NOT touching',pa.grab===pf&&pf.held===pa);
+   ok('PINCER reach is forgiving (arc ≥ ±60° + reach beyond contact)',BB_W.pincerArc>=Math.PI*0.66&&BB_W.pincerReachK>1);
    m2.set.bbmode=sv;}
   // ── v5.1.140: PINCER is an UNBREAKABLE clamp — hold to grip, wall-slam, held bot can't drive but can fire, only a teammate frees it ──
   {const h=bbBotWith('pincer','balanced',0,0,true);h.x=300;h.y=300;h.h=0;h.firing=true;
