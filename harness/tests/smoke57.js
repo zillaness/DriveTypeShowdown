@@ -146,7 +146,7 @@ src+=`
    const c=bbBotWith('none','balanced',1,1,true),free=bbBotWith('none','balanced',1,2,true);c.pinT=0.25;free.pinT=0;
    ok('a WEDGE-pinned bot drives slower than a free one',bbSpeed(c)<bbSpeed(free));}
   // ── v5.1.95 COMBAT OVERHAUL: HP↑, piston front-pierce, spinner bleed/wall-self-dmg, flame fuel+range, count-out, forward dash ──
-  ok('bots have a lot more HP (longer matches, v5.1.104: 360)',BB.HP===360&&BB.HP>250);
+  ok('bots have a lot more HP + mobility (v5.1.145: HP 560, MOB 140 — tougher, longer fights)',BB.HP===560&&BB.MOB===140&&BB.HP>250);
   {const v=bbBotWith('none','balanced',1,1,true);v.hp=BB.HP;v.inv=0;v.ld.take=1;v.ld.zone={front:1,side:1,rear:1};v.ld.arps='balanced';
    bb2.bots=[bbBotWith('piston','balanced',0,0,true),v];const hp0=v.hp;
    bbApplyHit(v,'front',40,0,v.x+10,v.y);ok('a plain FRONT hit is still immune (RAM shrugged off)',v.hp===hp0);
