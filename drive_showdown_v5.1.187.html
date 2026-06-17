@@ -4238,7 +4238,8 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
     let dh=Math.atan2(foe.y-me.y,foe.x-me.x)-me.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
     br.inp.vr=clamp(dh*6,-TSP*T.turn,TSP*T.turn); // face the foe so our front armor takes the trades
     {const _mode=bbMode(); // v5.1.126 P9 mode-aware steering (translate only — still FACE the foe to trade): hold the DOMINATION point / don't ring yourself out in SUMO
-     if(_mode==='domination'){const zx=FW/2-me.x,zy=FH/2-me.y,zd=Math.hypot(zx,zy)||1;if(zd>BB_DOM_R*0.55){br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;}}
+     if(_mode==='domination'){const pts=bbDomPts();let tgt=null,bd=1e9;for(let p=0;p<pts.length;p++){const own=bb2.domOwn&&bb2.domOwn[p],d=Math.hypot(pts[p].x-me.x,pts[p].y-me.y),pri=(own===me.side)?d+1e4:d;if(pri<bd){bd=pri;tgt=pts[p];}} // v5.1.187 head for the nearest point we DON'T own (un-owned/enemy first; if we own them all, defend the nearest)
+       if(tgt){const zx=tgt.x-me.x,zy=tgt.y-me.y,zd=Math.hypot(zx,zy)||1;if(zd>BB_DOM_R*0.5){br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;}}}
      else if(_mode==='koth'&&bb2.koth&&bb2.koth.active){const zx=bb2.koth.x-me.x,zy=bb2.koth.y-me.y,zd=Math.hypot(zx,zy)||1;if(zd>BB_KOTH_R*0.55){br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;}} // race to the active hill (idle during the despawn gap)
      else if(_mode==='ctf'&&bb2.flags){const ef=bb2.flags[1-me.side];let tx,ty;if(ef.carrier===me){const ob=bb2.flags[me.side];tx=ob.hx;ty=ob.hy;}else{tx=ef.x;ty=ef.y;} const zx=tx-me.x,zy=ty-me.y,zd=Math.hypot(zx,zy)||1;br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;} // CTF: grab the enemy flag, then run it home
      else if(_mode==='pushball'&&bb2.pball){const pb=bb2.pball,goalX=me.side===0?FW-10:10,ax=goalX-pb.x,ay=FH/2-pb.y,an=Math.hypot(ax,ay)||1,nx=ax/an,ny=ay/an;const bx=pb.x-nx*(RR+BB_PB_R+6),by=pb.y-ny*(RR+BB_PB_R+6),zx=bx-me.x,zy=by-me.y,zd=Math.hypot(zx,zy)||1;br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;} // PUSH-BALL: get BEHIND the ball (relative to the enemy goal) to shove it in
@@ -4559,7 +4560,7 @@ function bbMiniUpdate(dt){ // harassers: chase nearest opponent main, shove + pi
 const BB_MODES=[ // v5.1.149 per-mode defaults: lives (1 / N / 'inf') + time limit (sec, 0=off). Elimination modes = 1 life; objective modes = infinite lives + a clock.
   {id:'ko',        name:'KO — last bot standing',          lives:1,    time:0},
   {id:'sumo',      name:'SUMO — ring-out wins',            lives:1,    time:0},
-  {id:'domination',name:'DOMINATION — hold the zone',      lives:'inf',time:180},
+  {id:'domination',name:'DOMINATION — hold the points',    lives:'inf',time:180},
   {id:'koth',      name:'KOTH — hold the moving hill',     lives:'inf',time:180},
   {id:'vip',       name:'VIP — kill the enemy VIP',        lives:1,    time:0},
   {id:'ctf',       name:'CTF — capture the flag',          lives:'inf',time:180},
@@ -4573,7 +4574,8 @@ function bbApplyModeDefaults(mode){const d=bbModeDef(mode);if(m2.set){m2.set.bbl
 const BB_PB_R=24, BB_PB_FRIC=0.94, BB_PB_PUSH=120, BB_PB_GOALH=220, BB_PB_GOALD=34, BB_PB_TARGET=3; // PUSH-BALL: ball radius, per-frame friction, push impulse, goal-mouth height, goal depth from each end wall, goals to win
 const BB_STOCK_LIVES=2, BB_STOCK_DELAY=1.2; // STOCK: extra lives per bot + respawn delay (seconds)
 const BB_RING=290; // SUMO ring radius (px from arena center)
-const BB_DOM_R=150, BB_DOM_TARGET=12; // DOMINATION control-zone radius + seconds of uncontested hold to win
+const BB_DOM_R=92, BB_DOM_TARGET=60; // v5.1.187 DOMINATION = THREE control points (was one center zone): per-point capture radius + point-seconds to win (hold more points → score faster)
+function bbDomPts(){return [{x:FW*0.5,y:FH*0.23},{x:FW*0.24,y:FH*0.78},{x:FW*0.76,y:FH*0.78}];} // a triangle of 3 capture points (arena coords)
 const BB_KOTH_R=130, BB_KOTH_TARGET=14, BB_KOTH_HOLD=8, BB_KOTH_GAP=1.6; // KOTH hill radius + seconds of majority-hold to win + how long a hill STAYS before despawning + the gap before the next one appears elsewhere
 const BB_CTF_R=16, BB_CTF_TARGET=3; // CTF: flag pickup/return/capture touch radius (added to RR) + captures to win
 function bbKothReloc(){return {x:clamp(FW/2+(Math.random()*2-1)*(FW/2-BB_KOTH_R-40),BB_KOTH_R+30,FW-BB_KOTH_R-30),y:clamp(FH/2+(Math.random()*2-1)*(FH/2-BB_KOTH_R-30),BB_KOTH_R+24,FH-BB_KOTH_R-24)};} // a fresh in-bounds hill spot
@@ -4610,7 +4612,7 @@ function bbMapPickerClick(mx,my){
 function bbMode(){return (m2.set&&m2.set.bbmode)||'ko';}
 function bbModeHint(){const ctrl=' · LT/Shift = DASH · SPACE/RT = WEAPON';switch(bbMode()){ // v5.1.127 P9: the in-match HUD spells out each mode's win condition
   case'sumo':return'SUMO — shove them OUT of the ring; last bot inside wins'+ctrl;
-  case'domination':return'DOMINATION — HOLD the center zone uncontested to win'+ctrl;
+  case'domination':return'DOMINATION — CAPTURE & HOLD the 3 control points (more points = faster score)'+ctrl;
   case'koth':return'KOTH — stand on the hill (majority wins it); it despawns + reappears elsewhere'+ctrl;
   case'vip':return'VIP ♛ — destroy the enemy VIP to win (protect yours!)'+ctrl;
   case'ctf':return'CTF ⚑ — grab the enemy flag, bring it home (your flag must be home)'+ctrl;
@@ -4626,10 +4628,12 @@ function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing he
   {const tl=bbTimeLimit();if(tl>0&&bb2.t>=tl){bb2.result=bbTimeUpResult();sfx('win');return;}} // v5.1.149 TIME LIMIT: clock out → the objective leader wins (tie = draw)
   if(mode==='sumo'){ // SUMO: a bot shoved outside the ring is rung out (eliminated). Winner falls out of bbCheckResult (last side standing).
     for(const b of bb2.bots){if(b.dead)continue;if(Math.hypot(b.x-cx,b.y-cy)>BB_RING){b._rungOut=true;bbKill(b,null);}}
-  }else if(mode==='domination'){ // DOMINATION: hold the center zone UNCONTESTED to bank time; first side to BB_DOM_TARGET wins
-    if(!bb2.dom)bb2.dom=[0,0];const c=[0,0];
-    for(const b of bb2.bots){if(b.dead)continue;if(Math.hypot(b.x-cx,b.y-cy)<=BB_DOM_R)c[b.side]++;}
-    if(c[0]>0&&c[1]===0)bb2.dom[0]+=dt;else if(c[1]>0&&c[0]===0)bb2.dom[1]+=dt; // contested (both present) or empty = no progress
+  }else if(mode==='domination'){ // v5.1.187 DOMINATION: capture the 3 control points (stand on one UNCONTESTED → it becomes yours and STAYS until the enemy flips it); each owned point banks time; first side to BB_DOM_TARGET point-seconds wins
+    if(!bb2.dom)bb2.dom=[0,0];if(!bb2.domOwn)bb2.domOwn=[-1,-1,-1];const pts=bbDomPts();
+    for(let p=0;p<pts.length;p++){let c0=0,c1=0;
+      for(const b of bb2.bots){if(b.dead)continue;if(Math.hypot(b.x-pts[p].x,b.y-pts[p].y)<=BB_DOM_R){if(b.side===0)c0++;else c1++;}}
+      if(c0>0&&c1===0)bb2.domOwn[p]=0;else if(c1>0&&c0===0)bb2.domOwn[p]=1; // UNCONTESTED presence captures it (persists; contested = no flip)
+      if(bb2.domOwn[p]>=0)bb2.dom[bb2.domOwn[p]]+=dt;} // each owned point banks a point-second
     for(let s=0;s<2;s++)if(bb2.dom[s]>=BB_DOM_TARGET){bb2.result=s;sfx('win');break;}
   }else if(mode==='koth'){ // KOTH: a hill SPAWNS, holds BB_KOTH_HOLD s, DESPAWNS (a BB_KOTH_GAP gap with no hill), then re-appears elsewhere. Majority on the ACTIVE hill banks time; first to BB_KOTH_TARGET wins.
     if(!bb2.koth)bb2.koth={x:cx,y:cy,active:true,t:BB_KOTH_HOLD,score:[0,0]};const k=bb2.koth;
@@ -4945,7 +4949,11 @@ function drawBB(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
   drawTFField();drawTFObstacles();drawBBHazards();
   if(bbMode()==='sumo'){ctx.save();ctx.strokeStyle='rgba(255,215,64,0.55)';ctx.lineWidth=4;ctx.setLineDash([14,10]);ctx.beginPath();ctx.arc(FX+FW/2,FY+FH/2,BB_RING,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();} // v5.1.121 P9 SUMO ring
-  if(bbMode()==='domination'){ctx.save();ctx.strokeStyle='rgba(105,240,174,0.6)';ctx.fillStyle='rgba(105,240,174,0.08)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+FW/2,FY+FH/2,BB_DOM_R,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();const d=bb2.dom||[0,0];for(let s=0;s<2;s++){const w=120,x=s===0?CW/2-w-8:CW/2+8;bbBar(x,46,w,8,clamp(d[s]/BB_DOM_TARGET,0,1),M2_COLS[s]);}} // v5.1.122 P9 DOMINATION zone + hold meters
+  if(bbMode()==='domination'){ctx.save();const pts=bbDomPts(),own=bb2.domOwn||[-1,-1,-1],LBL=['A','B','C']; // v5.1.187 THREE capture points, each tinted by its owner (neutral = grey)
+    for(let p=0;p<pts.length;p++){const o=own[p],col=o>=0?M2_COLS[o]:'#9aa0b4',rgb=o===0?'255,80,80':o===1?'90,150,255':'150,160,180';
+      ctx.fillStyle='rgba('+rgb+',0.12)';ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+pts[p].x,FY+pts[p].y,BB_DOM_R,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.fillStyle=col;ctx.font='bold 20px Courier New';ctx.textAlign='center';ctx.fillText(LBL[p],FX+pts[p].x,FY+pts[p].y+7);}
+    ctx.restore();const d=bb2.dom||[0,0];for(let s=0;s<2;s++){const w=120,x=s===0?CW/2-w-8:CW/2+8;bbBar(x,46,w,8,clamp(d[s]/BB_DOM_TARGET,0,1),M2_COLS[s]);}} // v5.1.187 P9 DOMINATION: 3 control points + score meters
   if(bbMode()==='koth'&&bb2.koth){const k=bb2.koth;ctx.save();
     if(k.active){ctx.strokeStyle='rgba(255,196,64,0.7)';ctx.fillStyle='rgba(255,196,64,0.10)';ctx.lineWidth=3;ctx.setLineDash([10,8]);ctx.beginPath();ctx.arc(FX+k.x,FY+k.y,BB_KOTH_R,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#ffd740';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('⛰ HILL · '+Math.ceil(k.t)+'s left',FX+k.x,FY+k.y-BB_KOTH_R-6);}
     else{ctx.fillStyle='#ffd740';ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillText('⛰ next hill in '+Math.ceil(k.t)+'s…',CW/2,FY+58);}

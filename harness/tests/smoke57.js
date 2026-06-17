@@ -820,16 +820,19 @@ src+=`
    const foe2=bbBotWith('none','balanced',1,1,true);foe2.x=FW/2-50;foe2.y=FH/2;foe2.hp=BB.HP;
    bb2.bots=[safe2,foe2];bb2.result=null;bbModeUpdate(1/60);
    ok('SUMO: bots inside the ring are safe (no premature result)',safe2.dead===false&&foe2.dead===false&&bb2.result===null);
-   // DOMINATION (KOTH hold-point)
+   // DOMINATION (v5.1.187: THREE capture points, persistent ownership)
    ok('GAME MODE includes DOMINATION',BB_MODES.some(m=>m.id==='domination'));
-   m2.set.bbmode='domination';
-   const dz=bbBotWith('none','balanced',0,0,true);dz.x=FW/2;dz.y=FH/2;
-   bb2.bots=[dz];bb2.result=null;bb2.dom=null;bb2.map=TF2_MAPS[0];bbModeUpdate(1.0);
-   ok('DOMINATION: holding the zone ALONE banks time',bb2.dom[0]>0&&bb2.dom[1]===0);
-   const da=bbBotWith('none','balanced',0,0,true);da.x=FW/2;da.y=FH/2;const db=bbBotWith('none','balanced',1,1,true);db.x=FW/2;db.y=FH/2;
-   bb2.bots=[da,db];bb2.dom=[0,0];bb2.result=null;bbModeUpdate(1.0);
-   ok('DOMINATION: a CONTESTED zone banks nothing',bb2.dom[0]===0&&bb2.dom[1]===0);
-   bb2.bots=[dz];bb2.dom=[BB_DOM_TARGET-0.01,0];bb2.result=null;bbModeUpdate(0.5);
+   ok('DOMINATION has 3 control points',bbDomPts().length===3);
+   m2.set.bbmode='domination';bb2.map=TF2_MAPS[0];const P=bbDomPts();
+   const dz=bbBotWith('none','balanced',0,0,true);dz.x=P[0].x;dz.y=P[0].y;
+   bb2.bots=[dz];bb2.result=null;bb2.dom=null;bb2.domOwn=null;bbModeUpdate(1.0);
+   ok('DOMINATION: capturing a point ALONE banks time + claims ownership',bb2.dom[0]>0&&bb2.dom[1]===0&&bb2.domOwn[0]===0);
+   dz.x=10;dz.y=10;const sc0=bb2.dom[0];bbModeUpdate(1.0);
+   ok('DOMINATION: an OWNED point keeps scoring after you leave (persists)',bb2.dom[0]>sc0&&bb2.domOwn[0]===0);
+   bb2.domOwn=[-1,-1,-1];bb2.dom=[0,0];const da=bbBotWith('none','balanced',0,0,true);da.x=P[1].x;da.y=P[1].y;const db=bbBotWith('none','balanced',1,1,true);db.x=P[1].x;db.y=P[1].y;
+   bb2.bots=[da,db];bb2.result=null;bbModeUpdate(1.0);
+   ok('DOMINATION: a CONTESTED neutral point stays neutral (no score)',bb2.domOwn[1]===-1&&bb2.dom[0]===0&&bb2.dom[1]===0);
+   dz.x=P[0].x;dz.y=P[0].y;bb2.bots=[dz];bb2.domOwn=[-1,-1,-1];bb2.dom=[BB_DOM_TARGET-0.01,0];bb2.result=null;bbModeUpdate(0.5);
    ok('DOMINATION: reaching the target WINS the round',bb2.result===0);
    // KOTH (moving hill — majority holds)
    ok('GAME MODE includes KOTH',BB_MODES.some(m=>m.id==='koth'));
@@ -931,7 +934,7 @@ src+=`
     const dme=bbBotWith('none','balanced',1,1,true);dme.x=100;dme.y=100;dme.h=0; // far from the center zone
     const dfoe=bbBotWith('none','balanced',0,0,true);dfoe.x=140;dfoe.y=100;
     bb2.bots=[dme,dfoe];bb2.result=null;bbCpuUpdate(1/60);
-    ok('DOMINATION: a CPU outside the zone drives toward the center',dme.ctl.brain.inp.vx>0&&dme.ctl.brain.inp.vy>0);
+    ok('DOMINATION: a CPU drives toward the nearest control point',dme.ctl.brain.inp.vx>0&&dme.ctl.brain.inp.vy>0);
     m2.set.bbmode='koth';
     const kc=bbBotWith('none','balanced',1,1,true);kc.x=100;kc.y=100;kc.h=0;const kf=bbBotWith('none','balanced',0,0,true);kf.x=140;kf.y=100;
     bb2.bots=[kc,kf];bb2.koth={x:FW/2,y:FH/2,active:true,t:BB_KOTH_HOLD,score:[0,0]};bb2.result=null;bbCpuUpdate(1/60);
