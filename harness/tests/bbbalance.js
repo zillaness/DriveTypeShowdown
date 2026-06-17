@@ -21,7 +21,7 @@ src+=`
     const nan=!isFinite(bb2.bots[0].hp)||!isFinite(bb2.bots[1].hp);
     return {w:(res==='draw'?'draw':(res===aSide?'A':'B')),timedOut:timedOut,nan:nan};
   }
-  const WEAPONS=['spinner','buzzsaw','piston','flame','wedge','flipper','pincer','kamikaze','drill','cannon'],ARMOR='balanced',N=20; // the PICKABLE weapons (RAM-ONLY/'none' dropped — it's the no-weapon baseline, not balanced against); v5.1.175 + CANNON
+  const WEAPONS=['spinner','buzzsaw','piston','flame','wedge','flipper','pincer','kamikaze','drill','cannon','jet'],ARMOR='balanced',N=20; // the PICKABLE weapons (RAM-ONLY/'none' dropped — it's the no-weapon baseline, not balanced against); v5.1.175 + CANNON
   const wins={},games={},matrix={};for(const w of WEAPONS){wins[w]=0;games[w]=0;}
   let total=0,draws=0,tos=0,nanc=0;
   console.log('RoboRumble weapon balance — '+N+' matches/matchup, armor='+ARMOR+', tier=CHAMPION, map=OPEN ARENA');
@@ -42,7 +42,7 @@ src+=`
   const hi=overall[0],lo=overall[overall.length-1];
   console.log('\\nmatches: '+total+'  decisive(KO/countout): '+(100*(total-tos-draws)/total).toFixed(0)+'%  timeout→judges: '+(100*tos/total).toFixed(0)+'%  draws: '+(100*draws/total).toFixed(0)+'%');
   console.log('spread: '+hi.w+' '+(hi.r*100).toFixed(0)+'% … '+lo.w+' '+(lo.r*100).toFixed(0)+'%');
-  const UTIL=['pincer','kamikaze'],fighters=overall.filter(o=>!UTIL.includes(o.w)); // pincer (control) + kamikaze (self-destruct) are 3v3/utility — 1v1-weak BY DESIGN, not balanced against in a 1v1 sim
+  const UTIL=['pincer','kamikaze','jet'],fighters=overall.filter(o=>!UTIL.includes(o.w)); // pincer (control) + kamikaze (self-destruct) + jet (ranged zone-push; payoff = walls/3v3) are utility — 1v1-weak BY DESIGN, not balanced against in a 1v1 sim
   console.log(nanc?('NaN DETECTED ('+nanc+')'):((fighters.every(o=>o.r<=0.66&&o.r>=0.34))?'FIGHTERS WITHIN 34-66% BAND ✓ (pincer/kamikaze = utility, 3v3 — excluded)':'IMBALANCED — tune the fighters toward 50%'));
 })();
 `;

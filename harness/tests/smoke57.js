@@ -720,6 +720,16 @@ src+=`
    ok('CANNON shell travels + damages a foe at range',tg.hp<h0);
    const cn2=bbBotWith('cannon','balanced',0,0,true);cn2.x=200;cn2.y=300;cn2.ctl.brain.fire=false;cn2.cannonCd=0;bb2.bots=[cn2,tg];bb2.shells=[];
    bbWeaponPre(1/60);bbWeaponFire(1/60);ok('CANNON holds fire when RT is up',(bb2.shells||[]).length===0);}
+  // ── v5.1.182 JET ENGINE: a fast-spin-up FORWARD thrust cone — pushes foes away (stronger close) + upfront damage ──
+  {ok('JET is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='jet')&&BB_ARMORY_W.some(w=>w.id==='jet'));
+   startBB(0,2);bb2.cd=0;bb2.result=null;const jt=bbBotWith('jet','balanced',0,0,true),c=bbBotWith('none','balanced',1,1,true);
+   jt.x=300;jt.y=300;jt.h=0;jt.firing=true;jt.spin=1;c.x=300+RR*3;c.y=300;c.hp=BB.HP;c.inv=0;c.mob=BB.MOB;bb2.bots=[jt,c];
+   const cx0=c.x,h0=c.hp;bbJetUpdate(1/60);
+   ok('JET: pushes a foe in the forward cone AWAY',c.x>cx0);
+   ok('JET: deals upfront damage',c.hp<h0);
+   const bb3=bbBotWith('none','balanced',1,2,true);bb3.x=300-RR*3;bb3.y=300;bb3.hp=BB.HP;bb3.inv=0;bb3.mob=BB.MOB;bb2.bots=[jt,bb3];
+   const bx0=bb3.x,bh0=bb3.hp;bbJetUpdate(1/60);ok('JET: a foe BEHIND (outside the forward cone) is untouched',bb3.x===bx0&&bb3.hp===bh0);
+   jt.spin=0;jt.ctl.brain.fire=true;bb2.bots=[jt,c];bbWeaponPre(1/60);ok('JET: spin-up is short but NOT instant (one tick < jetMin)',jt.spin>0&&jt.spin<BB_W.jetMin);}
   // ── v5.1.120: P3 ARENA HAZARDS — the DANGER ZONE map (acid pit + saw blades) + map-select includes it ──
   {const hazMap=TF2_MAPS.find(m=>m.id==='hazard');
    ok('a HAZARD arena (DANGER ZONE) exists with a pit + saws',!!hazMap&&hazMap.haz.some(h=>h.type==='pit')&&hazMap.haz.some(h=>h.type==='saw'));

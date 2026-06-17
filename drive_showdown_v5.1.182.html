@@ -3953,6 +3953,7 @@ const BB_WEAPONS=[
   {id:'drill',  name:'DRILL',       cls:'kineticStrike', weight:0.5, deal:1.00, take:1.10}, // v5.1.146 sustained front-contact grinder: DPS RAMPS the longer you hold it on a foe, up to a cap (ignores directional armor)
   {id:'repair', name:'REPAIR TORCH',cls:'control',       weight:0.3, deal:0.20, take:1.00}, // v5.1.154 SUPPORT: welding torch — heals an ALLY (HP + mobility/wheels) in front; only chip damage to enemies (3v3 role)
   {id:'cannon', name:'CANNON',      cls:'kineticStrike', weight:0.5, deal:1.00, take:1.10}, // v5.1.175 the TANK-FIGHT cannon as a PICKABLE weapon — RT fires shells at range; turreted aim (arcade aims it, else fires forward)
+  {id:'jet',    name:'JET ENGINE',  cls:'control',       weight:0.5, deal:1.00, take:1.05}, // v5.1.182 RANGED FORWARD pusher: a fast-spin-up thrust cone shoves foes back (stronger up close) + upfront damage + light wall-SLAM. Spammable (no cooldown), fires FORWARD along the chassis
 ];
 const BB_ARMOR=[ // v5.1.156: spd (speed mult), hpMul (HP-pool mult), runflat (never fully immobilized), reactive (reflect on first hit per zone)
   {id:'balanced',  name:'BALANCED',  rps:'balanced',  weight:0.0, take:1.00, zone:{front:1,side:1,rear:1}}, // default neutral
@@ -4018,7 +4019,7 @@ function bbDrawLoadDrag(){ // drop-target halos + the floating loadout chip that
   ctx.fillStyle='rgba(12,12,24,0.94)';rr(x+12,y-12,tw,24,7);ctx.fill();ctx.strokeStyle='#ffd740';ctx.lineWidth=1.5;rr(x+12,y-12,tw,24,7);ctx.stroke();
   ctx.fillStyle='#eaeaff';ctx.textAlign='left';ctx.fillText(txt,x+20,y+4);}
 // ── v5.1.94 ARMORY: a rail of weapon + armor chips you DRAG onto any seat to equip it (vs only the per-seat ◀▶ cyclers) ──
-const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'PUSH',ic:'⏩'},{id:'pincer',lab:'PINCE',ic:'🦀'},{id:'kamikaze',lab:'KAMI',ic:'💣'},{id:'drill',lab:'DRILL',ic:'⛏'},{id:'repair',lab:'REPAIR',ic:'🔧'},{id:'cannon',lab:'CANNON',ic:'💥'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE; v5.1.154 REPAIR TORCH; v5.1.175 CANNON (ranged shells)
+const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'PUSH',ic:'⏩'},{id:'pincer',lab:'PINCE',ic:'🦀'},{id:'kamikaze',lab:'KAMI',ic:'💣'},{id:'drill',lab:'DRILL',ic:'⛏'},{id:'repair',lab:'REPAIR',ic:'🔧'},{id:'cannon',lab:'CANNON',ic:'💥'},{id:'jet',lab:'JET',ic:'🚀'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE; v5.1.154 REPAIR TORCH; v5.1.175 CANNON; v5.1.182 JET ENGINE
 const BB_ARMORY_A=[{id:'balanced',lab:'BAL',ic:'⚖'},{id:'hardplate',lab:'HARD',ic:'🛡'},{id:'heatshield',lab:'HEAT',ic:'♨'},{id:'light',lab:'LIGHT',ic:'🪶'},{id:'runflat',lab:'RUN',ic:'🛞'},{id:'reactive',lab:'REACT',ic:'💥'}]; // v5.1.156 RUNFLAT; v5.1.157 REACTIVE
 const BB_PERKS=[ // v5.1.112 P2: a 3rd loadout slot — PERK (id stays in ld.perk; 'none' kept ONLY as the no-effect fallback, NOT pickable since v5.1.155)
   {id:'none',       name:'NO PERK',      lab:'NONE', ic:'∅'},
@@ -4086,7 +4087,7 @@ function bbDrawArmory(){ // the chip rail + (while dragging) seat drop-halos and
   }
 }
 function bbCpuPickLoadout(tier){ // P2.6: a CPU with no chosen loadout arms itself (higher tiers pick armor with intent)
-  const ws=['spinner','piston','flame','wedge','cannon'],w=ws[Math.floor(Math.random()*ws.length)];let a;
+  const ws=['spinner','piston','flame','wedge','cannon','jet'],w=ws[Math.floor(Math.random()*ws.length)];let a;
   if((tier|0)>=2)a=(w==='spinner'||w==='wedge')?'hardplate':(w==='flame')?'heatshield':'balanced';
   else{const as=['hardplate','heatshield','light','balanced'];a=as[Math.floor(Math.random()*as.length)];}
   const pk=BB_PERKS_PICK.map(p=>p.id);return {weapon:w,armor:a,perk:pk[Math.floor(Math.random()*pk.length)]}; // v5.1.155: CPUs always roll a REAL perk (NONE removed)
@@ -4257,6 +4258,7 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
       else if(wp==='drill')br.fire=dist<RR*3.2;                                                       // v5.1.146 DRILL: keep grinding while close (close in + hold contact to ramp the DPS)
       else if(wp==='repair')br.fire=true;                                                              // v5.1.154 REPAIR TORCH: torch always on (heals an ally in front; chips an enemy)
       else if(wp==='cannon')br.fire=dist<RR+RR*BB_W.cannonRangeK;                                       // v5.1.175 CANNON: fire shells whenever a foe is in range (the turret aims itself)
+      else if(wp==='jet')br.fire=dist<RR*2+RR*BB_W.jetRange;                                              // v5.1.182 JET: spin up + blast the forward thrust cone whenever a foe is in reach (the brain faces the foe so the cone catches it)
     }
     // v5.1.106: STUCK → UNSTICK — if a bot TRIED to move but barely did (jammed on an obstacle / wall corner) for ~0.45s, break out: reverse away + sidestep for a beat (alternating sides so two stuck bots don't mirror each other)
     if(me._unstickT>0){me._unstickT-=dt;br.inp.vx=Math.cos(me._uAng)*SPD*T.spd;br.inp.vy=Math.sin(me._uAng)*SPD*T.spd;let dh=me._uAng-me.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;br.inp.vr=clamp(dh*5,-TSP*T.turn,TSP*T.turn);}
@@ -4267,6 +4269,7 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
 }
 // ── RoboRumble P2.2: weapon FIRE behavior (SPINNER / PISTON / FLAMETHROWER / WEDGE; RAM is always-on) — all TUNABLE ──
 const BB_W={
+  jetSpinRamp:0.40, jetMin:0.45, jetRange:6.5, jetArc:Math.PI*0.24, jetDps:56, jetPush:240, jetSlamDps:35, // v5.1.182 JET ENGINE: fast spin-up (0.4s, not instant), forward thrust cone reach RR*2+RR*jetRange, ±40° arc, upfront DPS, push px/s (×spin×falloff — stronger close), light wall-slam DPS
   spinRamp:1.10, spinMin:0.55, spinDmg:40, spinKnock:2.0, spinReach:0.85, spinReachCd:0.20, spinHitLoss:0.4, spinWallDmg:18, spinWallLoss:0.90, spinFront:0.50, spinSelf:0.16, spinDeflect:2.5, buzzDmg:52, buzzArc:Math.PI*0.5, // v5.1.179 SPINNER buffed: dmg 32→36 + REACH (spinReach: the spun-up disc bites 360° out to RR*2+RR*spinReach, not just on body contact; spinReachCd gates the extended-bite DPS). BUZZSAW = FRONT-only (buzzArc ±45°) high-dmg cutter; spinner = lower-per-hit 360°
   flipCd:0.85, flipArc:Math.PI*0.9, flipRangeK:2.0, flipKnock:110, flipDmg:28, flipWallDmg:40, flipFlySpd:1750, flipFlyT:0.68, // FLIPPER/PUSHER: v5.1.170 LESS initial-push damage (50→28) + the big fun PUSH kept (knock 110, fling 1750, 0.68s); wall/obstacle slam is just EXTRA damage now (62→40, not a ring-out KO). Fires on EDGE contact, near-180° arc
   pistCd:0.85, pistDmg:60, pistRangeK:2.6, pistArc:Math.PI*0.6, pistKnock:34, pistFront:0.78, // PISTON: v5.1.169 contact detected across the WHOLE stroke (+ radius-aware so partial/edge contact at the end still lands damage); push kept at its existing 34 (NOT increased); damage 60; reach 2.6, spike animates to full reach
@@ -4352,6 +4355,24 @@ function bbSpinReach(dt){ // v5.1.179 SPINNER REACH: a spun-up SPINNER's disc bi
     }
   }
 }
+function bbJetUpdate(dt){ // v5.1.182 JET ENGINE: a spun-up + firing jet blasts a FORWARD thrust cone — pushes foes away (stronger the closer they are), deals upfront damage, and a light SLAM bonus if a foe is shoved into a wall/obstacle
+  if(!bb2||!bb2.bots)return;const reach=RR*2+RR*BB_W.jetRange;
+  for(let i=0;i<bb2.bots.length;i++){const a=bb2.bots[i];if(a.dead)continue;
+    if(!(a.ld&&a.ld.weapon==='jet'&&a.firing&&(a.spin||0)>=BB_W.jetMin))continue;
+    const aim=a.h,sp=a.spin; // FORWARD along the chassis (not a turret — you point the bot at the foe, like the pusher)
+    for(let j=0;j<bb2.bots.length;j++){const c=bb2.bots[j];if(c.dead||c.side===a.side)continue;
+      const dx=c.x-a.x,dy=c.y-a.y,d=Math.hypot(dx,dy)||0.01;if(d>reach)continue;
+      let ang=Math.atan2(dy,dx)-aim;while(ang>Math.PI)ang-=2*Math.PI;while(ang<-Math.PI)ang+=2*Math.PI;if(Math.abs(ang)>BB_W.jetArc)continue; // in the forward cone
+      const fall=1-d/reach,dfall=0.45+0.55*fall; // STRONGER up close, weaker far. PUSH falls to ~0 at the cone edge (a foe settles at range, not shoved out); DAMAGE keeps a 45% floor so the held foe still takes real upfront hits
+      const dmg=BB_W.jetDps*sp*dfall*dt;c.hp-=dmg;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+dmg; // upfront push damage (a force — ignores directional armor)
+      const nx=dx/d,ny=dy/d,push=BB_W.jetPush*sp*fall*dt,ix=c.x+nx*push,iy=c.y+ny*push;
+      c.x=ix;c.y=iy;obsCheck(c,RR);const stop=Math.hypot(ix-c.x,iy-c.y); // how far a wall/obstacle shoved it back = it SLAMMED
+      if(stop>0.4){const slam=BB_W.jetSlamDps*sp*dt;c.hp-=slam;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+slam;if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:c.x,y:c.y,t:0.16,r:RR*1.2});}
+      if(c.ctl)p2Rumble(c.ctl.bind,0.3);if(a.ctl)p2Rumble(a.ctl.bind,0.25,'spin');
+      if(c.hp<=0&&!c.dead)bbKill(c,i);
+    }
+  }
+}
 function bbContactDmg(att,ram){ // contact (ram) damage a weapon deals to the foe it's touching
   const w=att.ld?att.ld.weapon:'none',mg=att.mega?BB_W.megaDmg:1; // v5.1.118 MEGABOTS hit harder
   if(w==='spinner'&&(att.spin||0)>=BB_W.spinMin)return Math.max(ram,BB_W.spinDmg*att.spin)*mg; // spun-up edge bites regardless of closing speed
@@ -4376,6 +4397,7 @@ function bbWeaponPre(dt){ // per-bot: cache FIRE input, ramp/decay SPINNER, deca
     b.firing=bbWeaponFiring(b);const w=b.ld?b.ld.weapon:'none';
     b.weaponAng=bbIsTurret(w)?bbAimAngle(b):b.h; // v5.1.99: a turreted weapon (flame) aims independent of the chassis; everything else fires along the nose
     if(w==='spinner'||w==='buzzsaw'){b.spin=clamp((b.spin||0)+(b.firing?dt:-dt)/BB_W.spinRamp,0,1);if((b.spin||0)>0.12&&b.ctl&&b.ctl.type!=='cpu')p2Rumble(b.ctl.bind,0.25+0.5*b.spin,'spin');} // v5.1.107 spin-up; v5.1.165 a sustained BUZZ that grows with RPM so you FEEL it spinning
+    if(w==='jet'){b.spin=clamp((b.spin||0)+(b.firing?dt:-dt)/BB_W.jetSpinRamp,0,1);if((b.spin||0)>0.12&&b.ctl&&b.ctl.type!=='cpu')p2Rumble(b.ctl.bind,0.2+0.5*b.spin,'spin');} // v5.1.182 JET: fast spin-up (short, not instant); spammable — stays spun while RT held, no cooldown
     if(b.pistCd>0)b.pistCd=Math.max(0,b.pistCd-dt);
     if(b.pinT>0)b.pinT=Math.max(0,b.pinT-dt);
     if(b._pistFx>0)b._pistFx=Math.max(0,b._pistFx-dt);
@@ -4383,7 +4405,7 @@ function bbWeaponPre(dt){ // per-bot: cache FIRE input, ramp/decay SPINNER, deca
     if(b._flameSlowT>0)b._flameSlowT=Math.max(0,b._flameSlowT-dt); // v5.1.180 flame-stickiness slow decays once out of the cone
     if(b._painT>0)b._painT=Math.max(0,b._painT-dt); // v5.1.181 PAINKILLER grace ticks down → then the banked mobility damage takes effect
     if(b._lastStandT>0){b._lastStandT=Math.max(0,b._lastStandT-dt);b.mob=(b.ld&&b.ld.mobMax)||BB.MOB;if(b._lastStandT<=0)bbKill(b,b._lastStandKiller);} // v5.1.181 LAST STAND window ticks down → then you finally break down
-    if(bbUnlimited){b.pistCd=0;b.grabCd=0;if(w==='spinner'||w==='buzzsaw')b.spin=1;} // v5.1.118 UNLIMITED RESOURCES: weapons never cool down — full-auto strikes, always-spun disc, instant re-grab
+    if(bbUnlimited){b.pistCd=0;b.grabCd=0;if(w==='spinner'||w==='buzzsaw'||w==='jet')b.spin=1;} // v5.1.118 UNLIMITED RESOURCES: weapons never cool down — full-auto strikes, always-spun disc, instant re-grab
   }
 }
 function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + FLAMETHROWER (heat-up, then armor-ignoring burn)
@@ -4790,6 +4812,7 @@ function updateBB(dt){
     }
   }
   bbSpinReach(dt); // v5.1.179 SPINNER REACH: a spun-up disc bites + flings foes within an EXTENDED 360° radius (not just on body contact)
+  bbJetUpdate(dt); // v5.1.182 JET ENGINE: forward thrust-cone push + upfront damage + wall-slam
   bbWeaponFire(dt); // PISTON strikes + FLAMETHROWER heat-up/burn (range-based)
   bbMiniUpdate(dt); // v5.1.117 P4: deployed harasser minibots chase + shove/pin opponents
   bbHazardUpdate(dt); // v5.1.120 P3: arena hazards (acid pit + saw blades) damage bots
@@ -4864,6 +4887,13 @@ function bbDrawWeapon(b){ // P2.2 basic weapon cosmetics (the picker UI + polish
     if(b._tpFx>0){ctx.globalAlpha=b._tpFx/0.12;ctx.fillStyle='#fff7c0';ctx.beginPath();ctx.arc(RR*1.25-rec,0,5.5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
     if(b.ctl&&b.ctl.type!=='cpu'&&!(b._tpFx>0)){const rdy=((b.cannonCd||0)<=0); // v5.1.178 player RELOAD CUE: the muzzle glows green when the next shell is loaded, dim while reloading (human bots only — keeps CPU barrels uncluttered)
       ctx.fillStyle=rdy?'#7CFC8A':'#46505e';if(rdy){ctx.shadowColor='#7CFC8A';ctx.shadowBlur=6;}ctx.beginPath();ctx.arc(RR*1.28-rec,0,2.6,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}
+  }else if(w==='jet'){const sp=b.spin||0,up=sp>=BB_W.jetMin;ctx.rotate(b.h); // v5.1.182 JET ENGINE: a rear nacelle + a FORWARD blue-white thrust cone (the attack), drawn along the chassis; grows with spin
+    ctx.fillStyle='#2d3340';ctx.fillRect(-RR*0.95,-6,RR*0.7,12);ctx.strokeStyle='#11151c';ctx.lineWidth=1.5;ctx.strokeRect(-RR*0.95,-6,RR*0.7,12); // rear nacelle/engine body
+    ctx.fillStyle=up?'#9fd8ff':'#5a6675';ctx.beginPath();ctx.arc(RR*0.3,0,4,0,Math.PI*2);ctx.fill(); // intake glows when spun
+    if(b.firing&&sp>0.08){const R=RR*2+RR*BB_W.jetRange,arc=BB_W.jetArc,T=(bb2&&bb2.t)||0,al=Math.min(1,sp); // forward thrust cone
+      const g=ctx.createLinearGradient(0,0,R,0);g.addColorStop(0,'rgba(255,255,255,'+(0.7*al)+')');g.addColorStop(0.3,'rgba(150,210,255,'+(0.5*al)+')');g.addColorStop(0.7,'rgba(90,150,255,'+(0.25*al)+')');g.addColorStop(1,'rgba(60,110,255,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(RR*0.5,0);ctx.arc(0,0,R,-arc,arc);ctx.closePath();ctx.fill();
+      for(let i=0;i<4;i++){const ph=(T*9+i*1.7)%1,rr2=RR*0.6+ph*R,sy=Math.sin(T*13+i*2)*arc*rr2*0.5;ctx.globalAlpha=al*(1-ph)*0.8;ctx.fillStyle='#eaf6ff';ctx.beginPath();ctx.arc(rr2,sy,2.2+ph*2,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;} // streaking exhaust particles
   }else if(w==='flame'){ctx.rotate(b.weaponAng!=null?b.weaponAng:b.h); // v5.1.100: ANIMATED flame jet, drawn along the TURRET/chassis aim
     if(b.firing){const R=RR+RR*BB_W.flameRangeK,a=BB_W.flameArc,T=(bb2&&bb2.t)||0;
       const g=ctx.createLinearGradient(0,0,R,0);g.addColorStop(0,'#fff7c0e0');g.addColorStop(0.22,'#ffd24dcc');g.addColorStop(0.6,'#ff7a1e99');g.addColorStop(1,'#ff3b0a00');
