@@ -484,6 +484,20 @@ src+=`
    const far=bbBotWith('none','balanced',1,2,true);far.x=300+RR*20;far.y=300;far.hp=BB.HP;far.inv=0;const b2=bbBotWith('kamikaze','balanced',0,3,true);b2.x=300;b2.y=300;b2.firing=true;bb2.bots=[b2,far];bb2.result=null;bb2.blasts=[];
    bbWeaponFire(1/60);ok('KAMIKAZE does NOT hit a foe outside the blast radius',far.hp===BB.HP);
    ok('KAMIKAZE is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='kamikaze')&&BB_ARMORY_W.some(w=>w.id==='kamikaze'));}
+  // ── v5.1.146: DRILL — sustained front-contact grinder, DPS RAMPS the longer it stays on a foe (to a cap) ──
+  {ok('DRILL is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='drill')&&BB_ARMORY_W.some(w=>w.id==='drill'));
+   const a=bbBotWith('drill','balanced',0,0,true);a.x=300;a.y=300;a.h=0;a.firing=true;a.drill={};
+   const c=bbBotWith('none','balanced',1,1,true);c.x=300+RR;c.y=300;c.hp=99999;c.inv=0;bb2.bots=[a,c];bb2.result=null;
+   const e0=c.hp;bbWeaponFire(1/60);const early=e0-c.hp; // first tick = low dwell = low dmg
+   for(let i=0;i<200;i++)bbWeaponFire(1/60); // hold it on the foe → ramp up
+   const l0=c.hp;bbWeaponFire(1/60);const late=l0-c.hp; // now near max dwell
+   ok('DRILL deals damage on contact while firing',early>0);
+   ok('DRILL damage RAMPS the longer it stays on the foe',late>early*1.5);
+   ok('DRILL ramps to a LIMIT (dwell caps at drillRampT)',a.drill[1]<=BB_W.drillRampT+1e-9&&late<=(BB_W.drillMax/60)+1e-6);
+   // off the foe → the ramp spins back down (no damage out of arc/reach)
+   const a2=bbBotWith('drill','balanced',0,0,true);a2.x=300;a2.y=300;a2.h=0;a2.firing=true;a2.drill={};
+   const far=bbBotWith('none','balanced',1,1,true);far.x=300+RR*6;far.y=300;far.hp=BB.HP;bb2.bots=[a2,far];bb2.result=null;
+   const f0=far.hp;bbWeaponFire(1/60);ok('DRILL does nothing to a foe out of reach',far.hp===f0);}
   // ── v5.1.112: PERKS (3rd loadout slot) — data + effects (Parting Gift, Flameproof) ──
   {ok('bbResolveLoadout carries the PERK slot',bbResolveLoadout({weapon:'spinner',armor:'balanced',perk:'flameproof'}).perk==='flameproof');
    ok('a default loadout has no perk',bbResolveLoadout(null).perk==='none');

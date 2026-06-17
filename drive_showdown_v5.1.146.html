@@ -3865,6 +3865,7 @@ const BB_WEAPONS=[
   {id:'flipper',name:'PUSHER',      cls:'kineticStrike', weight:0.35,deal:0.90, take:1.00}, // v5.1.142 (was FLIPPER) RT forward THRUST: shoves the foe BACK (ring-out into walls) — control + setup; id stays 'flipper' internally
   {id:'pincer', name:'PINCER',      cls:'control',       weight:0.30,deal:0.50, take:0.95}, // v5.1.110 grab + IMMOBILIZE (hold + drain mobility) — a 3v3 role-player; weak 1v1, no big damage
   {id:'kamikaze',name:'KAMIKAZE',   cls:'kineticStrike', weight:0.20,deal:1.00, take:1.10}, // v5.1.111 RT = SELF-DESTRUCT: a big blast that takes nearby foes with you (3v3; useless 1v1)
+  {id:'drill',  name:'DRILL',       cls:'kineticStrike', weight:0.5, deal:1.00, take:1.10}, // v5.1.146 sustained front-contact grinder: DPS RAMPS the longer you hold it on a foe, up to a cap (ignores directional armor)
 ];
 const BB_ARMOR=[
   {id:'balanced',  name:'BALANCED',  rps:'balanced',  weight:0.0, take:1.00, zone:{front:1,side:1,rear:1}}, // default neutral
@@ -3927,7 +3928,7 @@ function bbDrawLoadDrag(){ // drop-target halos + the floating loadout chip that
   ctx.fillStyle='rgba(12,12,24,0.94)';rr(x+12,y-12,tw,24,7);ctx.fill();ctx.strokeStyle='#ffd740';ctx.lineWidth=1.5;rr(x+12,y-12,tw,24,7);ctx.stroke();
   ctx.fillStyle='#eaeaff';ctx.textAlign='left';ctx.fillText(txt,x+20,y+4);}
 // ── v5.1.94 ARMORY: a rail of weapon + armor chips you DRAG onto any seat to equip it (vs only the per-seat ◀▶ cyclers) ──
-const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'PUSH',ic:'⏩'},{id:'pincer',lab:'PINCE',ic:'🦀'},{id:'kamikaze',lab:'KAMI',ic:'💣'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE — every bot has at least a blade; 'none' stays the internal neutral default
+const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'PUSH',ic:'⏩'},{id:'pincer',lab:'PINCE',ic:'🦀'},{id:'kamikaze',lab:'KAMI',ic:'💣'},{id:'drill',lab:'DRILL',ic:'⛏'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE — every bot has at least a blade; 'none' stays the internal neutral default
 const BB_ARMORY_A=[{id:'balanced',lab:'BAL',ic:'⚖'},{id:'hardplate',lab:'HARD',ic:'🛡'},{id:'heatshield',lab:'HEAT',ic:'♨'},{id:'light',lab:'LIGHT',ic:'🪶'}];
 const BB_PERKS=[ // v5.1.112 P2: a 3rd loadout slot — PERK (id stays in ld.perk; 'none' = neutral default)
   {id:'none',       name:'NO PERK',      lab:'NONE', ic:'∅'},
@@ -4133,6 +4134,7 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
       else if(wp==='wedge')br.fire=aimed&&dist<RR*4.2;                                            // v5.1.103: CHARGE in from further (firing = a forward boost) to grab + slam
       else if(wp==='pincer')br.fire=aimed&&dist<RR*3;                                              // v5.1.110 PINCER: clamp a lined-up foe on contact
       else if(wp==='kamikaze')br.fire=dist<RR*BB_W.kamiRK*0.55;                                     // v5.1.138 KAMIKAZE: detonate once a foe is well inside the (now huge) blast — suicide attack
+      else if(wp==='drill')br.fire=dist<RR*3.2;                                                       // v5.1.146 DRILL: keep grinding while close (close in + hold contact to ramp the DPS)
     }
     // v5.1.106: STUCK → UNSTICK — if a bot TRIED to move but barely did (jammed on an obstacle / wall corner) for ~0.45s, break out: reverse away + sidestep for a beat (alternating sides so two stuck bots don't mirror each other)
     if(me._unstickT>0){me._unstickT-=dt;br.inp.vx=Math.cos(me._uAng)*SPD*T.spd;br.inp.vy=Math.sin(me._uAng)*SPD*T.spd;let dh=me._uAng-me.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;br.inp.vr=clamp(dh*5,-TSP*T.turn,TSP*T.turn);}
@@ -4149,7 +4151,8 @@ const BB_W={
   flameRangeK:6.4, flameArc:Math.PI*0.26, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, // FLAMETHROWER (v5.1.100): ~2× REACH + a NARROWER focused jet (per playtest), heat-up dwell, dps (re-tuned via the sim), heat cap (no fuel gauge), MOVE-mult while torching (plant-to-burn — the balance counter to the ARCADE turret kite; fuel parked)
   wedgeDmg:0.40, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:85, grabDmg:18, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.8, pincerDrain:55, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, // v5.1.144 easier to land: wider arc (±63°) + a grab REACH (RR+RR×reachK ≈ 2.4×RR) so you don't need a perfect ram. WEDGE/DOZER: contact-dmg, grab arc, pinned speed mult, pin/grab DURATION, shove + v5.1.103 GRAB-AND-SLAM (grip seconds, cooldown, base wall-slam dmg ×speed), dozerCharge = forward boost while firing RT, dashBuff = RoboRumble LT-dash speed/range buff
   blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:3.8, partingDmg:130, // v5.1.145 KAMIKAZE peak 420→640 (scaled to HP 560 so it still destroys/near-destroys the radius); PARTING GIFT 95→130. KAMIKAZE radius 9×RR, falls to 0.85× at the edge
-  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary; v5.1.117 P4 MINIBOT harasser (radius×RR, speed×SPD, shove px, pin-slow seconds)
+  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:0.7, drillRampT:2.6, drillMin:22, drillMax:135, // v5.1.146 DRILL: focused front arc, close reach, ramp-to-max time, min→max DPS (ramps the longer it stays on a foe)
+  miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary; v5.1.117 P4 MINIBOT harasser (radius×RR, speed×SPD, shove px, pin-slow seconds)
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
   const id=(typeof p2cDriveDef!=='undefined')?p2cDriveDef(bind).id:'tank';
@@ -4267,6 +4270,13 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
         const d=Math.hypot(c.x-a.x,c.y-a.y),hot=a.firing&&d<=RR+RR*BB_W.flameRangeK&&bbFoeArcAt(a,c,BB_W.flameArc,a.weaponAng!=null?a.weaponAng:a.h)&&bbFlameLOS(a,c); // v5.1.99: cone vs the TURRET aim; v5.1.104: + line-of-sight (no burning through obstacles)
         if(hot){a.heat[ci]=Math.min(BB_W.flameHeatMax,(a.heat[ci]||0)+dt);if(a.heat[ci]>=BB_W.flameDwell)bbApplyFlame(c,BB_W.flameDps*dt,ai);}
         else a.heat[ci]=Math.max(0,(a.heat[ci]||0)-dt*1.5);
+      }
+    }
+    if(w==='drill'){if(!a.drill)a.drill={}; // v5.1.146 DRILL: sustained front-contact grind — per-foe dwell ramps the DPS from drillMin→drillMax up to a cap (ignores directional armor, like a bit boring in)
+      for(let ci=0;ci<bb2.bots.length;ci++){const c=bb2.bots[ci];if(c.dead||c.side===a.side){a.drill[ci]=0;continue;}
+        const d=Math.hypot(c.x-a.x,c.y-a.y),on=a.firing&&d<=RR+RR*BB_W.drillReachK&&bbFoeAngOk(a,c,BB_W.drillArc);
+        if(on){a.drill[ci]=Math.min(BB_W.drillRampT,(a.drill[ci]||0)+dt);const ramp=a.drill[ci]/BB_W.drillRampT,dps=BB_W.drillMin+(BB_W.drillMax-BB_W.drillMin)*ramp;c.hp-=dps*dt;a._drillFx=0.12;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+dps*dt;if(c.hp<=0&&!c.dead)bbKill(c,ai);}
+        else a.drill[ci]=Math.max(0,(a.drill[ci]||0)-dt*1.5); // off the foe → the bit spins down (lose your ramp)
       }
     }
   }
@@ -4559,6 +4569,10 @@ function bbDrawWeapon(b){ // P2.2 basic weapon cosmetics (the picker UI + polish
     ctx.fillStyle='#2a2e3a';ctx.beginPath();ctx.arc(RR*0.75,0,RR*0.55,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=bl?'#ff4d4d':'#7a2a2a';ctx.beginPath();ctx.arc(RR*0.75,0,RR*0.2,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='#ffd24d';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(RR*1.15,-RR*0.3);ctx.lineTo(RR*1.4,-RR*0.62);ctx.stroke();
+  }else if(w==='drill'){ctx.rotate(b.h);const on=(b._drillFx>0),sp=(bb2.t||0)*42; // v5.1.146 a spinning DRILL bit (flutes whirl; glows hot while grinding)
+    ctx.fillStyle=on?'#ffcf6a':'#aeb7c8';ctx.beginPath();ctx.moveTo(RR*0.25,-RR*0.55);ctx.lineTo(RR+13,0);ctx.lineTo(RR*0.25,RR*0.55);ctx.closePath();ctx.fill();ctx.strokeStyle='#3a4150';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.strokeStyle=on?'#fff3c4':'#7a8698';ctx.lineWidth=2;for(let i=0;i<3;i++){const ph=sp+i*2.094;ctx.beginPath();ctx.moveTo(RR*0.4,Math.sin(ph)*RR*0.38);ctx.lineTo(RR+8,Math.sin(ph+0.9)*RR*0.16);ctx.stroke();} // helical flutes spinning
+    if(on){ctx.fillStyle='#fff3c4';for(let i=0;i<3;i++){const a2=sp*1.7+i*2.1;ctx.beginPath();ctx.arc(RR+12+Math.cos(a2)*4,Math.sin(a2)*4,1.4,0,Math.PI*2);ctx.fill();}} // sparks at the tip
   }else if(w==='flame'){ctx.rotate(b.weaponAng!=null?b.weaponAng:b.h); // v5.1.100: ANIMATED flame jet, drawn along the TURRET/chassis aim
     if(b.firing){const R=RR+RR*BB_W.flameRangeK,a=BB_W.flameArc,T=(bb2&&bb2.t)||0;
       const g=ctx.createLinearGradient(0,0,R,0);g.addColorStop(0,'#fff7c0e0');g.addColorStop(0.22,'#ffd24dcc');g.addColorStop(0.6,'#ff7a1e99');g.addColorStop(1,'#ff3b0a00');
