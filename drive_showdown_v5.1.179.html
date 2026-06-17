@@ -3956,8 +3956,8 @@ const BB_WEAPONS=[
 ];
 const BB_ARMOR=[ // v5.1.156: spd (speed mult), hpMul (HP-pool mult), runflat (never fully immobilized), reactive (reflect on first hit per zone)
   {id:'balanced',  name:'BALANCED',  rps:'balanced',  weight:0.0, take:1.00, zone:{front:1,side:1,rear:1}}, // default neutral
-  {id:'hardplate', name:'HARDPLATE', rps:'hardplate', weight:0.6, take:0.62, hpMul:1.35, zone:{front:1,side:1,rear:0.85}}, // v5.1.156 tougher + bigger HP pool (kinetic-tough, thermal-weak)
-  {id:'heatshield',name:'HEATSHIELD',rps:'heatshield',weight:0.4, take:0.90, zone:{front:1,side:1,rear:1}},     // thermal-tough, kinetic-weak
+  {id:'hardplate', name:'HARDPLATE', rps:'hardplate', weight:0.45,take:0.62, hpMul:1.45, zone:{front:1,side:1,rear:0.85}}, // v5.1.179 BUFF: lighter (weight 0.6→0.45 — the speed penalty was crippling it) + bigger HP pool (1.35→1.45). Kinetic-tough, thermal-weak
+  {id:'heatshield',name:'HEATSHIELD',rps:'heatshield',weight:0.25,take:0.80, zone:{front:1,side:1,rear:1}},     // v5.1.179 BUFF: tougher (take 0.90→0.80) + lighter (0.4→0.25). ARMOR-slot thermal resist (rps halves flame) — distinct from the FLAMEPROOF *perk* (full immunity but costs your perk slot); heatshield frees the perk + still helps vs kinetic
   {id:'light',     name:'LIGHT',     rps:'light',     weight:0.0, take:1.30, spd:1.3, hpMul:0.9, zone:{front:1,side:1,rear:1}}, // v5.1.156 BIG speed boost, fast + fragile
   {id:'runflat',   name:'RUNFLAT',   rps:'balanced',  weight:0.2, take:1.00, runflat:true, spd:0.95, zone:{front:1,side:1,rear:1}}, // v5.1.156 wheels can't immobilize you — damaged = slow but you keep crawling
   {id:'reactive',  name:'REACTIVE',  rps:'hardplate', weight:0.45,take:1.00, reactive:true, zone:{front:1,side:1,rear:1}}, // v5.1.157 damages the attacker the FIRST hit on each side
@@ -4249,13 +4249,13 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
 }
 // ── RoboRumble P2.2: weapon FIRE behavior (SPINNER / PISTON / FLAMETHROWER / WEDGE; RAM is always-on) — all TUNABLE ──
 const BB_W={
-  spinRamp:1.10, spinMin:0.55, spinDmg:32, spinKnock:2.0, spinHitLoss:0.4, spinWallDmg:18, spinWallLoss:0.90, spinFront:0.50, spinSelf:0.16, spinDeflect:2.5, buzzDmg:52, buzzArc:Math.PI*0.5, // BUZZSAW = a FRONT-only (buzzArc ≈ ±45°) high-dmg cutter sharing the SPINNER spin-up + self-dmg + wedge-deflect; SPINNER (v5.1.104: dmg 38→24 — it's the 360° weapon, so LOWER per-hit; the high-dmg front-only spin-up weapon is the BUZZSAW): + the bot takes spinSelf× of the damage it deals back into ITSELF on every bite (energy transfer), ×spinDeflect vs a WEDGE/blade (the anti-spinner counter — deflects, shreds the disc)
+  spinRamp:1.10, spinMin:0.55, spinDmg:40, spinKnock:2.0, spinReach:0.85, spinReachCd:0.20, spinHitLoss:0.4, spinWallDmg:18, spinWallLoss:0.90, spinFront:0.50, spinSelf:0.16, spinDeflect:2.5, buzzDmg:52, buzzArc:Math.PI*0.5, // v5.1.179 SPINNER buffed: dmg 32→36 + REACH (spinReach: the spun-up disc bites 360° out to RR*2+RR*spinReach, not just on body contact; spinReachCd gates the extended-bite DPS). BUZZSAW = FRONT-only (buzzArc ±45°) high-dmg cutter; spinner = lower-per-hit 360°
   flipCd:0.85, flipArc:Math.PI*0.9, flipRangeK:2.0, flipKnock:110, flipDmg:28, flipWallDmg:40, flipFlySpd:1750, flipFlyT:0.68, // FLIPPER/PUSHER: v5.1.170 LESS initial-push damage (50→28) + the big fun PUSH kept (knock 110, fling 1750, 0.68s); wall/obstacle slam is just EXTRA damage now (62→40, not a ring-out KO). Fires on EDGE contact, near-180° arc
   pistCd:0.85, pistDmg:60, pistRangeK:2.6, pistArc:Math.PI*0.6, pistKnock:34, pistFront:0.78, // PISTON: v5.1.169 contact detected across the WHOLE stroke (+ radius-aware so partial/edge contact at the end still lands damage); push kept at its existing 34 (NOT increased); damage 60; reach 2.6, spike animates to full reach
   flameRangeK:7.6, flameArc:Math.PI*0.20, flameHitArc:Math.PI*0.34, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, // FLAMETHROWER: v5.1.173 the DAMAGE arc (flameHitArc ±31°) is WIDER than the thin VISUAL jet (flameArc ±18°), so it burns when the flame is OVER the bot — no need to hit dead-center; DPS/dwell held (sim-sensitive); reach 7.6
-  wedgeDmg:0.62, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:115, grabDmg:28, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.8, pincerDrain:55, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, // v5.1.166 WEDGE/DOZER buffed (contact 0.40→0.62, slam 85→115, grab 18→28 — it read as weak). Wider arc (±63°) + grab REACH ≈ 2.4×RR so no perfect ram needed. dozerCharge = forward boost while firing RT, dashBuff = LT-dash buff
+  wedgeDmg:0.82, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:152, grabDmg:40, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.8, pincerDrain:55, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, // v5.1.166 WEDGE/DOZER buffed (contact 0.40→0.62, slam 85→115, grab 18→28 — it read as weak). Wider arc (±63°) + grab REACH ≈ 2.4×RR so no perfect ram needed. dozerCharge = forward boost while firing RT, dashBuff = LT-dash buff
   blowUp:46, burnCool:4, burnBuild:1.0, burnBuildCpu:0.60, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:4.5, partingDmg:480, // v5.1.176 BLOW-UP ring DECOUPLED human/CPU: a HUMAN heats it fast (burnBuild, ~6s sustained → satisfying) while a CPU heats slowly (burnBuildCpu, sim-balanced). burnCool 4 = the ring UNFILLS SLOWLY (lingers, doesn't vanish) on contact break. KAMIKAZE 9×RR; PARTING GIFT inner boom
-  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:1.65, drillRampT:1.3, drillMin:195, drillMax:350, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, repairArc:Math.PI*0.5, repairReachK:1.6, repairHps:70, repairMobps:55, repairWheelps:30, repairDmg:8, vampHeal:130, medicReachK:2.6, medicHp:90, medicHps:42, medicMobps:90, medicWheelps:26, medicSpd:1.05, reactDmg:120, // v5.1.166 DRILL buffed (ramp 1.7→1.4, dps 45→80 / 175→250 — it read as weak); MEDIC now has its own HP (90, destructible) + heals tires less (55→26); v5.1.161 PIT STOP medic; raw HP damage PENETRATES the front; REACTIVE reflect 120
+  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:2.15, drillRampT:1.05, drillStick:90, drillMin:255, drillMax:470, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, repairArc:Math.PI*0.5, repairReachK:1.6, repairHps:70, repairMobps:55, repairWheelps:30, repairDmg:8, vampHeal:130, medicReachK:2.6, medicHp:90, medicHps:42, medicMobps:90, medicWheelps:26, medicSpd:1.05, reactDmg:120, // v5.1.166 DRILL buffed (ramp 1.7→1.4, dps 45→80 / 175→250 — it read as weak); MEDIC now has its own HP (90, destructible) + heals tires less (55→26); v5.1.161 PIT STOP medic; raw HP damage PENETRATES the front; REACTIVE reflect 120
   miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, miniHp:55, miniDps:80, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, airTele:1.2, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14, tankPortCd:0.55, tankPortSpd:400, tankPortDmg:42, tankPortLife:2.0, cannonCd:0.8, cannonSpd:500, cannonDmg:95, cannonLife:1.9, cannonRangeK:7.0, cannonKnock:10 // v5.1.172 TANK INVASION cheat shells; v5.1.175 CANNON weapon: reload(s), shell speed, damage, life(s), CPU fire range×RR, shell knockback
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
@@ -4315,6 +4315,24 @@ function bbSpinBite(att,foe){ // v5.1.107 spin-weapon bite gate: SPINNER bites 3
   if(w==='spinner')return att.spin;
   if(w==='buzzsaw'&&bbFoeAngOk(att,foe,BB_W.buzzArc))return att.spin;
   return 0;
+}
+function bbSpinReach(dt){ // v5.1.179 SPINNER REACH: a spun-up SPINNER's disc bites + flings any enemy within an EXTENDED 360° radius (RR*2 + RR*spinReach). Foes already in body contact (d<RR*2) are handled by the contact loop — this only reaches the gap beyond, with a per-foe cooldown so the extended DPS is controlled.
+  if(!bb2||!bb2.bots)return;const t=bb2.t||0,reach=RR*2+RR*BB_W.spinReach;
+  for(let i=0;i<bb2.bots.length;i++){const a=bb2.bots[i];if(a.dead)continue;
+    if(!(a.ld&&a.ld.weapon==='spinner'&&(a.spin||0)>=BB_W.spinMin)){a._spReachCd=null;continue;}
+    a._spReachCd=a._spReachCd||{};
+    for(let j=0;j<bb2.bots.length;j++){const c=bb2.bots[j];if(c.dead||c.side===a.side||(!friendlyFire&&c.side===a.side))continue;
+      const dx=c.x-a.x,dy=c.y-a.y,d=Math.hypot(dx,dy)||0.01;
+      if(d<RR*2||d>reach)continue; // <RR*2 = body contact (contact loop) ; >reach = out of the disc
+      if(t<(a._spReachCd[j]||0))continue;a._spReachCd[j]=t+BB_W.spinReachCd;
+      const nx=dx/d,ny=dy/d,kk=BB_W.spinKnock*a.spin;
+      bbApplyHit(c,bbHitLoc(c,a.x,a.y),BB_W.spinDmg*a.spin,i,a.x,a.y,BB_W.spinFront); // the disc bites whatever it touches (pierces the front)
+      c.x+=nx*kk;c.y+=ny*kk;obsCheck(c,RR);
+      a.spin=Math.max(0,a.spin-BB_W.spinHitLoss); // shed RPM per bite, like a contact bite (re-spin between hits)
+      if(a.ctl)p2Rumble(a.ctl.bind,0.45+0.35*a.spin,'bite');if(c.ctl)p2Rumble(c.ctl.bind,0.4);
+      if(c.hp<=0&&!c.dead)bbKill(c,i);
+    }
+  }
 }
 function bbContactDmg(att,ram){ // contact (ram) damage a weapon deals to the foe it's touching
   const w=att.ld?att.ld.weapon:'none',mg=att.mega?BB_W.megaDmg:1; // v5.1.118 MEGABOTS hit harder
@@ -4383,7 +4401,8 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
     if(w==='drill'){if(!a.drill)a.drill={};a._drillSpin=clamp((a._drillSpin||0)+(a.firing?dt:-dt)/0.7,0,1);if((a._drillSpin||0)>0.12&&a.ctl&&a.ctl.type!=='cpu')p2Rumble(a.ctl.bind,0.2+0.45*a._drillSpin,'spin');let _ramp=0,_grind=false; // v5.1.146 DRILL grind; v5.1.164 _drillSpin = VISUAL rev; v5.1.165 sustained spin BUZZ while RT held
       for(let ci=0;ci<bb2.bots.length;ci++){const c=bb2.bots[ci];if(c.dead||c.side===a.side){a.drill[ci]=0;continue;}
         const d=Math.hypot(c.x-a.x,c.y-a.y),on=a.firing&&d<=RR+RR*BB_W.drillReachK&&bbFoeAngOk(a,c,BB_W.drillArc);
-        if(on){a.drill[ci]=Math.min(BB_W.drillRampT,(a.drill[ci]||0)+dt);const ramp=a.drill[ci]/BB_W.drillRampT,dps=BB_W.drillMin+(BB_W.drillMax-BB_W.drillMin)*ramp;c.hp-=dps*dt;_grind=true;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+dps*dt;if(a.ctl)p2Rumble(a.ctl.bind,0.4+0.4*ramp,'bite');if(c.ctl)p2Rumble(c.ctl.bind,0.1+0.25*ramp);if(c.hp<=0&&!c.dead)bbKill(c,ai);} // v5.1.165 BITE feedback (grows with ramp) — you feel the drill biting in
+        if(on){a.drill[ci]=Math.min(BB_W.drillRampT,(a.drill[ci]||0)+dt);const ramp=a.drill[ci]/BB_W.drillRampT,dps=BB_W.drillMin+(BB_W.drillMax-BB_W.drillMin)*ramp;c.hp-=dps*dt;_grind=true;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+dps*dt;if(a.ctl)p2Rumble(a.ctl.bind,0.4+0.4*ramp,'bite');if(c.ctl)p2Rumble(c.ctl.bind,0.1+0.25*ramp);if(c.hp<=0&&!c.dead)bbKill(c,ai); // v5.1.165 BITE feedback (grows with ramp) — you feel the drill biting in
+          if(d>RR*2){const dd=d||1,nx=(c.x-a.x)/dd,ny=(c.y-a.y)/dd,pull=BB_W.drillStick*dt;c.x-=nx*pull;c.y-=ny*pull;a.x+=nx*pull*0.5;a.y+=ny*pull*0.5;obsCheck(c,RR);obsCheck(a,RR);}} // v5.1.179 DRILL STICKINESS: a teeny pull keeps the foe ON the bit so the ramp builds (it bounced off before ramping)
         else a.drill[ci]=Math.max(0,(a.drill[ci]||0)-dt*1.5); // off the foe → the bit spins down (lose your ramp)
         _ramp=Math.max(_ramp,(a.drill[ci]||0)/BB_W.drillRampT);
       }
@@ -4748,6 +4767,7 @@ function updateBB(dt){
       obsCheck(a,RR);obsCheck(c,RR);
     }
   }
+  bbSpinReach(dt); // v5.1.179 SPINNER REACH: a spun-up disc bites + flings foes within an EXTENDED 360° radius (not just on body contact)
   bbWeaponFire(dt); // PISTON strikes + FLAMETHROWER heat-up/burn (range-based)
   bbMiniUpdate(dt); // v5.1.117 P4: deployed harasser minibots chase + shove/pin opponents
   bbHazardUpdate(dt); // v5.1.120 P3: arena hazards (acid pit + saw blades) damage bots
@@ -4777,10 +4797,13 @@ function bbDrawWheels(b){ // P2.4 corner-wheel status — dead corners get a red
 function bbDrawWeapon(b){ // P2.2 basic weapon cosmetics (the picker UI + polished look land in P2.5)
   const w=b.ld?b.ld.weapon:'none';if(w==='none')return;
   ctx.save();ctx.translate(FX+b.x,FY+b.y);
-  if(w==='spinner'){const sp=b.spin||0,L=RR*1.7;ctx.rotate(b.h+(bb2.t||0)*(6+sp*26));
-    ctx.strokeStyle=sp>=BB_W.spinMin?'#ffe14d':'#8a8aa0';ctx.lineWidth=4;ctx.lineCap='round';
+  if(w==='spinner'){const sp=b.spin||0,up=sp>=BB_W.spinMin,L=RR+RR*BB_W.spinReach; // v5.1.179 blade reaches the actual 360° bite radius (RR+RR*spinReach)
+    if(up){ctx.fillStyle='rgba(255,225,77,'+(0.10+0.10*sp)+')';ctx.beginPath();ctx.arc(0,0,L,0,Math.PI*2);ctx.fill(); // the spun-up DISC sweep — shows the 360° danger zone
+      ctx.strokeStyle='rgba(255,225,77,0.5)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,L,0,Math.PI*2);ctx.stroke();}
+    ctx.rotate(b.h+(bb2.t||0)*(6+sp*26));
+    ctx.strokeStyle=up?'#ffe14d':'#8a8aa0';ctx.lineWidth=4;ctx.lineCap='round';
     ctx.beginPath();ctx.moveTo(-L,0);ctx.lineTo(L,0);ctx.stroke();ctx.lineCap='butt';
-    ctx.fillStyle=sp>=BB_W.spinMin?'#fff':'#aab';ctx.beginPath();ctx.arc(L,0,3,0,Math.PI*2);ctx.arc(-L,0,3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=up?'#fff':'#aab';ctx.beginPath();ctx.arc(L,0,3,0,Math.PI*2);ctx.arc(-L,0,3,0,Math.PI*2);ctx.fill();
   }else if(w==='buzzsaw'){const sp=b.spin||0,R=RR*0.95,upToSpeed=sp>=BB_W.spinMin;ctx.rotate(b.h);ctx.translate(RR*1.05,0); // v5.1.107 a FRONT-mounted circular saw; v5.1.161 at full speed it BLURS (the old discrete teeth strobed/aliased and looked STOPPED)
     if(upToSpeed){ // v5.1.161 motion-blur disc: a few faint translucent tooth-rings at offset phases read as a fast spin instead of strobing to a standstill
       ctx.fillStyle='#c9cedb';ctx.beginPath();ctx.arc(0,0,R*0.86,0,Math.PI*2);ctx.fill(); // solid blurred blade body

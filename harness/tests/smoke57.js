@@ -161,6 +161,14 @@ src+=`
   {startBB(0,2);bb2.cd=0;bb2.result=null;const a=bbBotWith('spinner','balanced',0,0,true),c=bbBotWith('none','balanced',1,1,true);
    a.ctl.brain.fire=true;a.x=300;a.y=300;a.h=0;a.spin=1;a.mob=BB.MOB;a.hp=BB.HP;a.inv=0;c.x=300+RR*1.2;c.y=300;c.hp=BB.HP;c.mob=BB.MOB;c.inv=0;
    bb2.bots=[a,c];updateBB(1/60);ok('SPINNER sheds spin when it bites (slows on every hit)',a.spin<0.95);}
+  // ── v5.1.179 SPINNER REACH: a spun-up disc bites 360° BEYOND body contact (out to RR*2+RR*spinReach) ──
+  {startBB(0,2);bb2.cd=0;bb2.result=null;bb2.t=5;const a=bbBotWith('spinner','balanced',0,0,true),c=bbBotWith('none','balanced',1,1,true);
+   a.x=300;a.y=300;a.h=0;a.spin=1;a.inv=0;c.x=300+RR*2.4;c.y=300;c.hp=BB.HP;c.inv=0;c.mob=BB.MOB;bb2.bots=[a,c];a._spReachCd=null;
+   const h0=c.hp;bbSpinReach(1/60);ok('SPINNER REACH: a spun-up disc bites a foe just BEYOND body contact',c.hp<h0);
+   const c2=bbBotWith('none','balanced',1,2,true);c2.x=300+RR*4;c2.y=300;c2.hp=BB.HP;c2.inv=0;a._spReachCd=null;bb2.t=10;bb2.bots=[a,c2];
+   const h2=c2.hp;bbSpinReach(1/60);ok('SPINNER REACH: a foe out past the disc is untouched',c2.hp===h2);
+   a.spin=0;const c3=bbBotWith('none','balanced',1,3,true);c3.x=300+RR*2.4;c3.y=300;c3.hp=BB.HP;c3.inv=0;a._spReachCd=null;bb2.t=15;bb2.bots=[a,c3];
+   const h3=c3.hp;bbSpinReach(1/60);ok('SPINNER REACH: an idle disc (not spun up) has no extended reach',c3.hp===h3);}
   {startBB(0,2);bb2.cd=0;bb2.result=null;const a=bbBotWith('spinner','balanced',0,0,true);
    a.x=RR;a.y=300;a.h=Math.PI;a.spin=1;a.mob=BB.MOB;a.hp=BB.HP;a.inv=0;a.boostT=BOOST.dur;bb2.bots=[a];
    const hp0=a.hp;updateBB(1/60);ok('a spun-up SPINNER that slams a WALL takes self-damage + bleeds spin',a.hp<hp0&&a.spin<1);}
