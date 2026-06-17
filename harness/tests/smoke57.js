@@ -422,7 +422,8 @@ src+=`
    const c2=bbBotWith('none','balanced',1,1,true);c2.x=FW-RR*1.3;c2.y=FH/2;c2.hp=BB.HP;c2.inv=0;bb2.bots=[a2,c2];
    bbWeaponFire(1/60);ok('FLIPPER RING-OUT: a foe flung into a WALL takes bonus impact damage',c2.hp<BB.HP-BB_W.flipDmg);
    ok('FLIPPER is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='flipper')&&BB_ARMORY_W.some(w=>w.id==='flipper'));
-   ok('FLIPPER v5.1.141 buff: big knockback + ring-out + faster cd',BB_W.flipKnock>=70&&BB_W.flipWallDmg>=60&&BB_W.flipCd<=1.1);}
+   ok('FLIPPER v5.1.141 buff: big knockback + ring-out + faster cd',BB_W.flipKnock>=70&&BB_W.flipWallDmg>=60&&BB_W.flipCd<=1.1);
+   ok('PUSHER: flipper is renamed PUSHER in the UI (id stays flipper)',bbWeaponById('flipper').name==='PUSHER'&&BB_ARMORY_W.find(w=>w.id==='flipper').lab==='PUSH');}
   // ── v5.1.110: PINCER — grab + IMMOBILIZE (hold + drain mobility), no slam/damage; a 3v3 role-player ──
   {const a=bbBotWith('pincer','balanced',0,0,true);a.x=300;a.y=300;a.h=0;a.firing=true; // v5.1.140: hold the trigger to keep gripping
    const c=bbBotWith('none','balanced',1,1,true);c.mob=BB.MOB;c.hp=BB.HP;bb2.bots=[a,c];bb2.result=null;

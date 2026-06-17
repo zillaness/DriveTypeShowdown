@@ -3862,7 +3862,7 @@ const BB_WEAPONS=[
   {id:'flame',  name:'FLAMETHROWER', cls:'thermal',       weight:0.6, deal:0.70, take:0.85}, // low DPS, will ignore front armor (P2.2)
   {id:'wedge',  name:'DOZER',        cls:'control',       weight:0.3, deal:0.60, take:0.80}, // tanky control — bulldozer blade: spinner-deflect (+ grab-and-slam, queued). id stays 'wedge'
   {id:'buzzsaw',name:'BUZZSAW',     cls:'kineticSpin',   weight:0.5, deal:1.70, take:1.35}, // v5.1.107 FRONT-only spin-up CUTTER: high dmg in the front arc (vs the spinner's lower-dmg 360° bite)
-  {id:'flipper',name:'FLIPPER',     cls:'kineticStrike', weight:0.35,deal:0.90, take:1.00}, // v5.1.109 RT launcher: flings the foe BACK (ring-out into walls) — control + setup, low direct dmg
+  {id:'flipper',name:'PUSHER',      cls:'kineticStrike', weight:0.35,deal:0.90, take:1.00}, // v5.1.142 (was FLIPPER) RT forward THRUST: shoves the foe BACK (ring-out into walls) — control + setup; id stays 'flipper' internally
   {id:'pincer', name:'PINCER',      cls:'control',       weight:0.30,deal:0.50, take:0.95}, // v5.1.110 grab + IMMOBILIZE (hold + drain mobility) — a 3v3 role-player; weak 1v1, no big damage
   {id:'kamikaze',name:'KAMIKAZE',   cls:'kineticStrike', weight:0.20,deal:1.00, take:1.10}, // v5.1.111 RT = SELF-DESTRUCT: a big blast that takes nearby foes with you (3v3; useless 1v1)
 ];
@@ -3927,7 +3927,7 @@ function bbDrawLoadDrag(){ // drop-target halos + the floating loadout chip that
   ctx.fillStyle='rgba(12,12,24,0.94)';rr(x+12,y-12,tw,24,7);ctx.fill();ctx.strokeStyle='#ffd740';ctx.lineWidth=1.5;rr(x+12,y-12,tw,24,7);ctx.stroke();
   ctx.fillStyle='#eaeaff';ctx.textAlign='left';ctx.fillText(txt,x+20,y+4);}
 // ── v5.1.94 ARMORY: a rail of weapon + armor chips you DRAG onto any seat to equip it (vs only the per-seat ◀▶ cyclers) ──
-const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'FLIP',ic:'🔃'},{id:'pincer',lab:'PINCE',ic:'🦀'},{id:'kamikaze',lab:'KAMI',ic:'💣'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE — every bot has at least a blade; 'none' stays the internal neutral default
+const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'PUSH',ic:'⏩'},{id:'pincer',lab:'PINCE',ic:'🦀'},{id:'kamikaze',lab:'KAMI',ic:'💣'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE — every bot has at least a blade; 'none' stays the internal neutral default
 const BB_ARMORY_A=[{id:'balanced',lab:'BAL',ic:'⚖'},{id:'hardplate',lab:'HARD',ic:'🛡'},{id:'heatshield',lab:'HEAT',ic:'♨'},{id:'light',lab:'LIGHT',ic:'🪶'}];
 const BB_PERKS=[ // v5.1.112 P2: a 3rd loadout slot — PERK (id stays in ld.perk; 'none' = neutral default)
   {id:'none',       name:'NO PERK',      lab:'NONE', ic:'∅'},
@@ -4542,13 +4542,12 @@ function bbDrawWeapon(b){ // P2.2 basic weapon cosmetics (the picker UI + polish
     for(let i=0;i<10;i++){const a2=i/10*Math.PI*2;ctx.beginPath();ctx.moveTo(Math.cos(a2)*R*0.66,Math.sin(a2)*R*0.66);ctx.lineTo(Math.cos(a2+0.18)*R,Math.sin(a2+0.18)*R);ctx.lineTo(Math.cos(a2+0.36)*R*0.66,Math.sin(a2+0.36)*R*0.66);ctx.stroke();} // teeth
     ctx.fillStyle='#2a2e3a';ctx.beginPath();ctx.arc(0,0,R*0.22,0,Math.PI*2);ctx.fill();
   }else if(w==='piston'){ctx.rotate(b.h);const ext=(b._pistFx>0)?RR*0.9:0;
-    ctx.strokeStyle='#cfd6e6';ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(RR*0.4,0);ctx.lineTo(RR+8+ext,0);ctx.stroke();ctx.lineCap='butt';
-    ctx.fillStyle=(b._pistFx>0)?'#fff':'#99a';ctx.fillRect(RR+6+ext,-5,5,10);
-  }else if(w==='flipper'){ctx.rotate(b.h);const k=clamp((b._pistFx||0)/0.2,0,1); // v5.1.141 a front scoop that SWINGS up (animated over the fire fx, then settles back) — not a binary snap
-    const baseX=RR*0.3,frontX=RR+9-k*RR*0.45,lift=k*RR*1.0; // pivot from the back hinge: the front edge rises + pulls in as it kicks up
-    ctx.fillStyle=k>0?'#ffd24d':'#9fb0c8';ctx.beginPath();ctx.moveTo(baseX,-RR*0.75);ctx.lineTo(frontX,-RR*0.2-lift);ctx.lineTo(frontX,RR*0.2-lift);ctx.lineTo(baseX,RR*0.75);ctx.closePath();ctx.fill();
-    ctx.strokeStyle='#20202c';ctx.lineWidth=1.5;ctx.stroke();
-    if(k>0.4){ctx.strokeStyle='#fff3c4';ctx.lineWidth=2;ctx.globalAlpha=k;ctx.beginPath();ctx.arc(0,0,RR+14,-0.5,0.5);ctx.stroke();ctx.globalAlpha=1;} // a little launch arc flourish
+    ctx.strokeStyle='#cfd6e6';ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(RR*0.4,0);ctx.lineTo(RR+6+ext,0);ctx.stroke();ctx.lineCap='butt';
+    ctx.fillStyle=(b._pistFx>0)?'#fff':'#99a';ctx.beginPath();ctx.moveTo(RR+5+ext,-6);ctx.lineTo(RR+18+ext,0);ctx.lineTo(RR+5+ext,6);ctx.closePath();ctx.fill(); // v5.1.142 sharp PIERCING point (spike head)
+  }else if(w==='flipper'){ctx.rotate(b.h);const ext=(b._pistFx>0)?RR*0.9:0; // v5.1.142 PUSHER: a piston-style forward THRUST with a wide FLAT plate (shoves the foe back) — animated like the piston, no swing
+    ctx.strokeStyle='#cfd6e6';ctx.lineWidth=6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(RR*0.4,0);ctx.lineTo(RR+6+ext,0);ctx.stroke();ctx.lineCap='butt'; // ram shaft
+    ctx.fillStyle=(b._pistFx>0)?'#ffd24d':'#9fb0c8';ctx.fillRect(RR+5+ext,-RR*0.72,6,RR*1.44); // wide flat PUSH plate (blunt — vs the piston's spike)
+    ctx.strokeStyle='#20202c';ctx.lineWidth=1.5;ctx.strokeRect(RR+5+ext,-RR*0.72,6,RR*1.44);
   }else if(w==='pincer'){ctx.rotate(b.h);const g=!!b.grab,o=g?RR*0.14:(b.firing?RR*0.9:RR*0.5); // v5.1.139 claw OPENS WIDE when armed (firing), SNAPS shut when gripping
     ctx.strokeStyle=g?'#ff6a4d':(b.firing?'#ffd27a':'#9fb0c8');ctx.lineWidth=4;ctx.lineCap='round';
     ctx.beginPath();ctx.moveTo(RR*0.3,0);ctx.lineTo(RR*0.85,-o);ctx.lineTo(RR+10,-o*0.5);ctx.moveTo(RR*0.3,0);ctx.lineTo(RR*0.85,o);ctx.lineTo(RR+10,o*0.5);ctx.stroke();ctx.lineCap='butt';
