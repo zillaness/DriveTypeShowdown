@@ -99,12 +99,20 @@ buff/nerf feedback (do NOT guess balance changes tonight).
 5. ✅ **Perk table trustworthy** — `bbreport.js` now measures a no-perk baseline (the bots[0] A/B handicap
    = 25%) and normalizes: minibot/pitstop 100 · partinggift 85 · flameproof/vampire/sparetire ~50 (no 1v1 edge).
 6. ✅ **Docs** — MIGRATION.md recent-history refreshed (v5.1.175–178).
-7. **HOLD — BALANCE:** weapon/armor/perk buffs/nerfs wait for Sam's feedback on the table below.
-   **Suggested targets (Sam's call):** buff drill/wedge (34–37); buff hardplate/heatshield (tanky armor
-   shouldn't be worst, 35); shave flipper (70) a hair.
+7. ✅ **v5.1.179–180 BALANCE PASS (Sam's calls):** buffed DRILL (+stickiness — a pull that keeps the foe
+   on the bit; 37→44), DOZER (+touch dmg; 34→45), SPINNER (+360° REACH mechanic + dmg; 44→56); buffed
+   HARDPLATE (lighter, 30→51) + HEATSHIELD (tougher/lighter, 38→45); + HUMAN flamethrower STICKINESS
+   (slows the victim). Piston settled to 66 on its own. **OPEN:** runflat fell to ~28 in the armor
+   reshuffle (Sam to decide); heatshield-vs-flameproof-perk overlap (kept — armor frees the perk slot).
 
-**OVERNIGHT STATUS: queue items 1–6 DONE, all green on `dev` (tip v5.1.178). Only #7 (balance) remains
-— intentionally HELD for Sam's morning feedback.**
+**NEXT (Sam's stated priorities, in order):**
+A. **PERKS in the 3v3 grid** — today only weapon+armor are pickable per-seat in the MULTI grid; add the
+   perk cycler there ("a pretty big thing" — Sam).
+B. **DOMINATION = multi-point** — Sam: the current single center zone is *incorrect*; it should have
+   **≥3 capture points**, not one. Rework `bbMode` domination to multiple control points.
+C. Later / not yet: Tournament v2 (nobody's used it yet), moving game modes to TANK (don't need stock).
+
+**STATUS: tip v5.1.180, all green on `dev`. Balance pass DONE. NEXT = perks-in-grid, then domination multi-point.**
 
 **Balance snapshot @ v5.1.176 (for Sam's feedback):**
 - Weapons (sim win%): flipper 70 · buzzsaw 67 · piston 66 · **cannon 61** · flame 56 · pincer 53 ·
