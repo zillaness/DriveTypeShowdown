@@ -413,14 +413,18 @@ src+=`
    ok('BUZZSAW shares the spinner spin-up ramp',(()=>{const u=bbBotWith('buzzsaw','balanced',0,0,true);u.spin=0;u.ctl.brain.fire=true;bb2.bots=[u];bbWeaponPre(0.5);return u.spin>0;})());
    ok('BUZZSAW is a PICKABLE weapon in the armory + table',BB_WEAPONS.some(w=>w.id==='buzzsaw')&&BB_ARMORY_W.some(w=>w.id==='buzzsaw'));}
   // ── v5.1.109: FLIPPER — RT launcher, flings a front-arc foe BACK + ring-out into walls ──
-  {const a=bbBotWith('flipper','balanced',0,0,true);a.x=300;a.y=300;a.h=0;a.firing=true;a.pistCd=0;
-   const c=bbBotWith('none','balanced',1,1,true);c.x=300+RR*1.5;c.y=300;c.hp=BB.HP;c.inv=0;const cx0=c.x;bb2.bots=[a,c];bb2.result=null;
+  {const svd=m2.drive,svm=m2.set.bbmode,svt=m2.set.bbtime;m2.drive=[{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'}];m2.set.bbmode='ko';m2.set.bbtime=0;
+   const a=bbBotWith('flipper','balanced',0,0,true);a.x=300;a.y=300;a.h=0;a.firing=true;a.pistCd=0;a.ctl.brain.fire=false;
+   const c=bbBotWith('none','balanced',1,1,true);c.x=300+RR*1.5;c.y=300;c.hp=BB.HP;c.inv=0;c.ctl.brain.fire=false;c.ctl.brain.inp={vx:0,vy:0,vr:0};const cx0=c.x;bb2.bots=[a,c];bb2.result=null;bb2.cd=0;bb2.t=1;
    bbWeaponFire(1/60);
-   ok('FLIPPER flings a front-arc foe BACK (x '+cx0.toFixed(0)+'→'+c.x.toFixed(0)+') + deals some damage',c.x>cx0+RR&&c.hp<BB.HP);
-   ok('FLIPPER respects its cooldown (no 2nd fling immediately)',(()=>{const hp1=c.hp,x1=c.x;bbWeaponFire(1/60);return c.hp===hp1&&Math.abs(c.x-x1)<1;})());
-   const a2=bbBotWith('flipper','balanced',0,0,true);a2.x=FW-RR*2.6;a2.y=FH/2;a2.h=0;a2.firing=true;a2.pistCd=0; // facing the RIGHT wall
-   const c2=bbBotWith('none','balanced',1,1,true);c2.x=FW-RR*1.3;c2.y=FH/2;c2.hp=BB.HP;c2.inv=0;bb2.bots=[a2,c2];
-   bbWeaponFire(1/60);ok('FLIPPER RING-OUT: a foe flung into a WALL takes bonus impact damage',c2.hp<BB.HP-BB_W.flipDmg);
+   ok('PUSHER sets a backward fling (momentum) + direct damage',c._flT>0&&c._flx>0&&c.hp<BB.HP);
+   for(let i=0;i<22;i++)updateBB(1/60);
+   ok('PUSHER: the foe FLIES backward over time (x '+cx0.toFixed(0)+'→'+c.x.toFixed(0)+')',c.x>cx0+RR*2);
+   const a2=bbBotWith('flipper','balanced',0,0,true);a2.x=FW-90;a2.y=FH/2;a2.h=0;a2.firing=true;a2.pistCd=0;a2.ctl.brain.fire=false; // facing the RIGHT wall
+   const c2=bbBotWith('none','balanced',1,1,true);c2.x=FW-70;c2.y=FH/2;c2.hp=BB.HP;c2.inv=0;c2.ctl.brain.fire=false;c2.ctl.brain.inp={vx:0,vy:0,vr:0};bb2.bots=[a2,c2];bb2.result=null;tfObs=[];bb2.cd=0;bb2.t=1;
+   bbWeaponFire(1/60);const h0=c2.hp;for(let i=0;i<22;i++)updateBB(1/60);
+   ok('PUSHER RING-OUT: a foe flung into a WALL takes bonus impact damage',c2.hp<=h0-BB_W.flipWallDmg+0.001);
+   m2.drive=svd;m2.set.bbmode=svm;m2.set.bbtime=svt;
    ok('FLIPPER is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='flipper')&&BB_ARMORY_W.some(w=>w.id==='flipper'));
    ok('FLIPPER v5.1.141 buff: big knockback + ring-out + faster cd',BB_W.flipKnock>=70&&BB_W.flipWallDmg>=60&&BB_W.flipCd<=1.1);
    ok('PUSHER: flipper is renamed PUSHER in the UI (id stays flipper)',bbWeaponById('flipper').name==='PUSHER'&&BB_ARMORY_W.find(w=>w.id==='flipper').lab==='PUSH');}

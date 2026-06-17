@@ -4143,7 +4143,7 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
 // ── RoboRumble P2.2: weapon FIRE behavior (SPINNER / PISTON / FLAMETHROWER / WEDGE; RAM is always-on) — all TUNABLE ──
 const BB_W={
   spinRamp:1.10, spinMin:0.55, spinDmg:32, spinKnock:2.0, spinHitLoss:0.4, spinWallDmg:18, spinWallLoss:0.90, spinFront:0.50, spinSelf:0.16, spinDeflect:2.5, buzzDmg:52, buzzArc:Math.PI*0.5, // BUZZSAW = a FRONT-only (buzzArc ≈ ±45°) high-dmg cutter sharing the SPINNER spin-up + self-dmg + wedge-deflect; SPINNER (v5.1.104: dmg 38→24 — it's the 360° weapon, so LOWER per-hit; the high-dmg front-only spin-up weapon is the BUZZSAW): + the bot takes spinSelf× of the damage it deals back into ITSELF on every bite (energy transfer), ×spinDeflect vs a WEDGE/blade (the anti-spinner counter — deflects, shreds the disc)
-  flipCd:1.0, flipArc:Math.PI*0.55, flipRangeK:0.9, flipKnock:82, flipDmg:28, flipWallDmg:72, // FLIPPER (v5.1.141 buff: cd 1.4→1.0, knock 46→82, dmg 16→28, ring-out 40→72, arc/reach up): discrete RT launch — front arc, reach, BIG back knockback, direct dmg, RING-OUT bonus when flung into a wall/obstacle
+  flipCd:1.0, flipArc:Math.PI*0.55, flipRangeK:0.9, flipKnock:82, flipDmg:28, flipWallDmg:72, flipFlySpd:920, flipFlyT:0.5, // FLIPPER/PUSHER: v5.1.151 the fling is MOMENTUM (flipFlySpd px/s over flipFlyT s, decaying) so the foe FLIES back; ring-out if it slams a wall mid-flight
   pistCd:0.85, pistDmg:60, pistRangeK:2.0, pistArc:Math.PI*0.6, pistKnock:34, pistFront:0.78, // PISTON (v5.1.105: WOEFULLY underpowered → buffed: dmg 40→60, cd 1.05→0.85, reach 1.7→2.0, front-pierce 0.55→0.78): cooldown, strike dmg, reach (RR+RR×K), front arc, knockback, FRONT-pierce fraction (a hammer dents an armored front)
   flameRangeK:6.4, flameArc:Math.PI*0.26, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, // FLAMETHROWER (v5.1.100): ~2× REACH + a NARROWER focused jet (per playtest), heat-up dwell, dps (re-tuned via the sim), heat cap (no fuel gauge), MOVE-mult while torching (plant-to-burn — the balance counter to the ARCADE turret kite; fuel parked)
   wedgeDmg:0.40, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:85, grabDmg:18, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.8, pincerDrain:55, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, // v5.1.144 easier to land: wider arc (±63°) + a grab REACH (RR+RR×reachK ≈ 2.4×RR) so you don't need a perfect ram. WEDGE/DOZER: contact-dmg, grab arc, pinned speed mult, pin/grab DURATION, shove + v5.1.103 GRAB-AND-SLAM (grip seconds, cooldown, base wall-slam dmg ×speed), dozerCharge = forward boost while firing RT, dashBuff = RoboRumble LT-dash speed/range buff
@@ -4247,9 +4247,8 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
       let foe=null,bd=1e9;for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);if(d<=RR+RR*BB_W.flipRangeK&&bbFoeAngOk(a,c,BB_W.flipArc)&&d<bd){bd=d;foe=c;}}
       a._pistFx=0.2;a.pistCd=BB_W.flipCd;sfx('thump');
       if(foe){bbApplyHit(foe,bbHitLoc(foe,a.x,a.y),BB_W.flipDmg,ai,a.x,a.y,0.5);const m=bd||1,nx=(foe.x-a.x)/m,ny=(foe.y-a.y)/m;
-        foe.x+=nx*BB_W.flipKnock;foe.y+=ny*BB_W.flipKnock;foe.spin=Math.max(0,(foe.spin||0)-0.4);foe.pinT=0.25;if(foe.ctl)p2Rumble(foe.ctl.bind,0.6); // FLING the foe BACK + disrupt its spin-up + a brief stagger
-        const wx=foe.x,wy=foe.y;obsCheck(foe,RR);
-        if(Math.hypot(foe.x-wx,foe.y-wy)>2){foe.hp-=BB_W.flipWallDmg;foe.inv=BB.hitCd;sfx('hit');if(foe.side!==a.side)a.dmgDealt=(a.dmgDealt||0)+BB_W.flipWallDmg;} // RING-OUT: flung into a wall/obstacle = bonus impact damage (not inv-gated — it's the same one-shot flip event, cooldown prevents re-hits)
+        foe._flx=nx*BB_W.flipFlySpd;foe._fly=ny*BB_W.flipFlySpd;foe._flT=BB_W.flipFlyT;foe._flung=ai; // v5.1.151 FLING the foe BACK with MOMENTUM (carried + decayed in updateBB; ring-out on a mid-flight wall slam)
+        foe.spin=Math.max(0,(foe.spin||0)-0.4);foe.pinT=0.25;if(foe.ctl)p2Rumble(foe.ctl.bind,0.7);if(a.ctl)p2Rumble(a.ctl.bind,0.4);
         if(foe.hp<=0)bbKill(foe,ai);}
     }
     if(w==='pincer'&&a.firing&&!a.grab&&!a.held&&a.grabCd<=0){ // v5.1.144 PINCER reach-clamp: snap onto a lined-up foe within reach (no perfect ram needed) — easier to land
@@ -4520,10 +4519,13 @@ function updateBB(dt){
       else if(b.ld&&b.ld.weapon==='pincer'&&b.firing&&!b.grab){const f=SPD*BB_W.pincerLunge;inp={vx:Math.cos(b.h)*f,vy:Math.sin(b.h)*f,vr:inp.vr*sc*tm};} // v5.1.139 PINCER: firing LUNGES you forward to CLAMP a foe (no auto-clamp without ramming in); once gripping, drive normally to drag it
       else{const fmul=(b.ld&&b.ld.weapon==='flame'&&b.firing)?BB_W.flameMoveMul:1;inp={vx:inp.vx*sc*fmul,vy:inp.vy*sc*fmul,vr:inp.vr*sc*tm};} // v5.1.99: a flame bot SLOWS while torching (plant to burn) → it's catchable; the balance counter to its turret kite
       {const wf=wheelFault(b);if(wf){const k=BB_W.faultK;if(wf.fam==='swerve'){const la=b.h+Math.PI/2,dr=wf.drift*k*SPD;inp.vx+=Math.cos(la)*dr;inp.vy+=Math.sin(la)*dr;}else{inp.vr+=wf.turn*k*TSP;}const sm=Math.max(0.5,1-wf.dead*0.06);inp.vx*=sm;inp.vy*=sm;}} // P2.4 dead-wheel handling fault: drift (swerve) / turn-bias (tank/steer) + slight slow
+      if(b._flT>0){inp={vx:inp.vx*0.25+b._flx,vy:inp.vy*0.25+b._fly,vr:inp.vr*0.3};b._flx*=0.9;b._fly*=0.9;b._flT-=dt;if(b._flT<=0){b._flx=0;b._fly=0;b._flung=null;}} // v5.1.151 PUSHER fling: momentum dominates while it lasts (still a little steering)
       b._inp=inp; // slow as mobility drops; turnMul = the loadout's weight turn penalty
       b.h+=inp.vr*dt;b.x+=inp.vx*dt;b.y+=inp.vy*dt;
       if(!noClip){const px=b.x,py=b.y;obsCheck(b,RR);wallHit=(Math.abs(b.x-px)>0.5||Math.abs(b.y-py)>0.5);}
     });
+    if(wallHit&&b._flT>0&&b._flung!=null){ // v5.1.151 RING-OUT: a FLUNG bot that slams a wall/obstacle mid-flight takes bonus impact damage (once per fling)
+      const fl=b._flung;b.hp-=BB_W.flipWallDmg;b.inv=BB.hitCd;sfx('hit');if(bb2.bots[fl]&&bb2.bots[fl].side!==b.side)bb2.bots[fl].dmgDealt=(bb2.bots[fl].dmgDealt||0)+BB_W.flipWallDmg;b._flx=0;b._fly=0;b._flT=0;b._flung=null;if(b.hp<=0)bbKill(b,fl);}
     if(wallHit&&b.ld&&b.ld.weapon==='spinner'&&(b.spin||0)>=BB_W.spinMin&&b.inv<=0){ // a spun-up SPINNER that slams a WALL shreds ITSELF + bleeds spin
       b.hp-=BB_W.spinWallDmg*b.spin;b.spin=Math.max(0,b.spin-BB_W.spinWallLoss);b.inv=BB.hitCd;sfx('hit');if(b.hp<=0)bbKill(b,null);}
   }
