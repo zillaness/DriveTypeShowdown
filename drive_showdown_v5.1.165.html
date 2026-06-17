@@ -3309,11 +3309,16 @@ function p2CpuBtnRect(){return{x:CW/2-70,y:236,w:140,h:30};}
 function p2FireRect(sd){return sd===0?{x:20,y:CH-104,w:110,h:64}:{x:CW-130,y:CH-104,w:110,h:64};}
 // ── v3.7: gentle haptic tap on the FIRST frame of bot-bot contact (never sustained).
 // Rising-edge per pair + 150ms per-player cooldown; magnitude follows closing speed, capped low. ──
-let p2RumbleLast=[0,0],sfxRumbleLast=[0,0];
-function p2Rumble(p,mag){
-  const now=performance.now();
-  if(now-sfxRumbleLast[p]>=150){sfxRumbleLast[p]=now;sfx('bump',clamp(mag,0.15,0.8));}
-  if(now-p2RumbleLast[p]<150)return;
+let p2RumbleLast=[0,0],sfxRumbleLast=[0,0],p2RumbleType=[];
+// v5.1.165 typed haptics — weak = high-freq BUZZ, strong = low-freq THUD. Each event picks a feel:
+//   spin  = a sustained high-freq buzz (the weapon is revving)        thump = a single punchy strike (pusher/piston fire)
+//   bite  = you CONNECTED and are dealing damage (heavy + buzzy)      heavy = explosion / KO          hit = generic contact tap
+const RUMBLE_PROF={hit:{w:0.9,s:0.45,d:90,gate:130},spin:{w:0.95,s:0.10,d:130,gate:95},thump:{w:0.35,s:1.0,d:140,gate:140},bite:{w:0.85,s:0.9,d:110,gate:110},heavy:{w:0.5,s:1.0,d:230,gate:170}};
+function p2Rumble(p,mag,type){
+  type=type||'hit';const prof=RUMBLE_PROF[type]||RUMBLE_PROF.hit;const now=performance.now();
+  if(type!=='spin'&&now-(sfxRumbleLast[p]||0)>=150){sfxRumbleLast[p]=now;sfx('bump',clamp(mag,0.15,0.8));} // audio bump — not for the sustained spin (would be a constant drone)
+  const impactful=(type!=='spin'); // a real impact may PREEMPT the sustained spin buzz; otherwise honor the per-type re-trigger gate
+  if(now-(p2RumbleLast[p]||0)<prof.gate&&!(impactful&&p2RumbleType[p]==='spin'))return;
   const b=playerBind[p];if(!b)return;
   let pad=null;
   try{
@@ -3322,12 +3327,12 @@ function p2Rumble(p,mag){
     else if(b.type==='any'){for(const g of pads){if(g){pad=g;break;}}}
   }catch(e){}
   if(!pad||!pad.vibrationActuator||!pad.vibrationActuator.playEffect)return;
-  p2RumbleLast[p]=now;
+  p2RumbleLast[p]=now;p2RumbleType[p]=type;
   try{
     pad.vibrationActuator.playEffect('dual-rumble',{
-      startDelay:0,duration:90,
-      weakMagnitude:clamp(mag,0.15,0.6),
-      strongMagnitude:clamp(mag*0.5,0.08,0.3)
+      startDelay:0,duration:prof.d,
+      weakMagnitude:clamp(prof.w*mag,0,1),
+      strongMagnitude:clamp(prof.s*mag,0,1)
     });
   }catch(e){}
 }
@@ -4081,7 +4086,7 @@ function bbApplyHit(victim,loc,dmg,owner,fromX,fromY,frontPierce){ // kinetic hi
   const atk=(owner!=null&&bb2&&bb2.bots[owner])?bb2.bots[owner]:null;
   const deal=(atk&&atk.ld)?atk.ld.deal:1,take=(victim.ld)?victim.ld.take:1,zm=(victim.ld&&victim.ld.zone&&victim.ld.zone[loc]!=null)?victim.ld.zone[loc]:1;
   dmg=dmg*deal*take*zm*bbRps(atk&&atk.ld?atk.ld.wcls:'none',victim.ld?victim.ld.arps:'balanced');
-  if(victim.ctl)p2Rumble(victim.ctl.bind,clamp(dmg/55,0.18,0.8));if(atk&&atk.ctl)p2Rumble(atk.ctl.bind,0.25); // v5.1.100 RoboRumble HAPTICS: feel the hit (victim) + the connect (attacker)
+  if(victim.ctl)p2Rumble(victim.ctl.bind,clamp(dmg/55,0.18,0.8));if(atk&&atk.ctl)p2Rumble(atk.ctl.bind,clamp(dmg/70,0.35,0.9),'bite'); // v5.1.165 victim feels the HIT; attacker gets the BITE (you're dealing damage), scaled by how hard
   if(loc==='front'){ // an armored front shrugs off RAM/contact; an armor-PIERCING striker (PISTON/hammer) still cracks it for a fraction
     if(!(frontPierce>0)){victim.inv=BB.hitCd;return;} // shrugged off (brief contact cd so it isn't a per-frame grind)
     victim.hp-=dmg*frontPierce;
@@ -4299,7 +4304,7 @@ function bbWeaponPre(dt){ // per-bot: cache FIRE input, ramp/decay SPINNER, deca
   for(const b of bb2.bots){if(b.dead)continue;
     b.firing=bbWeaponFiring(b);const w=b.ld?b.ld.weapon:'none';
     b.weaponAng=bbIsTurret(w)?bbAimAngle(b):b.h; // v5.1.99: a turreted weapon (flame) aims independent of the chassis; everything else fires along the nose
-    if(w==='spinner'||w==='buzzsaw')b.spin=clamp((b.spin||0)+(b.firing?dt:-dt)/BB_W.spinRamp,0,1); // v5.1.107: the BUZZSAW shares the spinner's RPM spin-up
+    if(w==='spinner'||w==='buzzsaw'){b.spin=clamp((b.spin||0)+(b.firing?dt:-dt)/BB_W.spinRamp,0,1);if((b.spin||0)>0.12&&b.ctl&&b.ctl.type!=='cpu')p2Rumble(b.ctl.bind,0.25+0.5*b.spin,'spin');} // v5.1.107 spin-up; v5.1.165 a sustained BUZZ that grows with RPM so you FEEL it spinning
     if(b.pistCd>0)b.pistCd=Math.max(0,b.pistCd-dt);
     if(b.pinT>0)b.pinT=Math.max(0,b.pinT-dt);
     if(b._pistFx>0)b._pistFx=Math.max(0,b._pistFx-dt);
@@ -4311,15 +4316,15 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
   for(let ai=0;ai<bb2.bots.length;ai++){const a=bb2.bots[ai];if(a.dead)continue;const w=a.ld?a.ld.weapon:'none';
     if(w==='piston'&&a.firing&&a.pistCd<=0){
       let foe=null,bd=1e9;for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);if(d<=RR+RR*BB_W.pistRangeK&&bbFoeAngOk(a,c,BB_W.pistArc)&&d<bd){bd=d;foe=c;}}
-      a._pistFx=0.16;a.pistCd=BB_W.pistCd;sfx('thump'); // ALWAYS extend + full cooldown on a fire press, so the player SEES the hammer fire (was: a silent dry swing if it missed)
-      if(foe){bbApplyHit(foe,bbHitLoc(foe,a.x,a.y),BB_W.pistDmg,ai,a.x,a.y,BB_W.pistFront);const m=bd||1,nx=(foe.x-a.x)/m,ny=(foe.y-a.y)/m;foe.x+=nx*BB_W.pistKnock;foe.y+=ny*BB_W.pistKnock;obsCheck(foe,RR);if(a.ctl)p2Rumble(a.ctl.bind,0.6);if(foe.ctl)p2Rumble(foe.ctl.bind,0.5);} // v5.1.153 rumble both on a piston strike connect
+      a._pistFx=0.16;a.pistCd=BB_W.pistCd;sfx('thump');if(a.ctl)p2Rumble(a.ctl.bind,0.7,'thump'); // v5.1.165 a single punchy THUMP on every fire press (you SEE + feel the hammer fire)
+      if(foe){bbApplyHit(foe,bbHitLoc(foe,a.x,a.y),BB_W.pistDmg,ai,a.x,a.y,BB_W.pistFront);const m=bd||1,nx=(foe.x-a.x)/m,ny=(foe.y-a.y)/m;foe.x+=nx*BB_W.pistKnock;foe.y+=ny*BB_W.pistKnock;obsCheck(foe,RR);if(a.ctl)p2Rumble(a.ctl.bind,0.9,'bite');if(foe.ctl)p2Rumble(foe.ctl.bind,0.5);} // v5.1.165 BITE on a connect = you dealt damage
     }
     if(w==='flipper'&&a.firing&&a.pistCd<=0){ // v5.1.109 FLIPPER: a discrete RT launch (front arc) that FLINGS the foe back; reuses the strike cooldown/fx (a bot has one weapon)
       let foe=null,bd=1e9;for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);if(d<=RR+RR*BB_W.flipRangeK&&bbFoeAngOk(a,c,BB_W.flipArc)&&d<bd){bd=d;foe=c;}}
-      a._pistFx=0.2;a.pistCd=BB_W.flipCd;sfx('thump');
+      a._pistFx=0.2;a.pistCd=BB_W.flipCd;sfx('thump');if(a.ctl)p2Rumble(a.ctl.bind,0.7,'thump'); // v5.1.165 a single punchy THUMP on the pusher THRUST (whether or not it connects)
       if(foe){bbApplyHit(foe,bbHitLoc(foe,a.x,a.y),BB_W.flipDmg,ai,a.x,a.y,0.5);const m=bd||1,nx=(foe.x-a.x)/m,ny=(foe.y-a.y)/m;
         foe._flx=nx*BB_W.flipFlySpd;foe._fly=ny*BB_W.flipFlySpd;foe._flT=BB_W.flipFlyT;foe._flung=ai; // v5.1.151 FLING the foe BACK with MOMENTUM (carried + decayed in updateBB; ring-out on a mid-flight wall slam)
-        foe.spin=Math.max(0,(foe.spin||0)-0.4);foe.pinT=0.25;if(foe.ctl)p2Rumble(foe.ctl.bind,0.7);if(a.ctl)p2Rumble(a.ctl.bind,0.4);
+        foe.spin=Math.max(0,(foe.spin||0)-0.4);foe.pinT=0.25;if(foe.ctl)p2Rumble(foe.ctl.bind,0.7);if(a.ctl)p2Rumble(a.ctl.bind,0.9,'bite');
         if(foe.hp<=0)bbKill(foe,ai);}
     }
     if(w==='pincer'&&a.firing&&!a.grab&&!a.held&&a.grabCd<=0){ // v5.1.144 PINCER reach-clamp: snap onto a lined-up foe within reach (no perfect ram needed) — easier to land
@@ -4335,14 +4340,14 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
     if(w==='flame'){if(!a.heat)a.heat={};
       for(let ci=0;ci<bb2.bots.length;ci++){const c=bb2.bots[ci];if(c.dead||c.side===a.side){a.heat[ci]=0;continue;}
         const d=Math.hypot(c.x-a.x,c.y-a.y),hot=a.firing&&d<=RR+RR*BB_W.flameRangeK&&bbFoeArcAt(a,c,BB_W.flameArc,a.weaponAng!=null?a.weaponAng:a.h)&&bbFlameLOS(a,c); // v5.1.99: cone vs the TURRET aim; v5.1.104: + line-of-sight (no burning through obstacles)
-        if(hot){a.heat[ci]=Math.min(BB_W.flameHeatMax,(a.heat[ci]||0)+dt);if(a.heat[ci]>=BB_W.flameDwell){bbApplyFlame(c,BB_W.flameDps*dt,ai);if(a.ctl)p2Rumble(a.ctl.bind,0.16);if(c.ctl)p2Rumble(c.ctl.bind,0.22);}} // v5.1.153 torch rumble
+        if(hot){a.heat[ci]=Math.min(BB_W.flameHeatMax,(a.heat[ci]||0)+dt);if(a.heat[ci]>=BB_W.flameDwell){bbApplyFlame(c,BB_W.flameDps*dt,ai);if(a.ctl)p2Rumble(a.ctl.bind,0.5,'bite');if(c.ctl)p2Rumble(c.ctl.bind,0.22);}} // v5.1.165 BITE feedback when the flame is actually burning a foe (dealing damage)
         else a.heat[ci]=Math.max(0,(a.heat[ci]||0)-dt*1.5);
       }
     }
-    if(w==='drill'){if(!a.drill)a.drill={};a._drillSpin=clamp((a._drillSpin||0)+(a.firing?dt:-dt)/0.7,0,1);let _ramp=0,_grind=false; // v5.1.146 DRILL grind; v5.1.164 _drillSpin = the VISUAL rev (climbs while RT held, decays when released) → the bit reads as STATIONARY until you spin it up
+    if(w==='drill'){if(!a.drill)a.drill={};a._drillSpin=clamp((a._drillSpin||0)+(a.firing?dt:-dt)/0.7,0,1);if((a._drillSpin||0)>0.12&&a.ctl&&a.ctl.type!=='cpu')p2Rumble(a.ctl.bind,0.2+0.45*a._drillSpin,'spin');let _ramp=0,_grind=false; // v5.1.146 DRILL grind; v5.1.164 _drillSpin = VISUAL rev; v5.1.165 sustained spin BUZZ while RT held
       for(let ci=0;ci<bb2.bots.length;ci++){const c=bb2.bots[ci];if(c.dead||c.side===a.side){a.drill[ci]=0;continue;}
         const d=Math.hypot(c.x-a.x,c.y-a.y),on=a.firing&&d<=RR+RR*BB_W.drillReachK&&bbFoeAngOk(a,c,BB_W.drillArc);
-        if(on){a.drill[ci]=Math.min(BB_W.drillRampT,(a.drill[ci]||0)+dt);const ramp=a.drill[ci]/BB_W.drillRampT,dps=BB_W.drillMin+(BB_W.drillMax-BB_W.drillMin)*ramp;c.hp-=dps*dt;_grind=true;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+dps*dt;if(a.ctl)p2Rumble(a.ctl.bind,0.12+0.3*ramp);if(c.ctl)p2Rumble(c.ctl.bind,0.1+0.25*ramp);if(c.hp<=0&&!c.dead)bbKill(c,ai);} // v5.1.153 grinding rumble (scales with ramp)
+        if(on){a.drill[ci]=Math.min(BB_W.drillRampT,(a.drill[ci]||0)+dt);const ramp=a.drill[ci]/BB_W.drillRampT,dps=BB_W.drillMin+(BB_W.drillMax-BB_W.drillMin)*ramp;c.hp-=dps*dt;_grind=true;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+dps*dt;if(a.ctl)p2Rumble(a.ctl.bind,0.4+0.4*ramp,'bite');if(c.ctl)p2Rumble(c.ctl.bind,0.1+0.25*ramp);if(c.hp<=0&&!c.dead)bbKill(c,ai);} // v5.1.165 BITE feedback (grows with ramp) — you feel the drill biting in
         else a.drill[ci]=Math.max(0,(a.drill[ci]||0)-dt*1.5); // off the foe → the bit spins down (lose your ramp)
         _ramp=Math.max(_ramp,(a.drill[ci]||0)/BB_W.drillRampT);
       }
@@ -4669,9 +4674,9 @@ function updateBB(dt){
         bbApplyHit(a,bbHitLoc(a,c.x,c.y),dC,j,c.x,c.y,cSpin?BB_W.spinFront:0); // c→a (a spun-up SPINNER pierces the front — it bites whatever it touches)
         bbApplyHit(c,bbHitLoc(c,a.x,a.y),dA,i,a.x,a.y,aSpin?BB_W.spinFront:0); // a→c
         if(aSpin){const defl=(c.ld&&c.ld.weapon==='wedge')?BB_W.spinDeflect:1; // v5.1.161 RECOIL self-damage REMOVED (no more "I take damage while dealing it"). The SPINNER still sheds RPM per bite (re-spin between hits); a WEDGE deflects it harder. The BUZZSAW holds its speed — no re-spin needed.
-          if(a.ld.weapon!=='buzzsaw')a.spin=Math.max(0,a.spin-BB_W.spinHitLoss*defl);if(a.ctl)p2Rumble(a.ctl.bind,0.4+0.5*aSpin);if(c.ctl)p2Rumble(c.ctl.bind,0.5+0.4*aSpin);}
+          if(a.ld.weapon!=='buzzsaw')a.spin=Math.max(0,a.spin-BB_W.spinHitLoss*defl);if(a.ctl)p2Rumble(a.ctl.bind,0.5+0.4*aSpin,'bite');if(c.ctl)p2Rumble(c.ctl.bind,0.5+0.4*aSpin);}
         if(cSpin){const defl=(a.ld&&a.ld.weapon==='wedge')?BB_W.spinDeflect:1;
-          if(c.ld.weapon!=='buzzsaw')c.spin=Math.max(0,c.spin-BB_W.spinHitLoss*defl);if(c.ctl)p2Rumble(c.ctl.bind,0.4+0.5*cSpin);if(a.ctl)p2Rumble(a.ctl.bind,0.5+0.4*cSpin);}
+          if(c.ld.weapon!=='buzzsaw')c.spin=Math.max(0,c.spin-BB_W.spinHitLoss*defl);if(c.ctl)p2Rumble(c.ctl.bind,0.5+0.4*cSpin,'bite');if(a.ctl)p2Rumble(a.ctl.bind,0.5+0.4*cSpin);}
       }
       obsCheck(a,RR);obsCheck(c,RR);
     }
