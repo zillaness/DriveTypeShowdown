@@ -3870,11 +3870,13 @@ const BB_WEAPONS=[
   {id:'drill',  name:'DRILL',       cls:'kineticStrike', weight:0.5, deal:1.00, take:1.10}, // v5.1.146 sustained front-contact grinder: DPS RAMPS the longer you hold it on a foe, up to a cap (ignores directional armor)
   {id:'repair', name:'REPAIR TORCH',cls:'control',       weight:0.3, deal:0.20, take:1.00}, // v5.1.154 SUPPORT: welding torch — heals an ALLY (HP + mobility/wheels) in front; only chip damage to enemies (3v3 role)
 ];
-const BB_ARMOR=[
+const BB_ARMOR=[ // v5.1.156: spd (speed mult), hpMul (HP-pool mult), runflat (never fully immobilized), reactive (reflect on first hit per zone)
   {id:'balanced',  name:'BALANCED',  rps:'balanced',  weight:0.0, take:1.00, zone:{front:1,side:1,rear:1}}, // default neutral
-  {id:'hardplate', name:'HARDPLATE', rps:'hardplate', weight:0.6, take:0.70, zone:{front:1,side:1,rear:0.85}}, // kinetic-tough, thermal-weak
+  {id:'hardplate', name:'HARDPLATE', rps:'hardplate', weight:0.6, take:0.62, hpMul:1.35, zone:{front:1,side:1,rear:0.85}}, // v5.1.156 tougher + bigger HP pool (kinetic-tough, thermal-weak)
   {id:'heatshield',name:'HEATSHIELD',rps:'heatshield',weight:0.4, take:0.90, zone:{front:1,side:1,rear:1}},     // thermal-tough, kinetic-weak
-  {id:'light',     name:'LIGHT',     rps:'light',     weight:0.0, take:1.30, zone:{front:1,side:1,rear:1}},     // fast + fragile
+  {id:'light',     name:'LIGHT',     rps:'light',     weight:0.0, take:1.30, spd:1.3, hpMul:0.9, zone:{front:1,side:1,rear:1}}, // v5.1.156 BIG speed boost, fast + fragile
+  {id:'runflat',   name:'RUNFLAT',   rps:'balanced',  weight:0.2, take:1.00, runflat:true, spd:0.95, zone:{front:1,side:1,rear:1}}, // v5.1.156 wheels can't immobilize you — damaged = slow but you keep crawling
+  {id:'reactive',  name:'REACTIVE',  rps:'hardplate', weight:0.45,take:1.00, reactive:true, zone:{front:1,side:1,rear:1}}, // v5.1.157 damages the attacker the FIRST hit on each side
 ];
 const BB_RPS={ // damage ×factor: weapon class vs armor RPS class (1 = neutral)
   none:         {balanced:1, hardplate:1,   heatshield:1,   light:1},
@@ -3890,9 +3892,10 @@ function bbRps(wcls,arps){const r=BB_RPS[wcls||'none'];return (r&&r[arps||'balan
 function bbResolveLoadout(ld){ // → derived stats; a null/default loadout is fully NEUTRAL so P1 stays byte-identical
   const w=bbWeaponById(ld&&ld.weapon),a=bbArmorById(ld&&ld.armor),weight=w.weight+a.weight;
   return{weapon:w.id,armor:a.id,wcls:w.cls,arps:a.rps,weight:weight,
-    speedMul:clamp(1-weight*BB_kSpeed,0.45,1),    // heavier = slower top speed/accel
-    turnMul:clamp(1-weight*BB_kTurn,0.45,1),      // heavier = more sluggish turning
+    speedMul:clamp((1-weight*BB_kSpeed)*(a.spd||1),0.45,1.6),    // heavier = slower; v5.1.156 ×armor spd (LIGHT boosts)
+    turnMul:clamp((1-weight*BB_kTurn)*(a.spd||1),0.45,1.6),      // heavier = sluggish; LIGHT also turns quicker
     mobMax:Math.round(BB.MOB*(1+weight*BB_kMobHeavy)), // heavier = a bigger mobility bar (longer to immobilize)
+    hpMul:(a.hpMul||1),runflat:!!a.runflat,reactive:!!a.reactive, // v5.1.156 HP-pool mult, runflat, reactive flags
     deal:w.deal,take:a.take*w.take,zone:a.zone,perk:(ld&&ld.perk)||'none'};  // weapon fragility folds into damage-taken; v5.1.112 the PERK passes through
 }
 function bbLoadoutForBind(bind){ // MULTI grid seat loadout, else 1v1 claim loadout, else null (no loadout UI yet → neutral)
@@ -3932,7 +3935,7 @@ function bbDrawLoadDrag(){ // drop-target halos + the floating loadout chip that
   ctx.fillStyle='#eaeaff';ctx.textAlign='left';ctx.fillText(txt,x+20,y+4);}
 // ── v5.1.94 ARMORY: a rail of weapon + armor chips you DRAG onto any seat to equip it (vs only the per-seat ◀▶ cyclers) ──
 const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'PUSH',ic:'⏩'},{id:'pincer',lab:'PINCE',ic:'🦀'},{id:'kamikaze',lab:'KAMI',ic:'💣'},{id:'drill',lab:'DRILL',ic:'⛏'},{id:'repair',lab:'REPAIR',ic:'🔧'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE; v5.1.154 REPAIR TORCH support weapon
-const BB_ARMORY_A=[{id:'balanced',lab:'BAL',ic:'⚖'},{id:'hardplate',lab:'HARD',ic:'🛡'},{id:'heatshield',lab:'HEAT',ic:'♨'},{id:'light',lab:'LIGHT',ic:'🪶'}];
+const BB_ARMORY_A=[{id:'balanced',lab:'BAL',ic:'⚖'},{id:'hardplate',lab:'HARD',ic:'🛡'},{id:'heatshield',lab:'HEAT',ic:'♨'},{id:'light',lab:'LIGHT',ic:'🪶'},{id:'runflat',lab:'RUN',ic:'🛞'},{id:'reactive',lab:'REACT',ic:'💥'}]; // v5.1.156 RUNFLAT; v5.1.157 REACTIVE
 const BB_PERKS=[ // v5.1.112 P2: a 3rd loadout slot — PERK (id stays in ld.perk; 'none' kept ONLY as the no-effect fallback, NOT pickable since v5.1.155)
   {id:'none',       name:'NO PERK',      lab:'NONE', ic:'∅'},
   {id:'partinggift',name:'PARTING GIFT', lab:'GIFT', ic:'🎁'}, // a big EXPLOSION on death (take foes with you)
@@ -3947,8 +3950,8 @@ function bbPerkById(id){return BB_PERKS.find(p=>p.id===id)||BB_PERKS[0];}
 function bbPerkOf(b){return (b&&b.ld&&b.ld.perk)||'none';}
 const BB_ARM_WCOL='#d9c08a', BB_ARM_ACOL='#8fbfd9', BB_ARM_PCOL='#a6d9a0'; // weapons warm, armor cool, perks green (match the seat ⚔/🛡/✦ labels)
 function bbArmoryChips(){ // laid-out chip rects for the top rail: weapon group ⚔ … armor 🛡 … perk ✦, centered (v5.1.113: + PERK group)
-  const cw=50,gap=4,LBL=18,GRP=16,cy=85,ch=26;
-  const wW=LBL+BB_ARMORY_W.length*(cw+gap)-gap, aW=LBL+BB_ARMORY_A.length*(cw+gap)-gap, pW=LBL+BB_PERKS.length*(cw+gap)-gap, total=wW+GRP+aW+GRP+pW;
+  const cw=44,gap=3,LBL=18,GRP=14,cy=85,ch=26; // v5.1.157 tighter chips so 10 weapons + 6 armor + 6 perks still fit the rail
+  const wW=LBL+BB_ARMORY_W.length*(cw+gap)-gap, aW=LBL+BB_ARMORY_A.length*(cw+gap)-gap, pW=LBL+BB_PERKS_PICK.length*(cw+gap)-gap, total=wW+GRP+aW+GRP+pW;
   let x=Math.round((CW-total)/2);const out=[];
   out.push({kind:'wlabel',ic:'⚔',x:x,y:cy,w:16,h:ch});x+=LBL;
   for(const w of BB_ARMORY_W){out.push({kind:'weapon',id:w.id,lab:w.lab,ic:w.ic,x:x,y:cy,w:cw,h:ch});x+=cw+gap;}
@@ -4003,7 +4006,9 @@ function bbDrawSeatLoadout(i,c){const s=m2.tseats&&m2.tseats[i];if(!s)return;con
   for(const r of [lr.wL,lr.wR,lr.aL,lr.aR]){ctx.fillStyle='rgba(40,40,62,0.7)';rr(r.x,r.y,r.w,r.h,5);ctx.fill();ctx.strokeStyle='#4a4a6a';ctx.lineWidth=1;rr(r.x,r.y,r.w,r.h,5);ctx.stroke();}
   ctx.fillStyle='#aab';ctx.textAlign='center';ctx.font='bold 12px Courier New';ctx.fillText('◀',lr.wL.x+10,lr.wL.y+15);ctx.fillText('▶',lr.wR.x+10,lr.wR.y+15);ctx.fillText('◀',lr.aL.x+10,lr.aL.y+15);ctx.fillText('▶',lr.aR.x+10,lr.aR.y+15);
   ctx.fillStyle='#eaeaff';ctx.font='bold 11px Courier New';ctx.fillText(w.name,(lr.wL.x+lr.wL.w+lr.wR.x)/2,lr.wL.y+14);ctx.fillText(a.name,(lr.aL.x+lr.aL.w+lr.aR.x)/2,lr.aL.y+14);}
-function bbSpeed(b){const mm=(b.ld&&b.ld.mobMax)||BB.MOB,sm=(b.ld&&b.ld.speedMul!=null)?b.ld.speedMul:1,pn=(b.pinT>0)?BB_W.wedgePin:1;return b.mob<=0?0:(BB.mobFloor+(1-BB.mobFloor)*(b.mob/mm))*sm*pn*BB.spd;} // v5.1.143: nimbler base (×BB.spd) + a higher mobFloor so mobility damage hurts less; 0 mobility = IMMOBILIZED
+function bbSpeed(b){const mm=(b.ld&&b.ld.mobMax)||BB.MOB,sm=(b.ld&&b.ld.speedMul!=null)?b.ld.speedMul:1,pn=(b.pinT>0)?BB_W.wedgePin:1;
+  if(b.mob<=0)return (b.ld&&b.ld.runflat)?BB.mobFloor*0.7*sm*pn*BB.spd:0; // v5.1.156 RUNFLAT: keep crawling at a floor instead of full immobilization
+  return (BB.mobFloor+(1-BB.mobFloor)*(b.mob/mm))*sm*pn*BB.spd;} // v5.1.143 nimbler base (×BB.spd) + mobFloor so mobility damage hurts less
 function bbHitLoc(victim,fromX,fromY){ // contact point (toward the other bot) classified by the VICTIM's heading
   let d=Math.atan2(fromY-victim.y,fromX-victim.x)-victim.h;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;d=Math.abs(d);
   if(d<=BB.frontCone/2)return'front';        // facing the hit = armored (kinetic immune)
@@ -4012,6 +4017,10 @@ function bbHitLoc(victim,fromX,fromY){ // contact point (toward the other bot) c
 }
 function bbApplyHit(victim,loc,dmg,owner,fromX,fromY,frontPierce){ // kinetic hit: front immune (unless PIERCING), rear→HP, side→mobility (+ a corner WHEEL) then spillover
   if(victim.dead||victim.inv>0||dmg<=0)return;
+  if(victim.ld&&victim.ld.reactive&&owner!=null&&bb2&&bb2.bots[owner]){ // v5.1.157 REACTIVE ARMOR: the FIRST hit on each zone (front / side ×2 / rear) zaps the attacker, then that charge is spent
+    if(!victim._react)victim._react={front:1,side:2,rear:1};
+    if(victim._react[loc]>0){victim._react[loc]--;const atk2=bb2.bots[owner];if(atk2&&!atk2.dead&&atk2.side!==victim.side){atk2.hp-=BB_W.reactDmg;atk2.inv=BB.hitCd;sfx('hit');if(atk2.ctl)p2Rumble(atk2.ctl.bind,0.7);if(atk2.hp<=0&&!atk2.dead)bbKill(atk2,bb2.bots.indexOf(victim));}}
+  }
   // P2.1 loadout factors (all neutral at default → P1 byte-identical): attacker damage-DEALT × victim damage-TAKEN × per-zone armor × weapon-vs-armor RPS
   const atk=(owner!=null&&bb2&&bb2.bots[owner])?bb2.bots[owner]:null;
   const deal=(atk&&atk.ld)?atk.ld.deal:1,take=(victim.ld)?victim.ld.take:1,zm=(victim.ld&&victim.ld.zone&&victim.ld.zone[loc]!=null)?victim.ld.zone[loc]:1;
@@ -4084,7 +4093,7 @@ function startP2BB(){cheatedRun=false;paused=false;
       if(gridOn){const _gs=m2.tseats[r.bind];ctl.name=(r.type==='cpu')?((r.side===0?'RED':'BLUE')+' '+(si+1)):((_gs&&_gs.name)||('PLAYER '+(si+1)));} // grid: player name / CPU side+slot
       ctl.brain=(r.type==='cpu')?{inp:{vx:0,vy:0,vr:0}}:null;
       const _ldSrc=bbLoadoutForBind(r.bind);const ld=bbResolveLoadout((r.type==='cpu'&&!_ldSrc)?bbCpuPickLoadout(r.tier|0):_ldSrc); // P2.1 loadout stats; P2.6: a CPU with no chosen loadout auto-arms (tier-scaled)
-      const _mhp=BB.HP*(megaBots?BB_W.megaHp:1); // v5.1.118 MEGABOTS: a giant HP pool (mhp = this bot's max, used by the HP bar)
+      const _mhp=BB.HP*(megaBots?BB_W.megaHp:1)*((ld&&ld.hpMul)||1); // v5.1.118 MEGABOTS HP; v5.1.156 ×armor hpMul (HARDPLATE bigger pool)
       const _lives=bbLivesResolve(); // v5.1.149 RESPAWNS remaining (per-mode lives setting)
       return{x:sp.x,y:sp.y,h:sp.h,_sx:sp.x,_sy:sp.y,_sh:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:_mhp,mhp:_mhp,mega:!!megaBots,lives:_lives,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
   bb2.minis=bbMiniSpawn(); // v5.1.117 P4: deploy a harasser for each bot carrying the MINIBOT perk
@@ -4155,7 +4164,7 @@ const BB_W={
   flameRangeK:6.4, flameArc:Math.PI*0.26, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, // FLAMETHROWER (v5.1.100): ~2× REACH + a NARROWER focused jet (per playtest), heat-up dwell, dps (re-tuned via the sim), heat cap (no fuel gauge), MOVE-mult while torching (plant-to-burn — the balance counter to the ARCADE turret kite; fuel parked)
   wedgeDmg:0.40, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:85, grabDmg:18, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.8, pincerDrain:55, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, // v5.1.144 easier to land: wider arc (±63°) + a grab REACH (RR+RR×reachK ≈ 2.4×RR) so you don't need a perfect ram. WEDGE/DOZER: contact-dmg, grab arc, pinned speed mult, pin/grab DURATION, shove + v5.1.103 GRAB-AND-SLAM (grip seconds, cooldown, base wall-slam dmg ×speed), dozerCharge = forward boost while firing RT, dashBuff = RoboRumble LT-dash speed/range buff
   blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:3.8, partingDmg:130, // v5.1.145 KAMIKAZE peak 420→640 (scaled to HP 560 so it still destroys/near-destroys the radius); PARTING GIFT 95→130. KAMIKAZE radius 9×RR, falls to 0.85× at the edge
-  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:0.7, drillRampT:2.6, drillMin:22, drillMax:135, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, repairArc:Math.PI*0.5, repairReachK:1.6, repairHps:70, repairMobps:55, repairWheelps:30, repairDmg:8, vampHeal:130, pitStopDelay:3.0, pitStopHps:55, // v5.1.154 REPAIR TORCH heal rates + chip; v5.1.155 perks: VAMPIRE heal-on-kill, PIT STOP out-of-combat delay + HP/sec
+  wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:0.7, drillRampT:2.6, drillMin:22, drillMax:135, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, repairArc:Math.PI*0.5, repairReachK:1.6, repairHps:70, repairMobps:55, repairWheelps:30, repairDmg:8, vampHeal:130, pitStopDelay:3.0, pitStopHps:55, reactDmg:85, // v5.1.155 perks: VAMPIRE/PIT STOP; v5.1.157 REACTIVE armor reflect damage per charge
   miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary; v5.1.117 P4 MINIBOT harasser (radius×RR, speed×SPD, shove px, pin-slow seconds)
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)

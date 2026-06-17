@@ -17,7 +17,7 @@ src+=`
     playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2BB();updateBB(3.1);}; // grid claim is the v5.1.64 path; tests drive the legacy 1v1 roster directly
   startBB(0,2);
   ok('match starts: 2 bots, phase p2bb',phase==='p2bb'&&!!bb2&&bb2.bots.length===2);
-  ok('bots have MOBILITY + HP bars full (at their own mobMax)',bb2.bots.every(b=>b.mob===(b.ld?b.ld.mobMax:BB.MOB)&&b.hp===BB.HP));
+  ok('bots have MOBILITY + HP bars full (at their own mobMax / mhp)',bb2.bots.every(b=>b.mob===(b.ld?b.ld.mobMax:BB.MOB)&&b.hp===b.mhp));
   ok('sides 0/1, player human + CPU enemy',bb2.bots[0].side===0&&bb2.bots[1].side===1&&bb2.bots[0].ctl.type==='human'&&bb2.bots[1].ctl.type==='cpu');
   ok('CPU bot has a brain',!!bb2.bots[1].ctl.brain);
   ok('warm/cool seat shades',bb2.bots[0].col===M2_COLS[0]&&bb2.bots[1].col===M2_COLS[1]);
@@ -94,7 +94,13 @@ src+=`
    const h=bbResolveLoadout({weapon:'spinner',armor:'hardplate'});
    ok('heavy loadout: slower + sluggish + bigger mob bar + more deal',h.weight>0&&h.speedMul<1&&h.turnMul<1&&h.mobMax>BB.MOB&&h.deal>1);
    const l=bbResolveLoadout({weapon:'none',armor:'light'});
-   ok('light loadout: fragile (take>1) and not slowed',l.take>1&&l.speedMul===1&&l.mobMax===BB.MOB);}
+   ok('light loadout: fragile (take>1) and FAST (speedMul>1)',l.take>1&&l.speedMul>1&&l.mobMax===BB.MOB);
+   // v5.1.156–157 armor pass: LIGHT speed, HARDPLATE toughness+HP, RUNFLAT, REACTIVE
+   ok('LIGHT armor gives a real speed boost',bbResolveLoadout({weapon:'none',armor:'light'}).speedMul>=1.25);
+   {const hp=bbResolveLoadout({weapon:'none',armor:'hardplate'});ok('HARDPLATE is tougher (take↓) + a bigger HP pool (hpMul>1)',hp.take<0.7&&hp.hpMul>1.2);}
+   ok('RUNFLAT armor exists + flagged; REACTIVE armor exists + flagged',bbResolveLoadout({weapon:'none',armor:'runflat'}).runflat===true&&bbResolveLoadout({weapon:'none',armor:'reactive'}).reactive===true);
+   {const rf={ld:bbResolveLoadout({weapon:'none',armor:'runflat'}),mob:0};ok('RUNFLAT: a 0-mobility bot still crawls (not immobilized)',bbSpeed(rf)>0);
+    const norm={ld:bbResolveLoadout({weapon:'none',armor:'balanced'}),mob:0};ok('non-runflat: 0 mobility = immobilized',bbSpeed(norm)===0);}}
   ok('RPS: flame BEATS hardplate, FOLDS to heatshield',bbRps('thermal','hardplate')>1&&bbRps('thermal','heatshield')<1);
   ok('RPS: kinetic FOLDS to hardplate, SHREDS light',bbRps('kineticSpin','hardplate')<1&&bbRps('kineticSpin','light')>1);
   ok('RPS: neutral classes default to 1',bbRps('none','balanced')===1&&bbRps('control','hardplate')===1);
@@ -105,7 +111,7 @@ src+=`
   {const atk=Object.assign(mk(),{side:0,ld:bbResolveLoadout({weapon:'flame',armor:'balanced'})});
    const vic=Object.assign(mk(),{side:1,ld:bbResolveLoadout({weapon:'none',armor:'hardplate'})});
    bb2.bots=[atk,vic];bb2.result=null;vic.inv=0;vic.hp=BB.HP;
-   bbApplyHit(vic,'rear',20,0);const want=20*0.7*0.7*0.85*1.5;
+   bbApplyHit(vic,'rear',20,0);const want=20*atk.ld.deal*vic.ld.take*vic.ld.zone.rear*bbRps(atk.ld.wcls,vic.ld.arps);
    ok('bbApplyHit scales by deal×take×zone×RPS (Δhp='+(BB.HP-vic.hp).toFixed(2)+'≈'+want.toFixed(2)+')',Math.abs((BB.HP-vic.hp)-want)<0.01);}
   {const a2=Object.assign(mk(),{side:0,ld:bbResolveLoadout(null)}),v2=Object.assign(mk(),{side:1,ld:bbResolveLoadout(null)});
    bb2.bots=[a2,v2];v2.inv=0;v2.hp=BB.HP;bbApplyHit(v2,'rear',30,0);
@@ -550,6 +556,13 @@ src+=`
    const dead2=bbBotWith('none','balanced',1,1,true);dead2.dead=true;bb2.bots=[ps,dead2];bb2.result=null;bb2.cd=0;bb2.t=BB_W.pitStopDelay+1;
    const svd=m2.drive;m2.drive=[{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'}];
    const ph0=ps.hp;for(let i=0;i<30;i++){bb2.cd=0;updateBB(1/60);}ok('PIT STOP: out-of-combat HP regen',ps.hp>ph0);m2.drive=svd;}
+  // ── v5.1.157: REACTIVE armor — first hit on each zone zaps the attacker (limited charges) ──
+  {const rv=bbBotWith('none','reactive',1,1,true);rv.x=300;rv.y=300;rv.h=0;rv.inv=0;rv.hp=BB.HP;
+   const atk=bbBotWith('none','balanced',0,0,true);atk.x=200;atk.y=300;atk.hp=BB.HP;atk.inv=0;bb2.bots=[atk,rv];bb2.result=null;
+   const a0=atk.hp;bbApplyHit(rv,'rear',30,0,atk.x,atk.y);
+   ok('REACTIVE: the first hit on a zone ZAPS the attacker',atk.hp<=a0-BB_W.reactDmg+0.001);
+   rv.inv=0;const a1=atk.hp;bbApplyHit(rv,'rear',30,0,atk.x,atk.y);
+   ok('REACTIVE: that zone charge is SPENT (no second zap from the same side)',atk.hp===a1);}
   // ── v5.1.114: P5 DRIVE SYNERGY — TANK-family drive shoves harder ──
   {ok('P5: TANK-family drive has a push buff (>1)',BB_W.tankPush>1);
    ok('bbDriveFamily maps the main TANK drive to the tank family',(()=>{const sd=m2.drive[0];m2.drive[0]={kind:'main',idx:0};const r=bbDriveFamily(0);m2.drive[0]=sd;return r==='tank';})());
@@ -606,7 +619,7 @@ src+=`
    ok('MEGABOTS deal MORE ram damage',bbContactDmg(mega,20)>bbContactDmg(norm,20)&&Math.abs(bbContactDmg(mega,20)-20*BB_W.megaDmg)<1e-6);
    ok('MEGABOTS HP multiplier is >1',BB_W.megaHp>1);
    const svm=megaBots;megaBots=true;startBB(0,2);
-   ok('MEGABOTS spawn with a giant HP pool (hp + mhp scaled)',bb2.bots.every(b=>b.hp===BB.HP*BB_W.megaHp&&b.mhp>BB.HP&&b.mega===true));
+   ok('MEGABOTS spawn with a giant HP pool (hp=mhp, scaled ≥megaHp×base)',bb2.bots.every(b=>b.hp===b.mhp&&b.mega===true&&b.mhp>=BB.HP*BB_W.megaHp*0.85));
    megaBots=svm;}
   // ── v5.1.119: P7 combat cheats — AIRSTRIKE (arena bombs) + ANIME SWORD (front-arc slash) ──
   {ok('AIRSTRIKE is a cheat',CHEATS.some(c=>c.name==='AIRSTRIKE'));
