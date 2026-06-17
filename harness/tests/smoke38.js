@@ -8,6 +8,12 @@ src+=`
   m2.mode='normal';m2.set.cpus=0;m2.set.layout='mirrored';m2.set.format='timed';m2.set.timeSec=90;m2.set.bestOf=1;m2.set.contact='full';
   m2.drive[0]={kind:'main',idx:1,name:'A',c:'#0ff'};m2.drive[1]={kind:'main',idx:1,name:'A',c:'#0ff'};
   m2.claim=[null,null];m2.sens=[1,1];m2._gpPrev=[];
+  // v5.1.150: a SELECTED side (claimSel) takes the next device — so a gamepad can go on BLUE (side 1) even when RED is open
+  m2.claimSel=1;p2ClaimDevice({type:'gp',gp:0});
+  ok('claimSel: device goes to the SELECTED side (BLUE) not just the first open',!m2.claim[0]&&m2.claim[1]&&m2.claim[1].type==='gp'&&m2.claimSel===null);
+  m2.claim=[null,null];m2.claimSel=null;p2ClaimDevice({type:'gp',gp:1});
+  ok('no selection: device fills the first open side (RED)',m2.claim[0]&&m2.claim[0].type==='gp'&&!m2.claim[1]);
+  m2.claim=[null,null];m2.sens=[1,1];m2._gpPrev=[];m2.claimSel=null;
   p2ClaimDevice({type:'kb'});
   const cb=p2cCpuRect();
   p2Click(cb.x+5,cb.y+5); // ADD CPU

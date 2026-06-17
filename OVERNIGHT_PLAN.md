@@ -2,7 +2,7 @@
 
 ## 🆕 FRESH THREAD — START HERE (handoff 2026-06-16)
 You are continuing an autonomous RoboRumble build run. **Canonical branch = `dev`** (see `CLAUDE.md`).
-1. `git fetch origin dev` and make sure you're on it. Current tip = **`drive_showdown_v5.1.149.html`** (v5.1.149).
+1. `git fetch origin dev` and make sure you're on it. Current tip = **`drive_showdown_v5.1.150.html`** (v5.1.150).
 2. **Fresh container:** `./extract.sh && ./battery.sh` → must print `ALL GREEN` (extract writes `/tmp/g.js`; without it every smoke test ENOENTs — that's missing setup, not failure).
 3. Read this file's **Progress log** (below) for what's DONE + what's NEXT, and `MIGRATION.md` for project context.
 4. Continue the queue (NEXT = P4 minibots) one shippable version at a time. **Ritual per version:**
