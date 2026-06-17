@@ -3852,7 +3852,7 @@ function p2QuitMatch(toSettings){
 // ═══ ROBORUMBLE (combat mode) — P1: MOBILITY+HP two-bar, directional armor, ram-by-impact ═══
 // Reuses the TANK FIGHT arena (TF2_MAPS/tfObs), the drive system (withBot/getInp/obsCheck), the roster shape,
 // and the per-bot team shades. P1 = the core duel; weapons/hazards/blow-up are later phases (see PRD_TABLED_MODES.md).
-const BB={MOB:100,HP:360,frontCone:Math.PI*0.55,rearCone:Math.PI*0.55,hitCd:0.22,dmgK:26,dmgMax:34,knock:0.9,countOut:6}; // v5.1.104: HP 250→360 — longer matches (per playtest); countOut = seconds an IMMOBILIZED bot survives before tapping out
+const BB={MOB:100,HP:360,frontCone:Math.PI*0.55,rearCone:Math.PI*0.55,hitCd:0.22,dmgK:26,dmgMax:34,knock:0.9,countOut:6,spd:1.3,mobFloor:0.5}; // v5.1.104: HP 250→360; v5.1.143 RoboRumble is NIMBLER than other modes — spd = base speed/turn multiplier; mobFloor = min speed fraction even at low mobility (so losing mobility stings less)
 let bb2=null;
 // ── RoboRumble P2.1: weight-based loadout DATA (pure tradeoffs, no points budget) — all numbers TUNABLE ──
 const BB_WEAPONS=[
@@ -3995,7 +3995,7 @@ function bbDrawSeatLoadout(i,c){const s=m2.tseats&&m2.tseats[i];if(!s)return;con
   for(const r of [lr.wL,lr.wR,lr.aL,lr.aR]){ctx.fillStyle='rgba(40,40,62,0.7)';rr(r.x,r.y,r.w,r.h,5);ctx.fill();ctx.strokeStyle='#4a4a6a';ctx.lineWidth=1;rr(r.x,r.y,r.w,r.h,5);ctx.stroke();}
   ctx.fillStyle='#aab';ctx.textAlign='center';ctx.font='bold 12px Courier New';ctx.fillText('◀',lr.wL.x+10,lr.wL.y+15);ctx.fillText('▶',lr.wR.x+10,lr.wR.y+15);ctx.fillText('◀',lr.aL.x+10,lr.aL.y+15);ctx.fillText('▶',lr.aR.x+10,lr.aR.y+15);
   ctx.fillStyle='#eaeaff';ctx.font='bold 11px Courier New';ctx.fillText(w.name,(lr.wL.x+lr.wL.w+lr.wR.x)/2,lr.wL.y+14);ctx.fillText(a.name,(lr.aL.x+lr.aL.w+lr.aR.x)/2,lr.aL.y+14);}
-function bbSpeed(b){const mm=(b.ld&&b.ld.mobMax)||BB.MOB,sm=(b.ld&&b.ld.speedMul!=null)?b.ld.speedMul:1,pn=(b.pinT>0)?BB_W.wedgePin:1;return b.mob<=0?0:(0.3+0.7*(b.mob/mm))*sm*pn;} // mobility% scales drive speed (× loadout speedMul, × WEDGE pin); 0 mobility = IMMOBILIZED
+function bbSpeed(b){const mm=(b.ld&&b.ld.mobMax)||BB.MOB,sm=(b.ld&&b.ld.speedMul!=null)?b.ld.speedMul:1,pn=(b.pinT>0)?BB_W.wedgePin:1;return b.mob<=0?0:(BB.mobFloor+(1-BB.mobFloor)*(b.mob/mm))*sm*pn*BB.spd;} // v5.1.143: nimbler base (×BB.spd) + a higher mobFloor so mobility damage hurts less; 0 mobility = IMMOBILIZED
 function bbHitLoc(victim,fromX,fromY){ // contact point (toward the other bot) classified by the VICTIM's heading
   let d=Math.atan2(fromY-victim.y,fromX-victim.x)-victim.h;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;d=Math.abs(d);
   if(d<=BB.frontCone/2)return'front';        // facing the hit = armored (kinetic immune)

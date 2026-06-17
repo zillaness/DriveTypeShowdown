@@ -40,9 +40,9 @@ src+=`
   {const t=bb2.bots[0];t.inv=0;t.mob=0;t.hp=50;bbApplyHit(t,'side',15,1);ok('SIDE hit while IMMOBILE = pure HP',t.hp===35);}
 
   // ── 5. speed scales with mobility; 0 mobility = immobilized ──
-  ok('full mobility → full speed scale',Math.abs(bbSpeed({mob:BB.MOB})-1)<1e-9);
+  ok('full mobility → full speed scale (×BB.spd, RoboRumble runs nimbler)',Math.abs(bbSpeed({mob:BB.MOB})-BB.spd)<1e-9&&BB.spd>1);
   ok('zero mobility → cannot drive (scale 0)',bbSpeed({mob:0})===0);
-  ok('low mobility → reduced speed',bbSpeed({mob:50})>0&&bbSpeed({mob:50})<1);
+  ok('low mobility → reduced speed, but a higher floor (mobFloor) softens the loss',bbSpeed({mob:50})>0&&bbSpeed({mob:50})<bbSpeed({mob:BB.MOB})&&bbSpeed({mob:1})>=BB.mobFloor*BB.spd*0.9);
 
   // ── 6. KO ends the match (last side standing) ──
   bb2.bots=[mk(),Object.assign(mk(),{side:1})];bb2.result=null;
@@ -100,7 +100,7 @@ src+=`
   ok('RPS: neutral classes default to 1',bbRps('none','balanced')===1&&bbRps('control','hardplate')===1);
   {const hl=bbResolveLoadout({weapon:'spinner',armor:'hardplate'});
    ok('heavy bot (full mob) drives slower than default (full mob)',bbSpeed({mob:hl.mobMax,ld:hl})<bbSpeed({mob:BB.MOB}));
-   ok('bbSpeed byte-identical for a bot with no loadout',bbSpeed({mob:BB.MOB})===1&&bbSpeed({mob:0})===0);}
+   ok('bbSpeed for a no-loadout bot = the RoboRumble base (×BB.spd), 0 at no mobility',bbSpeed({mob:BB.MOB})===BB.spd&&bbSpeed({mob:0})===0);}
   // bbApplyHit applies deal × take × zone × RPS — flame(deal .7) vs hardplate(take .7, rear zone .85, rps 1.5)
   {const atk=Object.assign(mk(),{side:0,ld:bbResolveLoadout({weapon:'flame',armor:'balanced'})});
    const vic=Object.assign(mk(),{side:1,ld:bbResolveLoadout({weapon:'none',armor:'hardplate'})});
