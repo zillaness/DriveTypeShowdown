@@ -4241,7 +4241,7 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
     if(w==='piston'&&a.firing&&a.pistCd<=0){
       let foe=null,bd=1e9;for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);if(d<=RR+RR*BB_W.pistRangeK&&bbFoeAngOk(a,c,BB_W.pistArc)&&d<bd){bd=d;foe=c;}}
       a._pistFx=0.16;a.pistCd=BB_W.pistCd;sfx('thump'); // ALWAYS extend + full cooldown on a fire press, so the player SEES the hammer fire (was: a silent dry swing if it missed)
-      if(foe){bbApplyHit(foe,bbHitLoc(foe,a.x,a.y),BB_W.pistDmg,ai,a.x,a.y,BB_W.pistFront);const m=bd||1,nx=(foe.x-a.x)/m,ny=(foe.y-a.y)/m;foe.x+=nx*BB_W.pistKnock;foe.y+=ny*BB_W.pistKnock;obsCheck(foe,RR);} // connects → crack the front too (frontPierce)
+      if(foe){bbApplyHit(foe,bbHitLoc(foe,a.x,a.y),BB_W.pistDmg,ai,a.x,a.y,BB_W.pistFront);const m=bd||1,nx=(foe.x-a.x)/m,ny=(foe.y-a.y)/m;foe.x+=nx*BB_W.pistKnock;foe.y+=ny*BB_W.pistKnock;obsCheck(foe,RR);if(a.ctl)p2Rumble(a.ctl.bind,0.6);if(foe.ctl)p2Rumble(foe.ctl.bind,0.5);} // v5.1.153 rumble both on a piston strike connect
     }
     if(w==='flipper'&&a.firing&&a.pistCd<=0){ // v5.1.109 FLIPPER: a discrete RT launch (front arc) that FLINGS the foe back; reuses the strike cooldown/fx (a bot has one weapon)
       let foe=null,bd=1e9;for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);if(d<=RR+RR*BB_W.flipRangeK&&bbFoeAngOk(a,c,BB_W.flipArc)&&d<bd){bd=d;foe=c;}}
@@ -4264,14 +4264,14 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
     if(w==='flame'){if(!a.heat)a.heat={};
       for(let ci=0;ci<bb2.bots.length;ci++){const c=bb2.bots[ci];if(c.dead||c.side===a.side){a.heat[ci]=0;continue;}
         const d=Math.hypot(c.x-a.x,c.y-a.y),hot=a.firing&&d<=RR+RR*BB_W.flameRangeK&&bbFoeArcAt(a,c,BB_W.flameArc,a.weaponAng!=null?a.weaponAng:a.h)&&bbFlameLOS(a,c); // v5.1.99: cone vs the TURRET aim; v5.1.104: + line-of-sight (no burning through obstacles)
-        if(hot){a.heat[ci]=Math.min(BB_W.flameHeatMax,(a.heat[ci]||0)+dt);if(a.heat[ci]>=BB_W.flameDwell)bbApplyFlame(c,BB_W.flameDps*dt,ai);}
+        if(hot){a.heat[ci]=Math.min(BB_W.flameHeatMax,(a.heat[ci]||0)+dt);if(a.heat[ci]>=BB_W.flameDwell){bbApplyFlame(c,BB_W.flameDps*dt,ai);if(a.ctl)p2Rumble(a.ctl.bind,0.16);if(c.ctl)p2Rumble(c.ctl.bind,0.22);}} // v5.1.153 torch rumble
         else a.heat[ci]=Math.max(0,(a.heat[ci]||0)-dt*1.5);
       }
     }
     if(w==='drill'){if(!a.drill)a.drill={};let _ramp=0,_grind=false; // v5.1.146 DRILL: sustained front-contact grind — per-foe dwell ramps the DPS from drillMin→drillMax up to a cap (ignores directional armor)
       for(let ci=0;ci<bb2.bots.length;ci++){const c=bb2.bots[ci];if(c.dead||c.side===a.side){a.drill[ci]=0;continue;}
         const d=Math.hypot(c.x-a.x,c.y-a.y),on=a.firing&&d<=RR+RR*BB_W.drillReachK&&bbFoeAngOk(a,c,BB_W.drillArc);
-        if(on){a.drill[ci]=Math.min(BB_W.drillRampT,(a.drill[ci]||0)+dt);const ramp=a.drill[ci]/BB_W.drillRampT,dps=BB_W.drillMin+(BB_W.drillMax-BB_W.drillMin)*ramp;c.hp-=dps*dt;_grind=true;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+dps*dt;if(c.hp<=0&&!c.dead)bbKill(c,ai);}
+        if(on){a.drill[ci]=Math.min(BB_W.drillRampT,(a.drill[ci]||0)+dt);const ramp=a.drill[ci]/BB_W.drillRampT,dps=BB_W.drillMin+(BB_W.drillMax-BB_W.drillMin)*ramp;c.hp-=dps*dt;_grind=true;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+dps*dt;if(a.ctl)p2Rumble(a.ctl.bind,0.12+0.3*ramp);if(c.ctl)p2Rumble(c.ctl.bind,0.1+0.25*ramp);if(c.hp<=0&&!c.dead)bbKill(c,ai);} // v5.1.153 grinding rumble (scales with ramp)
         else a.drill[ci]=Math.max(0,(a.drill[ci]||0)-dt*1.5); // off the foe → the bit spins down (lose your ramp)
         _ramp=Math.max(_ramp,(a.drill[ci]||0)/BB_W.drillRampT);
       }
@@ -4552,16 +4552,16 @@ function updateBB(dt){
         if(cSpin){ka+=BB_W.spinKnock*cSpin;kc+=BB_W.spinKnock*cSpin;}
         if(a.ld&&a.ld.weapon==='wedge'&&a.firing&&bbFoeAngOk(a,c,BB_W.wedgeArc)){c.pinT=BB_W.wedgePinT;kc+=BB_W.wedgeShove;if(!a.grab&&!a.held&&!c.held&&!(a.grabCd>0)){a.grab=c;c.held=a;a.grabT=BB_W.grabDur;a.boostT=BOOST.dur;bbApplyHit(c,bbHitLoc(c,a.x,a.y),BB_W.grabDmg,i,a.x,a.y,0.6);sfx('thump');}} // v5.1.103 DOZER: contact while charging → GRAB (foe sticks to the blade front); v5.1.104: grab kicks a forward DASH + deals a bite of damage
         if(c.ld&&c.ld.weapon==='wedge'&&c.firing&&bbFoeAngOk(c,a,BB_W.wedgeArc)){a.pinT=BB_W.wedgePinT;ka+=BB_W.wedgeShove;if(!c.grab&&!c.held&&!a.held&&!(c.grabCd>0)){c.grab=a;a.held=c;c.grabT=BB_W.grabDur;c.boostT=BOOST.dur;bbApplyHit(a,bbHitLoc(a,c.x,c.y),BB_W.grabDmg,j,c.x,c.y,0.6);sfx('thump');}}
-        if(a.ld&&a.ld.weapon==='pincer'&&a.firing&&bbFoeAngOk(a,c,BB_W.pincerArc)&&!a.grab&&!a.held&&!c.held&&!(a.grabCd>0)){a.grab=c;c.held=a;a.grabT=BB_W.pincerGrabDur;c.pinT=BB_W.wedgePinT;sfx('thump');} // v5.1.110 PINCER grab: clamp + HOLD (no charge, no slam)
-        if(c.ld&&c.ld.weapon==='pincer'&&c.firing&&bbFoeAngOk(c,a,BB_W.pincerArc)&&!c.grab&&!c.held&&!a.held&&!(c.grabCd>0)){c.grab=a;a.held=c;c.grabT=BB_W.pincerGrabDur;a.pinT=BB_W.wedgePinT;sfx('thump');}
+        if(a.ld&&a.ld.weapon==='pincer'&&a.firing&&bbFoeAngOk(a,c,BB_W.pincerArc)&&!a.grab&&!a.held&&!c.held&&!(a.grabCd>0)){a.grab=c;c.held=a;a.grabT=BB_W.pincerGrabDur;c.pinT=BB_W.wedgePinT;sfx('thump');if(a.ctl)p2Rumble(a.ctl.bind,0.7);if(c.ctl)p2Rumble(c.ctl.bind,0.7);} // v5.1.110 PINCER grab: clamp + HOLD; v5.1.153 clamp rumble
+        if(c.ld&&c.ld.weapon==='pincer'&&c.firing&&bbFoeAngOk(c,a,BB_W.pincerArc)&&!c.grab&&!c.held&&!a.held&&!(c.grabCd>0)){c.grab=a;a.held=c;c.grabT=BB_W.pincerGrabDur;a.pinT=BB_W.wedgePinT;sfx('thump');if(c.ctl)p2Rumble(c.ctl.bind,0.7);if(a.ctl)p2Rumble(a.ctl.bind,0.7);}
         if(bbDriveFamily(a.ctl.bind)==='tank')kc*=BB_W.tankPush;if(bbDriveFamily(c.ctl.bind)==='tank')ka*=BB_W.tankPush; // v5.1.114 P5 DRIVE SYNERGY: a TANK-family drive shoves the foe harder
         a.x+=nx*ka;a.y+=ny*ka;c.x-=nx*kc;c.y-=ny*kc; // recoil knockback to both
         bbApplyHit(a,bbHitLoc(a,c.x,c.y),dC,j,c.x,c.y,cSpin?BB_W.spinFront:0); // c→a (a spun-up SPINNER pierces the front — it bites whatever it touches)
         bbApplyHit(c,bbHitLoc(c,a.x,a.y),dA,i,a.x,a.y,aSpin?BB_W.spinFront:0); // a→c
         if(aSpin){const defl=(c.ld&&c.ld.weapon==='wedge')?BB_W.spinDeflect:1; // SHEDS RPM + self-stresses on every bite; a WEDGE/blade DEFLECTS (×spinDeflect): the disc shreds itself + stalls
-          a.spin=Math.max(0,a.spin-BB_W.spinHitLoss*defl);a.hp-=dA*BB_W.spinSelf*defl;if(a.hp<=0)bbKill(a,j);}
+          a.spin=Math.max(0,a.spin-BB_W.spinHitLoss*defl);a.hp-=dA*BB_W.spinSelf*defl;if(a.ctl)p2Rumble(a.ctl.bind,0.4+0.5*aSpin);if(c.ctl)p2Rumble(c.ctl.bind,0.5+0.4*aSpin);if(a.hp<=0)bbKill(a,j);} // v5.1.153 spin-bite rumble
         if(cSpin){const defl=(a.ld&&a.ld.weapon==='wedge')?BB_W.spinDeflect:1;
-          c.spin=Math.max(0,c.spin-BB_W.spinHitLoss*defl);c.hp-=dC*BB_W.spinSelf*defl;if(c.hp<=0)bbKill(c,i);}
+          c.spin=Math.max(0,c.spin-BB_W.spinHitLoss*defl);c.hp-=dC*BB_W.spinSelf*defl;if(c.ctl)p2Rumble(c.ctl.bind,0.4+0.5*cSpin);if(a.ctl)p2Rumble(a.ctl.bind,0.5+0.4*cSpin);if(c.hp<=0)bbKill(c,i);}
       }
       obsCheck(a,RR);obsCheck(c,RR);
     }
