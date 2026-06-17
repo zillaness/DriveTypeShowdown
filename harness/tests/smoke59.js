@@ -49,10 +49,11 @@ src+=`
    const dgap=sub.dR.x-(sub.dL.x+sub.dL.w)-16;
    const allFit=driveNames.every(nm=>{const px=Math.max(8,Math.min(13,dgap/Math.max(1,nm.length*0.6)));return nm.length*px*0.6<=dgap+0.5;});
    ok('every drive name auto-fits within the cycle arrows (longest: "'+longest+'")',allFit);
-   const wLong=BB_WEAPONS.map(w=>w.name).reduce((a,b)=>b.length>a.length?b:a,'');
-   const aLong=BB_ARMOR.map(a=>a.name).reduce((a,b)=>b.length>a.length?b:a,''),lr=bbSeatLoadRects(c);
-   ok('weapon name ("'+wLong+'") fits between its ◀▶',txtW(wLong,11)<=(lr.wR.x-(lr.wL.x+lr.wL.w)));
-   ok('armor name ("'+aLong+'") fits between its ◀▶',txtW(aLong,11)<=(lr.aR.x-(lr.aL.x+lr.aL.w)));}
+   const wLong=BB_ARMORY_W.map(w=>w.lab).reduce((a,b)=>b.length>a.length?b:a,''); // v5.1.173 grid row shows short LABELS (3 groups: weapon · armor · PERK)
+   const aLong=BB_ARMORY_A.map(a=>a.lab).reduce((a,b)=>b.length>a.length?b:a,''),pLong=BB_PERKS.map(p=>p.lab).reduce((a,b)=>b.length>a.length?b:a,''),lr=bbSeatLoadRects(c);
+   ok('weapon label ("'+wLong+'") fits between its ◀▶',txtW(wLong,10)<=(lr.wR.x-(lr.wL.x+lr.wL.w)));
+   ok('armor label ("'+aLong+'") fits between its ◀▶',txtW(aLong,10)<=(lr.aR.x-(lr.aL.x+lr.aL.w)));
+   ok('perk label ("'+pLong+'") fits between its ◀▶',txtW(pLong,10)<=(lr.pR.x-(lr.pL.x+lr.pL.w)));}
 
   // ── 1v1 BattleBots claim card: the LAYOUT picker (weapon/armor + AUTOBUILD) must clear the drive arrows above AND the controller box below (the AUTOBUILD-vs-description fix) ──
   {m2.mode='battlebots';
