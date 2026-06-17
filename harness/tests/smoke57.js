@@ -501,7 +501,14 @@ src+=`
    // off the foe → the ramp spins back down (no damage out of arc/reach)
    const a2=bbBotWith('drill','balanced',0,0,true);a2.x=300;a2.y=300;a2.h=0;a2.firing=true;a2.drill={};
    const far=bbBotWith('none','balanced',1,1,true);far.x=300+RR*6;far.y=300;far.hp=BB.HP;bb2.bots=[a2,far];bb2.result=null;
-   const f0=far.hp;bbWeaponFire(1/60);ok('DRILL does nothing to a foe out of reach',far.hp===f0);}
+   const f0=far.hp;bbWeaponFire(1/60);ok('DRILL does nothing to a foe out of reach',far.hp===f0);
+   // v5.1.152: spin-up readout — _drillRamp climbs while grinding, falls when idle (so you can SEE it spin up)
+   const dr=bbBotWith('drill','balanced',0,0,true);dr.x=300;dr.y=300;dr.h=0;dr.firing=true;dr.drill={};
+   const dt=bbBotWith('none','balanced',1,1,true);dt.x=300+RR;dt.y=300;dt.hp=99999;bb2.bots=[dr,dt];bb2.result=null;
+   bbWeaponFire(1/60);const ramp1=dr._drillRamp;for(let i=0;i<60;i++)bbWeaponFire(1/60);const ramp2=dr._drillRamp;
+   ok('DRILL ramp readout climbs as you keep it on the foe',ramp2>ramp1&&dr._drillFx>0&&ramp2<=1.0001);
+   dr.firing=false;for(let i=0;i<200;i++)bbWeaponFire(1/60);
+   ok('DRILL ramp readout falls back + glow turns OFF when idle',dr._drillRamp<0.05&&!(dr._drillFx>0));}
   // ── v5.1.112: PERKS (3rd loadout slot) — data + effects (Parting Gift, Flameproof) ──
   {ok('bbResolveLoadout carries the PERK slot',bbResolveLoadout({weapon:'spinner',armor:'balanced',perk:'flameproof'}).perk==='flameproof');
    ok('a default loadout has no perk',bbResolveLoadout(null).perk==='none');

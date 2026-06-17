@@ -4268,12 +4268,14 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
         else a.heat[ci]=Math.max(0,(a.heat[ci]||0)-dt*1.5);
       }
     }
-    if(w==='drill'){if(!a.drill)a.drill={}; // v5.1.146 DRILL: sustained front-contact grind — per-foe dwell ramps the DPS from drillMin→drillMax up to a cap (ignores directional armor, like a bit boring in)
+    if(w==='drill'){if(!a.drill)a.drill={};let _ramp=0,_grind=false; // v5.1.146 DRILL: sustained front-contact grind — per-foe dwell ramps the DPS from drillMin→drillMax up to a cap (ignores directional armor)
       for(let ci=0;ci<bb2.bots.length;ci++){const c=bb2.bots[ci];if(c.dead||c.side===a.side){a.drill[ci]=0;continue;}
         const d=Math.hypot(c.x-a.x,c.y-a.y),on=a.firing&&d<=RR+RR*BB_W.drillReachK&&bbFoeAngOk(a,c,BB_W.drillArc);
-        if(on){a.drill[ci]=Math.min(BB_W.drillRampT,(a.drill[ci]||0)+dt);const ramp=a.drill[ci]/BB_W.drillRampT,dps=BB_W.drillMin+(BB_W.drillMax-BB_W.drillMin)*ramp;c.hp-=dps*dt;a._drillFx=0.12;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+dps*dt;if(c.hp<=0&&!c.dead)bbKill(c,ai);}
+        if(on){a.drill[ci]=Math.min(BB_W.drillRampT,(a.drill[ci]||0)+dt);const ramp=a.drill[ci]/BB_W.drillRampT,dps=BB_W.drillMin+(BB_W.drillMax-BB_W.drillMin)*ramp;c.hp-=dps*dt;_grind=true;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+dps*dt;if(c.hp<=0&&!c.dead)bbKill(c,ai);}
         else a.drill[ci]=Math.max(0,(a.drill[ci]||0)-dt*1.5); // off the foe → the bit spins down (lose your ramp)
+        _ramp=Math.max(_ramp,(a.drill[ci]||0)/BB_W.drillRampT);
       }
+      a._drillRamp=_ramp;a._drillFx=_grind?0.12:0; // v5.1.152 live ramp (HUD gauge + spin speed) + grinding flag (fresh each frame, so the glow turns OFF when idle)
     }
   }
 }
@@ -4614,10 +4616,10 @@ function bbDrawWeapon(b){ // P2.2 basic weapon cosmetics (the picker UI + polish
     ctx.fillStyle='#2a2e3a';ctx.beginPath();ctx.arc(RR*0.75,0,RR*0.55,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=bl?'#ff4d4d':'#7a2a2a';ctx.beginPath();ctx.arc(RR*0.75,0,RR*0.2,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='#ffd24d';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(RR*1.15,-RR*0.3);ctx.lineTo(RR*1.4,-RR*0.62);ctx.stroke();
-  }else if(w==='drill'){ctx.rotate(b.h);const on=(b._drillFx>0),sp=(bb2.t||0)*42; // v5.1.146 a spinning DRILL bit (flutes whirl; glows hot while grinding)
-    ctx.fillStyle=on?'#ffcf6a':'#aeb7c8';ctx.beginPath();ctx.moveTo(RR*0.25,-RR*0.55);ctx.lineTo(RR+13,0);ctx.lineTo(RR*0.25,RR*0.55);ctx.closePath();ctx.fill();ctx.strokeStyle='#3a4150';ctx.lineWidth=1.5;ctx.stroke();
-    ctx.strokeStyle=on?'#fff3c4':'#7a8698';ctx.lineWidth=2;for(let i=0;i<3;i++){const ph=sp+i*2.094;ctx.beginPath();ctx.moveTo(RR*0.4,Math.sin(ph)*RR*0.38);ctx.lineTo(RR+8,Math.sin(ph+0.9)*RR*0.16);ctx.stroke();} // helical flutes spinning
-    if(on){ctx.fillStyle='#fff3c4';for(let i=0;i<3;i++){const a2=sp*1.7+i*2.1;ctx.beginPath();ctx.arc(RR+12+Math.cos(a2)*4,Math.sin(a2)*4,1.4,0,Math.PI*2);ctx.fill();}} // sparks at the tip
+  }else if(w==='drill'){ctx.rotate(b.h);const rmp=b._drillRamp||0,grind=(b._drillFx>0),sp=(bb2.t||0)*(8+rmp*100); // v5.1.152 idle = barely turning; spins FASTER as it ramps up (rmp 0→1)
+    ctx.fillStyle=grind?'#ffcf6a':(rmp>0.04?'#e6cf9a':'#aeb7c8');ctx.beginPath();ctx.moveTo(RR*0.25,-RR*0.55);ctx.lineTo(RR+13,0);ctx.lineTo(RR*0.25,RR*0.55);ctx.closePath();ctx.fill();ctx.strokeStyle='#3a4150';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.strokeStyle=grind?'#fff3c4':(rmp>0.04?'#d8c592':'#7a8698');ctx.lineWidth=2;for(let i=0;i<3;i++){const ph=sp+i*2.094;ctx.beginPath();ctx.moveTo(RR*0.4,Math.sin(ph)*RR*0.38);ctx.lineTo(RR+8,Math.sin(ph+0.9)*RR*0.16);ctx.stroke();} // helical flutes spin faster with ramp
+    if(grind){ctx.fillStyle='#fff3c4';for(let i=0;i<3;i++){const a2=sp*1.7+i*2.1;ctx.beginPath();ctx.arc(RR+12+Math.cos(a2)*4,Math.sin(a2)*4,1.4+rmp*1.6,0,Math.PI*2);ctx.fill();}} // bigger sparks the hotter it gets
   }else if(w==='flame'){ctx.rotate(b.weaponAng!=null?b.weaponAng:b.h); // v5.1.100: ANIMATED flame jet, drawn along the TURRET/chassis aim
     if(b.firing){const R=RR+RR*BB_W.flameRangeK,a=BB_W.flameArc,T=(bb2&&bb2.t)||0;
       const g=ctx.createLinearGradient(0,0,R,0);g.addColorStop(0,'#fff7c0e0');g.addColorStop(0.22,'#ffd24dcc');g.addColorStop(0.6,'#ff7a1e99');g.addColorStop(1,'#ff3b0a00');
@@ -4718,6 +4720,7 @@ function drawBB(){
     ctx.fillText((b.ctl.type==='cpu'?b.ctl.name:p2Name(b.ctl.bind))+st+lifeTag,x,y);
     bbBar(x,y+5,184,7,b.mob/BB.MOB,'#ffd740');bbBar(x,y+15,184,7,b.hp/(b.mhp||BB.HP),'#ff5555');
     if(b.ld&&(b.ld.weapon==='spinner'||b.ld.weapon==='buzzsaw'))bbBar(x,y+24,184,4,(b.spin||0),'#9fd8ff');         // SPIN-up gauge (RPM) — spinner + buzzsaw
+    if(b.ld&&b.ld.weapon==='drill')bbBar(x,y+24,184,4,(b._drillRamp||0),'#ff9a3d');                                   // v5.1.152 DRILL spin-up / ramp gauge
   }}
   ctx.textAlign='center';ctx.font='bold 13px Courier New';{const tl=bbTimeLimit();if(tl>0){const left=Math.max(0,tl-bb2.t);ctx.fillStyle=left<=15?'#ff6b6b':'#d4d4f4';ctx.fillText('⏱ '+fmt(left),CW/2,20);}else{ctx.fillStyle='#d4d4f4';ctx.fillText(fmt(Math.max(0,bb2.t)),CW/2,20);}} // v5.1.149 countdown when timed
   ctx.font='9px Courier New';ctx.fillStyle='#556';ctx.fillText(bbModeHint(),CW/2,38);
