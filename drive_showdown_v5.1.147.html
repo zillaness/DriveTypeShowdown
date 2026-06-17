@@ -4360,6 +4360,34 @@ const BB_CTF_R=16, BB_CTF_TARGET=3; // CTF: flag pickup/return/capture touch rad
 function bbKothReloc(){return {x:clamp(FW/2+(Math.random()*2-1)*(FW/2-BB_KOTH_R-40),BB_KOTH_R+30,FW-BB_KOTH_R-30),y:clamp(FH/2+(Math.random()*2-1)*(FH/2-BB_KOTH_R-30),BB_KOTH_R+24,FH-BB_KOTH_R-24)};} // a fresh in-bounds hill spot
 function bbCtfFlags(){return [{side:0,hx:90,hy:FH/2,x:90,y:FH/2,carrier:null,home:true},{side:1,hx:FW-90,hy:FH/2,x:FW-90,y:FH/2,carrier:null,home:true}];} // each side's flag sits at its base; the ENEMY steals it
 function bbMapIdx(){let i=m2.set&&m2.set.map;if(i==='rand')i=Math.floor(Math.random()*TF2_MAPS.length);return (typeof i==='number'&&TF2_MAPS[i])?i:0;} // v5.1.134 resolve the ARENA setting → a concrete map index ('rand' re-rolls)
+// ── v5.1.147 P3/T4: dedicated MAP-PICKER screen (RoboRumble) — tiles with mini arena previews + a RANDOM tile ──
+function bbMapTiles(){const items=TF2_MAPS.map((m,i)=>i);items.push('rand'); // each map + a RANDOM tile
+  const cols=3,tw=Math.min(300,(CW-80)/cols-22),th=168,gx=22,gy=22,rows=Math.ceil(items.length/cols);
+  const totalW=cols*tw+(cols-1)*gx,x0=Math.round((CW-totalW)/2),y0=Math.round((CH-(rows*th+(rows-1)*gy))/2)+18;
+  return items.map((mp,k)=>{const c=k%cols,r=(k/cols)|0;return{x:x0+c*(tw+gx),y:y0+r*(th+gy),w:tw,h:th,map:mp};});}
+function bbDrawMapPreview(mp,x,y,w,h){ // a mini schematic of the arena (obstacles + hazards) scaled into the rect
+  ctx.fillStyle='#0c0c16';ctx.fillRect(x,y,w,h);ctx.strokeStyle='#2a2a3e';ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);
+  const sx=w/FW,sy=h/FH;
+  ctx.fillStyle='#39405a';for(const o of (mp.obs||[]))ctx.fillRect(x+o.x*sx,y+o.y*sy,Math.max(1.5,o.w*sx),Math.max(1.5,o.h*sy));
+  for(const hz of (mp.haz||[])){if(hz.type==='pit'){ctx.fillStyle='rgba(255,90,61,0.45)';ctx.fillRect(x+hz.x*sx,y+hz.y*sy,hz.w*sx,hz.h*sy);}else if(hz.type==='saw'){ctx.fillStyle='#c9d2dd';ctx.beginPath();ctx.arc(x+hz.cx*sx,y+hz.cy*sy,3.5,0,Math.PI*2);ctx.fill();}}}
+function drawBBMapPicker(){
+  ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);for(let sy=0;sy<CH;sy+=3){ctx.fillStyle='rgba(0,0,0,0.12)';ctx.fillRect(0,sy,CW,1);}
+  ctx.fillStyle='rgba(30,30,50,0.8)';rr(4,8,56,28,8);ctx.fill();ctx.strokeStyle='#334466';ctx.lineWidth=1;rr(4,8,56,28,8);ctx.stroke();
+  ctx.font='bold 9px Courier New';ctx.textAlign='center';ctx.fillStyle='#6677aa';ctx.fillText('← BACK',33,26);
+  ctx.font='bold 18px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('🗺 PICK YOUR ARENA',CW/2,30);
+  const cur=m2.set&&m2.set.map;
+  for(const t of bbMapTiles()){const sel=(t.map===cur)||(t.map==='rand'&&cur==='rand');
+    ctx.fillStyle=sel?'rgba(68,255,170,0.12)':'rgba(18,18,32,0.85)';rr(t.x,t.y,t.w,t.h,10);ctx.fill();
+    ctx.strokeStyle=sel?'#44ffaa':'#3a3a5a';ctx.lineWidth=sel?3:1.4;rr(t.x,t.y,t.w,t.h,10);ctx.stroke();
+    if(t.map==='rand'){ctx.fillStyle=sel?'#9fffd0':'#8888aa';ctx.font='bold 46px Courier New';ctx.textAlign='center';ctx.fillText('🎲',t.x+t.w/2,t.y+t.h/2+6);
+      ctx.font='bold 14px Courier New';ctx.fillStyle=sel?'#cfffe6':'#aab';ctx.fillText('RANDOM',t.x+t.w/2,t.y+t.h-16);ctx.font='9px Courier New';ctx.fillStyle='#667';ctx.fillText('re-rolls each match',t.x+t.w/2,t.y+t.h-2);
+    }else{const mp=TF2_MAPS[t.map];bbDrawMapPreview(mp,t.x+12,t.y+12,t.w-24,t.h-44);
+      ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle=sel?'#cfffe6':'#cfd0e6';ctx.fillText(mp.name+((mp.haz&&mp.haz.length)?' ⚠':''),t.x+t.w/2,t.y+t.h-12);}
+    if(sel){ctx.fillStyle='#44ffaa';ctx.font='bold 11px Courier New';ctx.textAlign='right';ctx.fillText('✓',t.x+t.w-10,t.y+18);}}
+  ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillStyle='#556';ctx.fillText('click an arena to select it · ⚠ = hazards · Esc / BACK returns to settings',CW/2,CH-14);}
+function bbMapPickerClick(mx,my){
+  if(inR(mx,my,{x:4,y:8,w:56,h:28})){phase='p2settings';sfx('click');return;}
+  for(const t of bbMapTiles()){if(inR(mx,my,t)){m2.set.map=t.map;sfx('claim');phase='p2settings';return;}}}
 function bbMode(){return (m2.set&&m2.set.bbmode)||'ko';}
 function bbModeHint(){const ctrl=' · LT/Shift = DASH · SPACE/RT = WEAPON';switch(bbMode()){ // v5.1.127 P9: the in-match HUD spells out each mode's win condition
   case'sumo':return'SUMO — shove them OUT of the ring; last bot inside wins'+ctrl;
@@ -5427,6 +5455,7 @@ function p2Back(){
   else if(phase==='p2race'&&tour&&tour.cur){r2=null;applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if((phase==='p2tank'||phase==='p2ball')&&tour&&tour.cur){r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if(phase==='p2drive'){if(m2._dp===1)m2._dp=0;else if(tour&&tour.cur){tour.cur=null;phase='p2tbracket';}else phase='p2modes';}
+  else if(phase==='p2bbmap'){phase='p2settings';} // v5.1.147 Esc from the map picker → settings
   else if(phase==='p2settings'){phase='p2modes';}
   else if(phase==='p2pupSettings'){const r=pupSettingsReturn||'p2settings';pupSettingsReturn=null;phase=r;}
   else if(phase==='p2claim'){if(tour&&tour.cur){tour.cur=null;phase='p2tbracket';}else phase='p2settings';}
@@ -5585,11 +5614,13 @@ function p2Click(mx,my){
       ctx.font='bold 13px Courier New';const valStr=String(r.show(m2.set[r.k]))+' ▾',valRight=rc.x+rc.w-44,vw=ctx.measureText(valStr).width;
       if(mx>=rc.x+rc.w-32){p2CycleSet(i,1);sfx('click');return;}                       // ▶ next
       if(mx>=valRight-vw-30&&mx<=valRight-vw-2){p2CycleSet(i,-1);sfx('click');return;}  // ◀ prev
+      if(r.k==='map'&&m2.mode==='battlebots'){phase='p2bbmap';sfx('click');return;}     // v5.1.147 ARENA row → the full-screen MAP PICKER (RoboRumble)
       setDropdown=i;sfx('click');return;}} // open the dropdown to choose
     if(p2ShowCpuCfg()&&inR(mx,my,p2CpuCfgBtnRect())){cpuSettingsReturn='p2settings';cpuGpIdx=0;phase='cpuSettings';sfx('click');return;}
     if(p2ShowPupCfg()&&inR(mx,my,p2PupCfgBtnRect())){pupSettingsReturn='p2settings';phase='p2pupSettings';sfx('click');return;}
     if(inR(mx,my,p2ResetBtnRect())){m2.set={...M2_SET_DEFAULTS};cpuSpeedMult=1.0;setDropdown=null;sfx('click');return;} // restore all match settings to defaults (incl. ALLIANCE CPU SPEED = cpuSpeedMult 100%)
     if(inR(mx,my,p2StartBtnRect())){p2cEnsureDrives();if(!(m2.claim[0]&&m2.claim[1])){m2.claim=[null,null];m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);}phase='p2claim';return;}
+  }else if(phase==='p2bbmap'){bbMapPickerClick(mx,my);return; // v5.1.147 RoboRumble map picker
   }else if(phase==='p2race'){
     if(r2&&r2.result!==null)p2NavClick(mx,my,FY+FH/2+34,startP2Race);
     return;
@@ -5882,6 +5913,7 @@ function p2Draw(){
       ctx.fillText(d.kind==='main'?'classic':d.kind==='holo'?'holonomic':'steering',r.x+r.w/2,r.y+62);}
     if(m2._dp===1&&m2.drive[0]){ctx.font='11px Courier New';ctx.textAlign='center';ctx.fillStyle=M2_COLS[0];
       ctx.fillText('P1 picked: '+m2.drive[0].name,CW/2,CH-30);}
+  }else if(phase==='p2bbmap'){drawBBMapPicker(); // v5.1.147 RoboRumble map picker
   }else if(phase==='p2settings'){
     p2Chrome('MATCH SETTINGS','click a row to choose · 🎮 ◀▶ change · ▲▼ move · '+M2_MODES.find(m=>m.id===m2.mode).name);
     const rows=p2SettingsRows(),gpFocus=(gpConnected&&p2GpPhase==='p2settings')?p2GpIdx:-1;

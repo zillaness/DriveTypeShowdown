@@ -620,6 +620,18 @@ src+=`
     const svm=m2.set.map;m2.set.map='rand';const i=bbMapIdx();
     ok('RANDOM resolves to a valid map index without overwriting the setting',typeof i==='number'&&TF2_MAPS[i]&&m2.set.map==='rand');
     m2.set.map=svm;}
+   // v5.1.147: the dedicated MAP-PICKER screen
+   {const tiles=bbMapTiles();
+    ok('map picker = one tile per arena + a RANDOM tile',tiles.length===TF2_MAPS.length+1&&tiles[tiles.length-1].map==='rand');
+    ok('map-picker tiles stay on-screen',tiles.every(t=>t.x>=0&&t.y>=0&&t.x+t.w<=CW+1&&t.y+t.h<=CH+1));
+    const svp=phase,svm2=m2.set.map;
+    phase='p2bbmap';const t0=tiles[0];bbMapPickerClick(t0.x+t0.w/2,t0.y+t0.h/2);
+    ok('clicking a map tile selects that arena + returns to settings',m2.set.map===t0.map&&phase==='p2settings');
+    phase='p2bbmap';const tr=tiles[tiles.length-1];bbMapPickerClick(tr.x+tr.w/2,tr.y+tr.h/2);
+    ok('clicking the RANDOM tile sets ARENA = rand',m2.set.map==='rand'&&phase==='p2settings');
+    phase='p2bbmap';bbMapPickerClick(20,20);
+    ok('BACK from the map picker returns to settings',phase==='p2settings');
+    phase=svp;m2.set.map=svm2;}
   // ── v5.1.121: P9 GAME MODES framework + SUMO (ring-out) ──
   {ok('GAME MODE includes KO + SUMO',BB_MODES.some(m=>m.id==='ko')&&BB_MODES.some(m=>m.id==='sumo'));
    const svmode=m2.set.bbmode;m2.set.bbmode='sumo';
