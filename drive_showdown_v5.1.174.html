@@ -157,6 +157,16 @@ let mouseX=0,mouseY=0,mouseAim=false,mouseBtnHeld=false; try{mouseAim=localStora
 function toggleMouseAim(){mouseAim=!mouseAim;try{localStorage.setItem('frcds_maim',mouseAim?'1':'0');}catch(e){}sfx('click');}
 let friendlyFire=false; try{friendlyFire=localStorage.getItem('frcds_ff')==='1';}catch(e){} // OFF = hits land only on the OPPOSING alliance/side (ram · guns · blasts); ON = you can hit your own team too
 function toggleFriendlyFire(){friendlyFire=!friendlyFire;try{localStorage.setItem('frcds_ff',friendlyFire?'1':'0');}catch(e){}sfx('click');}
+let aimAssist=false; try{aimAssist=localStorage.getItem('frcds_aim')==='1';}catch(e){} // v5.1.174 a smidge of AIM ASSIST: gently rotate a human bot toward the nearest enemy in front (helps line up EVERY front-arc weapon) + biases the flame turret
+function toggleAimAssist(){aimAssist=!aimAssist;try{localStorage.setItem('frcds_aim',aimAssist?'1':'0');}catch(e){}sfx('click');}
+let rumbleOn=true; try{rumbleOn=localStorage.getItem('frcds_rumble')!=='0';}catch(e){} // v5.1.174 controller VIBRATION toggle (default ON); the audio bump is separate (Sound)
+function toggleRumble(){rumbleOn=!rumbleOn;try{localStorage.setItem('frcds_rumble',rumbleOn?'1':'0');}catch(e){}sfx('click');}
+const AIM_ASSIST_CONE=0.36, AIM_ASSIST_PULL=6.0, AIM_ASSIST_RANGE_K=9; // only assists within ±~20° of where you're already pointing; turn-rate gain; range = RR×K
+function bbAimAssistTurret(b,ang){ // bias a manual TURRET aim toward the nearest enemy within the assist cone (a smidge)
+  if(!aimAssist||!bb2||!bb2.bots)return ang;
+  let foe=null,bd=1e9;for(const f of bb2.bots){if(f.dead||f.side===b.side)continue;const d=Math.hypot(f.x-b.x,f.y-b.y);if(d<bd){bd=d;foe=f;}}
+  if(!foe)return ang;let dh=Math.atan2(foe.y-b.y,foe.x-b.x)-ang;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
+  return Math.abs(dh)>AIM_ASSIST_CONE?ang:ang+dh*0.5;}
 let rotRatio=1; try{const _r=parseFloat(localStorage.getItem('frcds_rot'));if(_r>0)rotRatio=clamp(_r,0.25,3);}catch(e){} // TURN-RATE ratio vs translation (1 = 1:1, the classic feel); adjustable in the pause menu. Keeps the single simple sensitivity lever but lets turn vs drive be biased.
 function setRotRatio(v){rotRatio=clamp(Math.round(v*4)/4,0.25,3);try{localStorage.setItem('frcds_rot',String(rotRatio));}catch(e){}}
 function mouseAimVr(bind){ // MOUSE-AIM: keyboard player's bot turns toward the cursor (overrides key/stick turn). Returns vr in TSP units, or null.
@@ -726,11 +736,13 @@ function settingsBack(){
 function settingsRowRect(i){return{x:10,y:68+i*50,w:CW-20,h:40};}
 function handleSettingsClick(mx,my){
   if(inR(mx,my,{x:4,y:8,w:56,h:28})){settingsBack();return;}
-  for(let i=0;i<4;i++){
+  for(let i=0;i<6;i++){
     if(inR(mx,my,settingsRowRect(i))){
       if(i===0){sfxUnlock();sfxToggle();}
       else if(i===1){toggleMouseAim();}
       else if(i===2){toggleFriendlyFire();}
+      else if(i===3){toggleAimAssist();}
+      else if(i===4){toggleRumble();}
       else{cpuSettingsReturn='settings';cpuGpIdx=0;phase='cpuSettings';}
       return;
     }
@@ -748,6 +760,8 @@ function drawSettings(){
     {label:'Sound',val:sfxOn,onCol:'#44ffaa',hint:'plays effects in 2P matches  [M]'},
     {label:'Mouse-Aim',val:mouseAim,onCol:'#40c4ff',hint:'steer toward cursor instead of key/stick  [K]'},
     {label:'Friendly Fire',val:friendlyFire,onCol:'#ff7043',hint:'OFF = hit enemies only · ON = ram/guns/blasts hit your own team too'},
+    {label:'Aim Assist',val:aimAssist,onCol:'#ffd740',hint:'a smidge of magnetism — gently aims toward the nearest enemy (RoboRumble)'},
+    {label:'Rumble',val:rumbleOn,onCol:'#ff66cc',hint:'controller vibration on weapon hits/spin (audio bump is separate)'},
     {label:'CPU AI Settings',link:true,hint:'speed · behavior · presets'},
   ];
   for(let i=0;i<sRows.length;i++){
@@ -1469,7 +1483,7 @@ function updateGamepad(){
   if(phase==='settings'){
     const now=performance.now(),rep=now-gpNavLast>180;
     const D=just(13)||(gpAxis.ly>0.55&&rep),U=just(12)||(gpAxis.ly<-0.55&&rep);
-    if(D){settingsGpIdx=Math.min(3,settingsGpIdx+1);gpNavLast=now;}
+    if(D){settingsGpIdx=Math.min(5,settingsGpIdx+1);gpNavLast=now;}
     if(U){settingsGpIdx=Math.max(0,settingsGpIdx-1);gpNavLast=now;}
     const sr=settingsRowRect(settingsGpIdx);
     if(just(0))handleSettingsClick(sr.x+sr.w/2,sr.y+20);
@@ -3319,6 +3333,7 @@ const RUMBLE_PROF={hit:{w:0.9,s:0.45,d:90,gate:130},spin:{w:0.95,s:0.10,d:130,ga
 function p2Rumble(p,mag,type){
   type=type||'hit';const prof=RUMBLE_PROF[type]||RUMBLE_PROF.hit;const now=performance.now();
   if(type!=='spin'&&now-(sfxRumbleLast[p]||0)>=150){sfxRumbleLast[p]=now;sfx('bump',clamp(mag,0.15,0.8));} // audio bump — not for the sustained spin (would be a constant drone)
+  if(!rumbleOn)return; // v5.1.174 RUMBLE toggle — the audio bump above still plays (gated by Sound), but skip the controller vibration
   const impactful=(type!=='spin'); // a real impact may PREEMPT the sustained spin buzz; otherwise honor the per-type re-trigger gate
   if(now-(p2RumbleLast[p]||0)<prof.gate&&!(impactful&&p2RumbleType[p]==='spin'))return;
   const b=playerBind[p];if(!b)return;
@@ -4279,8 +4294,8 @@ function bbAimAngle(b){ // v5.1.100 turret aim — the independent aim is an ARC
   if(typeof p2cDriveDef==='undefined'||p2cDriveDef(b.ctl.bind).id!=='arcade')return b.h;
   if(b.ctl.type==='cpu'){let foe=null,bd=1e9;for(const f of bb2.bots)if(!f.dead&&f.side!==b.side){const d=Math.hypot(f.x-b.x,f.y-b.y);if(d<bd){bd=d;foe=f;}}return foe?Math.atan2(foe.y-b.y,foe.x-b.x):b.h;} // an ARCADE cpu tracks the nearest foe
   const pb=playerBind[b.ctl.bind];if(!pb)return b.h;
-  if(pb.type==='gp'){const ax=gpAxesAll[pb.gp];if(ax&&Math.hypot(ax.rx,ax.ry)>=0.35)return Math.atan2(ax.ry,ax.rx);return b.h;} // ARCADE: the RIGHT STICK aims the turret (deadzoned); else hold forward
-  if(pb.type==='kb'||pb.type==='any')return Math.atan2((mouseY-FY)-b.y,(mouseX-FX)-b.x);                                       // ARCADE keyboard: the MOUSE aims the turret
+  if(pb.type==='gp'){const ax=gpAxesAll[pb.gp];if(ax&&Math.hypot(ax.rx,ax.ry)>=0.35)return bbAimAssistTurret(b,Math.atan2(ax.ry,ax.rx));return b.h;} // ARCADE: the RIGHT STICK aims the turret (deadzoned, +aim assist); else hold forward
+  if(pb.type==='kb'||pb.type==='any')return bbAimAssistTurret(b,Math.atan2((mouseY-FY)-b.y,(mouseX-FX)-b.x));                  // ARCADE keyboard: the MOUSE aims the turret (+aim assist)
   return b.h;
 }
 function bbSpinBite(att,foe){ // v5.1.107 spin-weapon bite gate: SPINNER bites 360° (any contact); BUZZSAW only in its FRONT arc. Returns the spin level (0..1) if biting, else 0.
@@ -4671,6 +4686,9 @@ function updateBB(dt){
       if(b._flT>0){inp={vx:inp.vx*0.25+b._flx,vy:inp.vy*0.25+b._fly,vr:inp.vr*0.3};b._flx*=0.93;b._fly*=0.93;b._flT-=dt;if(b._flT<=0){b._flx=0;b._fly=0;b._flung=null;}} // v5.1.161 PUSHER fling: momentum dominates while it lasts (slower decay 0.9→0.93 = sails further back)
       b._inp=inp; // slow as mobility drops; turnMul = the loadout's weight turn penalty
       b.h+=inp.vr*dt;b.x+=inp.vx*dt;b.y+=inp.vy*dt;
+      if(aimAssist&&b.ctl.type!=='cpu'&&b._flT<=0){ // v5.1.174 AIM ASSIST: a smidge of heading magnetism toward the nearest enemy you're roughly facing — lines up ANY front-arc weapon
+        let foe=null,bd=1e9;for(const f of bb2.bots){if(f.dead||f.side===b.side)continue;const d=Math.hypot(f.x-b.x,f.y-b.y);if(d<bd){bd=d;foe=f;}}
+        if(foe&&bd<RR*AIM_ASSIST_RANGE_K){let dh=Math.atan2(foe.y-b.y,foe.x-b.x)-b.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;if(Math.abs(dh)<AIM_ASSIST_CONE)b.h+=dh*AIM_ASSIST_PULL*dt;}}
       if(!noClip){const px=b.x,py=b.y;obsCheck(b,RR);wallHit=(Math.abs(b.x-px)>0.5||Math.abs(b.y-py)>0.5);}
     });
     if(wallHit&&b._flT>0&&b._flung!=null){ // v5.1.170 WALL SLAM: a FLUNG bot that slams a wall/obstacle mid-flight takes EXTRA impact damage (once per fling) — not a ring-out KO, just bonus damage

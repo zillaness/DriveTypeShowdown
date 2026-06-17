@@ -661,6 +661,18 @@ src+=`
    ok('TANK INVASION: the cannon tracks + the shell damages the nearest enemy',gun._tpAim!=null&&tgt.hp<thp0);
    const svp=tankPort;tankPort=false;bb2.shells=[];const tg2=bbBotWith('wedge','balanced',1,2,true);tg2.x=320;tg2.y=300;tg2.hp=BB.HP;bb2.bots=[gun,tg2];gun._tpCd=0;const h2=tg2.hp;for(let i=0;i<30;i++)bbTankPortUpdate(1/60);
    ok('TANK INVASION off: no shells, no damage',bb2.shells.length===0&&tg2.hp===h2);tankPort=svt;}
+  // ── v5.1.174: AIM ASSIST (a smidge of magnetism) + RUMBLE toggle ──
+  {const sa=aimAssist;aimAssist=true;
+   const me=bbBotWith('flame','balanced',0,0,true);me.x=300;me.y=300;
+   const fo=bbBotWith('none','balanced',1,1,true);fo.x=300+RR*4;fo.y=300-RR*0.5;bb2.bots=[me,fo];
+   const fang=Math.atan2(fo.y-me.y,fo.x-me.x),adj=bbAimAssistTurret(me,0);
+   ok('AIM ASSIST: turret aim is pulled TOWARD a foe within the cone',adj!==0&&Math.abs(adj-fang)<Math.abs(0-fang));
+   aimAssist=false;ok('AIM ASSIST off: turret aim is unchanged',bbAimAssistTurret(me,0)===0);
+   const fa=bbBotWith('none','balanced',1,2,true);fa.x=300;fa.y=300-RR*4;bb2.bots=[me,fa];aimAssist=true; // a foe 90° to the SIDE is OUTSIDE the assist cone
+   ok('AIM ASSIST: a foe outside the cone is NOT snapped to',bbAimAssistTurret(me,0)===0);
+   ok('AIM ASSIST toggles + persists intent',(()=>{const b4=aimAssist;toggleAimAssist();const r=aimAssist!==b4;toggleAimAssist();return r&&aimAssist===b4;})());
+   ok('RUMBLE toggles',(()=>{const b4=rumbleOn;toggleRumble();const r=rumbleOn!==b4;toggleRumble();return r&&rumbleOn===b4;})());
+   aimAssist=sa;}
   // ── v5.1.120: P3 ARENA HAZARDS — the DANGER ZONE map (acid pit + saw blades) + map-select includes it ──
   {const hazMap=TF2_MAPS.find(m=>m.id==='hazard');
    ok('a HAZARD arena (DANGER ZONE) exists with a pit + saws',!!hazMap&&hazMap.haz.some(h=>h.type==='pit')&&hazMap.haz.some(h=>h.type==='saw'));
