@@ -4271,7 +4271,7 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
 const BB_W={
   jetSpinRamp:0.40, jetMin:0.45, jetRange:6.5, jetArc:Math.PI*0.24, jetDps:56, jetPush:240, jetSlamDps:35, // v5.1.182 JET ENGINE: fast spin-up (0.4s, not instant), forward thrust cone reach RR*2+RR*jetRange, ±40° arc, upfront DPS, push px/s (×spin×falloff — stronger close), light wall-slam DPS
   spinRamp:1.10, spinMin:0.55, spinDmg:40, spinKnock:2.0, spinReach:0.85, spinReachCd:0.20, spinHitLoss:0.4, spinWallDmg:18, spinWallLoss:0.90, spinFront:0.50, spinSelf:0.16, spinDeflect:2.5, buzzDmg:52, buzzArc:Math.PI*0.5, // v5.1.179 SPINNER buffed: dmg 32→36 + REACH (spinReach: the spun-up disc bites 360° out to RR*2+RR*spinReach, not just on body contact; spinReachCd gates the extended-bite DPS). BUZZSAW = FRONT-only (buzzArc ±45°) high-dmg cutter; spinner = lower-per-hit 360°
-  flipCd:0.85, flipArc:Math.PI*0.9, flipRangeK:2.0, flipKnock:110, flipDmg:28, flipWallDmg:40, flipFlySpd:1750, flipFlyT:0.68, // FLIPPER/PUSHER: v5.1.170 LESS initial-push damage (50→28) + the big fun PUSH kept (knock 110, fling 1750, 0.68s); wall/obstacle slam is just EXTRA damage now (62→40, not a ring-out KO). Fires on EDGE contact, near-180° arc
+  flipCd:0.85, flipArc:Math.PI*0.9, flipRangeK:2.0, flipKnock:110, flipDmg:28, flipWallDmg:40, flipFlySpd:1750, flipFlyT:0.68, slamBotDmg:34, // FLIPPER/PUSHER: v5.1.170 LESS initial-push damage (50→28) + the big fun PUSH kept (knock 110, fling 1750, 0.68s); wall/obstacle slam is just EXTRA damage now (62→40, not a ring-out KO). Fires on EDGE contact, near-180° arc
   pistCd:0.85, pistDmg:60, pistRangeK:2.6, pistArc:Math.PI*0.6, pistKnock:34, pistFront:0.78, // PISTON: v5.1.169 contact detected across the WHOLE stroke (+ radius-aware so partial/edge contact at the end still lands damage); push kept at its existing 34 (NOT increased); damage 60; reach 2.6, spike animates to full reach
   flameRangeK:7.6, flameArc:Math.PI*0.20, flameHitArc:Math.PI*0.34, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, flameSlowMul:0.68, flameSlowT:0.22, adrenalineMax:0.85, painkillerDelay:6.0, lastStandDur:12.0, lastStandSpd:1.18, runflatKeep:0.40, // v5.1.181 PERKS: ADRENALINE = up to +85% damage at death's door; PAINKILLER = 6s mobility grace; LAST STAND = 12s invuln+perfect-mobility death window. runflatKeep = mobility a popped-tire RUNFLAT bot retains (~70% of healthy speed — noticeably slower but still fighting; runflat stays situational/3v3-leaning by design) // FLAMETHROWER: v5.1.173 wider DAMAGE arc than the visual jet; v5.1.180 flameSlowMul/flameSlowT = HUMAN-only STICKINESS (the burn slows the victim to flameSlowMul× for flameSlowT s, refreshed each frame in the cone)
   wedgeDmg:0.82, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:152, grabDmg:40, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.8, pincerDrain:55, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, // v5.1.166 WEDGE/DOZER buffed (contact 0.40→0.62, slam 85→115, grab 18→28 — it read as weak). Wider arc (±63°) + grab REACH ≈ 2.4×RR so no perfect ram needed. dozerCharge = forward boost while firing RT, dashBuff = LT-dash buff
@@ -4366,6 +4366,7 @@ function bbJetUpdate(dt){ // v5.1.182 JET ENGINE: a spun-up + firing jet blasts 
       const fall=1-d/reach,dfall=0.45+0.55*fall; // STRONGER up close, weaker far. PUSH falls to ~0 at the cone edge (a foe settles at range, not shoved out); DAMAGE keeps a 45% floor so the held foe still takes real upfront hits
       const dmg=BB_W.jetDps*sp*dfall*dt;c.hp-=dmg;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+dmg; // upfront push damage (a force — ignores directional armor)
       const nx=dx/d,ny=dy/d,push=BB_W.jetPush*sp*fall*dt,ix=c.x+nx*push,iy=c.y+ny*push;
+      c._jetT=0.12;c._jetBy=i; // v5.1.184 mark as jet-pushed so a collision into another bot SLAMS both (credit this jet)
       c.x=ix;c.y=iy;obsCheck(c,RR);const stop=Math.hypot(ix-c.x,iy-c.y); // how far a wall/obstacle shoved it back = it SLAMMED
       if(stop>0.4){const slam=BB_W.jetSlamDps*sp*dt;c.hp-=slam;if(a.side!==c.side)a.dmgDealt=(a.dmgDealt||0)+slam;if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:c.x,y:c.y,t:0.16,r:RR*1.2});}
       if(c.ctl)p2Rumble(c.ctl.bind,0.3);if(a.ctl)p2Rumble(a.ctl.bind,0.25,'spin');
@@ -4403,6 +4404,8 @@ function bbWeaponPre(dt){ // per-bot: cache FIRE input, ramp/decay SPINNER, deca
     if(b._pistFx>0)b._pistFx=Math.max(0,b._pistFx-dt);
     if(b.burn>0)b.burn=Math.max(0,b.burn-dt*BB_W.burnCool); // the blow-up meter cools when you're not being flamed — you must SUSTAIN it
     if(b._flameSlowT>0)b._flameSlowT=Math.max(0,b._flameSlowT-dt); // v5.1.180 flame-stickiness slow decays once out of the cone
+    if(b._botSlamCd>0)b._botSlamCd=Math.max(0,b._botSlamCd-dt); // v5.1.184 bot-slam re-hit cooldown
+    if(b._jetT>0)b._jetT=Math.max(0,b._jetT-dt); // v5.1.184 jet-pushed flag decays (for slam-into-bot detection)
     if(b._painT>0)b._painT=Math.max(0,b._painT-dt); // v5.1.181 PAINKILLER grace ticks down → then the banked mobility damage takes effect
     if(b._lastStandT>0){b._lastStandT=Math.max(0,b._lastStandT-dt);b.mob=(b.ld&&b.ld.mobMax)||BB.MOB;if(b._lastStandT<=0)bbKill(b,b._lastStandKiller);} // v5.1.181 LAST STAND window ticks down → then you finally break down
     if(bbUnlimited){b.pistCd=0;b.grabCd=0;if(w==='spinner'||w==='buzzsaw'||w==='jet')b.spin=1;} // v5.1.118 UNLIMITED RESOURCES: weapons never cool down — full-auto strikes, always-spun disc, instant re-grab
@@ -4785,6 +4788,12 @@ function updateBB(dt){
     const dx=a.x-c.x,dy=a.y-c.y,d=Math.hypot(dx,dy)||0.01;
     if(d<RR*2){const nx=dx/d,ny=dy/d,ov=RR*2-d;
       a.x+=nx*ov*0.5;a.y+=ny*ov*0.5;c.x-=nx*ov*0.5;c.y-=ny*ov*0.5;
+      {const aF=(a._flT>0||(a._jetT||0)>0),cF=(c._flT>0||(c._jetT||0)>0); // v5.1.184 SLAM-INTO-BOT: a FLUNG (pusher) or jet-PUSHED bot crashing into ANOTHER bot hurts BOTH (collision physics) — credit the flinger/pusher. (3v3 feature: needs a third bot, so 1v1 balance is untouched.)
+       if((aF||cF)&&(a._botSlamCd||0)<=0&&(c._botSlamCd||0)<=0){const cred=aF?(a._flung!=null?a._flung:a._jetBy):(c._flung!=null?c._flung:c._jetBy),sd=BB_W.slamBotDmg;
+         a.hp-=sd;c.hp-=sd;a.inv=BB.hitCd;c.inv=BB.hitCd;a._botSlamCd=0.3;c._botSlamCd=0.3;a._flT=0;c._flT=0;a._jetT=0;c._jetT=0;sfx('hit');
+         if(a.ctl)p2Rumble(a.ctl.bind,0.6,'heavy');if(c.ctl)p2Rumble(c.ctl.bind,0.6,'heavy');if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:(a.x+c.x)/2,y:(a.y+c.y)/2,t:0.2,r:RR*1.6});
+         if(cred!=null&&bb2.bots[cred]){const k=bb2.bots[cred];if(k.side!==a.side)k.dmgDealt=(k.dmgDealt||0)+sd;if(k.side!==c.side)k.dmgDealt=(k.dmgDealt||0)+sd;}
+         if(a.hp<=0&&!a.dead)bbKill(a,cred);if(c.hp<=0&&!c.dead)bbKill(c,cred);if(a.dead||c.dead)continue;}}
       if(a.side!==c.side){
         if(a.grab&&a.grab!==c){bbGrabRelease(a);if(c.ctl)p2Rumble(c.ctl.bind,0.4);} // v5.1.140 RESCUE: a DIFFERENT enemy bashed the captor → free its captive (the only way out of a pincer lock)
         if(c.grab&&c.grab!==a){bbGrabRelease(c);if(a.ctl)p2Rumble(a.ctl.bind,0.4);}

@@ -730,6 +730,13 @@ src+=`
    const bb3=bbBotWith('none','balanced',1,2,true);bb3.x=300-RR*3;bb3.y=300;bb3.hp=BB.HP;bb3.inv=0;bb3.mob=BB.MOB;bb2.bots=[jt,bb3];
    const bx0=bb3.x,bh0=bb3.hp;bbJetUpdate(1/60);ok('JET: a foe BEHIND (outside the forward cone) is untouched',bb3.x===bx0&&bb3.hp===bh0);
    jt.spin=0;jt.ctl.brain.fire=true;bb2.bots=[jt,c];bbWeaponPre(1/60);ok('JET: spin-up is short but NOT instant (one tick < jetMin)',jt.spin>0&&jt.spin<BB_W.jetMin);}
+  // ── v5.1.184 SLAM-INTO-BOT: a flung (pusher) / pushed (jet) bot crashing into ANOTHER bot hurts BOTH (3v3) ──
+  {startBB(0,2);bb2.cd=0;bb2.result=null;const svdrv=m2.drive;m2.drive=[{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'}];
+   const F=bbBotWith('flipper','balanced',0,0,true);F.x=100;F.y=100;
+   const e1=bbBotWith('none','balanced',1,1,true);e1.x=400;e1.y=300;e1.hp=BB.HP;e1.inv=0;e1.mob=BB.MOB;e1._flT=0.3;e1._flung=0;e1._flx=0;e1._fly=0;e1._botSlamCd=0;
+   const e2=bbBotWith('none','balanced',1,2,true);e2.x=400+RR;e2.y=300;e2.hp=BB.HP;e2.inv=0;e2.mob=BB.MOB;e2._botSlamCd=0;
+   bb2.bots=[F,e1,e2];bb2.t=1;const h1=e1.hp,h2=e2.hp;updateBB(1/60);m2.drive=svdrv;
+   ok('SLAM-INTO-BOT: a flung bot crashing into another bot damages BOTH',e1.hp<h1&&e2.hp<h2);}
   // ── v5.1.120: P3 ARENA HAZARDS — the DANGER ZONE map (acid pit + saw blades) + map-select includes it ──
   {const hazMap=TF2_MAPS.find(m=>m.id==='hazard');
    ok('a HAZARD arena (DANGER ZONE) exists with a pit + saws',!!hazMap&&hazMap.haz.some(h=>h.type==='pit')&&hazMap.haz.some(h=>h.type==='saw'));
