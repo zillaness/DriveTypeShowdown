@@ -158,6 +158,12 @@ src+=`
    bbApplyHit(v,'front',40,0,v.x+10,v.y);ok('a plain FRONT hit is still immune (RAM shrugged off)',v.hp===hp0);
    v.inv=0;bbApplyHit(v,'front',40,0,v.x+10,v.y,BB_W.pistFront);ok('PISTON front-pierce CRACKS the armored front',v.hp<hp0&&v.hp>=hp0-40);
    v.inv=0;const hpP=v.hp;bbApplyHit(v,'front',BB_W.spinDmg,0,v.x+10,v.y,BB_W.spinFront);ok('SPINNER pierces the front too (bites a turtling foe)',v.hp<hpP);}
+  // ── v5.1.180 FLAME STICKINESS: a HUMAN flamer slows the victim (work out of the cone); CPU flame doesn't (balance) ──
+  {startBB(0,2);bb2.cd=0;bb2.result=null;const hf=bbBotWith('flame','balanced',0,0,false),v=bbBotWith('none','balanced',1,1,true);
+   v.x=300;v.y=300;v.mob=BB.MOB;v.hp=BB.HP;v.inv=0;v._flameSlowT=0;bb2.bots=[hf,v];
+   const spd0=bbSpeed(v);bbApplyFlame(v,5,0);ok('FLAME STICKINESS: a HUMAN flamer slows the victim',(v._flameSlowT||0)>0&&bbSpeed(v)<spd0);
+   const cf=bbBotWith('flame','balanced',0,0,true);v._flameSlowT=0;v.hp=BB.HP;bb2.bots=[cf,v];bbApplyFlame(v,5,0);ok('FLAME STICKINESS: a CPU flamer does NOT slow (balance-decoupled)',(v._flameSlowT||0)===0);
+   v._flameSlowT=BB_W.flameSlowT;bb2.bots=[v];for(let i=0;i<60;i++)bbWeaponPre(1/60);ok('FLAME STICKINESS: the slow decays once out of the cone',(v._flameSlowT||0)===0);}
   {startBB(0,2);bb2.cd=0;bb2.result=null;const a=bbBotWith('spinner','balanced',0,0,true),c=bbBotWith('none','balanced',1,1,true);
    a.ctl.brain.fire=true;a.x=300;a.y=300;a.h=0;a.spin=1;a.mob=BB.MOB;a.hp=BB.HP;a.inv=0;c.x=300+RR*1.2;c.y=300;c.hp=BB.HP;c.mob=BB.MOB;c.inv=0;
    bb2.bots=[a,c];updateBB(1/60);ok('SPINNER sheds spin when it bites (slows on every hit)',a.spin<0.95);}
