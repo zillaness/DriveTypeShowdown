@@ -332,7 +332,7 @@ const CHEATS=[ // v5.1.158: grouped by THEME with each slider beside its related
   {name:'MOVE OR DIE',    desc:'[ROBORUMBLE] keep moving or you lose health — no camping',                     get:()=>moveOrDie,   tog:()=>{moveOrDie=!moveOrDie;}}, // v5.1.116 P7 combat cheat
   {name:'UNLIMITED RESRC', desc:'[ROBORUMBLE] no weapon cooldowns — full-auto hammer/flipper, always-spun disc, instant grab', get:()=>bbUnlimited, tog:()=>{bbUnlimited=!bbUnlimited;}}, // v5.1.118 P7
   {name:'MEGABOTS',       desc:'[ROBORUMBLE] giant HP pools + crushing ram damage — epic heavyweight slugfests (pair with ROBOT SIZE)', get:()=>megaBots, tog:()=>{megaBots=!megaBots;}}, // v5.1.118 P7
-  {name:'AIRSTRIKE',      desc:'[ROBORUMBLE] bombs rain on the arena every few seconds — chaos for everyone (side-agnostic)', get:()=>airStrike, tog:()=>{airStrike=!airStrike;}}, // v5.1.119 P7
+  {name:'AIRSTRIKE',      desc:'bombs rain every few seconds — KOs in RoboRumble, STUNS in tank & ball (side-agnostic)', get:()=>airStrike, tog:()=>{airStrike=!airStrike;}}, // v5.1.119 P7; v5.1.159 cross-mode (tank/ball stun)
   {name:'ANIME SWORD',    desc:'[ROBORUMBLE] every bot gets a dramatic giant front-arc slash on a timer — big damage + knockback', get:()=>animeSword, tog:()=>{animeSword=!animeSword;}}, // v5.1.119 P7
   {name:'ARENA TRAPS',    desc:'[ROBORUMBLE] turn ANY arena into the DANGER ZONE — a central acid pit + two saw blades', get:()=>arenaTraps, tog:()=>{arenaTraps=!arenaTraps;}}, // v5.1.133 P7
   {name:'HAZARD MASTER',  desc:'[ROBORUMBLE] operate the traps with the MOUSE — click in the arena to call down a crusher strike (cooldown)', get:()=>hazardMaster, tog:()=>{hazardMaster=!hazardMaster;}}, // v5.1.148 P7 controllable hazards
@@ -2688,6 +2688,7 @@ function updateP2Ball(dt){
       let inp=getInp(playerBind[bo.bind]);
       if(bo.speedT>0){inp.vx*=1.4;inp.vy*=1.4;}
       if(arcadeMode)inp=arcadeStep(bo.bind,bo,inp,dt,ballFoes(p));
+      else if(bo.stunT>0){bo.stunT=Math.max(0,bo.stunT-dt);inp={vx:0,vy:0,vr:0};} // AIRSTRIKE stun: freeze even when RAMMING is off
       bo._inp=inp;
       bo.h+=inp.vr*dt;{const _m=momModeFor(bo,bo.bind);if(_m)applyMomentum(bo,inp,dt,_m);else{bo.x+=inp.vx*dt;bo.y+=inp.vy*dt;}}
       b2Wall(bo,RR);
@@ -2857,6 +2858,7 @@ function updateP2Ball(dt){
   }
   b2CpuUpdate(dt);
   b2Sticky(dt); // v4.0: sticky-plow capture/carry/strip/score (CPU bots only)
+  p2AirstrikeUpdate(dt); // v5.1.159 cross-mode AIRSTRIKE (stun)
   // ── PHASE 8 formats ──
   // scored (non-golden) balls recycle to their start after 1.5s so play never starves
   if(!b2.sudden)for(const b of balls){
@@ -2963,12 +2965,13 @@ function drawP2Ball(){
     ctx.strokeStyle=ck?EGG_COLS[ck]:M2_COLS[c.al];ctx.lineWidth=2;ctx.setLineDash([4,4]);
     ctx.beginPath();ctx.arc(0,0,RR+5,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();
   }
+  p2AirDraw(b2); // v5.1.159 cross-mode AIRSTRIKE telegraph + blast
   // bots
   for(let p=0;p<b2.bots.length;p++){const bo=b2.bots[p];
     const shade=(b2.bots.length>2)?teamShade(bo.al,bo.seat||0):null; // >2 mains: tint same-side bots distinctly; 1v1 keeps the classic team color/egg
     withBot(bo.bind,bo,()=>{drawRobot();});
     ctx.save();ctx.translate(FX+bo.x,FY+bo.y);p2AllianceRing(bo.al,shade);ctx.restore(); // ring on top so it's never buried by the swerve modules
-    if(arcadeMode)drawStun(bo);
+    if(arcadeMode||bo.stunT>0)drawStun(bo);
     drawP2Tag(bo.bind,bo,null,shade);
   }
   // HUD
@@ -3384,6 +3387,49 @@ function drawStun(bo){ // spinning stars over a stunned bot
   for(let i=0;i<3;i++){const a=t+i*2.094;ctx.beginPath();ctx.arc(Math.cos(a)*(RR+2),-RR-5+Math.sin(a)*3,2.3,0,6.283);ctx.fill();}
   ctx.restore();
 }
+// ── v5.1.159 P5: cross-mode AIRSTRIKE — the RoboRumble cheat now also lands in tank fight & ball modes, where it STUNS (not kills) the bots it catches, reusing the ram-stun mechanic. Telegraph → detonate, just like RoboRumble.
+const P2_AIR={cd:5.5,tele:1.3,rK:1.9,stun:BOOST.stun*1.6,knock:120}; // tuning for the 2P (tank/ball) airstrike
+function p2AirCtx(){ // resolve the active 2P combat match for the cross-mode airstrike (null if none / in countdown / decided)
+  if(tf2&&tf2.result===null&&tf2.cd<=0)return {m:tf2,bots:tf2.tanks,bindOf:i=>tankCtl(i).bind};
+  if(b2&&b2.result===null&&b2.cd<=0)return {m:b2,bots:b2.bots,bindOf:i=>b2.bots[i].bind};
+  return null;
+}
+function p2AirstrikeUpdate(dt){ // mirrors bbAirstrikeUpdate but applies STUN + knockback instead of HP damage
+  const cx=p2AirCtx();if(!cx)return;
+  const m=cx.m,bots=cx.bots;
+  if(!m.airBlasts)m.airBlasts=[];
+  for(const bl of m.airBlasts)bl.t-=dt; m.airBlasts=m.airBlasts.filter(bl=>bl.t>0);
+  if(!airStrike){m.air=null;return;}
+  if(m.air){m.air.t-=dt;if(m.air.t>0)return; // telegraph still shrinking
+    const p=m.air;m.air=null;const R=RR*P2_AIR.rK; // DETONATE
+    m.airBlasts.push({x:p.x,y:p.y,t:0.5,r:R});sfx('hit');
+    for(let i=0;i<bots.length;i++){const b=bots[i];if(b.dead)continue;
+      const d=Math.hypot(b.x-p.x,b.y-p.y);if(d>R)continue;
+      const f=Math.max(0.4,1-d/R);
+      b.stunT=Math.max(b.stunT||0,P2_AIR.stun*f); // STUN scaled by proximity (no HP loss — airstrike can't KO in 2P modes)
+      const nx=(b.x-p.x)/(d||1),ny=(b.y-p.y)/(d||1);
+      b.x=clamp(b.x+nx*P2_AIR.knock*f,RR,FW-RR);b.y=clamp(b.y+ny*P2_AIR.knock*f,RR,FH-RR); // blasted away from the impact
+      const bd=cx.bindOf(i);if(bd!=null)p2Rumble(bd,0.7*f);
+    }
+    return;}
+  m.airT=(m.airT==null?P2_AIR.cd:m.airT)-dt;
+  if(m.airT>0)return;
+  m.airT=P2_AIR.cd;
+  const live=bots.filter(b=>!b.dead);if(!live.length)return;
+  const tgt=live[Math.floor(Math.random()*live.length)]; // bias toward a living bot + jitter
+  const x=clamp(tgt.x+(Math.random()*2-1)*RR*2,RR,FW-RR),y=clamp(tgt.y+(Math.random()*2-1)*RR*2,RR,FH-RR);
+  m.air={x:x,y:y,t:P2_AIR.tele,max:P2_AIR.tele};sfx('count');
+}
+function p2AirDraw(m){ // shrinking-crosshair telegraph + blast rings for the cross-mode airstrike (self-contained transform)
+  if(!m)return;
+  if(m.airBlasts)for(const bl of m.airBlasts){const k=Math.max(0,bl.t/0.5),r=bl.r*(1-k*0.12);
+    ctx.save();ctx.globalAlpha=k;ctx.fillStyle='#ff704322';ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#ff7043';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FX+bl.x,FY+bl.y,r,0,Math.PI*2);ctx.stroke();ctx.restore();}
+  if(m.air){const p=m.air,k=clamp(p.t/(p.max||1),0,1),R=RR*P2_AIR.rK,rad=R*(1+1.6*k),cx2=FX+p.x,cy2=FY+p.y;
+    ctx.save();ctx.globalAlpha=0.45+0.55*(1-k);ctx.strokeStyle='#ff5a3d';ctx.lineWidth=2+(1-k)*2.5;
+    ctx.beginPath();ctx.arc(cx2,cy2,rad,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx2-rad,cy2);ctx.lineTo(cx2+rad,cy2);ctx.moveTo(cx2,cy2-rad);ctx.lineTo(cx2,cy2+rad);ctx.stroke();ctx.restore();}
+}
 // ── gamepad navigation for 2P screens: dpad/stick moves, A activates, B backs out ──
 let p2GpIdx=0,p2GpPhase='';
 function p2LiveMatch(){
@@ -3556,6 +3602,7 @@ function updateP2Tank(dt){
       let inp=tankInp(p);
       if(t.speedT>0){inp.vx*=1.4;inp.vy*=1.4;}
       if(arcadeMode)inp=arcadeStep(bind,t,inp,dt,tankFoes(p));
+      else if(t.stunT>0){t.stunT=Math.max(0,t.stunT-dt);inp={vx:0,vy:0,vr:0};} // AIRSTRIKE stun: freeze even when RAMMING is off (arcadeStep handles it otherwise)
       t._inp=inp;
       t.h+=inp.vr*dt;{const _m=momModeFor(t,bind);if(_m)applyMomentum(t,inp,dt,_m);else{t.x+=inp.vx*dt;t.y+=inp.vy*dt;}}
       if(!noClip)obsCheck(t,RR); // NO-CLIP: phase through obstacles
@@ -3632,6 +3679,7 @@ function updateP2Tank(dt){
   }
   tf2.bullets=tf2.bullets.filter(b=>!b.dead);
   for(const bl of tf2.blasts)bl.t-=dt; tf2.blasts=tf2.blasts.filter(bl=>bl.t>0);
+  p2AirstrikeUpdate(dt); // v5.1.159 cross-mode AIRSTRIKE (stun)
 }
 function drawTankCannon(t,col){ // v5.1.72 a basic cannon/turret on the tank chassis — points along cannonAng (chassis heading, or the foe under AUTO-AIM)
   const ca=(t.cannonAng!=null)?t.cannonAng:t.h, aim=t.aimT>0;
@@ -3714,6 +3762,7 @@ function drawP2Tank(){
       ctx.globalAlpha=1;
     }
   }
+  p2AirDraw(tf2); // v5.1.159 cross-mode AIRSTRIKE telegraph + blast
   for(let p=0;p<tf2.tanks.length;p++){const t=tf2.tanks[p];
     if(t.dead)continue; // eliminated tanks leave the field
     const blink=t.inv>0&&Math.floor(t.inv*10)%2===0;
@@ -3721,7 +3770,7 @@ function drawP2Tank(){
     _noScoop=true;withTank(p,()=>{drawRobot();});_noScoop=false; // tanks carry a cannon, not a ball plow
     const cov=t.ctl.type==='cpu'?t.col:undefined; // CPU shade; humans keep their name-egg color
     ctx.save();ctx.translate(FX+t.x,FY+t.y);p2AllianceRing(p,cov);ctx.restore(); // ring on top so it's never buried by the swerve modules
-    if(arcadeMode)drawStun(t);
+    if(arcadeMode||t.stunT>0)drawStun(t);
     drawP2Tag(p,t,tankLabel(p),cov); // show each bot's name (custom rename / PLAYER N / CPU) above it, humans included
     drawTankCannon(t,tankCol(p)); // basic cannon/turret on top of the chassis
     ctx.globalAlpha=1;
