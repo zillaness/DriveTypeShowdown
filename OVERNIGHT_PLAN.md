@@ -80,6 +80,34 @@ leave weapons at sane *functional* values (not 0%/100%, not crashing) and DON'T 
   - **▶ TOURNAMENT — remaining (decision-gated, mostly UI):** wire `tourAllianceDraft` into the flow (register teams → rank → draft → seed alliances into the existing `tourBuild` bracket); **DECISIONS to pin:** (A) lineup at registration vs match-time grid, (B) race stays 1v1-lane?, (C) captain-promotion cascade rules (seed-1-recruits-seed-2), (D) 1v1 vs 3v3 default + min field for 3v3. Then T4 per-match map-select, T1-hard input fix. NOTE: game modes are **RoboRumble-only** — porting any to TANK FIGHT = a separate wiring job (GAME MODE row for tank + a mode hook in the tank loop), not yet done.
 - **Reminders for whoever continues:** new weapon = BB_WEAPONS + BB_ARMORY_W entry + behavior (bbWeaponFire / contact loop) + brain fire (bbCpuUpdate) + render (bbDrawWeapon) + a smoke57 test + add to bbbalance.js WEAPONS. After git mv to the new version, you must Read the renamed file before Edit. Ritual: edit → git mv vN→vN+1 → sed extract.sh + MIGRATION → ./extract.sh && ./battery.sh (ALL GREEN) → commit "Release vN+1: …" → push dev.
 
+## 🌙 TONIGHT (2026-06-17) — GOAL + QUEUE (set with Sam before sleep)
+**GOAL:** Ship the **Absolute Heading Control** drive toggle and fully polish the new **CANNON**
+weapon — all green on `dev` — with the weapon/armor/perk balance **reported** and **held** for Sam's
+buff/nerf feedback (do NOT guess balance changes tonight).
+
+**QUEUE (in order):**
+1. ✅ **v5.1.175 CANNON weapon** — the tank cannon as a PICKABLE (any player/CPU can equip). RT fires
+   shells at range; turreted aim (arcade=stick/mouse; swerve/holo rotate-to-aim while strafing;
+   tank/steer fire forward). Sim ~61% (stronger for a human). + `bbreport.js` armor/perk sweep.
+2. ✅ **v5.1.176 flame BLOW-UP RING** — big distinct meter ring (dark track + glowing yellow→orange→red
+   fill), slow unfill, **human/CPU decoupled** (human heats fast/satisfying, CPU slow/balanced; flame 55.6%).
+3. ▶ **ABSOLUTE HEADING CONTROL toggle (snap-to-angle)** — a settings toggle: the aim stick's/mouse's
+   ANGLE sets the robot's absolute facing (rotate toward it) instead of the default rate-of-rotation.
+   Works across drives; default OFF (preserves current feel); + smoke tests.
+4. **CANNON polish** — confirm arcade right-stick/mouse turret aim + aim-assist drive the cannon; fire
+   SFX; armory/HUD readability; shell/recoil render.
+5. **Trust the perk table** — normalize the `bots[0]` handicap in `bbreport.js` (a no-effect perk reads
+   ~25%, not 50%) so perk numbers are baseline-corrected; re-output.
+6. **Docs** — MIGRATION.md + HANDOFF: cannon, flame ring, heading toggle.
+7. **HOLD — BALANCE:** weapon/armor/perk buffs/nerfs wait for Sam's feedback on the table below.
+
+**Balance snapshot @ v5.1.176 (for Sam's feedback):**
+- Weapons (sim win%): flipper 70 · buzzsaw 67 · piston 66 · **cannon 61** · flame 56 · pincer 53 ·
+  spinner 44 · drill 37 · wedge 34 · kamikaze 0 (kamikaze/pincer = 3v3 utility, 1v1-weak by design).
+- Armor (mirror win%): balanced 67 · reactive 64 · light 58 · runflat 41 · hardplate 35 · heatshield 35.
+- Perks (vs no-perk; ~25% = no 1v1 effect due to a sim bots[0] handicap): minibot 100 · pitstop 100 ·
+  partinggift 60 · flameproof/vampire/sparetire ~25 (situational; shine in 3v3 / vs flame).
+
 ## Morning deliverable
 A green, pushed `dev` with: a balanced weapon roster (incl. buzzsaw/flipper/pincer/kamikaze), the
 perks slot, and as many of P4–P9 as time allowed; MIGRATION + PRD updated; a summary of what shipped
