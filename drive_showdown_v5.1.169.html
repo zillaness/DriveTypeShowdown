@@ -4217,8 +4217,8 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
 // ── RoboRumble P2.2: weapon FIRE behavior (SPINNER / PISTON / FLAMETHROWER / WEDGE; RAM is always-on) — all TUNABLE ──
 const BB_W={
   spinRamp:1.10, spinMin:0.55, spinDmg:32, spinKnock:2.0, spinHitLoss:0.4, spinWallDmg:18, spinWallLoss:0.90, spinFront:0.50, spinSelf:0.16, spinDeflect:2.5, buzzDmg:52, buzzArc:Math.PI*0.5, // BUZZSAW = a FRONT-only (buzzArc ≈ ±45°) high-dmg cutter sharing the SPINNER spin-up + self-dmg + wedge-deflect; SPINNER (v5.1.104: dmg 38→24 — it's the 360° weapon, so LOWER per-hit; the high-dmg front-only spin-up weapon is the BUZZSAW): + the bot takes spinSelf× of the damage it deals back into ITSELF on every bite (energy transfer), ×spinDeflect vs a WEDGE/blade (the anti-spinner counter — deflects, shreds the disc)
-  flipCd:0.85, flipArc:Math.PI*0.9, flipRangeK:2.0, flipKnock:66, flipDmg:50, flipWallDmg:62, flipFlySpd:1380, flipFlyT:0.55, // FLIPPER/PUSHER: v5.1.166 a touch less knockback/fling (was dominating) — still flings far + same fast cd; wall-slam ring-out 90→62 (was an auto-kill); direct hit stays 50. Fires on EDGE contact, near-180° arc
-  pistCd:0.85, pistDmg:60, pistRangeK:2.6, pistArc:Math.PI*0.6, pistKnock:34, pistFront:0.78, // PISTON: v5.1.164 reach 2.0→2.6 (a little more range; the strike spike now animates out to the full reach); cooldown, strike dmg, reach (RR+RR×K), front arc, knockback, FRONT-pierce fraction
+  flipCd:0.85, flipArc:Math.PI*0.9, flipRangeK:2.0, flipKnock:110, flipDmg:50, flipWallDmg:62, flipFlySpd:1750, flipFlyT:0.68, // FLIPPER/PUSHER: v5.1.169 MORE PUSH (knock 66→110, fling 1380→1750, longer 0.55→0.68) — direct hit kept at 50; wall-slam ring-out held at 62 so the extra push displaces rather than auto-kills. Fires on EDGE contact, near-180° arc
+  pistCd:0.85, pistDmg:60, pistRangeK:2.6, pistArc:Math.PI*0.6, pistKnock:34, pistFront:0.78, // PISTON: v5.1.169 contact detected across the WHOLE stroke (+ radius-aware so partial/edge contact at the end still lands damage); push kept at its existing 34 (NOT increased); damage 60; reach 2.6, spike animates to full reach
   flameRangeK:7.6, flameArc:Math.PI*0.20, flameDwell:0.55, flameDps:12, flameHeatMax:1.8, flameMoveMul:0.7, // FLAMETHROWER: v5.1.166 LONGER reach (6.4→7.6) + a THINNER focused jet (0.26π→0.20π) per playtest; dps held at 12 (NOT reduced — reads very strong in the CPU sim from kiting, but real play needs planting + aim); heat-up dwell, heat cap, MOVE-mult while torching
   wedgeDmg:0.62, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:115, grabDmg:28, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.8, pincerDrain:55, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, // v5.1.166 WEDGE/DOZER buffed (contact 0.40→0.62, slam 85→115, grab 18→28 — it read as weak). Wider arc (±63°) + grab REACH ≈ 2.4×RR so no perfect ram needed. dozerCharge = forward boost while firing RT, dashBuff = LT-dash buff
   blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:4.5, partingDmg:320, // v5.1.166 PARTING GIFT = exactly HALF a kamikaze: radius 4.5×RR (½ of 9.0), damage 320 (½ of 640) — a real boom on death. KAMIKAZE radius 9×RR, falls to 0.85× at the edge
@@ -4314,18 +4314,20 @@ function bbWeaponPre(dt){ // per-bot: cache FIRE input, ramp/decay SPINNER, deca
 }
 function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + FLAMETHROWER (heat-up, then armor-ignoring burn)
   for(let ai=0;ai<bb2.bots.length;ai++){const a=bb2.bots[ai];if(a.dead)continue;const w=a.ld?a.ld.weapon:'none';
-    if(w==='piston'&&a.firing&&a.pistCd<=0){
-      let foe=null,bd=1e9;for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);if(d<=RR+RR*BB_W.pistRangeK&&bbFoeAngOk(a,c,BB_W.pistArc)&&d<bd){bd=d;foe=c;}}
-      a._pistFx=0.16;a.pistCd=BB_W.pistCd;sfx('thump');if(a.ctl)p2Rumble(a.ctl.bind,0.7,'thump'); // v5.1.165 a single punchy THUMP on every fire press (you SEE + feel the hammer fire)
-      if(foe){bbApplyHit(foe,bbHitLoc(foe,a.x,a.y),BB_W.pistDmg,ai,a.x,a.y,BB_W.pistFront);const m=bd||1,nx=(foe.x-a.x)/m,ny=(foe.y-a.y)/m;foe.x+=nx*BB_W.pistKnock;foe.y+=ny*BB_W.pistKnock;obsCheck(foe,RR);if(a.ctl)p2Rumble(a.ctl.bind,0.9,'bite');if(foe.ctl)p2Rumble(foe.ctl.bind,0.5);} // v5.1.165 BITE on a connect = you dealt damage
+    if(w==='piston'){
+      if(a.firing&&a.pistCd<=0){a._pistFx=0.16;a.pistCd=BB_W.pistCd;a._pistWin=0.18;a._pistHit=false;sfx('thump');if(a.ctl)p2Rumble(a.ctl.bind,0.7,'thump');} // v5.1.169 start a stroke + open a CONTACT WINDOW so the hammer detects contact across the WHOLE stroke (was: a single trigger-frame check that whiffed on late contact)
+      if((a._pistWin||0)>0){a._pistWin-=dt;
+        if(!a._pistHit){let foe=null,bd=1e9;for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);if(d<=RR+RR*BB_W.pistRangeK&&bbFoeAngOk(a,c,BB_W.pistArc)&&d<bd){bd=d;foe=c;}}
+          if(foe){a._pistHit=true;bbApplyHit(foe,bbHitLoc(foe,a.x,a.y),BB_W.pistDmg,ai,a.x,a.y,BB_W.pistFront);const m=bd||1,nx=(foe.x-a.x)/m,ny=(foe.y-a.y)/m;foe.x+=nx*BB_W.pistKnock;foe.y+=ny*BB_W.pistKnock;obsCheck(foe,RR);if(a.ctl)p2Rumble(a.ctl.bind,0.9,'bite');if(foe.ctl)p2Rumble(foe.ctl.bind,0.5);}}} // BITE on a connect = you dealt damage
     }
-    if(w==='flipper'&&a.firing&&a.pistCd<=0){ // v5.1.109 FLIPPER: a discrete RT launch (front arc) that FLINGS the foe back; reuses the strike cooldown/fx (a bot has one weapon)
-      let foe=null,bd=1e9;for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);if(d<=RR+RR*BB_W.flipRangeK&&bbFoeAngOk(a,c,BB_W.flipArc)&&d<bd){bd=d;foe=c;}}
-      a._pistFx=0.2;a.pistCd=BB_W.flipCd;sfx('thump');if(a.ctl)p2Rumble(a.ctl.bind,0.7,'thump'); // v5.1.165 a single punchy THUMP on the pusher THRUST (whether or not it connects)
-      if(foe){bbApplyHit(foe,bbHitLoc(foe,a.x,a.y),BB_W.flipDmg,ai,a.x,a.y,0.5);const m=bd||1,nx=(foe.x-a.x)/m,ny=(foe.y-a.y)/m;
-        foe._flx=nx*BB_W.flipFlySpd;foe._fly=ny*BB_W.flipFlySpd;foe._flT=BB_W.flipFlyT;foe._flung=ai; // v5.1.151 FLING the foe BACK with MOMENTUM (carried + decayed in updateBB; ring-out on a mid-flight wall slam)
-        foe.spin=Math.max(0,(foe.spin||0)-0.4);foe.pinT=0.25;if(foe.ctl)p2Rumble(foe.ctl.bind,0.7);if(a.ctl)p2Rumble(a.ctl.bind,0.9,'bite');
-        if(foe.hp<=0)bbKill(foe,ai);}
+    if(w==='flipper'){ // FLIPPER/PUSHER: a discrete RT launch (front arc) that FLINGS the foe back (low damage, big push)
+      if(a.firing&&a.pistCd<=0){a._pistFx=0.2;a.pistCd=BB_W.flipCd;a._flipWin=0.22;a._flipHit=false;sfx('thump');if(a.ctl)p2Rumble(a.ctl.bind,0.7,'thump');} // v5.1.169 start a stroke + open a CONTACT WINDOW so a foe touched at the END of the stroke still gets flung (was: a single trigger-frame check that whiffed on late contact)
+      if((a._flipWin||0)>0){a._flipWin-=dt;
+        if(!a._flipHit){let foe=null,bd=1e9;for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);if(d<=RR+RR*BB_W.flipRangeK&&bbFoeAngOk(a,c,BB_W.flipArc)&&d<bd){bd=d;foe=c;}}
+          if(foe){a._flipHit=true;bbApplyHit(foe,bbHitLoc(foe,a.x,a.y),BB_W.flipDmg,ai,a.x,a.y,0.5);const m=bd||1,nx=(foe.x-a.x)/m,ny=(foe.y-a.y)/m;
+            foe._flx=nx*BB_W.flipFlySpd;foe._fly=ny*BB_W.flipFlySpd;foe._flT=BB_W.flipFlyT;foe._flung=ai;foe.x+=nx*BB_W.flipKnock*0.3;foe.y+=ny*BB_W.flipKnock*0.3; // FLING back with momentum (carried + decayed in updateBB; ring-out on a mid-flight wall slam) + an instant nudge
+            foe.spin=Math.max(0,(foe.spin||0)-0.4);foe.pinT=0.25;if(foe.ctl)p2Rumble(foe.ctl.bind,0.7);if(a.ctl)p2Rumble(a.ctl.bind,0.9,'bite');
+            if(foe.hp<=0)bbKill(foe,ai);}}}
     }
     if(w==='pincer'&&a.firing&&!a.grab&&!a.held&&a.grabCd<=0){ // v5.1.144 PINCER reach-clamp: snap onto a lined-up foe within reach (no perfect ram needed) — easier to land
       let foe=null,bd=1e9;for(const c of bb2.bots){if(c.dead||c.side===a.side||c.held)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);if(d<=RR+RR*BB_W.pincerReachK&&bbFoeAngOk(a,c,BB_W.pincerArc)&&d<bd){bd=d;foe=c;}}
