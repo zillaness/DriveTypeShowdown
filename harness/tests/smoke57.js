@@ -233,9 +233,9 @@ src+=`
    ld.weapon='spinner';bbCycleField(ld,'weapon',1);ok('cycling WEAPON advances to the next pickable (spinner→piston)',ld.weapon===BB_WEAPONS[2].id);
    bbCycleField(ld,'weapon',-1);ok('cycling back returns + the cycler NEVER lands on RAM-ONLY/none',ld.weapon==='spinner'&&ld.weapon!=='none');
    bbCycleField(ld,'armor',-1);ok('cycling ARMOR backward wraps to the last',ld.armor===BB_ARMOR[BB_ARMOR.length-1].id);
-   ld.perk='none';bbCycleField(ld,'perk',1);ok('cycling PERK from NONE → the first real perk',ld.perk===BB_PERKS[1].id&&ld.perk!=='none');
-   bbCycleField(ld,'perk',-1);ok('cycling PERK back returns to NONE',ld.perk==='none');
-   bbCycleField(ld,'perk',-1);ok('cycling PERK backward from NONE wraps to the last perk',ld.perk===BB_PERKS[BB_PERKS.length-1].id);
+   ld.perk='none';bbCycleField(ld,'perk',1);ok('cycling PERK from unset → the first real perk (never NONE)',ld.perk===BB_PERKS_PICK[0].id&&ld.perk!=='none');
+   bbCycleField(ld,'perk',1);ok('cycling PERK forward advances to the next real perk',ld.perk===BB_PERKS_PICK[1].id);
+   ld.perk=BB_PERKS_PICK[0].id;bbCycleField(ld,'perk',-1);ok('cycling PERK backward from the first wraps to the LAST real perk (never NONE)',ld.perk===BB_PERKS_PICK[BB_PERKS_PICK.length-1].id);
    m2.tseats=null;}
   // ── v5.1.137: 3v3 grid AUTOBUILD-all-CPUs button ──
   {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;
@@ -294,7 +294,7 @@ src+=`
   {applyLayout('land2p');m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;phase='p2claim';tour=null;tankGridSetCpu(0);
    const chips=bbArmoryChips(),wChips=chips.filter(c=>c.kind==='weapon'),aChips=chips.filter(c=>c.kind==='armor');
    ok('armory rail has every PICKABLE weapon (RAM-only dropped) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none').length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length);
-   ok('v5.1.113: armory rail now has the PERK group too',chips.filter(c=>c.kind==='perk').length===BB_PERKS.length&&bbArmEquip&&(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','flameproof')&&m2.tseats[0].loadout.perk==='flameproof';})());
+   ok('v5.1.113: armory rail has the PERK group (pickable perks, NONE excluded)',chips.filter(c=>c.kind==='perk').length===BB_PERKS_PICK.length&&!chips.some(c=>c.kind==='perk'&&c.id==='none')&&bbArmEquip&&(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','flameproof')&&m2.tseats[0].loadout.perk==='flameproof';})());
    ok('armory chip ids match the real weapon/armor tables',wChips.every(c=>BB_WEAPONS.some(w=>w.id===c.id))&&aChips.every(c=>BB_ARMOR.some(a=>a.id===c.id)));
    ok('armory rail sits inside the canvas, above the seats',chips.every(c=>c.x>=0&&c.x+c.w<=CW&&c.y>=0&&c.y+c.h<=tankCellRect(0).y));
    const sp=wChips.find(c=>c.id==='spinner'),hit=bbArmoryHit(sp.x+sp.w/2,sp.y+sp.h/2);
@@ -533,6 +533,23 @@ src+=`
    const ehp0=en.hp;bbKill(pg,null);ok('PARTING GIFT perk: dying triggers a blast that damages a nearby ENEMY',en.hp<ehp0);
    ok('bbArmEquip can set the perk slot',(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','partinggift')&&m2.tseats[0].loadout.perk==='partinggift';})());
    ok('CPU loadout includes a perk field',!!bbCpuPickLoadout(3).perk);}
+  // ── v5.1.155: NONE removed as a pickable perk + new perks VAMPIRE / SPARE TIRE / PIT STOP ──
+  {ok('NONE is not a pickable perk anymore',!BB_PERKS_PICK.some(p=>p.id==='none')&&BB_PERKS.some(p=>p.id==='none'));
+   ok('CPUs always roll a real (non-NONE) perk',(()=>{for(let i=0;i<200;i++)if(bbCpuPickLoadout(2).perk==='none')return false;return true;})());
+   ok('new perks exist: VAMPIRE, SPARE TIRE, PIT STOP',['vampire','sparetire','pitstop'].every(id=>BB_PERKS_PICK.some(p=>p.id===id)));
+   // VAMPIRE: destroying an enemy heals the killer
+   const vk=bbBotWith('none','balanced',0,0,true);vk.ld.perk='vampire';vk.hp=200;vk.mhp=BB.HP;vk.x=300;vk.y=300;
+   const vv=bbBotWith('none','balanced',1,1,true);vv.x=320;vv.y=300;vv.hp=10;bb2.bots=[vk,vv];bb2.result=null;bb2.blasts=[];bb2.deb=[];
+   const vhp0=vk.hp;bbKill(vv,0);ok('VAMPIRE: destroying an enemy heals the killer',vk.hp>vhp0);
+   // SPARE TIRE: the first wheel to die is re-welded once
+   const st=bbBotWith('none','balanced',0,0,true);st.ld.perk='sparetire';st.wheels=[{hp:5,dead:false},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];st._spareUsed=false;
+   bbWheelDamage(st,100,null,null);ok('SPARE TIRE: the first wheel survives (re-welded) once',st.wheels.every(w=>!w.dead)&&st._spareUsed===true);
+   bbWheelDamage(st,100,null,null);ok('SPARE TIRE: the SECOND wheel to break is lost (spare spent)',st.wheels.some(w=>w.dead));
+   // PIT STOP: regen HP after a quiet spell
+   const ps=bbBotWith('none','balanced',0,0,true);ps.ld.perk='pitstop';ps.x=400;ps.y=400;ps.hp=200;ps.mhp=BB.HP;ps._lastHp=200;ps._pitHurt=0;
+   const dead2=bbBotWith('none','balanced',1,1,true);dead2.dead=true;bb2.bots=[ps,dead2];bb2.result=null;bb2.cd=0;bb2.t=BB_W.pitStopDelay+1;
+   const svd=m2.drive;m2.drive=[{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'}];
+   const ph0=ps.hp;for(let i=0;i<30;i++){bb2.cd=0;updateBB(1/60);}ok('PIT STOP: out-of-combat HP regen',ps.hp>ph0);m2.drive=svd;}
   // ── v5.1.114: P5 DRIVE SYNERGY — TANK-family drive shoves harder ──
   {ok('P5: TANK-family drive has a push buff (>1)',BB_W.tankPush>1);
    ok('bbDriveFamily maps the main TANK drive to the tank family',(()=>{const sd=m2.drive[0];m2.drive[0]={kind:'main',idx:0};const r=bbDriveFamily(0);m2.drive[0]=sd;return r==='tank';})());
