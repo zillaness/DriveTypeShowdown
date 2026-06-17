@@ -4165,7 +4165,7 @@ const BB_W={
   wedgeDmg:0.40, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:85, grabDmg:18, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.8, pincerDrain:55, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, // v5.1.144 easier to land: wider arc (±63°) + a grab REACH (RR+RR×reachK ≈ 2.4×RR) so you don't need a perfect ram. WEDGE/DOZER: contact-dmg, grab arc, pinned speed mult, pin/grab DURATION, shove + v5.1.103 GRAB-AND-SLAM (grip seconds, cooldown, base wall-slam dmg ×speed), dozerCharge = forward boost while firing RT, dashBuff = RoboRumble LT-dash speed/range buff
   blowUp:46, burnCool:9, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:3.8, partingDmg:130, // v5.1.145 KAMIKAZE peak 420→640 (scaled to HP 560 so it still destroys/near-destroys the radius); PARTING GIFT 95→130. KAMIKAZE radius 9×RR, falls to 0.85× at the edge
   wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:0.7, drillRampT:2.6, drillMin:22, drillMax:135, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, repairArc:Math.PI*0.5, repairReachK:1.6, repairHps:70, repairMobps:55, repairWheelps:30, repairDmg:8, vampHeal:130, pitStopDelay:3.0, pitStopHps:55, reactDmg:85, // v5.1.155 perks: VAMPIRE/PIT STOP; v5.1.157 REACTIVE armor reflect damage per charge
-  miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary; v5.1.117 P4 MINIBOT harasser (radius×RR, speed×SPD, shove px, pin-slow seconds)
+  miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, airTele:1.2, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14 // wheel HP + fault; P5 tankPush; P6 eggHeal/sec; v5.1.116 MOVE-OR-DIE HP drain/sec while stationary; v5.1.117 P4 MINIBOT harasser (radius×RR, speed×SPD, shove px, pin-slow seconds)
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
   const id=(typeof p2cDriveDef!=='undefined')?p2cDriveDef(bind).id:'tank';
@@ -4495,16 +4495,20 @@ function bbHazardUpdate(dt){
     }
   }
 }
-function bbAirstrikeUpdate(dt){ // v5.1.119 P7 AIRSTRIKE: bombs rain on the arena on a timer — radial damage to EVERYONE (reuses bb2.blasts FX)
+function bbAirstrikeUpdate(dt){ // v5.1.119 P7 AIRSTRIKE: bombs rain on the arena on a timer; v5.1.157 a shrinking-crosshair TELEGRAPH lands first, then it detonates
   if(!airStrike||!bb2)return;
+  if(bb2.airPending){bb2.airPending.t-=dt;if(bb2.airPending.t>0)return; // telegraph still counting down
+    const p=bb2.airPending;bb2.airPending=null;const R=RR*BB_W.airR; // DETONATE
+    if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:p.x,y:p.y,t:0.5,r:R});sfx('hit');
+    for(const b of bb2.bots){if(b.dead)continue;const d=Math.hypot(b.x-p.x,b.y-p.y);if(d<=R){const f=Math.max(0.35,1-d/R);b.hp-=BB_W.airDmg*f;b.inv=BB.hitCd;if(b.ctl)p2Rumble(b.ctl.bind,0.6);if(b.hp<=0&&!b.dead)bbKill(b,null);}}
+    return;}
   bb2.airT=(bb2.airT==null?BB_W.airCd:bb2.airT)-dt;
   if(bb2.airT>0)return;
   bb2.airT=BB_W.airCd;
   const live=bb2.bots.filter(b=>!b.dead);if(!live.length)return;
   const tgt=live[Math.floor(Math.random()*live.length)]; // bias strikes toward the action (a living bot) + jitter
-  const x=clamp(tgt.x+(Math.random()*2-1)*RR*2,RR,FW-RR),y=clamp(tgt.y+(Math.random()*2-1)*RR*2,RR,FH-RR),R=RR*BB_W.airR;
-  if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:x,y:y,t:0.5,r:R});sfx('hit');
-  for(const b of bb2.bots){if(b.dead)continue;const d=Math.hypot(b.x-x,b.y-y);if(d<=R){const f=Math.max(0.35,1-d/R);b.hp-=BB_W.airDmg*f;b.inv=BB.hitCd;if(b.ctl)p2Rumble(b.ctl.bind,0.6);if(b.hp<=0&&!b.dead)bbKill(b,null);}}
+  const x=clamp(tgt.x+(Math.random()*2-1)*RR*2,RR,FW-RR),y=clamp(tgt.y+(Math.random()*2-1)*RR*2,RR,FH-RR);
+  bb2.airPending={x:x,y:y,t:BB_W.airTele,max:BB_W.airTele};sfx('count'); // mark the target — the crosshair shrinks, then it lands
 }
 function bbHazardStrike(x,y){ // v5.1.148 HAZARD MASTER: a player-aimed crusher strike (field-local x,y) — radial damage, cooldown-gated; returns true if it fired
   if(!bb2||bb2.cd>0||bb2.result!==null||(bb2.hazCd||0)>0)return false;
@@ -4753,6 +4757,7 @@ function drawBB(){
   ctx.textAlign='center';ctx.font='bold 13px Courier New';{const tl=bbTimeLimit();if(tl>0){const left=Math.max(0,tl-bb2.t);ctx.fillStyle=left<=15?'#ff6b6b':'#d4d4f4';ctx.fillText('⏱ '+fmt(left),CW/2,20);}else{ctx.fillStyle='#d4d4f4';ctx.fillText(fmt(Math.max(0,bb2.t)),CW/2,20);}} // v5.1.149 countdown when timed
   ctx.font='9px Courier New';ctx.fillStyle='#556';ctx.fillText(bbModeHint(),CW/2,38);
   if(hazardMaster&&bb2.result===null&&bb2.cd<=0){const ready=(bb2.hazCd||0)<=0,R=RR*BB_W.hazStrikeRK;ctx.save();ctx.globalAlpha=ready?0.9:0.4;ctx.strokeStyle=ready?'#ff7a3d':'#888';ctx.lineWidth=2;ctx.setLineDash([6,5]);ctx.beginPath();ctx.arc(mouseX,mouseY,R,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(mouseX-9,mouseY);ctx.lineTo(mouseX+9,mouseY);ctx.moveTo(mouseX,mouseY-9);ctx.lineTo(mouseX,mouseY+9);ctx.stroke();ctx.restore();} // v5.1.148 HAZARD MASTER targeting reticle
+  if(airStrike&&bb2.airPending){const p=bb2.airPending,k=clamp(p.t/(p.max||1),0,1),R=RR*BB_W.airR,rad=R*(1+1.6*k),cx=FX+p.x,cy2=FY+p.y;ctx.save();ctx.globalAlpha=0.45+0.55*(1-k);ctx.strokeStyle='#ff5a3d';ctx.lineWidth=2+(1-k)*2.5;ctx.beginPath();ctx.arc(cx,cy2,rad,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(cx-rad,cy2);ctx.lineTo(cx+rad,cy2);ctx.moveTo(cx,cy2-rad);ctx.lineTo(cx,cy2+rad);ctx.stroke();ctx.restore();} // v5.1.157 AIRSTRIKE telegraph: a crosshair that STARTS LARGE and shrinks onto the impact point
   if(bb2.cd>0){ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,CW,CH);ctx.font='bold 84px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffd740';ctx.fillText(String(Math.ceil(bb2.cd)),CW/2,FY+FH/2);ctx.font='bold 13px Courier New';ctx.fillStyle='#8888aa';ctx.fillText('ROBORUMBLE — '+bb2.map.name,CW/2,FY+FH/2+40);}
   if(bb2.result!==null){ctx.fillStyle='rgba(0,0,0,0.74)';ctx.fillRect(0,0,CW,CH);const w=bb2.result,draw=(w==='draw');ctx.textAlign='center';ctx.font='bold 40px Courier New';ctx.fillStyle=draw?'#ffd740':M2_COLS[w];ctx.fillText(draw?'DRAW':((w===0?'RED':'BLUE')+' WINS'),CW/2,FY+FH/2-54);ctx.font='13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText((draw?'DOUBLE KO':'KO')+'  ·  '+fmt(bb2.t),CW/2,FY+FH/2-22);drawP2Nav(FY+FH/2+34);}
 }

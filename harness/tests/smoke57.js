@@ -626,12 +626,14 @@ src+=`
    ok('ANIME SWORD is a cheat',CHEATS.some(c=>c.name==='ANIME SWORD'));
    const sva=airStrike;airStrike=true;
    const ab=bbBotWith('none','balanced',0,0,true);ab.x=300;ab.y=300;ab.hp=BB.HP;ab.inv=0;
-   bb2.bots=[ab];bb2.result=null;bb2.blasts=[];bb2.airT=0.02;const ahp0=ab.hp,nbl0=bb2.blasts.length;
-   bbAirstrikeUpdate(0.05); // pushes airT below 0 → a strike lands
-   ok('AIRSTRIKE drops a bomb (a blast appears) + damages a bot under it',bb2.blasts.length>nbl0&&ab.hp<ahp0);
+   bb2.bots=[ab];bb2.result=null;bb2.blasts=[];bb2.airPending=null;bb2.airT=0.02;const ahp0=ab.hp,nbl0=bb2.blasts.length;
+   bbAirstrikeUpdate(0.05); // timer fires → a TELEGRAPH appears (no damage yet)
+   ok('AIRSTRIKE telegraphs first (pending crosshair, no blast/damage yet)',!!bb2.airPending&&bb2.blasts.length===nbl0&&ab.hp===ahp0);
+   bbAirstrikeUpdate(BB_W.airTele+0.05); // telegraph expires → DETONATE
+   ok('AIRSTRIKE then detonates (blast appears + damages a bot under it)',bb2.airPending===null&&bb2.blasts.length>nbl0&&ab.hp<ahp0);
    ok('AIRSTRIKE resets its timer after a strike',bb2.airT>0);
-   airStrike=false;const ab2=bbBotWith('none','balanced',0,0,true);ab2.hp=BB.HP;bb2.bots=[ab2];bb2.blasts=[];bb2.airT=0.02;bbAirstrikeUpdate(0.05);
-   ok('AIRSTRIKE off: no bombs, no damage',bb2.blasts.length===0&&ab2.hp===BB.HP);airStrike=sva;
+   airStrike=false;const ab2=bbBotWith('none','balanced',0,0,true);ab2.hp=BB.HP;bb2.bots=[ab2];bb2.blasts=[];bb2.airPending=null;bb2.airT=0.02;bbAirstrikeUpdate(0.05);
+   ok('AIRSTRIKE off: no telegraph, no bombs, no damage',!bb2.airPending&&bb2.blasts.length===0&&ab2.hp===BB.HP);airStrike=sva;
    const svs=animeSword;animeSword=true;
    const sw=bbBotWith('none','balanced',0,0,true);sw.x=300;sw.y=300;sw.h=0;sw.swordCd=0;
    const front=bbBotWith('none','balanced',1,1,true);front.x=300+RR+10;front.y=300;front.h=0;front.hp=BB.HP;front.inv=0;
