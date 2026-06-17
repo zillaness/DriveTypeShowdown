@@ -4024,22 +4024,17 @@ function bbApplyHit(victim,loc,dmg,owner,fromX,fromY,frontPierce){ // kinetic hi
 }
 function bbCheckResult(lastKiller){ // last SIDE standing wins (KO); nobody left = mutual-destruction DRAW
   if(bb2.result!==null)return;
-  if(bbMode()==='vip'){ // v5.1.123 P9 VIP: a side LOSES the instant its VIP is destroyed (grunts don't matter)
-    const vd=[false,false];for(const b of bb2.bots)if(b.vip&&b.dead)vd[b.side]=true;
+  if(bbMode()==='vip'){ // v5.1.123 P9 VIP: a side LOSES the instant its VIP is destroyed for good (no respawns left); grunts don't matter
+    const vd=[false,false];for(const b of bb2.bots)if(b.vip&&b.dead&&!(b.lives>0))vd[b.side]=true;
     if(vd[0]&&vd[1]){bb2.result='draw';sfx('win');return;}
     if(vd[0]){bb2.result=1;sfx('win');return;}
     if(vd[1]){bb2.result=0;sfx('win');return;}
   }
-  if(bbMode()==='stock'){ // v5.1.132 STOCK: a side is out only when it has NO bot alive AND no lives left to respawn
-    const inPlay=[false,false];for(const b of bb2.bots)if(!b.dead||b.lives>0)inPlay[b.side]=true;
-    if(!inPlay[0]&&!inPlay[1]){bb2.result='draw';sfx('win');}
-    else if(!inPlay[0]){bb2.result=1;sfx('win');}
-    else if(!inPlay[1]){bb2.result=0;sfx('win');}
-    return; // no last-standing shortcut while a side can still respawn
-  }
-  const s=new Set();for(const b of bb2.bots)if(!b.dead)s.add(b.side);
-  if(s.size===0){bb2.result='draw';sfx('win');return;}
-  if(s.size===1){bb2.result=[...s][0];sfx('win');}
+  // v5.1.149 GENERAL: a side is OUT only when it has NO bot alive AND none can respawn (lives). With 1-life modes this reduces to last-standing.
+  const inPlay=[false,false];for(const b of bb2.bots)if(!b.dead||b.lives>0)inPlay[b.side]=true;
+  if(!inPlay[0]&&!inPlay[1]){bb2.result='draw';sfx('win');return;}
+  if(!inPlay[0]){bb2.result=1;sfx('win');return;}
+  if(!inPlay[1]){bb2.result=0;sfx('win');return;}
 }
 function bbKill(victim,owner){ // KO + explosion + MUTUAL-DESTRUCTION chain: a near-dead bot caught in the blast also dies
   if(victim.dead)return;
@@ -4084,8 +4079,8 @@ function startP2BB(){cheatedRun=false;paused=false;
       ctl.brain=(r.type==='cpu')?{inp:{vx:0,vy:0,vr:0}}:null;
       const _ldSrc=bbLoadoutForBind(r.bind);const ld=bbResolveLoadout((r.type==='cpu'&&!_ldSrc)?bbCpuPickLoadout(r.tier|0):_ldSrc); // P2.1 loadout stats; P2.6: a CPU with no chosen loadout auto-arms (tier-scaled)
       const _mhp=BB.HP*(megaBots?BB_W.megaHp:1); // v5.1.118 MEGABOTS: a giant HP pool (mhp = this bot's max, used by the HP bar)
-      const _stock=(m2.set&&m2.set.bbmode==='stock')?BB_STOCK_LIVES:0; // v5.1.132 STOCK: extra lives (respawns)
-      return{x:sp.x,y:sp.y,h:sp.h,_sx:sp.x,_sy:sp.y,_sh:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:_mhp,mhp:_mhp,mega:!!megaBots,lives:_stock,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
+      const _lives=bbLivesResolve(); // v5.1.149 RESPAWNS remaining (per-mode lives setting)
+      return{x:sp.x,y:sp.y,h:sp.h,_sx:sp.x,_sy:sp.y,_sh:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:_mhp,mhp:_mhp,mega:!!megaBots,lives:_lives,inv:1.0,dead:false,dmgDealt:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
   bb2.minis=bbMiniSpawn(); // v5.1.117 P4: deploy a harasser for each bot carrying the MINIBOT perk
   for(let _s=0;_s<2;_s++){const _v=bb2.bots.find(b=>b.side===_s);if(_v)_v.vip=true;} // v5.1.123 P9 VIP: the first bot per side is that side's VIP (used only in VIP mode)
   cpuH2H=null;
@@ -4343,16 +4338,20 @@ function bbMiniUpdate(dt){ // harassers: chase nearest opponent main, shove + pi
     const dx=a.x-c.x,dy=a.y-c.y,d=Math.hypot(dx,dy)||0.01;if(d<mrr*2){const nx=dx/d,ny=dy/d,ov=mrr*2-d;a.x+=nx*ov*0.5;a.y+=ny*ov*0.5;c.x-=nx*ov*0.5;c.y-=ny*ov*0.5;}}
 }
 // ── v5.1.121 P9 GAME MODES: alternate RoboRumble win conditions (KO is the default, resolved by bbCheckResult). ──
-const BB_MODES=[
-  {id:'ko',        name:'KO — last bot standing'},
-  {id:'sumo',      name:'SUMO — ring-out wins'},
-  {id:'domination',name:'DOMINATION — hold the zone'},
-  {id:'koth',      name:'KOTH — hold the moving hill'},
-  {id:'vip',       name:'VIP — kill the enemy VIP'},
-  {id:'ctf',       name:'CTF — capture the flag'},
-  {id:'pushball',  name:'PUSH-BALL — shove the ball into their goal'},
-  {id:'stock',     name:'STOCK — limited lives, last alive wins'},
+const BB_MODES=[ // v5.1.149 per-mode defaults: lives (1 / N / 'inf') + time limit (sec, 0=off). Elimination modes = 1 life; objective modes = infinite lives + a clock.
+  {id:'ko',        name:'KO — last bot standing',          lives:1,    time:0},
+  {id:'sumo',      name:'SUMO — ring-out wins',            lives:1,    time:0},
+  {id:'domination',name:'DOMINATION — hold the zone',      lives:'inf',time:180},
+  {id:'koth',      name:'KOTH — hold the moving hill',     lives:'inf',time:180},
+  {id:'vip',       name:'VIP — kill the enemy VIP',        lives:1,    time:0},
+  {id:'ctf',       name:'CTF — capture the flag',          lives:'inf',time:180},
+  {id:'pushball',  name:'PUSH-BALL — shove the ball into their goal', lives:'inf',time:180},
+  {id:'stock',     name:'STOCK — limited lives, last alive wins',     lives:3,    time:0},
 ];
+function bbModeDef(mode){return BB_MODES.find(m=>m.id===(mode||bbMode()))||BB_MODES[0];}
+function bbLivesResolve(){const v=(m2.set&&m2.set.bblives!=null)?m2.set.bblives:bbModeDef().lives;return v==='inf'?Infinity:Math.max(0,(v|0)-1);} // → RESPAWNS remaining (lives−1; 'inf' = Infinity)
+function bbTimeLimit(){const v=(m2.set&&m2.set.bbtime!=null)?m2.set.bbtime:bbModeDef().time;return v|0;} // seconds, 0 = off
+function bbApplyModeDefaults(mode){const d=bbModeDef(mode);if(m2.set){m2.set.bblives=d.lives;m2.set.bbtime=d.time;}} // called when GAME MODE changes
 const BB_PB_R=24, BB_PB_FRIC=0.94, BB_PB_PUSH=120, BB_PB_GOALH=220, BB_PB_GOALD=34, BB_PB_TARGET=3; // PUSH-BALL: ball radius, per-frame friction, push impulse, goal-mouth height, goal depth from each end wall, goals to win
 const BB_STOCK_LIVES=2, BB_STOCK_DELAY=1.2; // STOCK: extra lives per bot + respawn delay (seconds)
 const BB_RING=290; // SUMO ring radius (px from arena center)
@@ -4403,6 +4402,10 @@ function bbModeHint(){const ctrl=' · LT/Shift = DASH · SPACE/RT = WEAPON';swit
 function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing here (bbKill→bbCheckResult covers it)
   if(!bb2||bb2.result!==null)return;
   const mode=bbMode(),cx=FW/2,cy=FH/2;
+  for(const b of bb2.bots){if(b.dead&&b.lives>0){ // v5.1.149 GENERAL RESPAWN (lives): any KO'd bot with respawns left returns after a delay (all modes; 'inf' = always)
+    if(b.respawnT==null)b.respawnT=BB_STOCK_DELAY;b.respawnT-=dt;
+    if(b.respawnT<=0){b.lives--;b.dead=false;b.respawnT=null;b.hp=b.mhp||BB.HP;b.mob=(b.ld&&b.ld.mobMax)||BB.MOB;b.inv=1.2;b.spin=0;b.pinT=0;b.outT=0;b.burn=0;b.grab=null;b.held=null;b.wheels=[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false}));if(b._sx!=null){b.x=b._sx;b.y=b._sy;b.h=b._sh;}}}}
+  {const tl=bbTimeLimit();if(tl>0&&bb2.t>=tl){bb2.result=bbTimeUpResult();sfx('win');return;}} // v5.1.149 TIME LIMIT: clock out → the objective leader wins (tie = draw)
   if(mode==='sumo'){ // SUMO: a bot shoved outside the ring is rung out (eliminated). Winner falls out of bbCheckResult (last side standing).
     for(const b of bb2.bots){if(b.dead)continue;if(Math.hypot(b.x-cx,b.y-cy)>BB_RING){b._rungOut=true;bbKill(b,null);}}
   }else if(mode==='domination'){ // DOMINATION: hold the center zone UNCONTESTED to bank time; first side to BB_DOM_TARGET wins
@@ -4439,13 +4442,16 @@ function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing he
     if(Math.abs(pb.y-cy)<BB_PB_GOALH/2&&(pb.x<BB_PB_GOALD||pb.x>FW-BB_PB_GOALD)){const scorer=pb.x<BB_PB_GOALD?1:0;bb2.pscore[scorer]++;sfx('win');pb.x=cx;pb.y=cy;pb.vx=0;pb.vy=0;for(let s=0;s<2;s++)if(bb2.pscore[s]>=BB_PB_TARGET){bb2.result=s;break;}} // GOAL → reset to center
     if(pb.x<BB_PB_R){pb.x=BB_PB_R;pb.vx=Math.abs(pb.vx)*0.5;}else if(pb.x>FW-BB_PB_R){pb.x=FW-BB_PB_R;pb.vx=-Math.abs(pb.vx)*0.5;} // wall bounce (after the goal check)
     if(pb.y<BB_PB_R){pb.y=BB_PB_R;pb.vy=Math.abs(pb.vy)*0.5;}else if(pb.y>FH-BB_PB_R){pb.y=FH-BB_PB_R;pb.vy=-Math.abs(pb.vy)*0.5;}
-  }else if(mode==='stock'){ // STOCK: a KO'd bot RESPAWNS (after a short delay) until its lives run out; bbCheckResult ends it only when a side has no bots + no lives
-    for(const b of bb2.bots){if(b.dead&&b.lives>0){
-      if(b.respawnT==null)b.respawnT=BB_STOCK_DELAY;
-      b.respawnT-=dt;
-      if(b.respawnT<=0){b.lives--;b.dead=false;b.respawnT=null;b.hp=b.mhp||BB.HP;b.mob=(b.ld&&b.ld.mobMax)||BB.MOB;b.inv=1.2;b.spin=0;b.pinT=0;b.outT=0;b.burn=0;b.grab=null;b.held=null;b.wheels=[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false}));if(b._sx!=null){b.x=b._sx;b.y=b._sy;b.h=b._sh;}} // fresh chassis back at its spawn
-    }}
-  }
+  } // STOCK now uses the general respawn block above (lives setting)
+}
+function bbTimeUpResult(){ // v5.1.149 who wins when the clock expires: the objective leader; elimination modes fall back to most surviving HP; tie = draw
+  const m=bbMode();let s=[0,0];
+  if(m==='ctf')s=bb2.ctf||[0,0];
+  else if(m==='domination')s=bb2.dom||[0,0];
+  else if(m==='koth')s=(bb2.koth&&bb2.koth.score)||[0,0];
+  else if(m==='pushball')s=bb2.pscore||[0,0];
+  else for(const b of bb2.bots){if(!b.dead)s[b.side]+=b.hp;}
+  return s[0]>s[1]?0:(s[1]>s[0]?1:'draw');
 }
 // ── v5.1.120 P3 ARENA HAZARDS: per-map damage zones — a saw blade's position is a PURE fn of bb2.t (deterministic). RoboRumble-only (only updateBB calls this). ──
 const BB_TRAP_DEFAULT=[{type:'pit',x:520,y:250,w:160,h:140},{type:'saw',cx:340,cy:320,axis:'y',amp:150,spd:1.5},{type:'saw',cx:860,cy:320,axis:'y',amp:150,spd:-1.5}]; // v5.1.133 ARENA TRAPS cheat: the DANGER ZONE hazard set, overlaid on any map
@@ -4705,13 +4711,13 @@ function drawBB(){
   ctx.globalAlpha=1;
   {const row=[0,0];for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];const left=b.side===0,x=left?10:CW-194,r=row[b.side]++,y=16+r*42;
     ctx.textAlign='left';ctx.font='bold 11px Courier New';ctx.fillStyle=b.col;
-    const stockTag=(bbMode()==='stock')?((b.dead&&b.lives>0)?' ↻'+Math.max(0,Math.ceil(b.respawnT||0)):' ♥'+(b.lives|0)):''; // STOCK: respawn timer or remaining lives
-    const st=(b.dead&&!(bbMode()==='stock'&&b.lives>0))?' ✕KO':((b.outT||0)>0?(' ⚠'+Math.max(1,Math.ceil(BB.countOut-b.outT))):(b.mob<=0?' ⚠STUCK':(b.pinT>0?' ⊗PIN':'')));
-    ctx.fillText((b.ctl.type==='cpu'?b.ctl.name:p2Name(b.ctl.bind))+st+stockTag,x,y);
+    const lifeTag=(b.dead&&b.lives>0)?(' ↻'+Math.max(0,Math.ceil(b.respawnT||0))):(b.lives>0?(' ♥'+(b.lives===Infinity?'∞':b.lives)):''); // v5.1.149 respawn timer / remaining respawns (any mode with lives)
+    const st=(b.dead&&!(b.lives>0))?' ✕KO':((b.outT||0)>0?(' ⚠'+Math.max(1,Math.ceil(BB.countOut-b.outT))):(b.mob<=0?' ⚠STUCK':(b.pinT>0?' ⊗PIN':'')));
+    ctx.fillText((b.ctl.type==='cpu'?b.ctl.name:p2Name(b.ctl.bind))+st+lifeTag,x,y);
     bbBar(x,y+5,184,7,b.mob/BB.MOB,'#ffd740');bbBar(x,y+15,184,7,b.hp/(b.mhp||BB.HP),'#ff5555');
     if(b.ld&&(b.ld.weapon==='spinner'||b.ld.weapon==='buzzsaw'))bbBar(x,y+24,184,4,(b.spin||0),'#9fd8ff');         // SPIN-up gauge (RPM) — spinner + buzzsaw
   }}
-  ctx.textAlign='center';ctx.font='bold 13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText(fmt(Math.max(0,bb2.t)),CW/2,20);
+  ctx.textAlign='center';ctx.font='bold 13px Courier New';{const tl=bbTimeLimit();if(tl>0){const left=Math.max(0,tl-bb2.t);ctx.fillStyle=left<=15?'#ff6b6b':'#d4d4f4';ctx.fillText('⏱ '+fmt(left),CW/2,20);}else{ctx.fillStyle='#d4d4f4';ctx.fillText(fmt(Math.max(0,bb2.t)),CW/2,20);}} // v5.1.149 countdown when timed
   ctx.font='9px Courier New';ctx.fillStyle='#556';ctx.fillText(bbModeHint(),CW/2,38);
   if(hazardMaster&&bb2.result===null&&bb2.cd<=0){const ready=(bb2.hazCd||0)<=0,R=RR*BB_W.hazStrikeRK;ctx.save();ctx.globalAlpha=ready?0.9:0.4;ctx.strokeStyle=ready?'#ff7a3d':'#888';ctx.lineWidth=2;ctx.setLineDash([6,5]);ctx.beginPath();ctx.arc(mouseX,mouseY,R,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(mouseX-9,mouseY);ctx.lineTo(mouseX+9,mouseY);ctx.moveTo(mouseX,mouseY-9);ctx.lineTo(mouseX,mouseY+9);ctx.stroke();ctx.restore();} // v5.1.148 HAZARD MASTER targeting reticle
   if(bb2.cd>0){ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,CW,CH);ctx.font='bold 84px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffd740';ctx.fillText(String(Math.ceil(bb2.cd)),CW/2,FY+FH/2);ctx.font='bold 13px Courier New';ctx.fillStyle='#8888aa';ctx.fillText('ROBORUMBLE — '+bb2.map.name,CW/2,FY+FH/2+40);}
@@ -5109,7 +5115,7 @@ const TF2_RED_COLS =['#ff5555','#ff9f43','#ffd740','#ff6f91']; // red · orange 
 const TF2_BLUE_COLS=['#5599ff','#33ccdd','#9b7bff','#44ddaa']; // blue · cyan · violet · teal
 function teamShade(side,idx){const pal=side===0?TF2_RED_COLS:TF2_BLUE_COLS;return pal[idx%pal.length];}
 const TF2_CPU_COLS=TF2_BLUE_COLS; // back-compat alias
-const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,tdrv:'open',tfmt:'1v1',ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true,bbmode:'ko'}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
+const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,tdrv:'open',tfmt:'1v1',ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true,bbmode:'ko',bblives:1,bbtime:0}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];m2.tseats=null;m2.tsel=0;m2.bbLoadout=[null,null];}
@@ -5504,6 +5510,8 @@ function p2SettingsRows(){
     {k:'bestOf', lab:'BEST OF',          vals:[1,3,5],            show:v=>v===1?'OFF (1 round)':'BEST OF '+v},
     {k:'map',    lab:'ARENA',            vals:[...TF2_MAPS.map((m,i)=>i),'rand'], show:v=>v==='rand'?'RANDOM 🎲 (re-rolls each match)':(TF2_MAPS[v]||TF2_MAPS[0]).name}, // v5.1.120 P3: DANGER ZONE arena; v5.1.134: + RANDOM
     {k:'bbmode', lab:'GAME MODE',         vals:BB_MODES.map(m=>m.id), show:v=>(BB_MODES.find(m=>m.id===v)||BB_MODES[0]).name}, // v5.1.121 P9: KO / SUMO / DOMINATION / VIP win conditions
+    {k:'bblives',lab:'LIVES',             vals:[1,2,3,'inf'], show:v=>v==='inf'?'INFINITE — respawn':(v+(v===1?' — no respawn':' lives'))}, // v5.1.149 respawns
+    {k:'bbtime', lab:'TIME LIMIT',        vals:[0,120,180,300], show:v=>v===0?'OFF':(v/60)+' min'}, // v5.1.149 clock → objective leader wins
   ];
   if(m2.mode==='race')return[
     {k:'course', lab:'COURSE',           vals:[0,1,2],            show:v=>(R2_COURSES[v]||R2_COURSES[0]).name},
@@ -5537,7 +5545,7 @@ let setDropdown=null; // index of the settings row whose dropdown is open (point
 function p2CycleSet(i,dir){const rows=p2SettingsRows(),r=rows[i];if(!r)return;
   if(!(r.k in m2.set))m2.set[r.k]=r.vals[0];
   const ci=Math.max(0,r.vals.indexOf(m2.set[r.k]));
-  m2.set[r.k]=r.vals[((ci+dir)%r.vals.length+r.vals.length)%r.vals.length];if(r.k==='tfmt')p2TfmtSyncAlliance();sfx('click');}
+  m2.set[r.k]=r.vals[((ci+dir)%r.vals.length+r.vals.length)%r.vals.length];if(r.k==='tfmt')p2TfmtSyncAlliance();if(r.k==='bbmode')bbApplyModeDefaults(m2.set.bbmode);sfx('click');}
 function p2TfmtSyncAlliance(){if(m2.mode==='normal'||m2.mode==='shooter')m2.set.cpus=(m2.set.tfmt==='multi')?0:2;} // the MULTI grid IS the 3v3 (its mains fill both sides) → default to NO extra alliance support; the classic 1v1 keeps 2 support bots/side
 function p2SetDropRects(){ // clickable rects for the open dropdown's choices (flips above the row if it would overflow)
   if(setDropdown===null)return [];
@@ -5613,7 +5621,7 @@ function p2Click(mx,my){
     const rows=p2SettingsRows();
     if(setDropdown!==null){ // a dropdown is open: pick a choice or dismiss
       const r=rows[setDropdown];
-      for(const it of p2SetDropRects()){if(inR(mx,my,it)){m2.set[r.k]=it.val;if(r.k==='tfmt')p2TfmtSyncAlliance();sfx('click');setDropdown=null;return;}}
+      for(const it of p2SetDropRects()){if(inR(mx,my,it)){m2.set[r.k]=it.val;if(r.k==='tfmt')p2TfmtSyncAlliance();if(r.k==='bbmode')bbApplyModeDefaults(m2.set.bbmode);sfx('click');setDropdown=null;return;}}
       setDropdown=null;return; // click outside closes it
     }
     for(let i=0;i<rows.length;i++){const rc=p2SetRowRect(i);if(inR(mx,my,rc)){

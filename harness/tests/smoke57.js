@@ -7,7 +7,7 @@ src+=`
   ok('BATTLEBOTS is in M2_MODES',M2_MODES.some(m=>m.id==='battlebots'));
   ok('5 modes now lay out without overflow',(()=>{const last=p2ModeRect(M2_MODES.length-1);return last.x+last.w<=CW+1&&p2ModeRect(0).x>=0;})());
   m2.mode='battlebots';const bbrows=p2SettingsRows();
-  ok('battlebots settings = TEAM FORMAT + BEST OF + ARENA + GAME MODE',bbrows.length===4&&bbrows[0].k==='tfmt'&&bbrows[1].k==='bestOf'&&bbrows[2].k==='map'&&bbrows[3].k==='bbmode');
+  ok('battlebots settings = TEAM FORMAT + BEST OF + ARENA + GAME MODE + LIVES + TIME LIMIT',bbrows.length===6&&bbrows[0].k==='tfmt'&&bbrows[1].k==='bestOf'&&bbrows[2].k==='map'&&bbrows[3].k==='bbmode'&&bbrows[4].k==='bblives'&&bbrows[5].k==='bbtime');
 
   // ── 2. start a 1v1 battlebots match (human vs CPU) ──
   const startBB=(map,cpuTier)=>{applyLayout('land2p');phase='p2claim';tour=null;m2.mode='battlebots';
@@ -728,8 +728,24 @@ src+=`
    const sa2=bbBotWith('none','balanced',0,0,true);sa2.dead=false;const se2=bbBotWith('none','balanced',1,1,true);se2.dead=true;se2.lives=1;
    bb2.bots=[sa2,se2];bb2.result=null;bbCheckResult(0);
    ok('STOCK: no premature win while a foe can still respawn',bb2.result===null);
-   m2.set.bbmode='stock';startBB(0,2);
-   ok('STOCK: bots spawn with lives',bb2.bots.every(b=>b.lives===BB_STOCK_LIVES));
+   m2.set.bbmode='stock';m2.set.bblives=3;startBB(0,2);
+   ok('STOCK: bots spawn with the LIVES setting (3 lives = 2 respawns)',bb2.bots.every(b=>b.lives===2));
+   // v5.1.149: generalized LIVES / RESPAWN + TIME LIMIT, per-mode defaults
+   {ok('KO defaults to 1 life (no respawn)',bbModeDef('ko').lives===1&&bbModeDef('ko').time===0);
+    ok('CTF defaults to infinite lives + a time limit',bbModeDef('ctf').lives==='inf'&&bbModeDef('ctf').time>0);
+    ok('KOTH defaults to infinite lives + a time limit',bbModeDef('koth').lives==='inf'&&bbModeDef('koth').time>0);
+    bbApplyModeDefaults('ctf');ok('selecting a mode applies its lives + time defaults',m2.set.bblives==='inf'&&m2.set.bbtime>0);
+    m2.set.bblives='inf';ok('bbLivesResolve: INFINITE → Infinity respawns',bbLivesResolve()===Infinity);
+    m2.set.bblives=1;ok('bbLivesResolve: 1 life → 0 respawns',bbLivesResolve()===0);
+    // infinite lives → a downed bot respawns
+    m2.set.bbmode='ctf';m2.set.bbtime=0;const r=bbBotWith('none','balanced',0,0,true);r.lives=Infinity;r.dead=true;r.hp=0;r.respawnT=null;r.mhp=BB.HP;r._sx=70;r._sy=FH/2;r._sh=0;
+    bb2.bots=[r];bb2.result=null;bbModeUpdate(BB_STOCK_DELAY+0.05);
+    ok('INFINITE lives: a downed bot respawns + stays infinite',r.dead===false&&r.lives===Infinity);
+    // time limit: when the clock runs out, the objective leader wins
+    m2.set.bbmode='ctf';m2.set.bbtime=120;const a=bbBotWith('none','balanced',0,0,true),b=bbBotWith('none','balanced',1,1,true);
+    bb2.bots=[a,b];bb2.ctf=[2,1];bb2.result=null;bb2.t=120.1;bbModeUpdate(0.02);
+    ok('TIME LIMIT: at time-up the objective leader wins (CTF 2–1 → side 0)',bb2.result===0);
+    m2.set.bbmode=svmode;m2.set.bblives=1;m2.set.bbtime=0;}
    // VIP (assassinate the enemy VIP)
    ok('GAME MODE includes VIP',BB_MODES.some(m=>m.id==='vip'));
    m2.set.bbmode='vip';
