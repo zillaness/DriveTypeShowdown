@@ -738,7 +738,7 @@ src+=`
    jt.x=300;jt.y=300;jt.h=0;jt.firing=true;jt.spin=1;c.x=300+RR*3;c.y=300;c.hp=BB.HP;c.inv=0;c.mob=BB.MOB;bb2.bots=[jt,c];
    const cx0=c.x,h0=c.hp;bbJetUpdate(1/60);
    ok('JET: pushes a foe in the forward cone AWAY',c.x>cx0);
-   ok('JET: deals NO direct damage in open space (push only)',c.hp===h0);
+   ok('JET: deals direct trickle damage',c.hp<h0);
    {const wc=bbBotWith('none','balanced',1,3,true);wc.x=FW-RR-1;wc.y=300;wc.hp=BB.HP;wc.inv=0;wc.mob=BB.MOB;const jw=bbBotWith('jet','balanced',0,4,true);jw.x=FW-RR-RR*3;jw.y=300;jw.h=0;jw.spin=1;jw.firing=true;bb2.bots=[jw,wc];
     const wh=wc.hp;for(let i=0;i<20;i++)bbJetUpdate(1/60);ok('JET: shoving a foe INTO a wall deals SLAM damage',wc.hp<wh);}
    const bb3=bbBotWith('none','balanced',1,2,true);bb3.x=300-RR*3;bb3.y=300;bb3.hp=BB.HP;bb3.inv=0;bb3.mob=BB.MOB;bb2.bots=[jt,bb3];

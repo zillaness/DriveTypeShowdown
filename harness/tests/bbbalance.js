@@ -42,7 +42,7 @@ src+=`
   const hi=overall[0],lo=overall[overall.length-1];
   console.log('\\nmatches: '+total+'  decisive(KO/countout): '+(100*(total-tos-draws)/total).toFixed(0)+'%  timeout→judges: '+(100*tos/total).toFixed(0)+'%  draws: '+(100*draws/total).toFixed(0)+'%');
   console.log('spread: '+hi.w+' '+(hi.r*100).toFixed(0)+'% … '+lo.w+' '+(lo.r*100).toFixed(0)+'%');
-  const UTIL=['pincer','kamikaze','jet'],fighters=overall.filter(o=>!UTIL.includes(o.w)); // pincer (control) + kamikaze (self-destruct) + jet (ranged zone-push; payoff = walls/3v3) are utility — 1v1-weak BY DESIGN, not balanced against in a 1v1 sim
+  const UTIL=['pincer','kamikaze'],fighters=overall.filter(o=>!UTIL.includes(o.w)); // pincer (control) + kamikaze (self-destruct) + jet (ranged zone-push; payoff = walls/3v3) are utility — 1v1-weak BY DESIGN, not balanced against in a 1v1 sim
   console.log(nanc?('NaN DETECTED ('+nanc+')'):((fighters.every(o=>o.r<=0.66&&o.r>=0.34))?'FIGHTERS WITHIN 34-66% BAND ✓ (pincer/kamikaze = utility, 3v3 — excluded)':'IMBALANCED — tune the fighters toward 50%'));
 })();
 `;
