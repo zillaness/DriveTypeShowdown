@@ -625,12 +625,12 @@ src+=`
    const needy=bbBotWith('none','balanced',0,2,true);needy.x=120+RR*6;needy.y=300;needy.hp=120;needy.mhp=BB.HP;needy.mob=BB.MOB; // farther, badly hurt
    bb2.bots=[mn,near,needy];bb2.result=null;mn.firing=true;bbWeaponFire(1/60);
    ok('REPAIR with no stick input heals the MOST-NEEDY ally (not the nearest)',mn._repairTgt===needy);
-   // heal range == buff AoE (the AoE circle is the heal-range gauge): equal radii, ~just under ¼ map
-   ok('REPAIR heal range EQUALS the buff AoE (the AoE is the heal-range gauge)',Math.abs((1+BB_W.repairReachK)-BB_W.repairBuffRK)<0.5&&BB_W.repairReachK>=14);
+   // heal range == buff AoE (the AoE circle is the heal-range gauge): equal radii, support-from-range but still at risk (~75% of the old reach)
+   ok('REPAIR heal range EQUALS the buff AoE (the AoE is the heal-range gauge)',Math.abs((1+BB_W.repairReachK)-BB_W.repairBuffRK)<0.5&&BB_W.repairReachK>=10);
    const lr=bbBotWith('repair','balanced',0,0,true);lr.x=120;lr.y=300;lr.h=0;lr.firing=true;
-   const far=bbBotWith('none','balanced',0,2,true);far.x=120+RR*14;far.y=300;far.hp=200;far.mhp=BB.HP;far.mob=BB.MOB;bb2.bots=[lr,far];bb2.result=null; // ~14×RR ≈ ¼ map away
+   const far=bbBotWith('none','balanced',0,2,true);far.x=120+RR*9;far.y=300;far.hp=200;far.mhp=BB.HP;far.mob=BB.MOB;bb2.bots=[lr,far];bb2.result=null; // ~9×RR — supports from range (within the shrunk reach)
    const fh0=far.hp;for(let i=0;i<30;i++){lr.firing=true;bbWeaponFire(1/60);}
-   ok('REPAIR heals an ally ~¼ map away (long-range beam)',far.hp>fh0);
+   ok('REPAIR heals an ally from range (within the shrunk reach)',far.hp>fh0);
    ok('REPAIR attack buff is BIG (×2.5 damage)',BB_W.repairDmgBuff>=2.0);}
   // ── v5.1.112: PERKS (3rd loadout slot) — data + effects (Parting Gift, Flameproof) ──
   {ok('bbResolveLoadout carries the PERK slot',bbResolveLoadout({weapon:'spinner',armor:'balanced',perk:'flameproof'}).perk==='flameproof');

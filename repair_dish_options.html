@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Repair Radar Dish — pick an option</title>
+<style>
+  html,body{margin:0;background:#07070e;color:#dfe2f4;font-family:'Courier New',monospace;}
+  h1{font-size:18px;text-align:center;padding:14px 8px 2px;margin:0;color:#7CFC8A;}
+  p.sub{text-align:center;margin:2px 8px 10px;font-size:12px;color:#9aa0b4;}
+  canvas{display:block;margin:0 auto;background:#07070e;}
+</style></head>
+<body>
+<h1>REPAIR RADAR DISH — options &amp; animations</h1>
+<p class="sub">All rotate at the VERTEX (open side facing out). Left = IDLE scan · Right = LOCKED heal (beam + %HP ring). Tell me which letter you want — or mix &amp; match feed/bowl.</p>
+<canvas id="c" width="720" height="1180"></canvas>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const RR=30; // scaled-up robot radius for the preview
+// ── a simple bot chassis centered at the origin (the dish mounts on this) ──
+function chassis(){ctx.save();ctx.fillStyle='#2b3550';ctx.strokeStyle='#46527a';ctx.lineWidth=2;
+  rr(-RR*0.78,-RR*0.78,RR*1.56,RR*1.56,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#1a2238';for(const sx of [-1,1])for(const sy of [-1,1]){rr(sx*RR*0.6-4,sy*RR*0.66-7,8,14,3);ctx.fill();}
+  ctx.restore();}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+// ── the dish bowl (vertex at origin, opens +x). depth via the arc half-span. ──
+function bowl(DR,span,healing){const A0=Math.PI-span,A1=Math.PI+span;
+  ctx.fillStyle=healing?'rgba(22,52,36,0.92)':'rgba(33,42,56,0.92)';ctx.beginPath();ctx.arc(DR,0,DR,A0,A1);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=healing?'#7CFC8A':'#9fb3c8';ctx.lineWidth=2.6;ctx.beginPath();ctx.arc(DR,0,DR,A0,A1);ctx.stroke();
+  return {A0,A1};}
+function ribs(DR,A0,A1,healing){ctx.strokeStyle=healing?'rgba(124,252,138,0.5)':'rgba(150,170,195,0.45)';ctx.lineWidth=1;
+  for(let r=0.45;r<0.95;r+=0.25){ctx.beginPath();ctx.arc(DR,0,DR*r,A0,A1);ctx.stroke();}}
+function pedestal(){ctx.fillStyle='#222a36';ctx.strokeStyle='#3a4658';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,RR*0.24,0,Math.PI*2);ctx.fill();ctx.stroke();}
+
+// ── the five feed/bowl variants ──
+function variant(letter,healing){ // drawn in the dish-local frame (already rotated; +x = aim/out)
+  const G=healing?'#bfffd0':'#cfd6e6', GL=healing?'#7CFC8A':'#aab4c6';
+  if(letter==='A'){ // boom feed — single arm + feedhorn block + outward antenna tip (current build)
+    const DR=RR*1.1,b=bowl(DR,1.0,healing);ribs(DR,b.A0,b.A1,healing);
+    ctx.strokeStyle='#8893a6';ctx.lineWidth=1.6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(RR*0.22,0);ctx.lineTo(RR*1.02,0);ctx.stroke();
+    ctx.fillStyle=G;ctx.fillRect(RR*0.96,-2.3,RR*0.16,4.6);
+    ctx.strokeStyle=GL;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(RR*1.12,0);ctx.lineTo(RR*1.34,0);ctx.stroke();
+    pedestal();
+  }else if(letter==='B'){ // tripod feed — struts from the rim tips + center converge to a feedhorn at the focus
+    const DR=RR*1.1,b=bowl(DR,1.05,healing);ribs(DR,b.A0,b.A1,healing);
+    const fx=RR*1.15,rimx=DR+DR*Math.cos(b.A0),rimy=DR*Math.sin(b.A0);
+    ctx.strokeStyle='#8893a6';ctx.lineWidth=1.4;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(rimx,rimy);ctx.lineTo(fx,0);ctx.moveTo(rimx,-rimy);ctx.lineTo(fx,0);ctx.moveTo(RR*0.2,0);ctx.lineTo(fx,0);ctx.stroke();
+    ctx.fillStyle=G;ctx.beginPath();ctx.arc(fx,0,RR*0.13,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=GL;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(fx+RR*0.14,0);ctx.lineTo(fx+RR*0.34,0);ctx.stroke();
+    pedestal();
+  }else if(letter==='C'){ // deep solid bowl — gradient fill, short feed stub
+    const DR=RR*1.05,span=1.28,A0=Math.PI-span,A1=Math.PI+span;
+    const g=ctx.createRadialGradient(DR*0.2,0,2,DR*0.2,0,DR*1.1);g.addColorStop(0,healing?'#1f5238':'#33425a');g.addColorStop(1,healing?'#0e2a1c':'#1a2030');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(DR,0,DR,A0,A1);ctx.closePath();ctx.fill();
+    ctx.strokeStyle=healing?'#7CFC8A':'#9fb3c8';ctx.lineWidth=2.8;ctx.beginPath();ctx.arc(DR,0,DR,A0,A1);ctx.stroke();
+    ctx.strokeStyle='#8893a6';ctx.lineWidth=1.6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(RR*0.2,0);ctx.lineTo(RR*0.78,0);ctx.stroke();
+    ctx.fillStyle=G;ctx.beginPath();ctx.arc(RR*0.82,0,RR*0.12,0,Math.PI*2);ctx.fill();
+    pedestal();
+  }else if(letter==='D'){ // wire-mesh dish — radial spokes + concentric ribs (techy radar), boom feed
+    const DR=RR*1.12,span=1.05,A0=Math.PI-span,A1=Math.PI+span;
+    ctx.fillStyle=healing?'rgba(20,48,33,0.5)':'rgba(28,36,52,0.5)';ctx.beginPath();ctx.arc(DR,0,DR,A0,A1);ctx.closePath();ctx.fill();
+    ctx.strokeStyle=healing?'rgba(124,252,138,0.6)':'rgba(150,170,195,0.55)';ctx.lineWidth=1;
+    for(let k=-3;k<=3;k++){const a=Math.PI+span*(k/3);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(DR+DR*Math.cos(a),DR*Math.sin(a));ctx.stroke();}
+    for(let r=0.35;r<=1.001;r+=0.22){ctx.beginPath();ctx.arc(DR,0,DR*r,A0,A1);ctx.stroke();}
+    ctx.strokeStyle=healing?'#7CFC8A':'#9fb3c8';ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(DR,0,DR,A0,A1);ctx.stroke();
+    ctx.strokeStyle='#8893a6';ctx.lineWidth=1.6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(RR*0.22,0);ctx.lineTo(RR*1.05,0);ctx.stroke();
+    ctx.fillStyle=G;ctx.fillRect(RR*0.99,-2.2,RR*0.15,4.4);pedestal();
+  }else if(letter==='E'){ // Cassegrain — a small convex sub-reflector on a boom, facing back into the dish
+    const DR=RR*1.1,b=bowl(DR,1.0,healing);ribs(DR,b.A0,b.A1,healing);
+    ctx.strokeStyle='#8893a6';ctx.lineWidth=1.6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(RR*0.22,0);ctx.lineTo(RR*0.92,0);ctx.stroke();
+    ctx.strokeStyle=GL;ctx.lineWidth=2.6;ctx.beginPath();ctx.arc(RR*0.78,0,RR*0.3,Math.PI*0.6,Math.PI*1.4);ctx.stroke(); // sub-reflector cup facing back
+    ctx.fillStyle=G;ctx.beginPath();ctx.arc(RR*0.95,0,2.4,0,Math.PI*2);ctx.fill();
+    pedestal();
+  }
+}
+
+// ── a cell: a labeled bot+dish, either idle (sweep) or locked (heal a target) ──
+function cell(cx,cy,letter,healing,T){
+  ctx.save();ctx.translate(cx,cy);
+  // passive buff aura when idle (gold), faint
+  if(!healing){const fl=0.5+0.5*Math.sin(T*2.4);ctx.strokeStyle='rgba(255,210,120,'+(0.18+0.12*fl)+')';ctx.lineWidth=2;ctx.setLineDash([6,6]);ctx.beginPath();ctx.arc(0,0,RR*2.05,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
+  chassis();
+  let dishAng, tgt=null;
+  if(healing){tgt={x:RR*3.0,y:Math.sin(T*1.4)*RR*0.5};dishAng=Math.atan2(tgt.y,tgt.x);}
+  else dishAng=T*1.25; // idle sweep (a bit faster)
+  ctx.save();ctx.rotate(dishAng);variant(letter,healing);ctx.restore();
+  if(tgt){ // ally + green beam from the dish FACE + %HP ring
+    const ox=Math.cos(dishAng)*RR*0.7,oy=Math.sin(dishAng)*RR*0.7,fl=0.7+0.3*Math.sin(T*16);
+    const dx=tgt.x-ox,dy=tgt.y-oy,bl=Math.hypot(dx,dy)||1,px=-dy/bl,py=dx/bl,w0=RR*0.28,w1=RR*0.55;
+    ctx.fillStyle='rgba(80,240,140,'+(0.16*fl)+')';ctx.beginPath();ctx.moveTo(ox+px*w0,oy+py*w0);ctx.lineTo(ox-px*w0,oy-py*w0);ctx.lineTo(tgt.x-px*w1,tgt.y-py*w1);ctx.lineTo(tgt.x+px*w1,tgt.y+py*w1);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(124,252,138,'+(0.6*fl)+')';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(tgt.x,tgt.y);ctx.stroke();
+    // ally chassis
+    ctx.save();ctx.translate(tgt.x,tgt.y);ctx.scale(0.8,0.8);chassis();ctx.restore();
+    const hp=0.45+0.25*Math.sin(T*0.8),rg=RR*0.95;
+    ctx.strokeStyle='rgba(0,0,0,0.45)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(tgt.x,tgt.y,rg,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle=hp>0.5?'#7CFC8A':(hp>0.25?'#ffd166':'#ff6b6b');ctx.lineWidth=3.2;ctx.beginPath();ctx.arc(tgt.x,tgt.y,rg,-Math.PI/2,-Math.PI/2+Math.PI*2*hp);ctx.stroke();
+    ctx.fillStyle='#7CFC8A';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText(Math.round(hp*100)+'%',tgt.x,tgt.y-rg-4);
+  }
+  ctx.restore();
+}
+
+const NAMES={A:'A · BOOM feed (current)',B:'B · TRIPOD feed',C:'C · DEEP solid bowl',D:'D · WIRE-MESH dish',E:'E · CASSEGRAIN sub-reflector'};
+const LETTERS=['A','B','C','D','E'];
+function frame(ts){const T=ts/1000;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const rowH=222,top=18,lx=210,rx=510;
+  for(let i=0;i<LETTERS.length;i++){const L=LETTERS[i],cy=top+rowH*i+rowH/2;
+    ctx.strokeStyle='rgba(70,80,120,0.25)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(20,top+rowH*i+2);ctx.lineTo(cv.width-20,top+rowH*i+2);ctx.stroke();
+    ctx.fillStyle='#cfe3ff';ctx.font='bold 14px Courier New';ctx.textAlign='center';ctx.fillText(NAMES[L],cv.width/2,top+rowH*i+22);
+    ctx.fillStyle='#7c86a8';ctx.font='10px Courier New';ctx.fillText('IDLE — scan sweep',lx,top+rowH*i+40);ctx.fillText('LOCKED — heal beam',rx,top+rowH*i+40);
+    cell(lx,cy+26,L,false,T);
+    cell(rx,cy+26,L,true,T);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body></html>
