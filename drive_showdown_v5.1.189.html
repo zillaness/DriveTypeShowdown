@@ -4282,7 +4282,7 @@ const BB_W={
   wedgeDmg:0.82, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:152, grabDmg:40, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.8, pincerDrain:55, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, // v5.1.166 WEDGE/DOZER buffed (contact 0.40→0.62, slam 85→115, grab 18→28 — it read as weak). Wider arc (±63°) + grab REACH ≈ 2.4×RR so no perfect ram needed. dozerCharge = forward boost while firing RT, dashBuff = LT-dash buff
   blowUp:46, burnCool:4, burnBuild:1.5, burnBuildCpu:0.60, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:6.0, partingDmg:480, // v5.1.183 HUMAN ring fills FASTER (burnBuild 1.0→1.5, ~3.3s sustained — Sam wanted quicker); CPU stays slow (burnBuildCpu, sim-balanced). burnCool 4 = the ring UNFILLS SLOWLY on contact break. KAMIKAZE 9×RR; PARTING GIFT inner boom
   wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:2.15, drillRampT:1.05, drillStick:90, drillMin:255, drillMax:470, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, repairArc:Math.PI*0.5, repairReachK:1.6, repairHps:70, repairMobps:55, repairWheelps:30, repairDmg:8, vampHeal:130, medicReachK:2.6, medicHp:90, medicHps:42, medicMobps:90, medicWheelps:26, medicSpd:1.05, reactDmg:120, // v5.1.166 DRILL buffed (ramp 1.7→1.4, dps 45→80 / 175→250 — it read as weak); MEDIC now has its own HP (90, destructible) + heals tires less (55→26); v5.1.161 PIT STOP medic; raw HP damage PENETRATES the front; REACTIVE reflect 120
-  miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, miniHp:55, miniDps:80, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, airTele:1.2, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14, tankPortCd:0.55, tankPortSpd:400, tankPortDmg:42, tankPortLife:2.0, cannonCd:0.8, cannonSpd:500, cannonDmg:95, cannonLife:1.9, cannonRangeK:7.0, cannonKnock:10 // v5.1.172 TANK INVASION cheat shells; v5.1.175 CANNON weapon: reload(s), shell speed, damage, life(s), CPU fire range×RR, shell knockback
+  miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, miniHp:55, miniDps:80, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:3.2, airDmg:80, airTele:1.2, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14, tankPortCd:0.55, tankPortSpd:400, tankPortDmg:42, tankPortLife:2.0, cannonCd:0.8, cannonSpd:500, cannonDmg:95, cannonLife:1.9, cannonRangeK:7.0, cannonKnock:10, cannonBlastR:70 // v5.1.172 TANK INVASION cheat shells; v5.1.175 CANNON weapon; v5.1.189 cannonBlastR = EXPLOSIVE-round AoE radius (like the tank explosive powerup)
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
   const id=(typeof p2cDriveDef!=='undefined')?p2cDriveDef(bind).id:'tank';
@@ -4469,7 +4469,7 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
         else{tgt.hp-=BB_W.repairDmg*dt;if(a.side!==tgt.side)a.dmgDealt=(a.dmgDealt||0)+BB_W.repairDmg*dt;if(tgt.hp<=0&&!tgt.dead)bbKill(tgt,ai);}} // enemies take only chip damage
     }else if(w==='repair'){a._repairFx=0;a._repairTgt=null;}
     if(w==='cannon'){a.cannonCd=(a.cannonCd||0)-dt; // v5.1.175 CANNON weapon: RT fires a shell along the turret aim on a reload cooldown (bbApplyHit applies the loadout/armor factors)
-      if(a.firing&&a.cannonCd<=0){a.cannonCd=BB_W.cannonCd;a._tpFx=0.12;bbFireShell(a,ai,(a.weaponAng!=null?a.weaponAng:a.h),BB_W.cannonSpd,BB_W.cannonLife,BB_W.cannonDmg,BB_W.cannonKnock);}}
+      if(a.firing&&a.cannonCd<=0){a.cannonCd=BB_W.cannonCd;a._tpFx=0.12;bbFireShell(a,ai,(a.weaponAng!=null?a.weaponAng:a.h),BB_W.cannonSpd,BB_W.cannonLife,BB_W.cannonDmg,BB_W.cannonKnock,BB_W.cannonBlastR);}} // v5.1.189 EXPLOSIVE rounds
   }
 }
 function bbGrabRelease(a){if(a.grab)a.grab.held=null;a.grab=null;a.grabT=0;a.grabCd=BB_W.grabCd;}
@@ -4730,16 +4730,23 @@ function bbSwordUpdate(dt){ // v5.1.119 P7 ANIME SWORD: every bot gets a dramati
   }
 }
 function bbShells(){if(!bb2.shells)bb2.shells=[];return bb2.shells;}
-function bbFireShell(b,ai,ang,sp,life,dmg,kn){bbShells().push({x:b.x+Math.cos(ang)*(RR+5),y:b.y+Math.sin(ang)*(RR+5),vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,t:life,owner:ai,side:b.side,dmg:dmg,kn:kn||0});b._tpFx=0.12;sfx('shoot');if(b.ctl)p2Rumble(b.ctl.bind,0.5,'thump');} // v5.1.175 shared shell spawn (cheat + CANNON weapon)
+function bbFireShell(b,ai,ang,sp,life,dmg,kn,expl){bbShells().push({x:b.x+Math.cos(ang)*(RR+5),y:b.y+Math.sin(ang)*(RR+5),vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,t:life,owner:ai,side:b.side,dmg:dmg,kn:kn||0,expl:expl||0});b._tpFx=0.12;sfx('shoot');if(b.ctl)p2Rumble(b.ctl.bind,0.5,'thump');} // v5.1.175 shared shell spawn (cheat + CANNON weapon); v5.1.189 expl = blast radius (explosive rounds)
+function bbShellExplode(s){ // v5.1.189 EXPLOSIVE round: an AoE blast (like the tank explosive powerup) — damages every foe in radius, falling off with distance
+  const R=s.expl;if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:s.x,y:s.y,t:0.34,r:R});sfx('explosion');
+  for(const c of bb2.bots){if(c.dead||(c.side===s.side&&!friendlyFire))continue;const d=Math.hypot(c.x-s.x,c.y-s.y);if(d<=R+RR){bbApplyHit(c,bbHitLoc(c,s.x,s.y),s.dmg*Math.max(0.45,1-d/(R+RR)),s.owner,s.x,s.y,1);if(c.hp<=0&&!c.dead)bbKill(c,s.owner);}} // frontPierce 1: a blast ignores armor facing
+}
 function bbShellsUpdate(dt){ // v5.1.175 move + collide ALL shells (cannon weapon AND tank-invasion cheat); per-shell damage/knockback
   if(!bb2||!bb2.shells||!bb2.shells.length)return;
   for(const s of bb2.shells){if(s.dead)continue;
-    s.t-=dt;if(s.t<=0){s.dead=true;continue;}
+    s.t-=dt;if(s.t<=0){s.dead=true;continue;} // mid-air fizzle (no explosion)
     s.x+=s.vx*dt;s.y+=s.vy*dt;
-    if(s.x<0||s.x>FW||s.y<0||s.y>FH){s.dead=true;continue;}
-    if(tfObs)for(const o of tfObs){if(s.x>o.x&&s.x<o.x+o.w&&s.y>o.y&&s.y<o.y+o.h){s.dead=true;break;}}
-    if(s.dead)continue;
-    for(const c of bb2.bots){if(c.dead||c.side===s.side)continue;if(Math.hypot(c.x-s.x,c.y-s.y)<=RR){s.dead=true;bbApplyHit(c,bbHitLoc(c,s.x,s.y),s.dmg,s.owner,s.x,s.y,0.5);if(s.kn){const m=Math.hypot(s.vx,s.vy)||1;c.x+=s.vx/m*s.kn;c.y+=s.vy/m*s.kn;obsCheck(c,RR);}if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:s.x,y:s.y,t:0.2,r:RR*1.2});break;}} // shells partly pierce the front (0.5)
+    let hitWall=(s.x<0||s.x>FW||s.y<0||s.y>FH);
+    if(!hitWall&&tfObs)for(const o of tfObs){if(s.x>o.x&&s.x<o.x+o.w&&s.y>o.y&&s.y<o.y+o.h){hitWall=true;break;}}
+    if(hitWall){s.dead=true;if(s.expl)bbShellExplode(s);continue;} // explosive rounds detonate on a wall/obstacle too
+    for(const c of bb2.bots){if(c.dead||c.side===s.side)continue;if(Math.hypot(c.x-s.x,c.y-s.y)<=RR){s.dead=true;
+      if(s.expl){bbShellExplode(s);} // EXPLOSIVE: AoE blast (covers the directly-hit bot at d≈0)
+      else{bbApplyHit(c,bbHitLoc(c,s.x,s.y),s.dmg,s.owner,s.x,s.y,0.5);if(s.kn){const m=Math.hypot(s.vx,s.vy)||1;c.x+=s.vx/m*s.kn;c.y+=s.vy/m*s.kn;obsCheck(c,RR);}if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:s.x,y:s.y,t:0.2,r:RR*1.2});} // direct shells partly pierce the front (0.5)
+      break;}}
   }
   bb2.shells=bb2.shells.filter(s=>!s.dead);
 }
@@ -4749,7 +4756,7 @@ function bbTankPortUpdate(dt){ // v5.1.172 P7 TANK INVASION cheat: every RoboRum
     let foe=null,fd=1e9;for(const c of bb2.bots){if(c.dead||c.side===b.side)continue;const d=Math.hypot(c.x-b.x,c.y-b.y);if(d<fd){fd=d;foe=c;}} // turret tracks the nearest enemy
     if(foe)b._tpAim=Math.atan2(foe.y-b.y,foe.x-b.x);
     b._tpCd=(b._tpCd==null?Math.random()*BB_W.tankPortCd:b._tpCd)-dt;
-    if(b._tpCd<=0&&foe){b._tpCd=BB_W.tankPortCd;bbFireShell(b,i,b._tpAim,BB_W.tankPortSpd,BB_W.tankPortLife,BB_W.tankPortDmg,0);}
+    if(b._tpCd<=0&&foe){b._tpCd=BB_W.tankPortCd;bbFireShell(b,i,b._tpAim,BB_W.tankPortSpd,BB_W.tankPortLife,BB_W.tankPortDmg,0,BB_W.cannonBlastR);}
     if(b._tpFx>0)b._tpFx=Math.max(0,b._tpFx-dt);
   }
 }

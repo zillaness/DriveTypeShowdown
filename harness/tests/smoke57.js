@@ -724,6 +724,14 @@ src+=`
    ok('CANNON shell travels + damages a foe at range',tg.hp<h0);
    const cn2=bbBotWith('cannon','balanced',0,0,true);cn2.x=200;cn2.y=300;cn2.ctl.brain.fire=false;cn2.cannonCd=0;bb2.bots=[cn2,tg];bb2.shells=[];
    bbWeaponPre(1/60);bbWeaponFire(1/60);ok('CANNON holds fire when RT is up',(bb2.shells||[]).length===0);}
+  // ── v5.1.189 CANNON EXPLOSIVE ROUNDS: shells detonate in an AoE (like the tank explosive powerup) ──
+  {startBB(0,2);bb2.cd=0;bb2.result=null;const sh=bbBotWith('cannon','balanced',0,0,true);sh.x=100;sh.y=100;
+   const t1=bbBotWith('none','balanced',1,1,true);t1.x=400;t1.y=300;t1.hp=BB.HP;t1.inv=0;
+   const t2=bbBotWith('none','balanced',1,2,true);t2.x=400+RR*2;t2.y=300;t2.hp=BB.HP;t2.inv=0; // a nearby foe, inside the blast radius
+   bb2.bots=[sh,t1,t2];bb2.shells=[{x:400,y:300,vx:0,vy:0,t:1,owner:0,side:0,dmg:BB_W.cannonDmg,kn:0,expl:BB_W.cannonBlastR}];
+   const h1=t1.hp,h2=t2.hp;bbShellsUpdate(1/60);
+   ok('CANNON explosive round: AoE damages the direct target',t1.hp<h1);
+   ok('CANNON explosive round: AoE ALSO hits a nearby foe (blast radius)',t2.hp<h2);}
   // ── v5.1.182 JET ENGINE: a fast-spin-up FORWARD thrust cone — pushes foes away (stronger close) + upfront damage ──
   {ok('JET is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='jet')&&BB_ARMORY_W.some(w=>w.id==='jet'));
    startBB(0,2);bb2.cd=0;bb2.result=null;const jt=bbBotWith('jet','balanced',0,0,true),c=bbBotWith('none','balanced',1,1,true);
