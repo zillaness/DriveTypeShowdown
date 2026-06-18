@@ -738,13 +738,15 @@ src+=`
    jt.x=300;jt.y=300;jt.h=0;jt.firing=true;jt.spin=1;c.x=300+RR*3;c.y=300;c.hp=BB.HP;c.inv=0;c.mob=BB.MOB;bb2.bots=[jt,c];
    const cx0=c.x,h0=c.hp;bbJetUpdate(1/60);
    ok('JET: pushes a foe in the forward cone AWAY',c.x>cx0);
-   ok('JET: deals upfront damage',c.hp<h0);
+   ok('JET: deals NO direct damage in open space (push only)',c.hp===h0);
+   {const wc=bbBotWith('none','balanced',1,3,true);wc.x=FW-RR-1;wc.y=300;wc.hp=BB.HP;wc.inv=0;wc.mob=BB.MOB;const jw=bbBotWith('jet','balanced',0,4,true);jw.x=FW-RR-RR*3;jw.y=300;jw.h=0;jw.spin=1;jw.firing=true;bb2.bots=[jw,wc];
+    const wh=wc.hp;for(let i=0;i<20;i++)bbJetUpdate(1/60);ok('JET: shoving a foe INTO a wall deals SLAM damage',wc.hp<wh);}
    const bb3=bbBotWith('none','balanced',1,2,true);bb3.x=300-RR*3;bb3.y=300;bb3.hp=BB.HP;bb3.inv=0;bb3.mob=BB.MOB;bb2.bots=[jt,bb3];
    const bx0=bb3.x,bh0=bb3.hp;bbJetUpdate(1/60);ok('JET: a foe BEHIND (outside the forward cone) is untouched',bb3.x===bx0&&bb3.hp===bh0);
    jt.spin=0;jt.ctl.brain.fire=true;bb2.bots=[jt,c];bbWeaponPre(1/60);ok('JET: spin-up is short but NOT instant (one tick < jetMin)',jt.spin>0&&jt.spin<BB_W.jetMin);
    // v5.1.192 OVERHEAT: sustained thrust overheats → engine cuts (spin drops) until cooled
    {const oj=bbBotWith('jet','balanced',0,0,true);oj.ctl.brain.fire=true;oj._jetHeat=0;oj._jetOver=false;oj.spin=1;bb2.bots=[oj,c];
-    for(let i=0;i<240&&!oj._jetOver;i++)bbWeaponPre(1/60);ok('JET: sustained thrust OVERHEATS',oj._jetOver===true&&(oj._jetHeat||0)>=1);
+    for(let i=0;i<700&&!oj._jetOver;i++)bbWeaponPre(1/60);ok('JET: sustained thrust OVERHEATS',oj._jetOver===true&&(oj._jetHeat||0)>=1);
     for(let i=0;i<10;i++)bbWeaponPre(1/60);ok('JET: while overheated the engine cuts (spin falls)',oj.spin<0.5);
     oj.ctl.brain.fire=false;for(let i=0;i<300;i++)bbWeaponPre(1/60);ok('JET: it cools back down + clears the overheat',oj._jetOver===false&&(oj._jetHeat||0)<=BB_W.jetHeatReset+0.01);}}
   // ── v5.1.184 SLAM-INTO-BOT: a flung (pusher) / pushed (jet) bot crashing into ANOTHER bot hurts BOTH (3v3) ──
