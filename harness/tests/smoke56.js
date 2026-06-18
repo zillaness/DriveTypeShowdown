@@ -127,9 +127,9 @@ src+=`
   // ── 12. settings: tankfight FORMAT lever swaps the lives/time row (Phase 3) ──
   m2.mode='tankfight';m2.set.tformat='lives';
   let tfrows=p2SettingsRows();
-  ok('LIVES format → 6 rows (team-format/format/lives/bestOf/map/drive-variety)',tfrows.length===6&&tfrows[0].k==='tfmt'&&tfrows[1].k==='tformat'&&tfrows[2].k==='lives'&&tfrows[3].k==='bestOf'&&tfrows[4].k==='map'&&tfrows[5].k==='tdrv');
+  ok('LIVES format → 7 rows (team-format/game-mode/format/lives/bestOf/map/drive-variety)',tfrows.length===7&&tfrows[0].k==='tfmt'&&tfrows[1].k==='tfmode'&&tfrows[2].k==='tformat'&&tfrows[3].k==='lives'&&tfrows[4].k==='bestOf'&&tfrows[5].k==='map'&&tfrows[6].k==='tdrv');
   m2.set.tformat='timed';tfrows=p2SettingsRows();
-  ok('TIMED format → MATCH TIME row replaces LIVES',tfrows[2].k==='tTimeSec'&&tfrows.length===6);
+  ok('TIMED format → MATCH TIME row replaces LIVES',tfrows[3].k==='tTimeSec'&&tfrows.length===7);
   // settings overflow guard: every row sits above the START button
   {const sb=p2StartBtnRect();let okFit=true;for(let i=0;i<tfrows.length;i++){const rc=p2SetRowRect(i);if(rc.y+rc.h>sb.y)okFit=false;}
    ok('all 6 tankfight rows fit above START',okFit);}
@@ -294,6 +294,19 @@ src+=`
    playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];startP2Tank();
    ok('TEAM FORMAT 1v1 → legacy claim builds exactly 2 tanks (1v1)',tf2.tanks.length===2&&tf2.tanks.filter(t=>t.side===0).length===1&&tf2.tanks.filter(t=>t.side===1).length===1);
    m2.set.tfmt='1v1';m2.tseats=null;m2.tsel=0;}
+
+  // ── v5.1.190 TANK GAME MODES: DOMINATION (parity with RoboRumble) ──
+  {ok('Tank GAME MODE registry has domination/vip/koth×2/sumo',['domination','vip','kothMove','kothStatic','sumo'].every(id=>TF_MODES.some(m=>m.id===id)));
+   ok('tf2ModeObjective: domination=objective, deathmatch/sumo not',tf2ModeObjective('domination')===true&&tf2ModeObjective('deathmatch')===false&&tf2ModeObjective('sumo')===false);
+   const sv=m2.set.tfmode;m2.set.tfmode='domination';startTank(0,3,1,'timed',90);
+   ok('Tank DOMINATION: objective → infinite respawns + mode set',tf2.tanks.every(t=>t.lives===Infinity)&&tf2.mode==='domination');
+   ok('Tank DOMINATION: objective forces NOT-timed (objective decides winner)',tf2.timed===false);
+   const P=bbDomPts();tf2.dom=[0,0];tf2.domOwn=[-1,-1,-1];tf2.result=null;
+   tf2.tanks[0].x=P[0].x;tf2.tanks[0].y=P[0].y;tf2.tanks[0].dead=false;tf2.tanks[0].side=0;
+   for(const t of tf2.tanks)if(t!==tf2.tanks[0]){t.x=10;t.y=10;t.dead=false;}
+   tf2ModeUpdate(1.0);ok('Tank DOMINATION: capturing a point banks score + ownership',tf2.dom[0]>0&&tf2.domOwn[0]===0);
+   tf2.dom=[BB_DOM_TARGET-0.01,0];tf2ModeUpdate(0.5);ok('Tank DOMINATION: reaching the target WINS',tf2.result===0);
+   m2.set.tfmode=sv;}
 
   console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire + 3v3 allies): '+P+' pass, '+F+' fail ---');
 })();

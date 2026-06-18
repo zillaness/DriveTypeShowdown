@@ -3312,14 +3312,15 @@ function startP2Tank(){cheatedRun=false;paused=false;
   const roster=tankRosterFromSeats(_seats); // [{side, bind, type, tier}] per tank
   const nSide=[roster.filter(r=>r.side===0).length,roster.filter(r=>r.side===1).length];
   const ys=[tf2SpawnYs(nSide[0]),tf2SpawnYs(nSide[1])],yIdx=[0,0],seat=[0,0];
-  const timed=(m2.set.tformat==='timed'); // TIMED = deathmatch: infinite lives, most kills in the time limit wins
-  tf2={t:0,cd:3,result:null,timed:timed,tLimit:timed?(m2.set.tTimeSec|0):0,sudden:false,bullets:[],blasts:[],_bid:0,map:mp,pups:[],fx:[],btTouch:false,pupTimer:3+Math.random()*3,
+  const _mode=tf2Mode(),_obj=tf2ModeObjective(_mode); // v5.1.190 objective game modes = infinite respawns; the objective sets the winner (so no time-limit / elimination ending)
+  const timed=(m2.set.tformat==='timed')&&!_obj; // TIMED = deathmatch: infinite lives, most kills in the time limit wins
+  tf2={t:0,cd:3,result:null,timed:timed,tLimit:timed?(m2.set.tTimeSec|0):0,sudden:false,mode:_mode,dom:[0,0],domOwn:[-1,-1,-1],bullets:[],blasts:[],_bid:0,map:mp,pups:[],fx:[],btTouch:false,pupTimer:3+Math.random()*3,
     tanks:roster.map(r=>{const sp=tf2SpawnSide(r.side,ys[r.side][yIdx[r.side]++]);
       const ctl=tankMkCtl(r.bind);ctl.type=r.type; // roster decides side membership; ctl.bind still drives input/drive/sens
       const si=seat[r.side]++,col=teamShade(r.side,si); // per-seat warm(red)/cool(blue) shade
       if(r.type==='cpu'){ctl.tier=r.tier;ctl.name=(r.side===0?'ALLY':'CPU')+(nSide[r.side]>1?' '+(si+1):'');}
       if(gridOn){const _gs=m2.tseats[r.bind];ctl.name=(r.type==='cpu')?((r.side===0?'RED':'BLUE')+' '+(si+1)):((_gs&&_gs.name)||('PLAYER '+(si+1)));} // grid: humans use their (renameable) seat name, CPUs use side+slot — all distinct
-      return{x:sp.x,y:sp.y,h:sp.h,sx:sp.x,sy:sp.y,sh:sp.h,hp:3,reload:0,lives:timed?Infinity:m2.set.lives,inv:0,
+      return{x:sp.x,y:sp.y,h:sp.h,sx:sp.x,sy:sp.y,sh:sp.h,hp:3,reload:0,lives:_obj?Infinity:(timed?Infinity:m2.set.lives),inv:0,
         side:r.side,col:col,kills:0,dead:false,ctl:ctl,
         rapidT:0,speedT:0,shield:false,explAmmo:0,pierceAmmo:0,aimT:0,explBurstT:0,pierceBurstT:0,cannonAng:sp.h,_inp:{vx:0,vy:0,vr:0},_csv:null};})};
   cpuH2H=null; // tank mode uses per-tank ctl.brain (the 2-slot cpuH2H store is ball/race only)
@@ -3596,6 +3597,26 @@ function tf2Damage(tg,owner){ // shared kill/respawn cascade for direct + AoE hi
     else{t.hp=0;t.dead=true;tf2CheckResult(owner);} // out of lives: mark dead, then test for a match winner
   }
 }
+const TF_MODES=[ // v5.1.190 GAME MODES for Tank Fight (parity with RoboRumble). DEATHMATCH = classic LIVES/TIMED; the rest are objective modes (infinite respawns; the objective decides the winner)
+  {id:'deathmatch', name:'DEATHMATCH (kills)'},
+  {id:'domination', name:'DOMINATION — 3 points'},
+  {id:'vip',        name:'VIP — protect yours'},
+  {id:'kothMove',   name:'KOTH — moving hill'},
+  {id:'kothStatic', name:'KOTH — static hill'},
+  {id:'sumo',       name:'SUMO — ring-out'},
+];
+function tf2Mode(){return (m2.set&&m2.set.tfmode)||'deathmatch';}
+function tf2ModeObjective(m){m=m||tf2Mode();return m!=='deathmatch'&&m!=='sumo';} // objective modes = infinite respawns + an objective win
+function tf2ModeUpdate(dt){ // v5.1.190 per-mode win logic for Tank Fight (each live tick)
+  if(!tf2||tf2.result!==null)return;const mode=tf2.mode||'deathmatch';
+  if(mode==='domination'){ // capture & hold the 3 control points (persistent ownership); first side to BB_DOM_TARGET point-seconds wins
+    if(!tf2.dom)tf2.dom=[0,0];if(!tf2.domOwn)tf2.domOwn=[-1,-1,-1];const pts=bbDomPts();
+    for(let p=0;p<pts.length;p++){let c0=0,c1=0;for(const t of tf2.tanks){if(t.dead)continue;if(Math.hypot(t.x-pts[p].x,t.y-pts[p].y)<=BB_DOM_R){if(t.side===0)c0++;else c1++;}}
+      if(c0>0&&c1===0)tf2.domOwn[p]=0;else if(c1>0&&c0===0)tf2.domOwn[p]=1;
+      if(tf2.domOwn[p]>=0)tf2.dom[tf2.domOwn[p]]+=dt;}
+    for(let s=0;s<2;s++)if(tf2.dom[s]>=BB_DOM_TARGET){tf2.result=s;sfx('win');break;}
+  }
+}
 function tf2CheckResult(lastKiller){ // LIVES: last SIDE standing wins. tf2.result is a side index (2 tanks → side index == tank index, so legacy 1v1 is byte-identical).
   if(tf2.result!==null)return;
   const sides=new Set();for(const t of tf2.tanks)if(!t.dead)sides.add(t.side);
@@ -3622,6 +3643,7 @@ function updateP2Tank(dt){
   if(tf2.cd>0){const _pc=Math.ceil(tf2.cd);tf2.cd-=dt;if(tf2.cd<=0)sfx('go');else if(Math.ceil(tf2.cd)<_pc)sfx('count');return;}
   if(tf2.result!==null){if(!tf2.repd){tf2.repd=true;p2SeriesReport(tf2.result);}return;}
   tf2.t+=dt;if(anyCheat())cheatedRun=true;
+  tf2ModeUpdate(dt); // v5.1.190 game-mode objective (domination/etc.) win check
   if(tf2.timed&&!tf2.sudden&&tf2.t>=tf2.tLimit)tf2TimeUp(); // TIMED: clock expired → decide winner (or sudden death)
   cpuTankUpdate(dt);
   for(let p=0;p<tf2.tanks.length;p++){
@@ -3752,6 +3774,10 @@ function drawP2Tank(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
   drawTFField();drawTFObstacles();
   ctx.save();ctx.translate(FX,FY);
+  if(tf2.mode==='domination'){const pts=bbDomPts(),own=tf2.domOwn||[-1,-1,-1],LBL=['A','B','C']; // v5.1.190 DOMINATION control points (owner-tinted)
+    for(let p=0;p<pts.length;p++){const o=own[p],col=o>=0?M2_COLS[o]:'#9aa0b4',rgb=o===0?'255,80,80':o===1?'90,150,255':'150,160,180';
+      ctx.fillStyle='rgba('+rgb+',0.12)';ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();ctx.arc(pts[p].x,pts[p].y,BB_DOM_R,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.fillStyle=col;ctx.font='bold 20px Courier New';ctx.textAlign='center';ctx.fillText(LBL[p],pts[p].x,pts[p].y+7);}}
   for(const b of tf2.bullets){
     const col=(tf2.tanks[b.owner]?tf2.tanks[b.owner].col:M2_COLS[0]); // bullet wears its owning tank's shade
     const ang=Math.atan2(b.vy,b.vx);
@@ -3789,6 +3815,7 @@ function drawP2Tank(){
     ctx.globalAlpha=1;
   }
   ctx.restore();
+  if(tf2.mode==='domination'){const d=tf2.dom||[0,0];ctx.fillStyle='#cfe3ff';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('DOMINATION — hold the points',CW/2,40);for(let s=0;s<2;s++){const w=120,x=s===0?CW/2-w-8:CW/2+8;bbBar(x,46,w,8,clamp(d[s]/BB_DOM_TARGET,0,1),M2_COLS[s]);}} // v5.1.190 domination score meters
   // pickup glow rings
   for(const t of tf2.tanks){
     if(t.glowT>0){
@@ -5465,7 +5492,7 @@ const TF2_RED_COLS =['#ff5555','#ff9f43','#ffd740','#ff6f91']; // red · orange 
 const TF2_BLUE_COLS=['#5599ff','#33ccdd','#9b7bff','#44ddaa']; // blue · cyan · violet · teal
 function teamShade(side,idx){const pal=side===0?TF2_RED_COLS:TF2_BLUE_COLS;return pal[idx%pal.length];}
 const TF2_CPU_COLS=TF2_BLUE_COLS; // back-compat alias
-const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,tdrv:'open',tfmt:'1v1',ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true,bbmode:'ko',bblives:1,bbtime:0}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
+const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,tdrv:'open',tfmt:'1v1',ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true,bbmode:'ko',bblives:1,bbtime:0,tfmode:'deathmatch'}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];m2.tseats=null;m2.tsel=0;m2.bbLoadout=[null,null];m2.claimSel=null;}
@@ -5847,6 +5874,7 @@ function p2SettingsRows(){
   const S=m2.set;
   if(m2.mode==='tankfight')return[ // team composition (humans/CPUs per side) is set on the 6-seat CLAIM GRID (MULTI only)
     {k:'tfmt',   lab:'TEAM FORMAT',      vals:['1v1','multi'],    show:v=>v==='multi'?'MULTI — up to 3v3 (grid)':'1v1 — classic 2-card'}, // 1v1 = original 2-card claim; multi = the 6-seat grid
+    {k:'tfmode', lab:'GAME MODE',        vals:['deathmatch','domination','vip','kothMove','kothStatic','sumo'], show:v=>(TF_MODES.find(m=>m.id===v)||{}).name||v}, // v5.1.190 game modes in Tank Fight (parity with RoboRumble)
     {k:'tformat',lab:'FORMAT',           vals:['lives','timed'],  show:v=>v==='timed'?'TIMED — most kills wins':'LIVES — last standing'},
     S.tformat==='timed'
       ?{k:'tTimeSec',lab:'MATCH TIME',   vals:[60,90,120,180],    show:v=>v+'s'}
