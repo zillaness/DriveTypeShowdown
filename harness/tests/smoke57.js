@@ -568,35 +568,38 @@ src+=`
    ok('DRILL ramp readout climbs as you keep it on the foe',ramp2>ramp1&&dr._drillFx>0&&ramp2<=1.0001);
    dr.firing=false;for(let i=0;i<200;i++)bbWeaponFire(1/60);
    ok('DRILL ramp readout falls back + glow turns OFF when idle',dr._drillRamp<0.05&&!(dr._drillFx>0));}
-  // ── v5.1.199: REPAIR DISH — AUTOFIRE: always auto-heals the nearest hurt ally (green beam) AND emits the AoE attack buff; no trigger gate ──
+  // ── v5.1.200: REPAIR DISH — PASSIVE = always-on AoE attack-buff field (big); ACTIVE = HOLD trigger to HEAL (right-stick targets, long range > buff range) ──
   {ok('REPAIR is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='repair')&&BB_ARMORY_W.some(w=>w.id==='repair'));
-   const medic=bbBotWith('repair','balanced',0,0,true);medic.x=300;medic.y=300;medic.h=0;medic.firing=false; // RELEASE = heal mode
-   const ally=bbBotWith('none','balanced',0,2,true);ally.x=300+RR;ally.y=300;ally.hp=200;ally.mhp=BB.HP;ally.mob=20;ally.wheels=[{hp:0,dead:true},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
-   bb2.bots=[medic,ally];bb2.result=null;const ahp0=ally.hp,amob0=ally.mob;for(let i=0;i<60;i++){medic.firing=false;bbWeaponFire(1/60);}
-   ok('REPAIR (release) auto-heals a hurt ally HP',ally.hp>ahp0);
-   ok('REPAIR restores allied mobility (tires)',ally.mob>amob0);
-   ok('REPAIR re-welds a dead wheel',ally.wheels[0].dead===false&&ally.wheels[0].hp>0);
-   ok('REPAIR does not over-heal past max HP',ally.hp<=ally.mhp+1e-6);
-   const md=bbBotWith('repair','balanced',0,0,true);md.x=300;md.y=300;md.firing=true;md.spin=1;
-   const al2=bbBotWith('spinner','balanced',0,2,true);al2.x=300+RR*1.5;al2.y=300;al2._repairBuffT=0;bb2.bots=[md,al2];
-   for(let i=0;i<3;i++){md.firing=true;md.spin=1;bbWeaponFire(1/60);}
-   ok('REPAIR (hold, spun) gives a nearby ally a DAMAGE BUFF',(al2._repairBuffT||0)>0);
+   // PASSIVE buff: a repair bot NOT firing still buffs a nearby ally (no trigger gate)
+   const pb=bbBotWith('repair','balanced',0,0,true);pb.x=300;pb.y=300;pb.h=0;pb.firing=false;pb.spin=0;
+   const al2=bbBotWith('spinner','balanced',0,2,true);al2.x=300+RR*1.5;al2.y=300;al2._repairBuffT=0;bb2.bots=[pb,al2];
+   for(let i=0;i<3;i++){pb.firing=false;bbWeaponFire(1/60);}
+   ok('REPAIR PASSIVE buff: a non-firing dish still buffs a nearby ally',(al2._repairBuffT||0)>0);
    const vic=bbBotWith('none','balanced',1,1,true);vic.x=400;vic.y=400;vic.hp=BB.HP;vic.inv=0;const atk=bbBotWith('spinner','balanced',0,2,true);atk._repairBuffT=0;bb2.bots=[vic,atk];
    bbApplyHit(vic,'rear',100,1,400,410);const d1=BB.HP-vic.hp;vic.hp=BB.HP;vic.inv=0;atk._repairBuffT=1;bbApplyHit(vic,'rear',100,1,400,410);const d2=BB.HP-vic.hp;
    ok('REPAIR buff amplifies an ally\\'s damage',d2>d1);
-   // v5.1.199 AUTOFIRE: the heal fires even while FIRING (no release needed) + the dish auto-spins + the buff is much bigger + it sets a heal target for the beam
-   const af=bbBotWith('repair','balanced',0,0,true);af.x=300;af.y=300;af.h=0;af.firing=true;af.spin=0; // firing TRUE — used to be buff-only / no heal
-   const hurt=bbBotWith('none','balanced',0,2,true);hurt.x=300+RR;hurt.y=300;hurt.hp=200;hurt.mhp=BB.HP;hurt.mob=BB.MOB;bb2.bots=[af,hurt];bb2.result=null;
-   const ah0=hurt.hp;for(let i=0;i<30;i++){af.firing=true;bbWeaponFire(1/60);}
-   ok('REPAIR AUTOFIRE: heals a hurt ally even while the trigger is HELD (firing)',hurt.hp>ah0&&af._repairTgt===hurt);
-   const sp=bbBotWith('repair','balanced',0,0,true);sp.spin=0;sp.ctl.brain.fire=false;bb2.bots=[sp];for(let i=0;i<60;i++){bbWeaponPre(1/60);}
-   ok('REPAIR dish AUTO-spins up with NO trigger held (autofire buff)',sp.spin>=0.5);
-   ok('REPAIR attack buff is much BIGGER now (~5× the old +30% bonus)',BB_W.repairDmgBuff>=2.0);
-   ok('REPAIR heal beam has LONG range (~8–10× RR)',BB_W.repairReachK>=7);
-   const lr=bbBotWith('repair','balanced',0,0,true);lr.x=200;lr.y=300;lr.h=0;lr.firing=true;
-   const far=bbBotWith('none','balanced',0,2,true);far.x=200+RR*7;far.y=300;far.hp=200;far.mhp=BB.HP;far.mob=BB.MOB;bb2.bots=[lr,far];bb2.result=null; // ~7×RR away
+   // ACTIVE heal: requires HOLDING the trigger (firing). Firing=true heals HP/tires/wheels; firing=false does NOT heal.
+   const md=bbBotWith('repair','balanced',0,0,true);md.x=300;md.y=300;md.h=0;md.firing=true;
+   const ally=bbBotWith('none','balanced',0,2,true);ally.x=300+RR;ally.y=300;ally.hp=200;ally.mhp=BB.HP;ally.mob=20;ally.wheels=[{hp:0,dead:true},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
+   bb2.bots=[md,ally];bb2.result=null;const ahp0=ally.hp,amob0=ally.mob;for(let i=0;i<60;i++){md.firing=true;bbWeaponFire(1/60);}
+   ok('REPAIR ACTIVE (hold trigger) heals a hurt ally HP',ally.hp>ahp0&&md._repairTgt===ally);
+   ok('REPAIR ACTIVE restores allied mobility (tires)',ally.mob>amob0);
+   ok('REPAIR ACTIVE re-welds a dead wheel',ally.wheels[0].dead===false&&ally.wheels[0].hp>0);
+   ok('REPAIR does not over-heal past max HP',ally.hp<=ally.mhp+1e-6);
+   const nf=bbBotWith('repair','balanced',0,0,true);nf.x=300;nf.y=300;nf.h=0;nf.firing=false;
+   const al3=bbBotWith('none','balanced',0,2,true);al3.x=300+RR;al3.y=300;al3.hp=200;al3.mhp=BB.HP;bb2.bots=[nf,al3];bb2.result=null;
+   const a30=al3.hp;for(let i=0;i<30;i++){nf.firing=false;bbWeaponFire(1/60);}
+   ok('REPAIR does NOT heal without the trigger held (heal is ACTIVE)',al3.hp===a30&&!nf._repairTgt);
+   // dish spins only while healing (trigger held); idle decays
+   const sp=bbBotWith('repair','balanced',0,0,true);sp.spin=0;sp.ctl.brain.fire=true;bb2.bots=[sp];for(let i=0;i<60;i++){sp.firing=true;bbWeaponPre(1/60);}
+   ok('REPAIR dish spins UP while the heal trigger is held',sp.spin>=0.5);
+   // ranges: heal reach ~¼ map and STRICTLY LARGER than the buff AoE (~⅛ map)
+   ok('REPAIR heal range (~¼ map) is LARGER than the buff AoE (~⅛ map)',BB_W.repairReachK>BB_W.repairBuffRK&&BB_W.repairReachK>=14&&BB_W.repairBuffRK>=7);
+   const lr=bbBotWith('repair','balanced',0,0,true);lr.x=120;lr.y=300;lr.h=0;lr.firing=true;
+   const far=bbBotWith('none','balanced',0,2,true);far.x=120+RR*14;far.y=300;far.hp=200;far.mhp=BB.HP;far.mob=BB.MOB;bb2.bots=[lr,far];bb2.result=null; // ~14×RR ≈ ¼ map away
    const fh0=far.hp;for(let i=0;i<30;i++){lr.firing=true;bbWeaponFire(1/60);}
-   ok('REPAIR heals an ally ~7×RR away (long-range beam)',far.hp>fh0);}
+   ok('REPAIR heals an ally ~¼ map away (long-range beam)',far.hp>fh0);
+   ok('REPAIR attack buff is BIG (×2.5 damage)',BB_W.repairDmgBuff>=2.0);}
   // ── v5.1.112: PERKS (3rd loadout slot) — data + effects (Parting Gift, Flameproof) ──
   {ok('bbResolveLoadout carries the PERK slot',bbResolveLoadout({weapon:'spinner',armor:'balanced',perk:'flameproof'}).perk==='flameproof');
    ok('a default loadout has no perk',bbResolveLoadout(null).perk==='none');
