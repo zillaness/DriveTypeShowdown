@@ -3615,8 +3615,14 @@ function tf2ModeUpdate(dt){ // v5.1.190 per-mode win logic for Tank Fight (each 
       if(c0>0&&c1===0)tf2.domOwn[p]=0;else if(c1>0&&c0===0)tf2.domOwn[p]=1;
       if(tf2.domOwn[p]>=0)tf2.dom[tf2.domOwn[p]]+=dt;}
     for(let s=0;s<2;s++)if(tf2.dom[s]>=BB_DOM_TARGET){tf2.result=s;sfx('win');break;}
+  }else if(mode==='kothMove'||mode==='kothStatic'){ // KOTH: hold the hill (majority); STATIC = fixed center, MOVING = the hill drifts around the arena (chase it). First side to BB_KOTH_TARGET wins
+    if(!tf2.koth)tf2.koth={score:[0,0],x:FW/2,y:FH/2};const k=tf2.koth,hp=tf2KothPos(mode);k.x=hp.x;k.y=hp.y;
+    const c=[0,0];for(const t of tf2.tanks){if(t.dead)continue;if(Math.hypot(t.x-k.x,t.y-k.y)<=BB_KOTH_R)c[t.side]++;}
+    if(c[0]>c[1])k.score[0]+=dt;else if(c[1]>c[0])k.score[1]+=dt; // majority holds; tie = contested = no gain
+    for(let s=0;s<2;s++)if(k.score[s]>=BB_KOTH_TARGET){tf2.result=s;sfx('win');break;}
   }
 }
+function tf2KothPos(mode){const cx=FW/2,cy=FH/2;if(mode==='kothMove'){const t=(tf2&&tf2.t)||0;return{x:cx+Math.cos(t*0.5)*(FW/2-BB_KOTH_R-50),y:cy+Math.sin(t*0.8)*(FH/2-BB_KOTH_R-40)};}return{x:cx,y:cy};} // v5.1.191 STATIC = center; MOVING = a smooth Lissajous drift across the arena
 function tf2CheckResult(lastKiller){ // LIVES: last SIDE standing wins. tf2.result is a side index (2 tanks → side index == tank index, so legacy 1v1 is byte-identical).
   if(tf2.result!==null)return;
   const sides=new Set();for(const t of tf2.tanks)if(!t.dead)sides.add(t.side);
@@ -3778,6 +3784,9 @@ function drawP2Tank(){
     for(let p=0;p<pts.length;p++){const o=own[p],col=o>=0?M2_COLS[o]:'#9aa0b4',rgb=o===0?'255,80,80':o===1?'90,150,255':'150,160,180';
       ctx.fillStyle='rgba('+rgb+',0.12)';ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();ctx.arc(pts[p].x,pts[p].y,BB_DOM_R,0,Math.PI*2);ctx.fill();ctx.stroke();
       ctx.fillStyle=col;ctx.font='bold 20px Courier New';ctx.textAlign='center';ctx.fillText(LBL[p],pts[p].x,pts[p].y+7);}}
+  if((tf2.mode==='kothMove'||tf2.mode==='kothStatic')&&tf2.koth){const k=tf2.koth; // v5.1.191 KOTH hill (static center or drifting)
+    ctx.strokeStyle='rgba(255,196,64,0.7)';ctx.fillStyle='rgba(255,196,64,0.10)';ctx.lineWidth=3;ctx.setLineDash([10,8]);ctx.beginPath();ctx.arc(k.x,k.y,BB_KOTH_R,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#ffd740';ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillText('⛰',k.x,k.y+5);}
   for(const b of tf2.bullets){
     const col=(tf2.tanks[b.owner]?tf2.tanks[b.owner].col:M2_COLS[0]); // bullet wears its owning tank's shade
     const ang=Math.atan2(b.vy,b.vx);
@@ -3816,6 +3825,7 @@ function drawP2Tank(){
   }
   ctx.restore();
   if(tf2.mode==='domination'){const d=tf2.dom||[0,0];ctx.fillStyle='#cfe3ff';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('DOMINATION — hold the points',CW/2,40);for(let s=0;s<2;s++){const w=120,x=s===0?CW/2-w-8:CW/2+8;bbBar(x,46,w,8,clamp(d[s]/BB_DOM_TARGET,0,1),M2_COLS[s]);}} // v5.1.190 domination score meters
+  if((tf2.mode==='kothMove'||tf2.mode==='kothStatic')&&tf2.koth){const k=tf2.koth;ctx.fillStyle='#ffe6a8';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('KING OF THE HILL'+(tf2.mode==='kothMove'?' — moving':''),CW/2,40);for(let s=0;s<2;s++){const w=120,x=s===0?CW/2-w-8:CW/2+8;bbBar(x,46,w,8,clamp(k.score[s]/BB_KOTH_TARGET,0,1),M2_COLS[s]);}} // v5.1.191 KOTH meters
   // pickup glow rings
   for(const t of tf2.tanks){
     if(t.glowT>0){

@@ -307,6 +307,15 @@ src+=`
    tf2ModeUpdate(1.0);ok('Tank DOMINATION: capturing a point banks score + ownership',tf2.dom[0]>0&&tf2.domOwn[0]===0);
    tf2.dom=[BB_DOM_TARGET-0.01,0];tf2ModeUpdate(0.5);ok('Tank DOMINATION: reaching the target WINS',tf2.result===0);
    m2.set.tfmode=sv;}
+  // ── v5.1.191 TANK KOTH: static + moving hill ──
+  {const sv=m2.set.tfmode;m2.set.tfmode='kothStatic';startTank(0,3);
+   ok('Tank KOTH static: hill sits at center',Math.abs(tf2KothPos('kothStatic').x-FW/2)<1&&Math.abs(tf2KothPos('kothStatic').y-FH/2)<1);
+   tf2.mode='kothStatic';tf2.koth={score:[0,0],x:FW/2,y:FH/2};tf2.result=null;
+   tf2.tanks[0].x=FW/2;tf2.tanks[0].y=FH/2;tf2.tanks[0].dead=false;tf2.tanks[0].side=0;for(const t of tf2.tanks)if(t!==tf2.tanks[0]){t.x=10;t.y=10;t.dead=false;}
+   tf2ModeUpdate(1.0);ok('Tank KOTH: the majority on the hill banks time',tf2.koth.score[0]>0);
+   tf2.koth.score=[BB_KOTH_TARGET-0.01,0];tf2ModeUpdate(0.5);ok('Tank KOTH: reaching the target WINS',tf2.result===0);
+   tf2.t=0;const ka=tf2KothPos('kothMove');tf2.t=3;const kb=tf2KothPos('kothMove');ok('Tank KOTH moving: the hill drifts over time',Math.hypot(ka.x-kb.x,ka.y-kb.y)>1);
+   m2.set.tfmode=sv;}
 
   console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire + 3v3 allies): '+P+' pass, '+F+' fail ---');
 })();
