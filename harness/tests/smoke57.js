@@ -362,6 +362,19 @@ src+=`
    // v5.1.201 the chosen WEAPON renders on the drive-base preview — must not throw even with bb2=null (claim screen) for EVERY weapon
    {const _sb=bb2;bb2=null;let pvThrew=false;for(const W of BB_WEAPONS){if(W.id==='none')continue;m2.bbLoadout[0]={weapon:W.id,armor:'balanced',perk:'none'};try{bbDrawClaimWeaponPreview(0,300,202,1.3);}catch(e){pvThrew=true;console.log('   weapon-preview err ('+W.id+'):',e.message);}}
     ok('1v1 weapon preview renders on the drive base for every weapon (bb2=null safe)',!pvThrew&&_wpnPreview===false&&bb2===null);bb2=_sb;m2.bbLoadout[0]=null;}
+   // v5.1.203 the 1v1 cards get the same drag-drop ARMORY RAIL as the 3v3 grid (drag a chip onto a card)
+   {m2.bbLoadout=[null,null];
+    ok('1v1 armory rail is ACTIVE on the battlebots 1v1 claim',bb1v1ArmoryOn()===true);
+    ok('bb1v1SideAt resolves which CARD is under a point',bb1v1SideAt(p2cCardRect(0).x+280,p2cCardRect(0).y+258)===0&&bb1v1SideAt(p2cCardRect(1).x+280,p2cCardRect(1).y+258)===1&&bb1v1SideAt(CW/2,8)===-1);
+    ok('bb1v1Equip sets the card weapon/armor/perk in m2.bbLoadout',bb1v1Equip(0,'weapon','jet')&&bb1v1Equip(0,'armor','hardplate')&&bb1v1Equip(0,'perk','flameproof')&&m2.bbLoadout[0].weapon==='jet'&&m2.bbLoadout[0].armor==='hardplate'&&m2.bbLoadout[0].perk==='flameproof');
+    ok('bb1v1Equip rejects an unknown id',!bb1v1Equip(0,'weapon','notareal'));
+    // a full drag: grab a chip off the rail, the rail + drop-halos draw, drop on card 1 → equips side 1
+    const chip=bbArmoryChips().find(c=>c.kind==='weapon'&&c.id==='spinner');bbArmDrag={kind:chip.kind,id:chip.id,lab:chip.lab,ic:chip.ic,x:chip.x,y:chip.y};
+    let aThrew=false;try{bbDrawArmory();}catch(e){aThrew=true;console.log('   1v1 armory draw err:',e.message);}
+    ok('1v1 armory rail + drag halos draw without throwing',!aThrew);
+    const c1=p2cCardRect(1);if(bb1v1SideAt(c1.x+280,c1.y+258)===1)bb1v1Equip(1,bbArmDrag.kind,bbArmDrag.id);bbArmDrag=null;
+    ok('dropping a weapon chip onto card 1 equips that side',!!m2.bbLoadout[1]&&m2.bbLoadout[1].weapon==='spinner');
+    m2.bbLoadout=[null,null];}
    const wr=bbClaimLoadRects(0).w.r;p2Click(wr.x+13,wr.y+13);
    ok('clicking the 1v1 card weapon ▶ sets + cycles m2.bbLoadout',!!m2.bbLoadout[0]&&m2.bbLoadout[0].weapon!=='none');
    bbClaimAutobuild(1);

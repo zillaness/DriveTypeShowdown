@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.202.html
-  version: 5.1.202
+  file: drive_showdown_v5.1.203.html
+  version: 5.1.203
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-18
@@ -450,6 +450,7 @@ C.addEventListener('touchstart',e=>{
             let _gh=false;for(let _i=0;_i<6;_i++){if(!(m2.tseats&&m2.tseats[_i]))continue;if(bbLoadGripHit(_i,p.x,p.y)){bbLoadDrag={from:_i,x:p.x,y:p.y,touchId:t.identifier};_bbDragMoved=false;_gh=true;break;}}if(_gh)continue;} // touch drag-to-copy a loadout
           let _nh=false;for(let _i=0;_i<6;_i++){const _s=m2.tseats&&m2.tseats[_i];if(_s&&_s.type==='human'&&inR(p.x,p.y,tankCellSub(_i).name)){m2.tsel=_i;const _n=(typeof prompt==='function')?prompt('Player name:',_s.name||''):null;if(_n!=null){const _t=_n.trim().toUpperCase().slice(0,12);if(_t)_s.name=_t;}_nh=true;break;}}if(!_nh)tankGridClick(p.x,p.y);continue;}
         let handled=false;
+        if(bb1v1ArmoryOn()){const _ac=bbArmoryHit(p.x,p.y);if(_ac){bbArmDrag={kind:_ac.kind,id:_ac.id,lab:_ac.lab,ic:_ac.ic,x:p.x,y:p.y,touchId:t.identifier};_bbDragMoved=false;continue;}} // v5.1.203 touch-drag an armory chip onto a 1v1 card
         for(let pl=0;pl<2;pl++){
           if(inR(p.x,p.y,p2cNameRect(pl))){const n=(prompt('Robot name:',m2.name[pl]||'')||'').toUpperCase().slice(0,12);m2.name[pl]=n.trim()||null;handled=true;break;}
           if(m2.claim[pl]&&m2.claim[pl].type!=='cpu'&&p2cOnSlider(pl,p.x,p.y)){p2SensDrag={pl:pl,touchId:t.identifier};p2SetSens(pl,p.x);handled=true;break;}
@@ -529,7 +530,7 @@ C.addEventListener('touchmove',e=>{
 },{passive:false});
 function clearTouch(e){
   for(const t of e.changedTouches){
-    if(bbArmDrag&&bbArmDrag.touchId===t.identifier){if(_bbDragMoved){const to=bbSeatAt(bbArmDrag.x,bbArmDrag.y);if(to>=0)bbArmEquip(to,bbArmDrag.kind,bbArmDrag.id)&&sfx('click');}bbArmDrag=null;continue;}
+    if(bbArmDrag&&bbArmDrag.touchId===t.identifier){if(_bbDragMoved){const to=bbSeatAt(bbArmDrag.x,bbArmDrag.y);if(to>=0){bbArmEquip(to,bbArmDrag.kind,bbArmDrag.id)&&sfx('click');}else if(bb1v1ArmoryOn()){const pl=bb1v1SideAt(bbArmDrag.x,bbArmDrag.y);if(pl>=0)bb1v1Equip(pl,bbArmDrag.kind,bbArmDrag.id)&&sfx('click');}}bbArmDrag=null;continue;}
     if(bbLoadDrag&&bbLoadDrag.touchId===t.identifier){if(_bbDragMoved){const to=bbSeatAt(bbLoadDrag.x,bbLoadDrag.y);if(to>=0)bbCopyLoadout(bbLoadDrag.from,to)&&sfx('click');}bbLoadDrag=null;continue;}
     if(konamiDrag!==null&&t.identifier===konamiDragTouch){konamiDrag=null;konamiDragTouch=-1;}
     if(p2SensDrag&&t.identifier===p2SensDrag.touchId){p2SensDrag=null;}
@@ -587,6 +588,7 @@ C.addEventListener('mousedown',e=>{
     for(let i=0;i<6;i++){const s=m2.tseats&&m2.tseats[i];if(s&&s.type==='human'&&s.dev){const g=tankCellSub(i).sens;if(p.y>=g.y-12&&p.y<=g.y+12&&p.x>=g.x1-10&&p.x<=g.x2+10){tankSensDrag=i;tankGridSetSens(i,p.x);e.preventDefault();return;}}}
   }
   if(phase==='p2claim'&&!tankGridMode()){
+    if(bb1v1ArmoryOn()){const ac=bbArmoryHit(p.x,p.y);if(ac){bbArmDrag={kind:ac.kind,id:ac.id,lab:ac.lab,ic:ac.ic,x:p.x,y:p.y};_bbDragMoved=false;e.preventDefault();return;}} // v5.1.203 grab an armory chip off the 1v1 rail
     for(let pl=0;pl<2;pl++){const cbd=m2.claim[pl];
       if(cbd&&cbd.type!=='cpu'&&p2cOnSlider(pl,p.x,p.y)){p2SensDrag={pl:pl};p2SetSens(pl,p.x);e.preventDefault();return;}}
   }
@@ -608,7 +610,7 @@ C.addEventListener('mousemove',e=>{
   if(p2SetSliderDrag){p2SetSliderVal(p2SetSliderDrag.i,toCanvasMouse(e).x);return;}
   if(sliderMouseDrag){applySlider(toCanvasMouse(e).x);}
 });
-C.addEventListener('mouseup',()=>{if(bbArmDrag){if(_bbDragMoved){const to=bbSeatAt(mouseX,mouseY);if(to>=0&&bbArmEquip(to,bbArmDrag.kind,bbArmDrag.id)){sfx('click');_bbDragSuppressClick=true;}}bbArmDrag=null;}if(bbLoadDrag){if(_bbDragMoved){const to=bbSeatAt(mouseX,mouseY);if(to>=0&&bbCopyLoadout(bbLoadDrag.from,to)){sfx('click');_bbDragSuppressClick=true;}}bbLoadDrag=null;}mouseBtnHeld=false;sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;konamiDrag=null;tankSensDrag=null;});
+C.addEventListener('mouseup',()=>{if(bbArmDrag){if(_bbDragMoved){const to=bbSeatAt(mouseX,mouseY);if(to>=0&&bbArmEquip(to,bbArmDrag.kind,bbArmDrag.id)){sfx('click');_bbDragSuppressClick=true;}else if(bb1v1ArmoryOn()){const pl=bb1v1SideAt(mouseX,mouseY);if(pl>=0&&bb1v1Equip(pl,bbArmDrag.kind,bbArmDrag.id)){sfx('click');_bbDragSuppressClick=true;}}}bbArmDrag=null;}if(bbLoadDrag){if(_bbDragMoved){const to=bbSeatAt(mouseX,mouseY);if(to>=0&&bbCopyLoadout(bbLoadDrag.from,to)){sfx('click');_bbDragSuppressClick=true;}}bbLoadDrag=null;}mouseBtnHeld=false;sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;konamiDrag=null;tankSensDrag=null;});
 C.addEventListener('mouseleave',()=>{bbArmDrag=null;bbLoadDrag=null;mouseBtnHeld=false;sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;konamiDrag=null;tankSensDrag=null;});
 
 const BALL_STARTS=[
@@ -4147,8 +4149,11 @@ function bbDrawArmory(){ // the chip rail + (while dragging) seat drop-halos and
     ctx.font='bold 9px Courier New';ctx.fillStyle='#dfe2f4';ctx.fillText(c.lab,c.x+11+(c.w-11)/2,c.y+17);
   }
   if(bbArmDrag){
+    const halo=bbArmDrag.kind==='weapon'?BB_ARM_WCOL:bbArmDrag.kind==='armor'?BB_ARM_ACOL:BB_ARM_PCOL;
     for(let i=0;i<6;i++){if(!(m2.tseats&&m2.tseats[i]))continue;const c=tankCellRect(i);
-      ctx.strokeStyle=bbArmDrag.kind==='weapon'?BB_ARM_WCOL:bbArmDrag.kind==='armor'?BB_ARM_ACOL:BB_ARM_PCOL;ctx.lineWidth=2.5;ctx.setLineDash([7,5]);rr(c.x,c.y,c.w,c.h,12);ctx.stroke();ctx.setLineDash([]);}
+      ctx.strokeStyle=halo;ctx.lineWidth=2.5;ctx.setLineDash([7,5]);rr(c.x,c.y,c.w,c.h,12);ctx.stroke();ctx.setLineDash([]);}
+    if(!m2.tseats&&bb1v1ArmoryOn())for(let pl=0;pl<2;pl++){const c=p2cCardRect(pl); // 1v1: halo BOTH cards as drop targets
+      ctx.strokeStyle=halo;ctx.lineWidth=2.5;ctx.setLineDash([7,5]);rr(c.x,c.y,c.w,c.h,12);ctx.stroke();ctx.setLineDash([]);}
     const txt=bbArmDrag.ic+' '+bbArmDrag.lab,x=bbArmDrag.x,y=bbArmDrag.y;
     ctx.font='bold 11px Courier New';const tw=ctx.measureText(txt).width+18;
     ctx.fillStyle='rgba(12,12,24,0.94)';rr(x+12,y-12,tw,24,7);ctx.fill();
@@ -6212,6 +6217,14 @@ function bbClaimLoadRects(pl){const cx=p2cCol(pl);return{w:{l:{x:cx-150,y:356,w:
 function bbClaimLd(pl){return (m2.bbLoadout&&m2.bbLoadout[pl])||null;} // null = "default" (CPU auto-arms at spawn, human stays RAM/neutral — see startP2BB)
 function bbClaimEnsure(pl){if(!m2.bbLoadout)m2.bbLoadout=[null,null];if(!m2.bbLoadout[pl])m2.bbLoadout[pl]={weapon:'wedge',armor:'balanced',perk:'none'};return m2.bbLoadout[pl];} // v5.1.104: default 1v1 claim loadout = the DOZER blade (no RAM-only default); v5.1.136: + perk slot (NONE default)
 function bbClaimAutobuild(pl){if(!m2.bbLoadout)m2.bbLoadout=[null,null];const c=m2.claim&&m2.claim[pl],tier=(c&&c.type==='cpu')?(c.tier|0):2;m2.bbLoadout[pl]=bbCpuPickLoadout(tier);sfx('click');} // roll a concrete weapon+armor you can then tweak
+// ── v5.1.203 1v1 CLAIM CARDS get the same drag-drop ARMORY RAIL as the 3v3 grid (drag a chip onto a card) — see all options at once ──
+function bb1v1ArmoryOn(){return phase==='p2claim'&&m2.mode==='battlebots'&&!tankGridMode()&&!tour;} // the legacy 2-card RoboRumble claim (1v1)
+function bb1v1SideAt(mx,my){for(let pl=0;pl<2;pl++){if(inR(mx,my,p2cCardRect(pl)))return pl;}return -1;} // which 1v1 card (0/1) is under the point
+function bb1v1Equip(pl,kind,id){const ld=bbClaimEnsure(pl); // drop a chip on a card → set its weapon/armor/perk in m2.bbLoadout[pl] (read by bbLoadoutForBind)
+  if(kind==='weapon'&&BB_WEAPONS.some(w=>w.id===id)){ld.weapon=id;return true;}
+  if(kind==='armor'&&BB_ARMOR.some(a=>a.id===id)){ld.armor=id;return true;}
+  if(kind==='perk'&&BB_PERKS.some(p=>p.id===id)){ld.perk=id;return true;}
+  return false;}
 // v5.1.137: 3v3 grid — one button rolls a fresh loadout for EVERY non-player (CPU) seat; human seats are left alone
 function bbGridHasCpu(){return (m2.tseats||[]).some(s=>s&&s.type==='cpu');}
 function bbGridAutoRect(){return {x:CW/2-322,y:CH-84,w:184,h:30};} // v5.1.150 moved to the bottom row (left of START) so it no longer covers the ARMORY drag-drop rail
@@ -6581,6 +6594,7 @@ function p2Draw(){
     ctx.font='bold 16px Courier New';ctx.textAlign='center';ctx.fillStyle='#44ffaa';
     ctx.fillText(ready?'START MATCH':'waiting for players…',sb.x+sb.w/2,sb.y+30);
     ctx.globalAlpha=1;
+    if(bb1v1ArmoryOn())bbDrawArmory(); // v5.1.203 the drag-drop ARMORY RAIL on the 1v1 cards (drawn last → the drag ghost + halos sit on top)
   }else if(phase==='p2stub'){
     p2Chrome('READY','this mode\'s match engine lands in a later phase');
     ctx.font='bold 16px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffd740';
@@ -8778,6 +8792,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.203 (2026-06-18): 1v1 CARDS get the DRAG-AND-DROP ARMORY RAIL (overnight queue #4). The RoboRumble 1v1 two-card claim now shows the SAME chip rail as the 3v3 grid — every weapon ⚔ / armor 🛡 / perk ✦ visible at once — and you DRAG a chip onto either card to equip that side (mouse + touch). Reuses the grid's proven plumbing: `bbArmoryHit`/`bbArmDrag` for the grab (now also fired from the 1v1 mousedown/touchstart), `bbDrawArmory` for the rail + the floating ghost + hover tooltips (now also drawing drop-halos around BOTH cards in 1v1), and a new `bb1v1ArmoryOn`/`bb1v1SideAt`/`bb1v1Equip` for the card drop → `m2.bbLoadout[pl]` (round-trips to the spawned bot via `bbLoadoutForBind`, same as the existing cyclers, which stay as a tap alternative). Pairs with v5.1.201 so the dropped weapon immediately shows on the card's drive-base preview. smoke57 +6 (rail active, card hit-test, equip weapon/armor/perk, reject unknown, halo draw, full drag→drop). Full battery green. Single file, no assets.
   v5.1.202 (2026-06-18): REPAIR dish — Sam's final tuning + a RED-seat HUD bug. REPAIR: (1) the radar dish now PIVOTS about its FRONT feed point (the origin) — the parabolic bowl trails behind it and the green beam exits the feed; (2) NO right-stick input → heal the MOST-NEEDY ally (biggest HP+mob deficit), not the nearest (stick still redirects); (3) heal range == buff AoE (repairBuffRK 8→16 = 1+repairReachK), so the gold AoE circle doubles as the heal-RANGE gauge — drive in until your ally is inside it; (4) the buff field + circle turn OFF while you HOLD to heal (the dish does one OR the other); (5) a HEALTH RING (green→amber→red %HP arc) draws on the ally you're healing so you can see how much is left. BUGFIX: a 3v3 GRID human on a RED seat at grid index 1 showed 'BLUE' in the top HUD + ignored the typed name — the scoreboard read `p2Name(bind)` (which only knew the legacy 2-card slots, where index 1 = BLUE); it now reads the bot's own `ctl.name` first (the grid seat's typed name), matching the in-world tag. smoke57 +5 (buff-off-while-healing, most-needy target, range==AoE, RED-2 side+name). Full battery green. Single file, no assets.
   v5.1.201 (2026-06-18): 1v1 CARD — the chosen WEAPON now renders on the drive-base preview (overnight queue #5). On the RoboRumble 1v1 claim card the small drive-preview robot (already drawn at the card center) now also shows the picked WEAPON on top — as you cycle weapons you see the actual spinner bar / hammer / dish / claws / blade / flame nozzle / jet, etc. on your bot, same window. Reuses the in-match `bbDrawWeapon` hardware render via the same transform `p2cDrawDrivePreview` uses; a new `_wpnPreview` flag makes weapon branches skip their big field-AoE visuals (e.g. the repair buff field) for the static preview, and `bb2` is stubbed so it's safe on the claim screen (where no match exists). Only draws when a real weapon is chosen (an un-picked human/CPU keeps the bare chassis the label shows). smoke57 +1 (renders for every weapon with bb2=null without throwing). Full battery green. Single file, no assets. (Next: overnight #4 — the full drag-and-drop armory rail on the 1v1 card.)
   v5.1.200 (2026-06-18): REPAIR BOT — FINISHED (Sam's live design). The dish is now a clean two-mode SUPPORT bot. **PASSIVE (no trigger, always on): a big AoE ATTACK-BUFF field** — a gentle GOLD pulse (not a red alarm), radius ~⅛ of the map (repairBuffRK 3→8 ≈136px), ×2.5 ally damage; the radar dish sweeps SLOWLY while passive. **ACTIVE (HOLD the trigger): HEAL** — the dish STOPS sweeping, points at the ally + LOCKS ON, and fires the translucent green beam FROM the dish mouth; the RIGHT STICK / mouse picks WHICH ally. Heal range is LONG (~just under ¼ of the map, repairReachK 8→15 ≈272px) and strictly LARGER than the buff AoE. The buff field stays visible + active even while you heal. Radar dish reworked to read like a real parabolic dish — bigger (DR RR*0.62→1.15), concave bowl + rib arcs + a flush hub, and the old feed-horn "fuse" stalk removed. CPU brain flipped: HOLD to heal a hurt ally (buff is passive). smoke57 repair suite rewritten to the passive-buff/active-heal model (12 asserts incl. no-heal-without-trigger + heal-range>buff-range). Full battery green. Single file, no assets.
