@@ -741,7 +741,12 @@ src+=`
    ok('JET: deals upfront damage',c.hp<h0);
    const bb3=bbBotWith('none','balanced',1,2,true);bb3.x=300-RR*3;bb3.y=300;bb3.hp=BB.HP;bb3.inv=0;bb3.mob=BB.MOB;bb2.bots=[jt,bb3];
    const bx0=bb3.x,bh0=bb3.hp;bbJetUpdate(1/60);ok('JET: a foe BEHIND (outside the forward cone) is untouched',bb3.x===bx0&&bb3.hp===bh0);
-   jt.spin=0;jt.ctl.brain.fire=true;bb2.bots=[jt,c];bbWeaponPre(1/60);ok('JET: spin-up is short but NOT instant (one tick < jetMin)',jt.spin>0&&jt.spin<BB_W.jetMin);}
+   jt.spin=0;jt.ctl.brain.fire=true;bb2.bots=[jt,c];bbWeaponPre(1/60);ok('JET: spin-up is short but NOT instant (one tick < jetMin)',jt.spin>0&&jt.spin<BB_W.jetMin);
+   // v5.1.192 OVERHEAT: sustained thrust overheats → engine cuts (spin drops) until cooled
+   {const oj=bbBotWith('jet','balanced',0,0,true);oj.ctl.brain.fire=true;oj._jetHeat=0;oj._jetOver=false;oj.spin=1;bb2.bots=[oj,c];
+    for(let i=0;i<240&&!oj._jetOver;i++)bbWeaponPre(1/60);ok('JET: sustained thrust OVERHEATS',oj._jetOver===true&&(oj._jetHeat||0)>=1);
+    for(let i=0;i<10;i++)bbWeaponPre(1/60);ok('JET: while overheated the engine cuts (spin falls)',oj.spin<0.5);
+    oj.ctl.brain.fire=false;for(let i=0;i<300;i++)bbWeaponPre(1/60);ok('JET: it cools back down + clears the overheat',oj._jetOver===false&&(oj._jetHeat||0)<=BB_W.jetHeatReset+0.01);}}
   // ── v5.1.184 SLAM-INTO-BOT: a flung (pusher) / pushed (jet) bot crashing into ANOTHER bot hurts BOTH (3v3) ──
   {startBB(0,2);bb2.cd=0;bb2.result=null;const svdrv=m2.drive;m2.drive=[{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'}];
    const F=bbBotWith('flipper','balanced',0,0,true);F.x=100;F.y=100;
