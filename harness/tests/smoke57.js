@@ -351,6 +351,9 @@ src+=`
   {m2.mode='battlebots';m2.set.tfmt='1v1';m2.tseats=null;tour=null;phase='p2claim';m2.claim=[{type:'kb'},{type:'cpu',tier:2}];m2.bbLoadout=[null,null];m2.drive=[{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'}];
    let cThrew=false;try{bbDrawClaimLoadout(0,false);bbDrawClaimLoadout(1,true);}catch(e){cThrew=true;console.log('   1v1 loadout draw err:',e.message);}
    ok('1v1 claim loadout draws without throwing (human + CPU card)',!cThrew);
+   // v5.1.201 the chosen WEAPON renders on the drive-base preview — must not throw even with bb2=null (claim screen) for EVERY weapon
+   {const _sb=bb2;bb2=null;let pvThrew=false;for(const W of BB_WEAPONS){if(W.id==='none')continue;m2.bbLoadout[0]={weapon:W.id,armor:'balanced',perk:'none'};try{bbDrawClaimWeaponPreview(0,300,202,1.3);}catch(e){pvThrew=true;console.log('   weapon-preview err ('+W.id+'):',e.message);}}
+    ok('1v1 weapon preview renders on the drive base for every weapon (bb2=null safe)',!pvThrew&&_wpnPreview===false&&bb2===null);bb2=_sb;m2.bbLoadout[0]=null;}
    const wr=bbClaimLoadRects(0).w.r;p2Click(wr.x+13,wr.y+13);
    ok('clicking the 1v1 card weapon ▶ sets + cycles m2.bbLoadout',!!m2.bbLoadout[0]&&m2.bbLoadout[0].weapon!=='none');
    bbClaimAutobuild(1);
