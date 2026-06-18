@@ -456,8 +456,8 @@ src+=`
    ok('PUSHER sets a backward fling (momentum) + direct damage',c._flT>0&&c._flx>0&&c.hp<BB.HP);
    for(let i=0;i<22;i++)updateBB(1/60);
    ok('PUSHER: the foe FLIES backward over time (x '+cx0.toFixed(0)+'→'+c.x.toFixed(0)+')',c.x>cx0+RR*2);
-   const a2=bbBotWith('flipper','balanced',0,0,true);a2.x=FW-90;a2.y=FH/2;a2.h=0;a2.firing=true;a2.pistCd=0;a2.ctl.brain.fire=false; // facing the RIGHT wall
-   const c2=bbBotWith('none','balanced',1,1,true);c2.x=FW-70;c2.y=FH/2;c2.hp=BB.HP;c2.inv=0;c2.mob=0;c2.ctl.brain.fire=false;c2.ctl.brain.inp={vx:0,vy:0,vr:0};bb2.bots=[a2,c2];bb2.result=null;tfObs=[];bb2.cd=0;bb2.t=1; // mob=0 → the CPU brain can't fight the fling (deterministic); the fling momentum is mobility-independent
+   const a2=bbBotWith('flipper','balanced',0,0,true);a2.x=FW-90;a2.y=FH/2;a2.h=0;a2.firing=true;a2.pistCd=0;a2.ctl.brain.fire=false;a2.mob=0; // facing the RIGHT wall; v5.1.202 mob=0 FREEZES the flinger so its AI drift can't jiggle the collision (was flaky ~2/12 — the drift consumed Math.random differently per RNG offset). It still can't re-fire in the 0.37s window (flipCd 0.85s).
+   const c2=bbBotWith('none','balanced',1,1,true);c2.x=FW-70;c2.y=FH/2;c2.hp=BB.HP;c2.inv=0;c2.mob=0;c2.ctl.brain.fire=false;c2.ctl.brain.inp={vx:0,vy:0,vr:0};bb2.bots=[a2,c2];bb2.result=null;tfObs=[];bb2.minis=[];bb2.blasts=[];bb2.deb=[];bb2.fx=[];bb2.cd=0;bb2.t=1; // mob=0 → the CPU brain can't fight the fling (deterministic); clear any leaked entities from prior tests
    bbWeaponFire(1/60);const h0=c2.hp;for(let i=0;i<22;i++){bb2.cd=0;updateBB(1/60);}
    ok('PUSHER RING-OUT: a foe flung into a WALL takes bonus impact damage',c2.hp<=h0-BB_W.flipWallDmg+0.001);
    m2.drive=svd;m2.set.bbmode=svm;m2.set.bbtime=svt;
