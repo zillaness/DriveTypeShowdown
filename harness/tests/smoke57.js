@@ -77,6 +77,14 @@ src+=`
    updateBB(3.2);for(let i=0;i<30;i++)updateBB(1/60);
    ok('grid BB 3v3 runs without throwing + result still open',phase==='p2bb'&&bb2.result===null);
    m2.tseats=null;m2.tsel=0;}
+  // ── v5.1.202: a RED-side GRID seat shows ITS typed name + RED identity (the HUD read p2Name(bind) → a red seat at index 1 wrongly showed 'BLUE') ──
+  {m2.mode='battlebots';tour=null;m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;
+   m2.tseats[1]={type:'human',dev:{type:'kb'},tier:0,drive:{kind:'main',idx:0},sens:1,name:'ZIGGY'}; // RED seat 2 (grid index 1), typed name
+   tankGridSetCpu(3); // a BLUE opponent so the match is valid
+   startP2BB();const me=bb2.bots.find(b=>b.ctl.type!=='cpu');
+   ok('grid RED-2 human spawns on the RED side (0), not blue',!!me&&me.side===0);
+   ok('grid RED-2 HUD label is the TYPED name, not "BLUE"',!!me&&(me.ctl.name||p2Name(me.ctl.bind))==='ZIGGY');
+   m2.tseats=null;m2.tsel=0;}
 
   // v5.1.67: CPU vs CPU sim — both claim cards CPU → one CPU per side (legacy 1v1)
   {m2.mode='battlebots';tour=null;m2.tseats=null;m2.set.tfmt='1v1';m2.set.map=0;
@@ -571,13 +579,15 @@ src+=`
    ok('DRILL ramp readout climbs as you keep it on the foe',ramp2>ramp1&&dr._drillFx>0&&ramp2<=1.0001);
    dr.firing=false;for(let i=0;i<200;i++)bbWeaponFire(1/60);
    ok('DRILL ramp readout falls back + glow turns OFF when idle',dr._drillRamp<0.05&&!(dr._drillFx>0));}
-  // ── v5.1.200: REPAIR DISH — PASSIVE = always-on AoE attack-buff field (big); ACTIVE = HOLD trigger to HEAL (right-stick targets, long range > buff range) ──
+  // ── v5.1.202: REPAIR DISH — PASSIVE = AoE attack-buff field (off while healing); ACTIVE = HOLD trigger to HEAL (right-stick targets, no stick → MOST-NEEDY); heal range == buff AoE (the AoE is the heal-range gauge) ──
   {ok('REPAIR is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='repair')&&BB_ARMORY_W.some(w=>w.id==='repair'));
-   // PASSIVE buff: a repair bot NOT firing still buffs a nearby ally (no trigger gate)
+   // PASSIVE buff: a repair bot NOT firing buffs a nearby ally; FIRING (healing) turns the buff OFF
    const pb=bbBotWith('repair','balanced',0,0,true);pb.x=300;pb.y=300;pb.h=0;pb.firing=false;pb.spin=0;
    const al2=bbBotWith('spinner','balanced',0,2,true);al2.x=300+RR*1.5;al2.y=300;al2._repairBuffT=0;bb2.bots=[pb,al2];
    for(let i=0;i<3;i++){pb.firing=false;bbWeaponFire(1/60);}
-   ok('REPAIR PASSIVE buff: a non-firing dish still buffs a nearby ally',(al2._repairBuffT||0)>0);
+   ok('REPAIR PASSIVE buff: a non-firing dish buffs a nearby ally',(al2._repairBuffT||0)>0);
+   al2._repairBuffT=0;for(let i=0;i<3;i++){pb.firing=true;bbWeaponFire(1/60);}
+   ok('REPAIR buff turns OFF while healing (firing) — no buff applied',(al2._repairBuffT||0)===0);
    const vic=bbBotWith('none','balanced',1,1,true);vic.x=400;vic.y=400;vic.hp=BB.HP;vic.inv=0;const atk=bbBotWith('spinner','balanced',0,2,true);atk._repairBuffT=0;bb2.bots=[vic,atk];
    bbApplyHit(vic,'rear',100,1,400,410);const d1=BB.HP-vic.hp;vic.hp=BB.HP;vic.inv=0;atk._repairBuffT=1;bbApplyHit(vic,'rear',100,1,400,410);const d2=BB.HP-vic.hp;
    ok('REPAIR buff amplifies an ally\\'s damage',d2>d1);
@@ -596,8 +606,14 @@ src+=`
    // dish spins only while healing (trigger held); idle decays
    const sp=bbBotWith('repair','balanced',0,0,true);sp.spin=0;sp.ctl.brain.fire=true;bb2.bots=[sp];for(let i=0;i<60;i++){sp.firing=true;bbWeaponPre(1/60);}
    ok('REPAIR dish spins UP while the heal trigger is held',sp.spin>=0.5);
-   // ranges: heal reach ~¼ map and STRICTLY LARGER than the buff AoE (~⅛ map)
-   ok('REPAIR heal range (~¼ map) is LARGER than the buff AoE (~⅛ map)',BB_W.repairReachK>BB_W.repairBuffRK&&BB_W.repairReachK>=14&&BB_W.repairBuffRK>=7);
+   // no right-stick input → heal the MOST-NEEDY ally (bigger HP deficit wins, even if farther)
+   const mn=bbBotWith('repair','balanced',0,0,true);mn.x=120;mn.y=300;mn.h=0;mn.firing=true;mn.ctl.brain.fire=true; // CPU → bbRepairAim null (no stick)
+   const near=bbBotWith('none','balanced',0,2,true);near.x=120+RR*2;near.y=300;near.hp=BB.HP-30;near.mhp=BB.HP;near.mob=BB.MOB; // close, lightly hurt
+   const needy=bbBotWith('none','balanced',0,2,true);needy.x=120+RR*6;needy.y=300;needy.hp=120;needy.mhp=BB.HP;needy.mob=BB.MOB; // farther, badly hurt
+   bb2.bots=[mn,near,needy];bb2.result=null;mn.firing=true;bbWeaponFire(1/60);
+   ok('REPAIR with no stick input heals the MOST-NEEDY ally (not the nearest)',mn._repairTgt===needy);
+   // heal range == buff AoE (the AoE circle is the heal-range gauge): equal radii, ~just under ¼ map
+   ok('REPAIR heal range EQUALS the buff AoE (the AoE is the heal-range gauge)',Math.abs((1+BB_W.repairReachK)-BB_W.repairBuffRK)<0.5&&BB_W.repairReachK>=14);
    const lr=bbBotWith('repair','balanced',0,0,true);lr.x=120;lr.y=300;lr.h=0;lr.firing=true;
    const far=bbBotWith('none','balanced',0,2,true);far.x=120+RR*14;far.y=300;far.hp=200;far.mhp=BB.HP;far.mob=BB.MOB;bb2.bots=[lr,far];bb2.result=null; // ~14×RR ≈ ¼ map away
    const fh0=far.hp;for(let i=0;i<30;i++){lr.firing=true;bbWeaponFire(1/60);}
