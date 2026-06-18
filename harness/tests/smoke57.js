@@ -258,9 +258,9 @@ src+=`
    ld.weapon='spinner';bbCycleField(ld,'weapon',1);ok('cycling WEAPON advances to the next pickable (spinner→piston)',ld.weapon===BB_WEAPONS[2].id);
    bbCycleField(ld,'weapon',-1);ok('cycling back returns + the cycler NEVER lands on RAM-ONLY/none',ld.weapon==='spinner'&&ld.weapon!=='none');
    bbCycleField(ld,'armor',-1);ok('cycling ARMOR backward wraps to the last',ld.armor===BB_ARMOR[BB_ARMOR.length-1].id);
-   ld.perk='none';bbCycleField(ld,'perk',1);ok('cycling PERK from unset → the first real perk (never NONE)',ld.perk===BB_PERKS_PICK[0].id&&ld.perk!=='none');
-   bbCycleField(ld,'perk',1);ok('cycling PERK forward advances to the next real perk',ld.perk===BB_PERKS_PICK[1].id);
-   ld.perk=BB_PERKS_PICK[0].id;bbCycleField(ld,'perk',-1);ok('cycling PERK backward from the first wraps to the LAST real perk (never NONE)',ld.perk===BB_PERKS_PICK[BB_PERKS_PICK.length-1].id);
+   ld.perk='none';bbCycleField(ld,'perk',1);ok('cycling PERK from NONE → the first real perk',ld.perk===BB_PERKS_PICK[1].id&&ld.perk!=='none'); // v5.1.196 NONE is BB_PERKS_PICK[0] (pickable again)
+   bbCycleField(ld,'perk',1);ok('cycling PERK forward advances to the next perk',ld.perk===BB_PERKS_PICK[2].id);
+   ld.perk=BB_PERKS_PICK[0].id;bbCycleField(ld,'perk',-1);ok('cycling PERK backward from NONE wraps to the LAST perk',ld.perk===BB_PERKS_PICK[BB_PERKS_PICK.length-1].id);
    m2.tseats=null;}
   // ── v5.1.137: 3v3 grid AUTOBUILD-all-CPUs button ──
   {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;
@@ -319,7 +319,7 @@ src+=`
   {applyLayout('land2p');m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;phase='p2claim';tour=null;tankGridSetCpu(0);
    const chips=bbArmoryChips(),wChips=chips.filter(c=>c.kind==='weapon'),aChips=chips.filter(c=>c.kind==='armor');
    ok('armory rail has every PICKABLE weapon (RAM-only + locked CANNON excluded) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none'&&(w.id!=='cannon'||cannonWeapon)).length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length);
-   ok('v5.1.113: armory rail has the PERK group (pickable perks, NONE excluded)',chips.filter(c=>c.kind==='perk').length===BB_PERKS_PICK.length&&!chips.some(c=>c.kind==='perk'&&c.id==='none')&&bbArmEquip&&(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','flameproof')&&m2.tseats[0].loadout.perk==='flameproof';})());
+   ok('v5.1.196: armory rail has the PERK group incl. NO PERK',chips.filter(c=>c.kind==='perk').length===BB_PERKS_PICK.length&&chips.some(c=>c.kind==='perk'&&c.id==='none')&&bbArmEquip&&(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','flameproof')&&m2.tseats[0].loadout.perk==='flameproof';})());
    ok('armory chip ids match the real weapon/armor tables',wChips.every(c=>BB_WEAPONS.some(w=>w.id===c.id))&&aChips.every(c=>BB_ARMOR.some(a=>a.id===c.id)));
    ok('armory rail sits inside the canvas, above the seats',chips.every(c=>c.x>=0&&c.x+c.w<=CW&&c.y>=0&&c.y+c.h<=tankCellRect(0).y));
    const sp=wChips.find(c=>c.id==='spinner'),hit=bbArmoryHit(sp.x+sp.w/2,sp.y+sp.h/2);
@@ -559,8 +559,9 @@ src+=`
    ok('bbArmEquip can set the perk slot',(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','partinggift')&&m2.tseats[0].loadout.perk==='partinggift';})());
    ok('CPU loadout includes a perk field',!!bbCpuPickLoadout(3).perk);}
   // ── v5.1.155: NONE removed as a pickable perk + new perks VAMPIRE / SPARE TIRE / PIT STOP ──
-  {ok('NONE is not a pickable perk anymore',!BB_PERKS_PICK.some(p=>p.id==='none')&&BB_PERKS.some(p=>p.id==='none'));
+  {ok('NO PERK is a pickable perk again (neutral option)',BB_PERKS_PICK.some(p=>p.id==='none')&&BB_PERKS_PICK[0].id==='none');
    ok('CPUs always roll a real (non-NONE) perk',(()=>{for(let i=0;i<200;i++)if(bbCpuPickLoadout(2).perk==='none')return false;return true;})());
+   ok('hover-tip: every weapon/armor/perk has a description',BB_ARMORY_W.concat(BB_ARMORY_A,BB_PERKS_PICK).every(c=>BB_DESC[c.id]&&BB_DESC[c.id].length>5)&&bbDescFull('perk','laststand').indexOf('INVULNERABLE')>=0); // v5.1.196
    ok('new perks exist: VAMPIRE, SPARE TIRE, PIT STOP',['vampire','sparetire','pitstop'].every(id=>BB_PERKS_PICK.some(p=>p.id===id)));
    // VAMPIRE: destroying an enemy heals the killer
    const vk=bbBotWith('none','balanced',0,0,true);vk.ld.perk='vampire';vk.hp=200;vk.mhp=BB.HP;vk.x=300;vk.y=300;

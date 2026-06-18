@@ -4060,6 +4060,36 @@ function bbDrawLoadDrag(){ // drop-target halos + the floating loadout chip that
 // ── v5.1.94 ARMORY: a rail of weapon + armor chips you DRAG onto any seat to equip it (vs only the per-seat ◀▶ cyclers) ──
 const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'PUSH',ic:'⏩'},{id:'pincer',lab:'PINCE',ic:'🦀'},{id:'kamikaze',lab:'KAMI',ic:'💣'},{id:'drill',lab:'DRILL',ic:'⛏'},{id:'repair',lab:'REPAIR',ic:'🔧'},{id:'cannon',lab:'CANNON',ic:'💥'},{id:'jet',lab:'JET',ic:'🚀'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE; v5.1.154 REPAIR TORCH; v5.1.175 CANNON; v5.1.182 JET ENGINE
 const BB_ARMORY_A=[{id:'balanced',lab:'BAL',ic:'⚖'},{id:'hardplate',lab:'HARD',ic:'🛡'},{id:'heatshield',lab:'HEAT',ic:'♨'},{id:'light',lab:'LIGHT',ic:'🪶'},{id:'runflat',lab:'RUN',ic:'🛞'},{id:'reactive',lab:'REACT',ic:'💥'}]; // v5.1.156 RUNFLAT; v5.1.157 REACTIVE
+const BB_DESC={ // v5.1.196 hover-tip blurbs (ids are unique across weapon/armor/perk)
+  spinner:'360° spin-up disc — bites all around incl. the front; lower per-hit but constant',
+  piston:'front-arc hammer — big armor-piercing strikes on a cooldown',
+  flame:'thermal jet — ignores front armor + builds a BLOW-UP meter that detonates a foe',
+  wedge:'DOZER blade — grab & slam foes into walls; deflects spinners; tanky control',
+  buzzsaw:'front-only spin-up cutter — HIGH damage in a narrow front arc',
+  flipper:'PUSHER — RT thrust flings a foe back; ring them into walls (push utility)',
+  pincer:'grab + IMMOBILIZE — clamp & drain a foe (a 3v3 role; weak 1v1)',
+  kamikaze:'RT SELF-DESTRUCT — a big blast that takes nearby foes with you (3v3)',
+  drill:'sustained front grinder — DPS ramps the longer it stays on a foe; sticks on',
+  repair:'SUPPORT torch — heals an ally (HP + tires) in front; only chips enemies',
+  cannon:'ranged EXPLOSIVE shells — fire at range; turreted aim (cheat-unlock)',
+  jet:'JET ENGINE — area-denial thrust: huge PUSH + wall/bot SLAMS; trickle dmg; overheats',
+  balanced:'neutral armor — no bonuses or penalties',
+  hardplate:'heavy plate — big damage reduction + HP pool; kinetic-tough but slower',
+  heatshield:'FLAMEPROOF (immune to fire) + general damage reduction; light',
+  light:'fast & fragile — big speed boost but takes MORE damage',
+  runflat:'neutral stats; popped tires keep driving at a usable crawl (never frozen)',
+  reactive:'the FIRST hit on each side is absorbed AND blasts the attacker',
+  none:'NO PERK — a clean, neutral build (nothing extra to manage)',
+  partinggift:'a big EXPLOSION on death — take foes with you',
+  flameproof:'immune to flamethrower damage + blow-up',
+  minibot:'deploy a harasser drone that shoves & pins enemies',
+  vampire:'destroying an enemy heals you',
+  sparetire:'the first wheel to break is instantly re-welded (once)',
+  pitstop:'deploy a MEDIC drone that heals allies (HP / tires / wheels)',
+  adrenaline:'deal MORE damage the lower your HP (berserk)',
+  painkiller:'first mobility hit → a grace window of full speed, then it catches up',
+  laststand:'on death, a short INVULNERABLE window to take the foe with you'};
+function bbDescFull(kind,id){const t=kind==='weapon'?bbWeaponById(id):kind==='armor'?bbArmorById(id):bbPerkById(id);return ((t&&t.name)||id)+' — '+(BB_DESC[id]||'');}
 const BB_PERKS=[ // v5.1.112 P2: a 3rd loadout slot — PERK (id stays in ld.perk; 'none' kept ONLY as the no-effect fallback, NOT pickable since v5.1.155)
   {id:'none',       name:'NO PERK',      lab:'NONE', ic:'∅'},
   {id:'partinggift',name:'PARTING GIFT', lab:'BOOM', ic:'🧨'}, // v5.1.181 a big EXPLOSION on death (take foes with you) — NO present theme, just a blast (icon 🎁→🧨, lab GIFT→BOOM)
@@ -4072,7 +4102,7 @@ const BB_PERKS=[ // v5.1.112 P2: a 3rd loadout slot — PERK (id stays in ld.per
   {id:'painkiller', name:'PAINKILLER',   lab:'PAIN', ic:'💊'}, // v5.1.181 DELAY mobility damage: stay fully mobile for a grace window after the first hit, THEN the damage catches up
   {id:'laststand',  name:'LAST STAND',   lab:'STAND',ic:'💀'}, // v5.1.181 on (would-be) DEATH: a short INVULNERABLE + perfect-mobility window — one last chance to take the foe with you
 ];
-const BB_PERKS_PICK=BB_PERKS.filter(p=>p.id!=='none'); // v5.1.155 PICKABLE perks (NONE removed — everyone takes a real perk)
+const BB_PERKS_PICK=BB_PERKS.slice(); // v5.1.196 NO PERK is pickable again (Sam: a neutral option when you don't want perks to interfere) — 'none' kept first; CPUs still roll a real perk (bbCpuPickLoadout excludes none)
 function bbPerkById(id){return BB_PERKS.find(p=>p.id===id)||BB_PERKS[0];}
 function bbPerkOf(b){return (b&&b.ld&&b.ld.perk)||'none';}
 function bbAdrenaline(atk){ // v5.1.181 ADRENALINE: damage scales UP as the attacker nears death (×1 at full HP → ×(1+adrenalineMax) at death's door)
@@ -4124,6 +4154,13 @@ function bbDrawArmory(){ // the chip rail + (while dragging) seat drop-halos and
     ctx.fillStyle='rgba(12,12,24,0.94)';rr(x+12,y-12,tw,24,7);ctx.fill();
     ctx.strokeStyle=bbArmDrag.kind==='weapon'?BB_ARM_WCOL:BB_ARM_ACOL;ctx.lineWidth=1.5;rr(x+12,y-12,tw,24,7);ctx.stroke();
     ctx.fillStyle='#eaeaff';ctx.textAlign='left';ctx.fillText(txt,x+20,y+4);
+  }else{const hc=bbArmoryHit(mouseX,mouseY); // v5.1.196 HOVER TOOLTIP: a wrapped description of the weapon/armor/perk chip under the cursor
+    if(hc){const full=bbDescFull(hc.kind,hc.id),maxw=330;ctx.font='11px Courier New';const words=full.split(' '),lines=[];let line='';
+      for(const w of words){const t=line?line+' '+w:w;if(ctx.measureText(t).width>maxw&&line){lines.push(line);line=w;}else line=t;}if(line)lines.push(line);
+      const bw=Math.min(maxw,Math.max.apply(null,lines.map(l=>ctx.measureText(l).width)))+16,bh=lines.length*14+10,col=hc.kind==='weapon'?BB_ARM_WCOL:hc.kind==='armor'?BB_ARM_ACOL:BB_ARM_PCOL;
+      const tx=clamp(hc.x+hc.w/2-bw/2,6,CW-bw-6),ty=hc.y+hc.h+8;
+      ctx.fillStyle='rgba(8,8,16,0.97)';rr(tx,ty,bw,bh,7);ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1;rr(tx,ty,bw,bh,7);ctx.stroke();
+      ctx.textAlign='left';ctx.fillStyle='#eaeaff';for(let i=0;i<lines.length;i++)ctx.fillText(lines[i],tx+8,ty+16+i*14);}
   }
 }
 function bbCpuPickLoadout(tier){ // P2.6: a CPU with no chosen loadout arms itself (higher tiers pick armor with intent)
@@ -4131,7 +4168,7 @@ function bbCpuPickLoadout(tier){ // P2.6: a CPU with no chosen loadout arms itse
   const w=ws[Math.floor(Math.random()*ws.length)];let a;
   if((tier|0)>=2)a=(w==='spinner'||w==='wedge')?'hardplate':(w==='flame')?'heatshield':'balanced';
   else{const as=['hardplate','heatshield','light','balanced'];a=as[Math.floor(Math.random()*as.length)];}
-  const pk=BB_PERKS_PICK.map(p=>p.id);return {weapon:w,armor:a,perk:pk[Math.floor(Math.random()*pk.length)]}; // v5.1.155: CPUs always roll a REAL perk (NONE removed)
+  const pk=BB_PERKS_PICK.filter(p=>p.id!=='none').map(p=>p.id);return {weapon:w,armor:a,perk:pk[Math.floor(Math.random()*pk.length)]}; // v5.1.196: CPUs always roll a REAL perk (NO PERK is human-pickable but excluded from the CPU roll)
 }
 function bbSeatLoadRects(c){const y=c.y+122;return{ // v5.1.173 three compact groups: ⚔ weapon · 🛡 armor · ✦ PERK (perk was missing from the grid)
   wL:{x:c.x+128,y:y,w:18,h:20},wR:{x:c.x+204,y:y,w:18,h:20},
@@ -4853,8 +4890,9 @@ function updateBB(dt){
     const dx=a.x-c.x,dy=a.y-c.y,d=Math.hypot(dx,dy)||0.01;
     if(d<RR*2){const nx=dx/d,ny=dy/d,ov=RR*2-d;
       a.x+=nx*ov*0.5;a.y+=ny*ov*0.5;c.x-=nx*ov*0.5;c.y-=ny*ov*0.5;
-      {const aF=(a._flT>0||(a._jetT||0)>0),cF=(c._flT>0||(c._jetT||0)>0); // v5.1.184 SLAM-INTO-BOT: a FLUNG (pusher) or jet-PUSHED bot crashing into ANOTHER bot hurts BOTH (collision physics) — credit the flinger/pusher. (3v3 feature: needs a third bot, so 1v1 balance is untouched.)
-       if((aF||cF)&&(a._botSlamCd||0)<=0&&(c._botSlamCd||0)<=0){const cred=aF?(a._flung!=null?a._flung:a._jetBy):(c._flung!=null?c._flung:c._jetBy),sd=BB_W.slamBotDmg;
+      {const aFl=(a._flung!=null?a._flung:a._jetBy),cFl=(c._flung!=null?c._flung:c._jetBy); // v5.1.196 SLAM-INTO-BOT only when a flung/pushed bot hits someone OTHER than who flung it (a foe flung into its OWN flinger shouldn't slam — that just consumed the fling at the launch overlap)
+       const aF=(a._flT>0||(a._jetT||0)>0)&&aFl!==j,cF=(c._flT>0||(c._jetT||0)>0)&&cFl!==i; // v5.1.184 a FLUNG (pusher) or jet-PUSHED bot crashing into a THIRD bot hurts BOTH
+       if((aF||cF)&&(a._botSlamCd||0)<=0&&(c._botSlamCd||0)<=0){const cred=aF?aFl:cFl,sd=BB_W.slamBotDmg;
          a.hp-=sd;c.hp-=sd;a.inv=BB.hitCd;c.inv=BB.hitCd;a._botSlamCd=0.3;c._botSlamCd=0.3;a._flT=0;c._flT=0;a._jetT=0;c._jetT=0;sfx('hit');
          if(a.ctl)p2Rumble(a.ctl.bind,0.6,'heavy');if(c.ctl)p2Rumble(c.ctl.bind,0.6,'heavy');if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:(a.x+c.x)/2,y:(a.y+c.y)/2,t:0.2,r:RR*1.6});
          if(cred!=null&&bb2.bots[cred]){const k=bb2.bots[cred];if(k.side!==a.side)k.dmgDealt=(k.dmgDealt||0)+sd;if(k.side!==c.side)k.dmgDealt=(k.dmgDealt||0)+sd;}
