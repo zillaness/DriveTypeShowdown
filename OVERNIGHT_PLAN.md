@@ -2,7 +2,7 @@
 
 ## 🆕 FRESH THREAD — START HERE (handoff 2026-06-16)
 You are continuing an autonomous RoboRumble build run. **Canonical branch = `dev`** (see `CLAUDE.md`).
-1. `git fetch origin dev` and make sure you're on it. Current tip = **`drive_showdown_v5.1.205.html`** (v5.1.198). **See the `## 🤝 HANDOFF 2026-06-18` section near the bottom — that's the freshest state + open items.**
+1. `git fetch origin dev` and make sure you're on it. Current tip = **`drive_showdown_v5.1.205.html`** (v5.1.205). **See the `## 🌅 OVERNIGHT 2026-06-18` section near the bottom — that's the freshest state + open items.**
 2. **Fresh container:** `./extract.sh && ./battery.sh` → must print `ALL GREEN` (extract writes `/tmp/g.js`; without it every smoke test ENOENTs — that's missing setup, not failure).
 3. Read this file's **Progress log** (below) for what's DONE + what's NEXT, and `MIGRATION.md` for project context.
 4. Continue the queue (NEXT = P4 minibots) one shippable version at a time. **Ritual per version:**
@@ -122,6 +122,39 @@ C. Later / not yet: Tournament v2 (nobody's used it yet), moving game modes to T
 - Armor (mirror win%): balanced 67 · reactive 64 · light 58 · runflat 41 · hardplate 35 · heatshield 35.
 - Perks (vs no-perk; ~25% = no 1v1 effect due to a sim bots[0] handicap): minibot 100 · pitstop 100 ·
   partinggift 60 · flameproof/vampire/sparetire ~25 (situational; shine in 3v3 / vs flame).
+
+## 🌅 OVERNIGHT 2026-06-18 (thread `inspiring-turing`) — tip v5.1.205, all green on `dev`
+
+Live-iteration session with Sam, then an autonomous overnight queue. Everything below is on `dev`.
+
+**Shipped this thread (v5.1.199→205):**
+- **v5.1.199 — PINCER anchor + 3v3 trigger-claim + REPAIR autofire (first cut).** A clamping PINCER can't be
+  shoved off its captive by the JET / PUSHER / PISTON (push from the weapon is denied; dozer still shoves via
+  the wheels; rescue-bash + fight-back stay the counters). 3v3 grid claim now accepts the TRIGGERS for
+  "press any button" (bumpers excluded = sensitivity).
+- **v5.1.200–202 — REPAIR BOT finished (Sam's live design).** Final model: **PASSIVE (no trigger) = a big AoE
+  ATTACK-BUFF field** (gentle gold, radius == heal range — the circle IS the heal-range gauge); **ACTIVE (hold
+  trigger) = HEAL** (dish stops + locks + points at the ally, green beam from the FRONT feed point; no stick →
+  heal the MOST-NEEDY; right stick redirects). Buff turns OFF while healing. Health ring (%HP) on the target.
+  Dish redrawn as a real parabolic radar dish (pivots at its front point, no "fuse" stalk). Tunables:
+  repairBuffRK 16, repairReachK 15, repairDmgBuff 2.5. **BUGFIX: RED grid seat (index 1) showed 'BLUE' + lost
+  the typed name in the HUD** — scoreboard now reads `ctl.name` first.
+- **v5.1.201 — #5 weapon on the 1v1 drive-base preview** (reuses `bbDrawWeapon`; `_wpnPreview` flag skips big
+  field auras; bb2 stubbed for the claim screen).
+- **v5.1.203 — #4 the 1v1 cards get the full drag-drop ARMORY RAIL** (same as the grid; `bb1v1ArmoryOn`/
+  `bb1v1SideAt`/`bb1v1Equip` route the drop to `m2.bbLoadout[pl]`; cyclers stay as a tap path).
+- **v5.1.204 — #3 TANK FIGHT VIP + SUMO** (game-mode parity done). Both 1-life elimination; `TF2_RING`=290;
+  CPU hunts the VIP / stays off the ring edge.
+- **v5.1.205 — drag-drop discoverability hint** on the 1v1 claim subtitle.
+- **test:** de-flaked smoke57 PUSHER RING-OUT (was ~2/12 → 0/24; froze the flinger so AI drift can't shift the
+  RNG-sensitive collision). Battery is now reliably green.
+
+**Open items still parked (unchanged from below):** flame human/CPU separation (playtest call), KAMIKAZE 0% in
+3v3 (CPU brain), jet CPU dash-through counter (playtest), tournament v2 (T2/T4/T1), polish (map gallery, egg
+paint+achievements). Pending Sam's playtest read on: the finished REPAIR bot, the 1v1 drag-drop rail + weapon
+preview, tank VIP/SUMO feel.
+
+---
 
 ## 🤝 HANDOFF 2026-06-18 (fresh-thread START HERE) — tip v5.1.198
 
