@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.203.html
-  version: 5.1.203
+  file: drive_showdown_v5.1.204.html
+  version: 5.1.204
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-18
@@ -3192,7 +3192,7 @@ function cpuTankUpdate(dt){
     const me=tf2.tanks[p];if(me.dead)continue;
     const br=tankBrain(p);if(!br)continue;
     const bind=me.ctl.bind;
-    const foe=tankNearestFoe(p);if(!foe)continue; // nearest live opposite-side tank
+    let foe=tankNearestFoe(p);if(tf2.mode==='vip'){const v=tankFoes(p).find(f=>f.vip);if(v)foe=v;}if(!foe)continue; // nearest live opposite-side tank; v5.1.204 VIP → HUNT the enemy VIP
     const diff=((foe.lives*3+foe.hp)-(me.lives*3+me.hp))/3;
     const T=tierParamsByIdx(me.ctl.tier|0,diff); // tank carries its own tier (ally CPUs have no human bind)
     br.objT-=dt;br.aimT-=dt;br.strafeT=(br.strafeT||0)-dt;
@@ -3247,6 +3247,7 @@ function cpuTankUpdate(dt){
       }
       const mm=Math.hypot(mvx,mvy);if(mm>1){mvx/=mm;mvy/=mm;}
     }
+    if(tf2.mode==='sumo'){const ex=me.x-FW/2,ey=me.y-FH/2,ed=Math.hypot(ex,ey)||1;if(ed>TF2_RING*0.78){mvx+=-ex/ed*1.5;mvy+=-ey/ed*1.5;const _mm=Math.hypot(mvx,mvy);if(_mm>1){mvx/=_mm;mvy/=_mm;}}} // v5.1.204 SUMO: a CPU near the ring edge pulls back toward center (don't ring yourself out)
     // aim: lead the target by flight time, jittered by tier
     const lead=dist/400;
     const aimH=Math.atan2(foe.y+foe._inp.vy*lead-me.y,foe.x+foe._inp.vx*lead-me.x)+br.aimJ;
@@ -3315,16 +3316,18 @@ function startP2Tank(){cheatedRun=false;paused=false;
   const nSide=[roster.filter(r=>r.side===0).length,roster.filter(r=>r.side===1).length];
   const ys=[tf2SpawnYs(nSide[0]),tf2SpawnYs(nSide[1])],yIdx=[0,0],seat=[0,0];
   const _mode=tf2Mode(),_obj=tf2ModeObjective(_mode); // v5.1.190 objective game modes = infinite respawns; the objective sets the winner (so no time-limit / elimination ending)
-  const timed=(m2.set.tformat==='timed')&&!_obj; // TIMED = deathmatch: infinite lives, most kills in the time limit wins
+  const _elim=(_mode==='sumo'||_mode==='vip'); // v5.1.204 SUMO/VIP = 1-life elimination (ring-out / kill-the-VIP), like RoboRumble
+  const timed=(m2.set.tformat==='timed')&&!_obj&&!_elim; // TIMED = deathmatch: infinite lives, most kills in the time limit wins (not in objective/elimination modes)
   tf2={t:0,cd:3,result:null,timed:timed,tLimit:timed?(m2.set.tTimeSec|0):0,sudden:false,mode:_mode,dom:[0,0],domOwn:[-1,-1,-1],bullets:[],blasts:[],_bid:0,map:mp,pups:[],fx:[],btTouch:false,pupTimer:3+Math.random()*3,
-    tanks:roster.map(r=>{const sp=tf2SpawnSide(r.side,ys[r.side][yIdx[r.side]++]);
+    tanks:roster.map(r=>{const sp=tf2SpawnSide(r.side,ys[r.side][yIdx[r.side]++]);if(_mode==='sumo')sp.x=r.side===0?FW/2-170:FW/2+170; // v5.1.204 SUMO: spawn INSIDE the ring (default spawns sit at the arena edge = instant ring-out)
       const ctl=tankMkCtl(r.bind);ctl.type=r.type; // roster decides side membership; ctl.bind still drives input/drive/sens
       const si=seat[r.side]++,col=teamShade(r.side,si); // per-seat warm(red)/cool(blue) shade
       if(r.type==='cpu'){ctl.tier=r.tier;ctl.name=(r.side===0?'ALLY':'CPU')+(nSide[r.side]>1?' '+(si+1):'');}
       if(gridOn){const _gs=m2.tseats[r.bind];ctl.name=(r.type==='cpu')?((r.side===0?'RED':'BLUE')+' '+(si+1)):((_gs&&_gs.name)||('PLAYER '+(si+1)));} // grid: humans use their (renameable) seat name, CPUs use side+slot — all distinct
-      return{x:sp.x,y:sp.y,h:sp.h,sx:sp.x,sy:sp.y,sh:sp.h,hp:3,reload:0,lives:_obj?Infinity:(timed?Infinity:m2.set.lives),inv:0,
+      return{x:sp.x,y:sp.y,h:sp.h,sx:sp.x,sy:sp.y,sh:sp.h,hp:3,reload:0,lives:_elim?1:(_obj?Infinity:(timed?Infinity:m2.set.lives)),inv:0,
         side:r.side,col:col,kills:0,dead:false,ctl:ctl,
         rapidT:0,speedT:0,shield:false,explAmmo:0,pierceAmmo:0,aimT:0,explBurstT:0,pierceBurstT:0,cannonAng:sp.h,_inp:{vx:0,vy:0,vr:0},_csv:null};})};
+  if(_mode==='vip')for(let _s=0;_s<2;_s++){const _v=tf2.tanks.find(t=>t.side===_s);if(_v)_v.vip=true;} // v5.1.204 VIP: the first tank per side is its VIP (kill the enemy VIP to win)
   cpuH2H=null; // tank mode uses per-tank ctl.brain (the 2-slot cpuH2H store is ball/race only)
   cpuTankBrainsInit(); // one brain per CPU tank
 }
@@ -3607,8 +3610,9 @@ const TF_MODES=[ // v5.1.190 GAME MODES for Tank Fight (parity with RoboRumble).
   {id:'kothStatic', name:'KOTH — static hill'},
   {id:'sumo',       name:'SUMO — ring-out'},
 ];
+const TF2_RING=290; // v5.1.204 SUMO ring radius for Tank Fight (mirrors RoboRumble's BB_RING)
 function tf2Mode(){return (m2.set&&m2.set.tfmode)||'deathmatch';}
-function tf2ModeObjective(m){m=m||tf2Mode();return m!=='deathmatch'&&m!=='sumo';} // objective modes = infinite respawns + an objective win
+function tf2ModeObjective(m){m=m||tf2Mode();return m!=='deathmatch'&&m!=='sumo'&&m!=='vip';} // objective (hold-to-win) modes = infinite respawns. DEATHMATCH/SUMO/VIP are elimination (1 life), not objective.
 function tf2ModeUpdate(dt){ // v5.1.190 per-mode win logic for Tank Fight (each live tick)
   if(!tf2||tf2.result!==null)return;const mode=tf2.mode||'deathmatch';
   if(mode==='domination'){ // capture & hold the 3 control points (persistent ownership); first side to BB_DOM_TARGET point-seconds wins
@@ -3622,11 +3626,21 @@ function tf2ModeUpdate(dt){ // v5.1.190 per-mode win logic for Tank Fight (each 
     const c=[0,0];for(const t of tf2.tanks){if(t.dead)continue;if(Math.hypot(t.x-k.x,t.y-k.y)<=BB_KOTH_R)c[t.side]++;}
     if(c[0]>c[1])k.score[0]+=dt;else if(c[1]>c[0])k.score[1]+=dt; // majority holds; tie = contested = no gain
     for(let s=0;s<2;s++)if(k.score[s]>=BB_KOTH_TARGET){tf2.result=s;sfx('win');break;}
+  }else if(mode==='sumo'){ // v5.1.204 SUMO: a tank shoved OUTSIDE the ring is rung out (eliminated). Last side standing wins (via tf2CheckResult).
+    const cx=FW/2,cy=FH/2;let any=false;
+    for(const t of tf2.tanks){if(t.dead)continue;if(Math.hypot(t.x-cx,t.y-cy)>TF2_RING){t.lives=0;t.hp=0;t.dead=true;t._rungOut=true;tf2.blasts.push({x:t.x,y:t.y,t:0.35});sfx('explosion');any=true;}}
+    if(any)tf2CheckResult(null);
   }
 }
 function tf2KothPos(mode){const cx=FW/2,cy=FH/2;if(mode==='kothMove'){const t=(tf2&&tf2.t)||0;return{x:cx+Math.cos(t*0.5)*(FW/2-BB_KOTH_R-50),y:cy+Math.sin(t*0.8)*(FH/2-BB_KOTH_R-40)};}return{x:cx,y:cy};} // v5.1.191 STATIC = center; MOVING = a smooth Lissajous drift across the arena
 function tf2CheckResult(lastKiller){ // LIVES: last SIDE standing wins. tf2.result is a side index (2 tanks → side index == tank index, so legacy 1v1 is byte-identical).
   if(tf2.result!==null)return;
+  if((tf2.mode)==='vip'){ // v5.1.204 VIP: a side LOSES the instant its VIP is destroyed for good (no respawns left); grunts don't matter
+    const vd=[false,false];for(const t of tf2.tanks)if(t.vip&&t.dead&&!(t.lives>0))vd[t.side]=true;
+    if(vd[0]&&!vd[1]){tf2.result=1;sfx('win');return;}
+    if(vd[1]&&!vd[0]){tf2.result=0;sfx('win');return;}
+    if(vd[0]&&vd[1]){tf2.result=(lastKiller!=null&&tf2.tanks[lastKiller]?tf2.tanks[lastKiller].side:0);sfx('win');return;}
+  }
   const sides=new Set();for(const t of tf2.tanks)if(!t.dead)sides.add(t.side);
   if(sides.size<=1){
     tf2.result=sides.size===1?[...sides][0]:(lastKiller!=null&&tf2.tanks[lastKiller]?tf2.tanks[lastKiller].side:0);
@@ -3789,6 +3803,7 @@ function drawP2Tank(){
   if((tf2.mode==='kothMove'||tf2.mode==='kothStatic')&&tf2.koth){const k=tf2.koth; // v5.1.191 KOTH hill (static center or drifting)
     ctx.strokeStyle='rgba(255,196,64,0.7)';ctx.fillStyle='rgba(255,196,64,0.10)';ctx.lineWidth=3;ctx.setLineDash([10,8]);ctx.beginPath();ctx.arc(k.x,k.y,BB_KOTH_R,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.setLineDash([]);
     ctx.fillStyle='#ffd740';ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillText('⛰',k.x,k.y+5);}
+  if(tf2.mode==='sumo'){ctx.strokeStyle='rgba(255,215,64,0.55)';ctx.lineWidth=4;ctx.setLineDash([14,10]);ctx.beginPath();ctx.arc(FW/2,FH/2,TF2_RING,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);} // v5.1.204 SUMO ring — shove the foe OUT of it
   for(const b of tf2.bullets){
     const col=(tf2.tanks[b.owner]?tf2.tanks[b.owner].col:M2_COLS[0]); // bullet wears its owning tank's shade
     const ang=Math.atan2(b.vy,b.vx);
@@ -3828,6 +3843,8 @@ function drawP2Tank(){
   ctx.restore();
   if(tf2.mode==='domination'){const d=tf2.dom||[0,0];ctx.fillStyle='#cfe3ff';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('DOMINATION — hold the points',CW/2,40);for(let s=0;s<2;s++){const w=120,x=s===0?CW/2-w-8:CW/2+8;bbBar(x,46,w,8,clamp(d[s]/BB_DOM_TARGET,0,1),M2_COLS[s]);}} // v5.1.190 domination score meters
   if((tf2.mode==='kothMove'||tf2.mode==='kothStatic')&&tf2.koth){const k=tf2.koth;ctx.fillStyle='#ffe6a8';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('KING OF THE HILL'+(tf2.mode==='kothMove'?' — moving':''),CW/2,40);for(let s=0;s<2;s++){const w=120,x=s===0?CW/2-w-8:CW/2+8;bbBar(x,46,w,8,clamp(k.score[s]/BB_KOTH_TARGET,0,1),M2_COLS[s]);}} // v5.1.191 KOTH meters
+  if(tf2.mode==='sumo'){ctx.fillStyle='#ffe6a8';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('SUMO — shove them OUT of the ring',CW/2,40);} // v5.1.204
+  if(tf2.mode==='vip'){ctx.fillStyle='#ffe6a8';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('VIP — destroy the enemy ♛ · protect yours',CW/2,40);} // v5.1.204
   // pickup glow rings
   for(const t of tf2.tanks){
     if(t.glowT>0){
@@ -3848,6 +3865,7 @@ function drawP2Tank(){
     if(arcadeMode||t.stunT>0)drawStun(t);
     drawP2Tag(p,t,tankLabel(p),cov); // show each bot's name (custom rename / PLAYER N / CPU) above it, humans included
     drawTankCannon(t,tankCol(p)); // basic cannon/turret on top of the chassis
+    if(tf2.mode==='vip'&&t.vip){ctx.fillStyle='#ffd740';ctx.font='bold 15px Courier New';ctx.textAlign='center';ctx.fillText('♛',FX+t.x,FY+t.y-RR-16);} // v5.1.204 VIP crown over the protected tank
     ctx.globalAlpha=1;
     {const pups=tankPupHud(t);if(pups.length)drawPupChips(pups,FX+t.x,FY+t.y+RR+15,'center');} // on-field loadout strip — see your power-ups at your own tank, no glance to the corner
   }
@@ -8792,6 +8810,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.204 (2026-06-18): TANK FIGHT — VIP + SUMO modes ported (overnight queue #3; completes game-mode parity with RoboRumble — Domination + KOTH×2 were already in). Both are 1-life ELIMINATION modes (mirroring RoboRumble): a new `_elim` flag forces lives=1 + not-timed; `tf2ModeObjective` now excludes vip (it's elimination, not a hold-to-win objective). **SUMO** — tanks spawn INSIDE a central ring (`TF2_RING`=290); `tf2ModeUpdate` rings out any tank shoved outside (eliminated, no respawn) and the last side standing wins via `tf2CheckResult`; a dashed gold ring + a "shove them OUT" HUD hint draw; the CPU pulls back toward center when it nears the edge so it won't ring itself out. **VIP** — the first tank per side is its VIP (marked at spawn); `tf2CheckResult` resolves VIP first (a side loses the instant its VIP is destroyed for good); a ♛ crown draws over each VIP + a HUD hint; the CPU HUNTS the enemy VIP. smoke56 +9 (registry, elimination lives, VIP marking/win, SUMO spawn-inside/ring-out/win). Full battery green. Single file, no assets.
   v5.1.203 (2026-06-18): 1v1 CARDS get the DRAG-AND-DROP ARMORY RAIL (overnight queue #4). The RoboRumble 1v1 two-card claim now shows the SAME chip rail as the 3v3 grid — every weapon ⚔ / armor 🛡 / perk ✦ visible at once — and you DRAG a chip onto either card to equip that side (mouse + touch). Reuses the grid's proven plumbing: `bbArmoryHit`/`bbArmDrag` for the grab (now also fired from the 1v1 mousedown/touchstart), `bbDrawArmory` for the rail + the floating ghost + hover tooltips (now also drawing drop-halos around BOTH cards in 1v1), and a new `bb1v1ArmoryOn`/`bb1v1SideAt`/`bb1v1Equip` for the card drop → `m2.bbLoadout[pl]` (round-trips to the spawned bot via `bbLoadoutForBind`, same as the existing cyclers, which stay as a tap alternative). Pairs with v5.1.201 so the dropped weapon immediately shows on the card's drive-base preview. smoke57 +6 (rail active, card hit-test, equip weapon/armor/perk, reject unknown, halo draw, full drag→drop). Full battery green. Single file, no assets.
   v5.1.202 (2026-06-18): REPAIR dish — Sam's final tuning + a RED-seat HUD bug. REPAIR: (1) the radar dish now PIVOTS about its FRONT feed point (the origin) — the parabolic bowl trails behind it and the green beam exits the feed; (2) NO right-stick input → heal the MOST-NEEDY ally (biggest HP+mob deficit), not the nearest (stick still redirects); (3) heal range == buff AoE (repairBuffRK 8→16 = 1+repairReachK), so the gold AoE circle doubles as the heal-RANGE gauge — drive in until your ally is inside it; (4) the buff field + circle turn OFF while you HOLD to heal (the dish does one OR the other); (5) a HEALTH RING (green→amber→red %HP arc) draws on the ally you're healing so you can see how much is left. BUGFIX: a 3v3 GRID human on a RED seat at grid index 1 showed 'BLUE' in the top HUD + ignored the typed name — the scoreboard read `p2Name(bind)` (which only knew the legacy 2-card slots, where index 1 = BLUE); it now reads the bot's own `ctl.name` first (the grid seat's typed name), matching the in-world tag. smoke57 +5 (buff-off-while-healing, most-needy target, range==AoE, RED-2 side+name). Full battery green. Single file, no assets.
   v5.1.201 (2026-06-18): 1v1 CARD — the chosen WEAPON now renders on the drive-base preview (overnight queue #5). On the RoboRumble 1v1 claim card the small drive-preview robot (already drawn at the card center) now also shows the picked WEAPON on top — as you cycle weapons you see the actual spinner bar / hammer / dish / claws / blade / flame nozzle / jet, etc. on your bot, same window. Reuses the in-match `bbDrawWeapon` hardware render via the same transform `p2cDrawDrivePreview` uses; a new `_wpnPreview` flag makes weapon branches skip their big field-AoE visuals (e.g. the repair buff field) for the static preview, and `bb2` is stubbed so it's safe on the claim screen (where no match exists). Only draws when a real weapon is chosen (an un-picked human/CPU keeps the bare chassis the label shows). smoke57 +1 (renders for every weapon with bb2=null without throwing). Full battery green. Single file, no assets. (Next: overnight #4 — the full drag-and-drop armory rail on the 1v1 card.)

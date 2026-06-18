@@ -316,6 +316,22 @@ src+=`
    tf2.koth.score=[BB_KOTH_TARGET-0.01,0];tf2ModeUpdate(0.5);ok('Tank KOTH: reaching the target WINS',tf2.result===0);
    tf2.t=0;const ka=tf2KothPos('kothMove');tf2.t=3;const kb=tf2KothPos('kothMove');ok('Tank KOTH moving: the hill drifts over time',Math.hypot(ka.x-kb.x,ka.y-kb.y)>1);
    m2.set.tfmode=sv;}
+  // ── v5.1.204 TANK VIP + SUMO (ported from RoboRumble — last two modes for parity) ──
+  {const sv=m2.set.tfmode;
+   m2.set.tfmode='vip';startTank(0,3);
+   ok('Tank VIP: 1-life ELIMINATION (not infinite respawns) + mode set',tf2.tanks.every(t=>t.lives===1)&&tf2.mode==='vip'&&tf2ModeObjective('vip')===false);
+   ok('Tank VIP: exactly one VIP per side (the first tank)',tf2.tanks.filter(t=>t.side===0&&t.vip).length===1&&tf2.tanks.filter(t=>t.side===1&&t.vip).length===1);
+   tf2.result=null;const vB=tf2.tanks.find(t=>t.side===1&&t.vip);vB.dead=true;vB.lives=0;tf2CheckResult(null);
+   ok('Tank VIP: destroying the enemy VIP WINS for the other side',tf2.result===0);
+   m2.set.tfmode='sumo';startTank(0,3);
+   ok('Tank SUMO: 1-life elimination + mode set',tf2.tanks.every(t=>t.lives===1)&&tf2.mode==='sumo');
+   ok('Tank SUMO: tanks spawn INSIDE the ring',tf2.tanks.every(t=>Math.hypot(t.sx-FW/2,t.sy-FH/2)<TF2_RING));
+   tf2.result=null;const out=tf2.tanks.find(t=>t.side===1);out.x=FW/2+TF2_RING+60;out.y=FH/2;out.dead=false;
+   for(const t of tf2.tanks)if(t.side===0){t.x=FW/2;t.y=FH/2;t.dead=false;}
+   tf2ModeUpdate(1/60);
+   ok('Tank SUMO: a tank shoved OUTSIDE the ring is rung out (dead, no respawn)',out.dead&&out._rungOut&&out.lives===0);
+   ok('Tank SUMO: ringing out the last enemy WINS (last side standing)',tf2.result===0);
+   m2.set.tfmode=sv;}
 
   console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire + 3v3 allies): '+P+' pass, '+F+' fail ---');
 })();
