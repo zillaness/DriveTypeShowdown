@@ -461,6 +461,17 @@ src+=`
    ok('PINCER drains the held foe MOBILITY (immobilize) without big damage',c.mob<mob0&&c.hp===hp0);
    ok('PINCER glues the held foe to its front',Math.abs(c.x-(a.x+RR*2))<1&&!!c.held);
    ok('PINCER is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='pincer')&&BB_ARMORY_W.some(w=>w.id==='pincer'));}
+  // ── v5.1.197: PINCER counterplay — firm hold CAP + the captive can TURN & FIGHT BACK ──
+  {startBB(0,2);bb2.cd=0;bb2.result=null;const p=bbBotWith('pincer','balanced',0,0,true);p.x=300;p.y=300;p.h=0;p.firing=true;
+   const v=bbBotWith('none','balanced',1,1,true);v.x=320;v.y=300;v.hp=BB.HP;v.inv=0;v.mob=BB.MOB;bb2.bots=[p,v];
+   p.grab=v;v.held=p;p.grabT=0.05;v.firing=false;for(let i=0;i<6;i++){p.firing=true;bbGrabUpdate(1/60);}
+   ok('PINCER: a firm hold CAP frees the captive (no perma-clamp even while firing)',v.held==null&&p.grab==null);
+   // captive facing + firing grinds the captor down (fight back)
+   const p2b=bbBotWith('pincer','balanced',0,0,true);p2b.x=300;p2b.y=300;p2b.h=0;p2b.hp=BB.HP;p2b.inv=0;
+   const v2=bbBotWith('spinner','balanced',1,1,true);v2.x=334;v2.y=300;v2.h=Math.PI;v2.firing=true;v2.hp=BB.HP; // faces back at the captor
+   p2b.grab=v2;v2.held=p2b;p2b.grabT=BB_W.pincerGrabDur;bb2.bots=[p2b,v2];
+   const ch0=p2b.hp;for(let i=0;i<20;i++){p2b.firing=true;v2.firing=true;bbGrabUpdate(1/60);}
+   ok('PINCER: a held captive facing + firing FIGHTS BACK (grinds the captor)',p2b.hp<ch0);}
   // ── v5.1.139: PINCER actually CLAMPS on a firing front-arc ram (the trigger path) + lunges + opens ──
   {ok('PINCER has a forward LUNGE while firing',BB_W.pincerLunge>1);
    ok('PINCER clamp arc is wide enough to catch a foe',BB_W.pincerArc>=Math.PI*0.5);
@@ -477,13 +488,15 @@ src+=`
    ok('PINCER reach-clamp grabs a lined-up foe that is NOT touching',pa.grab===pf&&pf.held===pa);
    ok('PINCER reach is forgiving (arc ≥ ±60° + reach beyond contact)',BB_W.pincerArc>=Math.PI*0.66&&BB_W.pincerReachK>1);
    m2.set.bbmode=sv;}
-  // ── v5.1.140: PINCER is an UNBREAKABLE clamp — hold to grip, wall-slam, held bot can't drive but can fire, only a teammate frees it ──
+  // ── v5.1.197: PINCER hold CAP (auto-releases — no perma-clamp), wall-slam, teammate rescue ──
   {const h=bbBotWith('pincer','balanced',0,0,true);h.x=300;h.y=300;h.h=0;h.firing=true;
-   const c=bbBotWith('none','balanced',1,1,true);c.x=334;c.y=300;c.hp=BB.HP;h.grab=c;c.held=h;h.grabT=BB_W.pincerGrabDur;
-   bb2.bots=[h,c];bb2.result=null;tfObs=[];for(let i=0;i<200;i++)bbGrabUpdate(1/60); // ~3.3s, well past pincerGrabDur
-   ok('PINCER holds indefinitely while the holder keeps firing (no auto-release)',h.grab===c&&c.held===h);
-   h.firing=false;bbGrabUpdate(1/60);
-   ok('PINCER lets go when the HOLDER stops firing (captive still cannot self-release)',h.grab===null&&c.held===null);
+   const c=bbBotWith('none','balanced',1,1,true);c.x=334;c.y=300;c.hp=BB.HP;c.firing=false;h.grab=c;c.held=h;h.grabT=BB_W.pincerGrabDur;
+   bb2.bots=[h,c];bb2.result=null;tfObs=[];for(let i=0;i<30;i++){h.firing=true;bbGrabUpdate(1/60);} // 0.5s — within the hold cap
+   ok('PINCER keeps gripping while firing + within the hold cap',h.grab===c&&c.held===h);
+   for(let i=0;i<100;i++){h.firing=true;bbGrabUpdate(1/60);} // total ~2.2s, past pincerGrabDur (1.6s)
+   ok('PINCER auto-releases at the hold CAP (no perma-clamp)',h.grab===null&&c.held===null);
+   h.grab=c;c.held=h;h.grabT=BB_W.pincerGrabDur;h.firing=false;bbGrabUpdate(1/60);
+   ok('PINCER lets go when the HOLDER stops firing',h.grab===null&&c.held===null);
    // wall-slam: drag the captive into a wall (field edge) → damage
    const h2=bbBotWith('pincer','balanced',0,0,true);h2.x=FW-2;h2.y=300;h2.h=0;h2.firing=true;h2._inp={vx:SPD,vy:0,vr:0};
    const c2=bbBotWith('none','balanced',1,1,true);c2.x=FW-2;c2.y=300;c2.hp=BB.HP;c2.inv=0;h2.grab=c2;c2.held=h2;
