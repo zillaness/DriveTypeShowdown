@@ -472,6 +472,29 @@ src+=`
    p2b.grab=v2;v2.held=p2b;p2b.grabT=BB_W.pincerGrabDur;bb2.bots=[p2b,v2];
    const ch0=p2b.hp;for(let i=0;i<20;i++){p2b.firing=true;v2.firing=true;bbGrabUpdate(1/60);}
    ok('PINCER: a held captive facing + firing FIGHTS BACK (grinds the captor)',p2b.hp<ch0);}
+  // ── v5.1.199: a clamping PINCER is ANCHORED — external JET/PUSHER push can't shove it off its captive (damage still lands; the counter stays the fight-back + rescue-bash) ──
+  {const h=bbBotWith('pincer','balanced',0,0,true);h.x=400;h.y=300;h.h=0;h.firing=true;
+   const c=bbBotWith('none','balanced',1,1,true);c.x=434;c.y=300;c.hp=BB.HP;h.grab=c;c.held=h;h.grabT=BB_W.pincerGrabDur;
+   const j=bbBotWith('jet','balanced',1,1,true);j.x=350;j.y=300;j.h=0;j.firing=true;j.spin=1;j._jetOver=false; // a jet firing into the holder from the left
+   bb2.bots=[h,c,j];bb2.result=null;const hx0=h.x;for(let i=0;i<30;i++)bbJetUpdate(1/60);
+   ok('PINCER holding is ANCHORED vs JET push (not shoved off its captive)',Math.abs(h.x-hx0)<1&&h.grab===c);
+   // control: the SAME jet DOES shove a pincer that is NOT currently holding (proves the anchor is the holding state)
+   const h2=bbBotWith('pincer','balanced',0,0,true);h2.x=400;h2.y=300;h2.h=0; // no grab
+   const j2=bbBotWith('jet','balanced',1,1,true);j2.x=350;j2.y=300;j2.h=0;j2.firing=true;j2.spin=1;j2._jetOver=false;
+   bb2.bots=[h2,j2];const hx2=h2.x;for(let i=0;i<30;i++)bbJetUpdate(1/60);
+   ok('control: a NON-holding pincer IS shoved by the jet',h2.x>hx2+1);
+   // PUSHER fling can't fling a holding pincer
+   const hp=bbBotWith('pincer','balanced',0,0,true);hp.x=400;hp.y=300;hp.h=0;hp.firing=true;
+   const cap=bbBotWith('none','balanced',1,1,true);cap.x=434;cap.y=300;cap.hp=BB.HP;hp.grab=cap;cap.held=hp;hp.grabT=BB_W.pincerGrabDur;
+   const fl=bbBotWith('flipper','balanced',1,1,true);fl.x=400-RR*1.5;fl.y=300;fl.h=0;fl.firing=true;fl.pistCd=0;fl.ctl.brain.fire=false;
+   bb2.bots=[hp,cap,fl];bb2.result=null;hp._flx=0;hp._flT=0;bbWeaponFire(1/60);
+   ok('PINCER holding is ANCHORED vs PUSHER fling (no fly velocity applied)',!(hp._flT>0)&&Math.abs(hp._flx||0)<1&&hp.grab===cap);
+   // PISTON hammer-knock can't shove a holding pincer either (the push comes from the weapon strike, not the wheels)
+   const ph=bbBotWith('pincer','balanced',0,0,true);ph.x=400;ph.y=300;ph.h=0;ph.firing=true;
+   const pcv=bbBotWith('none','balanced',1,1,true);pcv.x=434;pcv.y=300;pcv.hp=BB.HP;ph.grab=pcv;pcv.held=ph;ph.grabT=BB_W.pincerGrabDur;
+   const pst=bbBotWith('piston','balanced',1,1,true);pst.x=400-RR*1.2;pst.y=300;pst.h=0;pst.firing=true;pst.pistCd=0;pst.ctl.brain.fire=false;
+   bb2.bots=[ph,pcv,pst];bb2.result=null;const phx0=ph.x;bbWeaponFire(1/60);
+   ok('PINCER holding is ANCHORED vs PISTON knock (locked on, not shoved off)',Math.abs(ph.x-phx0)<1&&ph.grab===pcv);}
   // ── v5.1.139: PINCER actually CLAMPS on a firing front-arc ram (the trigger path) + lunges + opens ──
   {ok('PINCER has a forward LUNGE while firing',BB_W.pincerLunge>1);
    ok('PINCER clamp arc is wide enough to catch a foe',BB_W.pincerArc>=Math.PI*0.5);
@@ -545,7 +568,7 @@ src+=`
    ok('DRILL ramp readout climbs as you keep it on the foe',ramp2>ramp1&&dr._drillFx>0&&ramp2<=1.0001);
    dr.firing=false;for(let i=0;i<200;i++)bbWeaponFire(1/60);
    ok('DRILL ramp readout falls back + glow turns OFF when idle',dr._drillRamp<0.05&&!(dr._drillFx>0));}
-  // ── v5.1.198: REPAIR DISH — RELEASE = auto-heal a hurt ally; HOLD (spun) = AoE damage buff; pure support ──
+  // ── v5.1.199: REPAIR DISH — AUTOFIRE: always auto-heals the nearest hurt ally (green beam) AND emits the AoE attack buff; no trigger gate ──
   {ok('REPAIR is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='repair')&&BB_ARMORY_W.some(w=>w.id==='repair'));
    const medic=bbBotWith('repair','balanced',0,0,true);medic.x=300;medic.y=300;medic.h=0;medic.firing=false; // RELEASE = heal mode
    const ally=bbBotWith('none','balanced',0,2,true);ally.x=300+RR;ally.y=300;ally.hp=200;ally.mhp=BB.HP;ally.mob=20;ally.wheels=[{hp:0,dead:true},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
@@ -560,7 +583,20 @@ src+=`
    ok('REPAIR (hold, spun) gives a nearby ally a DAMAGE BUFF',(al2._repairBuffT||0)>0);
    const vic=bbBotWith('none','balanced',1,1,true);vic.x=400;vic.y=400;vic.hp=BB.HP;vic.inv=0;const atk=bbBotWith('spinner','balanced',0,2,true);atk._repairBuffT=0;bb2.bots=[vic,atk];
    bbApplyHit(vic,'rear',100,1,400,410);const d1=BB.HP-vic.hp;vic.hp=BB.HP;vic.inv=0;atk._repairBuffT=1;bbApplyHit(vic,'rear',100,1,400,410);const d2=BB.HP-vic.hp;
-   ok('REPAIR buff amplifies an ally\\'s damage',d2>d1);}
+   ok('REPAIR buff amplifies an ally\\'s damage',d2>d1);
+   // v5.1.199 AUTOFIRE: the heal fires even while FIRING (no release needed) + the dish auto-spins + the buff is much bigger + it sets a heal target for the beam
+   const af=bbBotWith('repair','balanced',0,0,true);af.x=300;af.y=300;af.h=0;af.firing=true;af.spin=0; // firing TRUE — used to be buff-only / no heal
+   const hurt=bbBotWith('none','balanced',0,2,true);hurt.x=300+RR;hurt.y=300;hurt.hp=200;hurt.mhp=BB.HP;hurt.mob=BB.MOB;bb2.bots=[af,hurt];bb2.result=null;
+   const ah0=hurt.hp;for(let i=0;i<30;i++){af.firing=true;bbWeaponFire(1/60);}
+   ok('REPAIR AUTOFIRE: heals a hurt ally even while the trigger is HELD (firing)',hurt.hp>ah0&&af._repairTgt===hurt);
+   const sp=bbBotWith('repair','balanced',0,0,true);sp.spin=0;sp.ctl.brain.fire=false;bb2.bots=[sp];for(let i=0;i<60;i++){bbWeaponPre(1/60);}
+   ok('REPAIR dish AUTO-spins up with NO trigger held (autofire buff)',sp.spin>=0.5);
+   ok('REPAIR attack buff is much BIGGER now (~5× the old +30% bonus)',BB_W.repairDmgBuff>=2.0);
+   ok('REPAIR heal beam has LONG range (~8–10× RR)',BB_W.repairReachK>=7);
+   const lr=bbBotWith('repair','balanced',0,0,true);lr.x=200;lr.y=300;lr.h=0;lr.firing=true;
+   const far=bbBotWith('none','balanced',0,2,true);far.x=200+RR*7;far.y=300;far.hp=200;far.mhp=BB.HP;far.mob=BB.MOB;bb2.bots=[lr,far];bb2.result=null; // ~7×RR away
+   const fh0=far.hp;for(let i=0;i<30;i++){lr.firing=true;bbWeaponFire(1/60);}
+   ok('REPAIR heals an ally ~7×RR away (long-range beam)',far.hp>fh0);}
   // ── v5.1.112: PERKS (3rd loadout slot) — data + effects (Parting Gift, Flameproof) ──
   {ok('bbResolveLoadout carries the PERK slot',bbResolveLoadout({weapon:'spinner',armor:'balanced',perk:'flameproof'}).perk==='flameproof');
    ok('a default loadout has no perk',bbResolveLoadout(null).perk==='none');
