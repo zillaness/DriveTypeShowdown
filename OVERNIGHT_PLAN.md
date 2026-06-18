@@ -2,7 +2,7 @@
 
 ## 🆕 FRESH THREAD — START HERE (handoff 2026-06-16)
 You are continuing an autonomous RoboRumble build run. **Canonical branch = `dev`** (see `CLAUDE.md`).
-1. `git fetch origin dev` and make sure you're on it. Current tip = **`drive_showdown_v5.1.175.html`** (v5.1.175).
+1. `git fetch origin dev` and make sure you're on it. Current tip = **`drive_showdown_v5.1.198.html`** (v5.1.198). **See the `## 🤝 HANDOFF 2026-06-18` section near the bottom — that's the freshest state + open items.**
 2. **Fresh container:** `./extract.sh && ./battery.sh` → must print `ALL GREEN` (extract writes `/tmp/g.js`; without it every smoke test ENOENTs — that's missing setup, not failure).
 3. Read this file's **Progress log** (below) for what's DONE + what's NEXT, and `MIGRATION.md` for project context.
 4. Continue the queue (NEXT = P4 minibots) one shippable version at a time. **Ritual per version:**
@@ -122,6 +122,42 @@ C. Later / not yet: Tournament v2 (nobody's used it yet), moving game modes to T
 - Armor (mirror win%): balanced 67 · reactive 64 · light 58 · runflat 41 · hardplate 35 · heatshield 35.
 - Perks (vs no-perk; ~25% = no 1v1 effect due to a sim bots[0] handicap): minibot 100 · pitstop 100 ·
   partinggift 60 · flameproof/vampire/sparetire ~25 (situational; shine in 3v3 / vs flame).
+
+## 🤝 HANDOFF 2026-06-18 (fresh-thread START HERE) — tip v5.1.198
+
+**What this session shipped (v5.1.175→198), all green on `dev`:**
+- **New weapons:** CANNON (ranged explosive shells, now **cheat-gated** — Konami "UNLOCK CANNON"),
+  JET ENGINE (area-denial thrust cone). **Tuned the whole roster** toward Sam's 40–60 band.
+- **JET:** forward thrust cone, big knockback + wall/bot SLAMS, light trickle dmg (jetDps 16), fast
+  spin-up, **OVERHEAT** (heat ring fills CCW + RED warning ~1s before the cut; turbofan visual). Pushes
+  minibots (no instakill). Slam-into-bot (a flung/pushed foe into a 3rd bot hurts both). 1v1 ~44%, **3v3 ~69%** (it's a 3v3 weapon).
+- **PERKS:** ADRENALINE / PAINKILLER / LAST STAND added; **NO PERK** re-enabled (neutral pick); perks
+  fully pickable in the 3v3 grid (mouse/touch/**gamepad** Y/X/A).
+- **PINCER counter (1v1):** no forced timer — held captive can **turn + fight back** (grinds the holder
+  → holder wants to release); slower drain.
+- **REPAIR → support RADAR DISH:** RELEASE = auto-heal nearest hurt ally (right-stick/mouse redirect,
+  heals minibots); HOLD = spin up → AoE **damage-buff** aura. Pure support (no enemy dmg). CPU heal/buff brain.
+- **ARMOR:** heatshield = flameproof + general reduction; runflat = neutral + usable popped-tire crawl; hardplate buffed.
+- **Game modes → TANK:** DOMINATION (3 points) + KOTH (moving + static) ported. Flame blow-up ring (visible).
+- **UX:** armory **hover tooltips** (weapon/armor/perk descriptions); single-player top-left **⎋ ESC → splash**.
+- **Sim tools:** `bbbalance.js` (1v1), `bbbalance3.js` (3v3 teams), `bbreport.js` (armor/perk), `bbrepair.js` (repair).
+
+**Balance snapshot @ v5.1.198** — 1v1 (sim): wedge 62 · buzzsaw 61 · spinner 56 · drill 56 · flame 50 ·
+flipper 50 · piston 49 · pincer 11 (counter-nerfed) · jet 44 · kamikaze 0. cannon ~60 (cheat). 3v3: wedge/jet
+top, flipper/kamikaze collapse. (Binary matchups only resolve in ~11% steps — a strict order in 40–60 isn't possible.)
+
+**OPEN / NEXT (pick up here):**
+1. **Flame human/CPU separation is UNDONE** (unified burnBuild 0.54) — Sam is playtesting whether the human
+   flame feels too slow. If yes, re-split (burnBuild human / burnBuildCpu) per v5.1.176.
+2. **KAMIKAZE 0% in 3v3** — bug: the CPU doesn't detonate it well (it should excel in 3v3). Fix the CPU kamikaze brain.
+3. **Tank game-modes parity:** VIP + SUMO still to port (Domination + KOTH×2 done). See `tf2ModeUpdate`/`TF_MODES`.
+4. **Jet CPU dash-through** — the intended counter (dash/ram through the cone) the AI doesn't use; parked for Sam's read.
+5. **Repair** is a support niche the KO-brawl sim undervalues (~18% in `bbrepair.js`); needs a human 3v3 playtest
+   read on the new heal/buff dish (the buff aura isn't measured by the assessment).
+6. Tournament v2 (T2 3v3 grid / T4 map-select / T1 typing) — later, nobody's used it yet.
+7. Polish: full-screen map gallery · egg paint + achievements screen · drag-drop discoverability.
+
+**Pending Sam feedback** on the v5.1.198 build: flame feel (unified), jet overheat warning, repair radar dish, pincer fight-back.
 
 ## Morning deliverable
 A green, pushed `dev` with: a balanced weapon roster (incl. buzzsaw/flipper/pincer/kamikaze), the
