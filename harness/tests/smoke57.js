@@ -318,7 +318,7 @@ src+=`
   // ── v5.1.94 ARMORY: drag a weapon/armor chip from the rail onto a seat to equip ──
   {applyLayout('land2p');m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;phase='p2claim';tour=null;tankGridSetCpu(0);
    const chips=bbArmoryChips(),wChips=chips.filter(c=>c.kind==='weapon'),aChips=chips.filter(c=>c.kind==='armor');
-   ok('armory rail has every PICKABLE weapon (RAM-only dropped) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none').length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length);
+   ok('armory rail has every PICKABLE weapon (RAM-only + locked CANNON excluded) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none'&&(w.id!=='cannon'||cannonWeapon)).length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length);
    ok('v5.1.113: armory rail has the PERK group (pickable perks, NONE excluded)',chips.filter(c=>c.kind==='perk').length===BB_PERKS_PICK.length&&!chips.some(c=>c.kind==='perk'&&c.id==='none')&&bbArmEquip&&(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','flameproof')&&m2.tseats[0].loadout.perk==='flameproof';})());
    ok('armory chip ids match the real weapon/armor tables',wChips.every(c=>BB_WEAPONS.some(w=>w.id===c.id))&&aChips.every(c=>BB_ARMOR.some(a=>a.id===c.id)));
    ok('armory rail sits inside the canvas, above the seats',chips.every(c=>c.x>=0&&c.x+c.w<=CW&&c.y>=0&&c.y+c.h<=tankCellRect(0).y));
@@ -709,8 +709,12 @@ src+=`
    ok('RUMBLE toggles',(()=>{const b4=rumbleOn;toggleRumble();const r=rumbleOn!==b4;toggleRumble();return r&&rumbleOn===b4;})());
    aimAssist=sa;}
   // ── v5.1.175: CANNON — the tank-fight cannon as a PICKABLE weapon (RT fires shells at range; turreted aim) ──
-  {ok('CANNON is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='cannon')&&BB_ARMORY_W.some(w=>w.id==='cannon'));
-   ok('CANNON is a TURRET (aims independent of the chassis)',bbIsTurret('cannon')===true);
+  {const svc=cannonWeapon; // v5.1.188 CANNON is CHEAT-GATED: hidden from the armory/cycler/CPU pool until the UNLOCK CANNON cheat is on
+   cannonWeapon=false;ok('CANNON hidden from the armory rail until unlocked',!bbArmoryChips().some(c=>c.kind==='weapon'&&c.id==='cannon'));
+   {const ld={weapon:'spinner',armor:'balanced',perk:'none'};let hit=false;for(let i=0;i<BB_WEAPONS.length+3;i++){bbCycleField(ld,'weapon',1);if(ld.weapon==='cannon')hit=true;}ok('CANNON skipped by the weapon cycler until unlocked',!hit);} // cycler never lands on cannon (filtered list)
+   cannonWeapon=true;ok('UNLOCK CANNON cheat reveals it in the armory rail',bbArmoryChips().some(c=>c.kind==='weapon'&&c.id==='cannon'));
+   cannonWeapon=svc;
+   ok('CANNON exists in the weapon table + is a TURRET',BB_WEAPONS.some(w=>w.id==='cannon')&&bbIsTurret('cannon')===true);
    const cn=bbBotWith('cannon','balanced',0,0,true);cn.x=200;cn.y=300;cn.h=0;cn.ctl.brain.fire=true;cn.cannonCd=0;
    const tg=bbBotWith('wedge','balanced',1,1,true);tg.x=340;tg.y=300;tg.hp=BB.HP;tg.inv=0;
    bb2.bots=[cn,tg];bb2.result=null;bb2.shells=[];

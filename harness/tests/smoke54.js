@@ -222,6 +222,13 @@ src+=`
    ok('cheated SP win: drawDone does not throw with no saved best (was a hard freeze)',!threw);
    cheatedRun=false;}
 
+  // ── v5.1.188 single-player top-left ESC → SPLASH hub ──
+  {const sp=phase,sk=konamiActive,spa=paused,shm=holoMode,ssm=steerMode;
+   konamiActive=false;paused=false;holoMode=false;steerMode=false;phase='playing';
+   click(23,22); // center of the top-left ESC button (rect x4 y8 w38 h28)
+   ok('single-player top-left ESC returns to the SPLASH screen',phase==='splash');
+   phase=sp;konamiActive=sk;paused=spa;holoMode=shm;steerMode=ssm;}
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;
