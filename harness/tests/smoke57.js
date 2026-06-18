@@ -461,11 +461,11 @@ src+=`
    ok('PINCER drains the held foe MOBILITY (immobilize) without big damage',c.mob<mob0&&c.hp===hp0);
    ok('PINCER glues the held foe to its front',Math.abs(c.x-(a.x+RR*2))<1&&!!c.held);
    ok('PINCER is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='pincer')&&BB_ARMORY_W.some(w=>w.id==='pincer'));}
-  // ── v5.1.197: PINCER counterplay — firm hold CAP + the captive can TURN & FIGHT BACK ──
+  // ── v5.1.198: PINCER counterplay — held as long as the trigger's down (NO forced timer); the captive can TURN & FIGHT BACK ──
   {startBB(0,2);bb2.cd=0;bb2.result=null;const p=bbBotWith('pincer','balanced',0,0,true);p.x=300;p.y=300;p.h=0;p.firing=true;
    const v=bbBotWith('none','balanced',1,1,true);v.x=320;v.y=300;v.hp=BB.HP;v.inv=0;v.mob=BB.MOB;bb2.bots=[p,v];
-   p.grab=v;v.held=p;p.grabT=0.05;v.firing=false;for(let i=0;i<6;i++){p.firing=true;bbGrabUpdate(1/60);}
-   ok('PINCER: a firm hold CAP frees the captive (no perma-clamp even while firing)',v.held==null&&p.grab==null);
+   p.grab=v;v.held=p;p.grabT=BB_W.pincerGrabDur;v.firing=false;for(let i=0;i<200;i++){p.firing=true;bbGrabUpdate(1/60);}
+   ok('PINCER: holds as long as the trigger is down (no forced release timer)',v.held===p&&p.grab===v);
    // captive facing + firing grinds the captor down (fight back)
    const p2b=bbBotWith('pincer','balanced',0,0,true);p2b.x=300;p2b.y=300;p2b.h=0;p2b.hp=BB.HP;p2b.inv=0;
    const v2=bbBotWith('spinner','balanced',1,1,true);v2.x=334;v2.y=300;v2.h=Math.PI;v2.firing=true;v2.hp=BB.HP; // faces back at the captor
@@ -488,14 +488,12 @@ src+=`
    ok('PINCER reach-clamp grabs a lined-up foe that is NOT touching',pa.grab===pf&&pf.held===pa);
    ok('PINCER reach is forgiving (arc ≥ ±60° + reach beyond contact)',BB_W.pincerArc>=Math.PI*0.66&&BB_W.pincerReachK>1);
    m2.set.bbmode=sv;}
-  // ── v5.1.197: PINCER hold CAP (auto-releases — no perma-clamp), wall-slam, teammate rescue ──
+  // ── v5.1.198: PINCER holds while firing (no forced timer — the fight-back is the counter); wall-slam, teammate rescue ──
   {const h=bbBotWith('pincer','balanced',0,0,true);h.x=300;h.y=300;h.h=0;h.firing=true;
    const c=bbBotWith('none','balanced',1,1,true);c.x=334;c.y=300;c.hp=BB.HP;c.firing=false;h.grab=c;c.held=h;h.grabT=BB_W.pincerGrabDur;
-   bb2.bots=[h,c];bb2.result=null;tfObs=[];for(let i=0;i<30;i++){h.firing=true;bbGrabUpdate(1/60);} // 0.5s — within the hold cap
-   ok('PINCER keeps gripping while firing + within the hold cap',h.grab===c&&c.held===h);
-   for(let i=0;i<100;i++){h.firing=true;bbGrabUpdate(1/60);} // total ~2.2s, past pincerGrabDur (1.6s)
-   ok('PINCER auto-releases at the hold CAP (no perma-clamp)',h.grab===null&&c.held===null);
-   h.grab=c;c.held=h;h.grabT=BB_W.pincerGrabDur;h.firing=false;bbGrabUpdate(1/60);
+   bb2.bots=[h,c];bb2.result=null;tfObs=[];for(let i=0;i<200;i++){h.firing=true;bbGrabUpdate(1/60);} // ~3.3s — well past any old cap
+   ok('PINCER holds indefinitely while firing (no forced timer)',h.grab===c&&c.held===h);
+   h.firing=false;bbGrabUpdate(1/60);
    ok('PINCER lets go when the HOLDER stops firing',h.grab===null&&c.held===null);
    // wall-slam: drag the captive into a wall (field edge) → damage
    const h2=bbBotWith('pincer','balanced',0,0,true);h2.x=FW-2;h2.y=300;h2.h=0;h2.firing=true;h2._inp={vx:SPD,vy:0,vr:0};
@@ -547,19 +545,22 @@ src+=`
    ok('DRILL ramp readout climbs as you keep it on the foe',ramp2>ramp1&&dr._drillFx>0&&ramp2<=1.0001);
    dr.firing=false;for(let i=0;i<200;i++)bbWeaponFire(1/60);
    ok('DRILL ramp readout falls back + glow turns OFF when idle',dr._drillRamp<0.05&&!(dr._drillFx>0));}
-  // ── v5.1.154: REPAIR TORCH — heals an ALLY (HP + mobility + wheels) in front; only chip damage to enemies ──
-  {ok('REPAIR TORCH is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='repair')&&BB_ARMORY_W.some(w=>w.id==='repair'));
-   const medic=bbBotWith('repair','balanced',0,0,true);medic.x=300;medic.y=300;medic.h=0;medic.firing=true;
+  // ── v5.1.198: REPAIR DISH — RELEASE = auto-heal a hurt ally; HOLD (spun) = AoE damage buff; pure support ──
+  {ok('REPAIR is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='repair')&&BB_ARMORY_W.some(w=>w.id==='repair'));
+   const medic=bbBotWith('repair','balanced',0,0,true);medic.x=300;medic.y=300;medic.h=0;medic.firing=false; // RELEASE = heal mode
    const ally=bbBotWith('none','balanced',0,2,true);ally.x=300+RR;ally.y=300;ally.hp=200;ally.mhp=BB.HP;ally.mob=20;ally.wheels=[{hp:0,dead:true},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
-   bb2.bots=[medic,ally];bb2.result=null;const ahp0=ally.hp,amob0=ally.mob;for(let i=0;i<60;i++)bbWeaponFire(1/60);
-   ok('REPAIR heals an ally HP',ally.hp>ahp0);
+   bb2.bots=[medic,ally];bb2.result=null;const ahp0=ally.hp,amob0=ally.mob;for(let i=0;i<60;i++){medic.firing=false;bbWeaponFire(1/60);}
+   ok('REPAIR (release) auto-heals a hurt ally HP',ally.hp>ahp0);
    ok('REPAIR restores allied mobility (tires)',ally.mob>amob0);
    ok('REPAIR re-welds a dead wheel',ally.wheels[0].dead===false&&ally.wheels[0].hp>0);
    ok('REPAIR does not over-heal past max HP',ally.hp<=ally.mhp+1e-6);
-   const enemy=bbBotWith('none','balanced',1,1,true);enemy.x=300+RR;enemy.y=300;enemy.hp=BB.HP;enemy.inv=0;
-   const med2=bbBotWith('repair','balanced',0,0,true);med2.x=300;med2.y=300;med2.h=0;med2.firing=true;
-   bb2.bots=[med2,enemy];const ehp0=enemy.hp;for(let i=0;i<10;i++)bbWeaponFire(1/60);
-   ok('REPAIR does only CHIP damage to an enemy',enemy.hp<ehp0&&enemy.hp>ehp0-30);}
+   const md=bbBotWith('repair','balanced',0,0,true);md.x=300;md.y=300;md.firing=true;md.spin=1;
+   const al2=bbBotWith('spinner','balanced',0,2,true);al2.x=300+RR*1.5;al2.y=300;al2._repairBuffT=0;bb2.bots=[md,al2];
+   for(let i=0;i<3;i++){md.firing=true;md.spin=1;bbWeaponFire(1/60);}
+   ok('REPAIR (hold, spun) gives a nearby ally a DAMAGE BUFF',(al2._repairBuffT||0)>0);
+   const vic=bbBotWith('none','balanced',1,1,true);vic.x=400;vic.y=400;vic.hp=BB.HP;vic.inv=0;const atk=bbBotWith('spinner','balanced',0,2,true);atk._repairBuffT=0;bb2.bots=[vic,atk];
+   bbApplyHit(vic,'rear',100,1,400,410);const d1=BB.HP-vic.hp;vic.hp=BB.HP;vic.inv=0;atk._repairBuffT=1;bbApplyHit(vic,'rear',100,1,400,410);const d2=BB.HP-vic.hp;
+   ok('REPAIR buff amplifies an ally\\'s damage',d2>d1);}
   // ── v5.1.112: PERKS (3rd loadout slot) — data + effects (Parting Gift, Flameproof) ──
   {ok('bbResolveLoadout carries the PERK slot',bbResolveLoadout({weapon:'spinner',armor:'balanced',perk:'flameproof'}).perk==='flameproof');
    ok('a default loadout has no perk',bbResolveLoadout(null).perk==='none');
