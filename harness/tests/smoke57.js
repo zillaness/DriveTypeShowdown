@@ -779,10 +779,12 @@ src+=`
    m2.drive[0]={kind:'main',idx:0};const op2=bbBotWith('none','balanced',0,0,true);op2.ctl.name='Optimus Prime';ok('OPTIMUS on a NON-steering drive = paint only, NO buff',bbEggActive(op2)===null&&bbNameEgg(op2)==='optimus');
    const os=bbBotWith('wedge','balanced',0,0,true);os.ctl.name='Original Sin';os.wheels=[{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
    bbWheelDamage(os,100,null,null);ok('ORIGINAL SIN (tank+blade): wheels are INVULNERABLE',os.wheels.every(w=>!w.dead&&w.hp===40));
-   os.inv=0;os.hp=BB.HP;os.burn=0;os._lastStandT=0;bbApplyHit(os,'rear',999,null,os.x+50,os.y); // v5.1.224 INDESTRUCTIBLE buff
-   ok('ORIGINAL SIN buff = INDESTRUCTIBLE (kinetic damage does nothing)',os.hp===BB.HP&&!os.dead);
-   bbApplyFlame(os,999,null);ok('ORIGINAL SIN: immune to flame + blow-up too',os.hp===BB.HP&&(os.burn||0)===0);
-   const osN=bbBotWith('wedge','balanced',0,0,true);osN.ctl.name='RANDO';osN.inv=0;osN.hp=BB.HP;osN._lastStandT=0;bbApplyHit(osN,'rear',999,0,osN.x+50,osN.y);ok('a NON-egg bot still takes kinetic damage (indestructibility is egg-gated)',osN.hp<BB.HP);
+   os.inv=0;os.hp=BB.HP;os.burn=0;os._lastStandT=0;bbApplyHit(os,'rear',200,null,os.x+50,os.y);const osLoss=BB.HP-os.hp; // v5.1.225 buff = invuln wheels + HALF damage taken
+   const ref=bbBotWith('wedge','balanced',0,0,true);ref.ctl.name='RANDO';ref.inv=0;ref.hp=BB.HP;ref._lastStandT=0;bbApplyHit(ref,'rear',200,null,ref.x+50,ref.y);const refLoss=BB.HP-ref.hp; // identical bot, no egg = full damage
+   ok('ORIGINAL SIN takes GREATLY REDUCED (~½) kinetic damage',osLoss>0&&refLoss>0&&Math.abs(osLoss-refLoss*0.5)<refLoss*0.12);
+   os.hp=BB.HP;os.burn=0;bbApplyFlame(os,20,null);const osF=BB.HP-os.hp;ref.hp=BB.HP;ref.burn=0;bbApplyFlame(ref,20,null);const refF=BB.HP-ref.hp;
+   ok('ORIGINAL SIN takes ~½ flame damage too (not immune)',osF>0&&refF>0&&Math.abs(osF-refF*0.5)<refF*0.15);
+   ok('a NON-egg bot still takes FULL kinetic damage',refLoss>0);
    const os2=bbBotWith('wedge','balanced',0,0,true);os2.ctl.name='RANDO';os2.wheels=[{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
    bbWheelDamage(os2,100,null,null);ok('a normal bot DOES take wheel damage',os2.wheels.some(w=>w.dead||w.hp<40));m2.drive[0]=sd;}
   // ── v5.1.221: P6 egg FULL LIVERY (full-body paint replaces the old two-tone ring) ──
@@ -1122,7 +1124,26 @@ src+=`
     // CANNON shell shoves the ball at range
     bb2.result=null;bb2.pscore=[0,0];bb2.bots=[];
     bb2.pball={x:FW/2,y:FH/2,vx:0,vy:0};bb2.shells=[{x:FW/2-BB_PB_R,y:FH/2,vx:400,vy:0,owner:0,side:0,expl:0,dead:false}];bbModeUpdate(0.02);
-    ok('PUSH-BALL: a CANNON shell shoves the ball + is consumed',bb2.pball.vx>0&&bb2.shells[0].dead);tfObs=savW;}
+    ok('PUSH-BALL: a CANNON shell shoves the ball + is consumed',bb2.pball.vx>0&&bb2.shells[0].dead);
+    // v5.1.225 KAMIKAZE rockets the ball away from the detonation (direction = which side you blow up on)
+    bb2.result=null;bb2.pscore=[0,0];
+    const km=bbBotWith('kamikaze','balanced',0,0,true);km.x=FW/2-40;km.y=FH/2;km.ctl.brain.fire=true;
+    bb2.bots=[km];bb2.pball={x:FW/2,y:FH/2,vx:0,vy:0};bbWeaponPre(1/60);bbWeaponFire(1/60);
+    ok('PUSH-BALL: a KAMIKAZE blast rockets the ball away from the detonation',bb2.pball.vx>0&&bb2.pball.heldBy==null);
+    // v5.1.225 FRIENDLY FIRE: kamikaze spares your own alliance when FF is off, can hit them when on
+    {const svFF=friendlyFire;friendlyFire=false;
+     const kf=bbBotWith('kamikaze','balanced',0,0,true);kf.x=300;kf.y=300;kf.ctl.brain.fire=true;
+     const ally=bbBotWith('none','balanced',0,1,true);ally.x=312;ally.y=300;ally.hp=BB.HP;
+     const enemy=bbBotWith('none','balanced',1,2,true);enemy.x=320;enemy.y=300;enemy.hp=BB.HP;
+     bb2.bots=[kf,ally,enemy];bb2.pball=null;bbWeaponPre(1/60);bbWeaponFire(1/60);
+     ok('FRIENDLY FIRE off: KAMIKAZE spares a same-side ally (hits the enemy)',ally.hp===BB.HP&&enemy.hp<BB.HP);
+     friendlyFire=true;
+     const kf2=bbBotWith('kamikaze','balanced',0,0,true);kf2.x=300;kf2.y=300;kf2.ctl.brain.fire=true;
+     const ally2=bbBotWith('none','balanced',0,1,true);ally2.x=312;ally2.y=300;ally2.hp=BB.HP;
+     bb2.bots=[kf2,ally2];bbWeaponPre(1/60);bbWeaponFire(1/60);
+     ok('FRIENDLY FIRE on: KAMIKAZE can hit a same-side ally',ally2.hp<BB.HP);
+     friendlyFire=svFF;}
+    tfObs=savW;}
    // STOCK (limited lives + respawn)
    ok('GAME MODE includes STOCK',BB_MODES.some(m=>m.id==='stock'));
    m2.set.bbmode='stock';
