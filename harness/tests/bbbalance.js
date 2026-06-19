@@ -11,7 +11,7 @@ src+=`
       ctl:{bind:bind,type:'cpu',tier:3,name:'CPU',brain:{inp:{vx:0,vy:0,vr:0},fire:false}},ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,
       wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};}
   function runMatch(wA,wB,aArm,bArm,seed,aSide){
-    seedRng(seed);applyLayout('tank2p');m2.set.map=0;const mp=TF2_MAPS[0];tfObs=[]; // obstacle-free arena: isolate WEAPON balance from the CPU's lack of obstacle pathing
+    seedRng(seed);applyLayout('tank2p');m2.mode='battlebots';m2.set.map=0;const mp=TF2_MAPS[0];tfObs=[]; // obstacle-free arena: isolate WEAPON balance from the CPU's lack of obstacle pathing
     m2.drive=[{kind:'main',idx:1,name:'A',c:'#0ff'},{kind:'main',idx:1,name:'A',c:'#0ff'}];playerBind=[{type:'cpu'},{type:'cpu'}];
     const bSide=1-aSide;
     bb2={t:0,cd:0,result:null,repd:false,map:mp,fx:[],blasts:[],deb:[],bots:[mkBot(wA,aArm,aSide,aSide),mkBot(wB,bArm,bSide,bSide)]};

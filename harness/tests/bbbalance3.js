@@ -11,7 +11,7 @@ src+=`
       ctl:{bind:bind,type:'cpu',tier:3,name:'CPU',brain:{inp:{vx:0,vy:0,vr:0},fire:false}},ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,
       wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};}
   function runMatch(wA,wB,arm,perk,seed,aSide){
-    seedRng(seed);applyLayout('tank2p');m2.set.map=0;m2.set.bbmode='ko';const mp=TF2_MAPS[0];tfObs=[]; // open arena, KO (last side standing)
+    seedRng(seed);applyLayout('tank2p');m2.mode='battlebots';m2.set.map=0;m2.set.bbmode='ko';const mp=TF2_MAPS[0];tfObs=[]; // open arena, KO (last side standing)
     m2.drive=[];playerBind=[];for(let i=0;i<6;i++){m2.drive.push({kind:'main',idx:1,name:'A',c:'#0ff'});playerBind.push({type:'cpu'});}
     const bSide=1-aSide,ys=tf2SpawnYs(3),bots=[];
     for(let k=0;k<3;k++)bots.push(mkBot(wA,arm,perk,aSide,k,ys[k]));

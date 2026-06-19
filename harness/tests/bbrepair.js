@@ -11,7 +11,7 @@ src+=`
       ctl:{bind:bind,type:'cpu',tier:3,name:'CPU',brain:{inp:{vx:0,vy:0,vr:0},fire:false}},ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,
       wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};}
   function runMatch(teamA,teamB,seed,aSide){ // teamA/B = arrays of 3 weapon ids
-    seedRng(seed);applyLayout('tank2p');m2.set.map=0;m2.set.bbmode='ko';const mp=TF2_MAPS[0];tfObs=[];
+    seedRng(seed);applyLayout('tank2p');m2.mode='battlebots';m2.set.map=0;m2.set.bbmode='ko';const mp=TF2_MAPS[0];tfObs=[];
     m2.drive=[];playerBind=[];for(let i=0;i<6;i++){m2.drive.push({kind:'main',idx:1,name:'A',c:'#0ff'});playerBind.push({type:'cpu'});}
     const bSide=1-aSide,ys=tf2SpawnYs(3),bots=[];
     for(let k=0;k<3;k++)bots.push(mkBot(teamA[k],aSide,k,ys[k]));
@@ -22,7 +22,7 @@ src+=`
     return (res==='draw')?'draw':(res===aSide?'A':'B');
   }
   function run1v1(wa,wb,seed,aSide){ // single wa vs single wb
-    seedRng(seed);applyLayout('tank2p');m2.set.map=0;m2.set.bbmode='ko';const mp=TF2_MAPS[0];tfObs=[];
+    seedRng(seed);applyLayout('tank2p');m2.mode='battlebots';m2.set.map=0;m2.set.bbmode='ko';const mp=TF2_MAPS[0];tfObs=[];
     m2.drive=[];playerBind=[];for(let i=0;i<6;i++){m2.drive.push({kind:'main',idx:1,name:'A',c:'#0ff'});playerBind.push({type:'cpu'});}
     const bSide=1-aSide,ys=tf2SpawnYs(1),bots=[mkBot(wa,aSide,0,ys[0]),mkBot(wb,bSide,1,ys[0])];
     bb2={t:0,cd:0,result:null,repd:false,map:mp,fx:[],blasts:[],deb:[],bots:bots,minis:bbMiniSpawn()};

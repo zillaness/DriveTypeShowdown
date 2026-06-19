@@ -806,10 +806,10 @@ src+=`
    const sva=airStrike;airStrike=true;
    const ab=bbBotWith('none','balanced',0,0,true);ab.x=300;ab.y=300;ab.hp=BB.HP;ab.inv=0;
    bb2.bots=[ab];bb2.result=null;bb2.blasts=[];bb2.airPending=null;bb2.airT=0.02;const ahp0=ab.hp,nbl0=bb2.blasts.length;
-   bbAirstrikeUpdate(0.05); // timer fires → a TELEGRAPH appears (no damage yet)
-   ok('AIRSTRIKE telegraphs first (pending crosshair, no blast/damage yet)',!!bb2.airPending&&bb2.blasts.length===nbl0&&ab.hp===ahp0);
-   bbAirstrikeUpdate(BB_W.airTele+0.05); // telegraph expires → DETONATE
-   ok('AIRSTRIKE then detonates (blast appears + damages a bot under it)',bb2.airPending===null&&bb2.blasts.length>nbl0&&ab.hp<ahp0);
+   bbAirstrikeUpdate(0.05); // timer fires → a WAVE of TELEGRAPHS appears (no damage yet)
+   ok('AIRSTRIKE telegraphs a WAVE first (airWave pending crosshairs, no blast/damage yet)',bb2.airPending&&bb2.airPending.length===BB_W.airWave&&bb2.blasts.length===nbl0&&ab.hp===ahp0);
+   bbAirstrikeUpdate(BB_W.airTele+0.6); // telegraphs expire (incl. the stagger) → the whole wave DETONATES
+   ok('AIRSTRIKE then detonates the whole wave (blasts appear + the bot under the on-action bomb is damaged)',bb2.airPending.length===0&&bb2.blasts.length>nbl0&&ab.hp<ahp0);
    ok('AIRSTRIKE resets its timer after a strike',bb2.airT>0);
    airStrike=false;const ab2=bbBotWith('none','balanced',0,0,true);ab2.hp=BB.HP;bb2.bots=[ab2];bb2.blasts=[];bb2.airPending=null;bb2.airT=0.02;bbAirstrikeUpdate(0.05);
    ok('AIRSTRIKE off: no telegraph, no bombs, no damage',!bb2.airPending&&bb2.blasts.length===0&&ab2.hp===BB.HP);airStrike=sva;
@@ -826,27 +826,30 @@ src+=`
    const ftgt=bbBotWith('none','balanced',1,1,true);ftgt.x=300+RR+10;ftgt.y=300;ftgt.hp=BB.HP;ftgt.inv=0;
    bb2.bots=[cpu2,ftgt];bb2.result=null;const fh1=ftgt.hp;bbSwordUpdate(1/60);
    ok('MECHA YOU-mode: a CPU does NOT get the sword',ftgt.hp===fh1&&!bbIsMecha(cpu2));
-   const hu=bbBotWith('none','balanced',0,0,false);hu.x=300;hu.y=300;hu.h=0;hu._swordDashed=false;hu.boostT=0;
-   const ht=bbBotWith('none','balanced',1,1,true);ht.x=300+RR+10;ht.y=300;ht.hp=BB.HP;ht.inv=0;
+   const hu=bbBotWith('none','balanced',0,0,false);hu.x=300;hu.y=300;hu.h=0;hu._swordDashed=false;hu.boostT=BOOST.dur;hu._iaiT=0;
+   const ht=bbBotWith('none','balanced',1,1,true);ht.x=900;ht.y=300;ht.hp=BB.HP;ht.inv=0; // far away — won't be in the slash this frame
    bb2.bots=[hu,ht];bb2.result=null;bb2.swordCut=null;bbSwordUpdate(1/60);
-   ok('MECHA dash-slash: a HUMAN does NOT slash without a dash',ht.hp===BB.HP&&bbIsMecha(hu));
-   hu.boostT=BOOST.dur;const ht0=ht.hp;bbSwordUpdate(1/60);
-   ok('MECHA dash-slash: a HUMAN slashes WHEN it dashes',ht.hp<ht0&&hu._swordFx>0);
-   const hk=bbBotWith('none','balanced',0,0,false);hk.x=300;hk.y=300;hk.h=0;hk._swordDashed=false;hk.boostT=BOOST.dur;
-   const dyn=bbBotWith('none','balanced',1,1,true);dyn.x=300+RR+10;dyn.y=300;dyn.hp=10;dyn.inv=0;
-   bb2.bots=[hk,dyn];bb2.result=null;bb2.swordCut=null;bbSwordUpdate(1/60);
-   ok('MECHA cut-in: a HUMAN sword KO triggers the anime cut-screen',!!bb2.swordCut&&dyn.dead);
+   ok('MECHA iai: a DASH starts the wind-up PAUSE (no slash yet, boost cancelled)',(hu._iaiT||0)>0&&!(hu._swordFx>0)&&hu.boostT===0&&bbIsMecha(hu));
+   const hx0=hu.x;for(let i=0;i<18;i++)bbSwordUpdate(1/60); // wind-up elapses → BLINK forward + slash fx
+   ok('MECHA iai: after the pause the mecha BLINKS forward + the slash fires',hu.x>hx0+RR&&hu._swordFx>0&&(hu._iaiT||0)<=0);
+   // the iai slash is a CLEAN ONE-HIT-KILL (lethal) — tested directly on a foe squarely in the front arc
+   const hk=bbBotWith('none','balanced',0,0,false);hk.x=300;hk.y=300;hk.h=0;
+   const dyn=bbBotWith('none','hardplate',1,1,true);dyn.x=300+RR*1.5;dyn.y=300;dyn.hp=BB.HP;dyn.inv=0; // even a HARDPLATE foe is cleanly cut
+   bb2.bots=[hk,dyn];bb2.result=null;bb2.swordCut=null;bbSwordSlash(hk,0,true);
+   ok('MECHA iai: a clean lethal slash ONE-HIT-KILLS (even hardplate) + fires the cut-in',dyn.dead&&!!bb2.swordCut);
    bb2.swordCut=null;animeSword=svs;}
-  // ── v5.1.172: P7 TANK INVASION — every bot mounts the Tank-Fight cannon, auto-firing shells at the nearest enemy ──
-  {const svt=tankPort;tankPort=true;
-   const gun=bbBotWith('wedge','balanced',0,0,true);gun.x=200;gun.y=300;gun.h=0;
-   const tgt=bbBotWith('wedge','balanced',1,1,true);tgt.x=320;tgt.y=300;tgt.hp=BB.HP;tgt.inv=0;
-   bb2.bots=[gun,tgt];bb2.result=null;bb2.shells=[];gun._tpCd=0; // fire on the first tick
-   const thp0=tgt.hp;for(let i=0;i<90;i++){bbTankPortUpdate(1/60);bbShellsUpdate(1/60);}
-   ok('TANK INVASION: a bot auto-fires a shell',gun._tpAim!=null&&tgt.hp<thp0);
-   ok('TANK INVASION: the cannon tracks + the shell damages the nearest enemy',gun._tpAim!=null&&tgt.hp<thp0);
-   const svp=tankPort;tankPort=false;bb2.shells=[];const tg2=bbBotWith('wedge','balanced',1,2,true);tg2.x=320;tg2.y=300;tg2.hp=BB.HP;bb2.bots=[gun,tg2];gun._tpCd=0;const h2=tg2.hp;for(let i=0;i<30;i++){bbTankPortUpdate(1/60);bbShellsUpdate(1/60);}
-   ok('TANK INVASION off: no shells, no damage',bb2.shells.length===0&&tg2.hp===h2);tankPort=svt;}
+  // ── v5.1.212: TANK INVASION reworked — no more every-bot auto-fire; it unlocks the explosive-shell CANNON as a PICKABLE weapon in the CYCLER only (not the drag-drop rail) ──
+  {const svt=tankPort,svc=cannonWeapon;tankPort=false;cannonWeapon=false;
+   const inCycler=()=>{const ld={weapon:'spinner',armor:'balanced',perk:'none'},seen={};for(let i=0;i<14;i++){bbCycleField(ld,'weapon',1);seen[ld.weapon]=1;}return !!seen.cannon;};
+   const inRail=()=>bbArmoryChips().some(c=>c.kind==='weapon'&&c.id==='cannon');
+   ok('TANK INVASION off + no UNLOCK: CANNON is hidden from the cycler',!inCycler());
+   tankPort=true;
+   ok('TANK INVASION: CANNON becomes pickable in the weapon CYCLER',inCycler());
+   ok('TANK INVASION: CANNON stays OUT of the drag-drop armory rail',!inRail());
+   ok('TANK INVASION: bbTankPortUpdate is gone (no every-bot auto-fire)',typeof bbTankPortUpdate==='undefined');
+   tankPort=false;cannonWeapon=true;
+   ok('UNLOCK CANNON: still adds the CANNON to the drag-drop rail',inRail()&&inCycler());
+   tankPort=svt;cannonWeapon=svc;}
   // ── v5.1.174: AIM ASSIST (a smidge of magnetism) + RUMBLE toggle ──
   {const sa=aimAssist;aimAssist=true;
    const me=bbBotWith('flame','balanced',0,0,true);me.x=300;me.y=300;
