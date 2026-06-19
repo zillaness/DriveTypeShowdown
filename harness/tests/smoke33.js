@@ -137,6 +137,14 @@ src+=`
      tour.cur=null;if(tour.champ!==null){champ=tour.champ;break;}}
    T('alliance tournament plays to a CHAMPION',typeof champ==='number');
    T('every bracket match was 3v3 (captain + 2 drafted bots per side)',every3v3);}
+  // ── v5.1.242 T4 map-pick rule: higher seed (bracket) / winners' bracket (grand final) ──
+  {const T=(l,c)=>console.log((c?'ok — ':'FAIL — ')+l);
+   tour={rank:[0,1,2,3],curE:[2,3],cur:{},format:'single'};let pk=tourMapPicker();
+   T('bracket: higher seed picks (RED #3 over #4)',!!pk&&pk.side===0&&/#3/.test(pk.label));
+   tour.curE=[3,1];pk=tourMapPicker();
+   T('bracket: better-seeded side picks regardless of order (BLUE #2)',!!pk&&pk.side===1&&/#2/.test(pk.label));
+   tour={rank:[0,1,2,3],curE:[0,1],cur:'gf',format:'double',gfFeeds:[{e:0},{e:1}]};pk=tourMapPicker();
+   T("grand final: the winners' bracket team picks",!!pk&&pk.side===0&&/winners/.test(pk.label));}
   tour=null;bb2=null;console.log('done');
 })();
 `;
