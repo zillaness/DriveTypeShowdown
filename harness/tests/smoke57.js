@@ -1015,12 +1015,12 @@ src+=`
     m2.set.map=svm;}
    // v5.1.147: the dedicated MAP-PICKER screen
    {const tiles=bbMapTiles();
-    ok('map picker = one tile per arena + a RANDOM tile',tiles.length===TF2_MAPS.length+1&&tiles[tiles.length-1].map==='rand');
+    ok('map picker = one tile per built-in arena + custom maps + RANDOM + NEW',tiles.length===TF2_MAPS.length+customMaps.length+2&&tiles.some(t=>t.map==='rand')&&tiles[tiles.length-1].map==='new');
     ok('map-picker tiles stay on-screen',tiles.every(t=>t.x>=0&&t.y>=0&&t.x+t.w<=CW+1&&t.y+t.h<=CH+1));
     const svp=phase,svm2=m2.set.map;
     phase='p2bbmap';const t0=tiles[0];bbMapPickerClick(t0.x+t0.w/2,t0.y+t0.h/2);
     ok('clicking a map tile selects that arena + returns to settings',m2.set.map===t0.map&&phase==='p2settings');
-    phase='p2bbmap';const tr=tiles[tiles.length-1];bbMapPickerClick(tr.x+tr.w/2,tr.y+tr.h/2);
+    phase='p2bbmap';const tr=tiles.find(t=>t.map==='rand');bbMapPickerClick(tr.x+tr.w/2,tr.y+tr.h/2);
     ok('clicking the RANDOM tile sets ARENA = rand',m2.set.map==='rand'&&phase==='p2settings');
     phase='p2bbmap';bbMapPickerClick(20,20);
     ok('BACK from the map picker returns to settings',phase==='p2settings');
@@ -1285,6 +1285,22 @@ src+=`
    const pld={weapon:'wedge',armor:'balanced'};bbCyclePaint(pld,1);ok('bbCyclePaint advances the seat paint index',pld.paint===1);
    bbCyclePaint(pld,-1);ok('bbCyclePaint wraps back to 0 (team default)',pld.paint===0);
    for(let k=0;k<PAINT_JOBS.length;k++)bbCyclePaint(pld,1);ok('a full lap of the palette returns to the start',pld.paint===0);}
+  // v5.1.233 CUSTOM MAP EDITOR — create → draw → save → resolve → gallery
+  {const svMap=m2.set.map,svCM=customMaps.slice(),svPhase=phase;applyLayout('land2p');m2.mode='battlebots';
+   mapEditNew();ok('mapEditNew opens the editor (blank)',phase==='p2mapedit'&&!!mapEd&&mapEd.obs.length===0);
+   const r=mapEdRect();
+   mapEd.tool='wall';mapEditDown(r.x+r.w*0.2,r.y+r.h*0.2);mapEditMove(r.x+r.w*0.5,r.y+r.h*0.5);mapEditUp();
+   ok('drag-to-draw adds a WALL obstacle',mapEd.obs.length===1&&mapEd.obs[0].w>14&&mapEd.obs[0].h>14);
+   mapEd.tool='saw';mapEditDown(r.x+r.w*0.6,r.y+r.h*0.5);ok('SAW tool places a saw hazard',mapEd.haz.some(h=>h.type==='saw'));
+   mapEd.tool='pickup';mapEditDown(r.x+r.w*0.7,r.y+r.h*0.3);ok('PICKUP tool places a pickup',mapEd.pup.length===1);
+   mapEd.tool='pit';mapEditDown(r.x+r.w*0.3,r.y+r.h*0.6);mapEditMove(r.x+r.w*0.45,r.y+r.h*0.78);mapEditUp();ok('drag-to-draw adds a PIT hazard',mapEd.haz.some(h=>h.type==='pit'));
+   mapEd.tool='erase';const pup=mapEd.pup[0];mapEditDown(r.x+pup.x*r.sc,r.y+pup.y*r.sc);ok('ERASE removes the element under the cursor',mapEd.pup.length===0);
+   mapEd.name='TEST ARENA';const nBefore=customMaps.length;mapEditSave();
+   ok('SAVE pushes the map to customMaps + selects it + returns to the gallery',customMaps.length===nBefore+1&&typeof m2.set.map==='string'&&phase==='p2bbmap');
+   const savedId=m2.set.map;ok('bbMapObj resolves the saved CUSTOM map',bbMapObj()&&bbMapObj().id===savedId&&bbMapObj().obs.length>=1);
+   ok('the gallery lists the custom map + a NEW MAP tile',bbMapTiles().some(t=>t.map===savedId)&&bbMapTiles().some(t=>t.map==='new'));
+   mapEditLoad(customMapById(savedId));ok('mapEditLoad opens an existing map for editing',phase==='p2mapedit'&&mapEd.id===savedId&&mapEd.obs.length>=1);
+   customMaps.length=0;for(const m of svCM)customMaps.push(m);saveCustomMaps();m2.set.map=svMap;phase=svPhase;mapEd=null;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
