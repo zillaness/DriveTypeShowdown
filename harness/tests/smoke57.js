@@ -1318,6 +1318,16 @@ src+=`
    mapEditUndo();ok('UNDO again removes the wall',mapEd.obs.length===0);
    mapEditUndo();ok('UNDO past the start is a safe no-op',mapEd.obs.length===0&&mapEd.pup.length===0);
    mapEd=null;phase=svPhase;}
+  // v5.1.236 TOURNAMENT T4 — open-pick map vote (countdown → auto-random)
+  {const svPhase=phase,svMap=m2.set.map;m2.mode='battlebots';let got=null;
+   startMapVote(15,(m)=>{got=m;});
+   ok('startMapVote opens the vote + arms the timer',phase==='p2mapvote'&&!!mapVote&&mapVoteRemain()>14&&mapVoteRemain()<=15);
+   const cand=mapVoteCandidates();ok('vote candidates = concrete arenas only (no rand/new/vote)',cand.length===TF2_MAPS.length+customMaps.length&&!cand.includes('rand')&&!cand.includes('new'));
+   mapVotePick(cand[1]);ok('tapping an arena resolves the vote once with that map',got===cand[1]&&mapVote===null);
+   startMapVote(15,(m)=>{got=m;});mapVote.endT=(typeof performance!=='undefined'?performance.now():0)-1;ok('the countdown expires (remain hits 0)',mapVoteRemain()===0);
+   got=null;mapVoteAutoRandom();ok('timeout auto-randomizes to a concrete arena',(typeof got==='number'||typeof got==='string')&&mapVote===null);
+   startMapVote(15);mapVotePick(2);ok('default onDone selects the arena + returns to the gallery',m2.set.map===2&&phase==='p2bbmap');
+   phase=svPhase;m2.set.map=svMap;mapVote=null;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

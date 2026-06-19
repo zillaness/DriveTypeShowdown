@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.235.html
-  version: 5.1.235
+  file: drive_showdown_v5.1.236.html
+  version: 5.1.236
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -4854,7 +4854,8 @@ function drawBBMapPicker(){
   ctx.fillStyle='rgba(30,30,50,0.8)';rr(4,8,56,28,8);ctx.fill();ctx.strokeStyle='#334466';ctx.lineWidth=1;rr(4,8,56,28,8);ctx.stroke();
   ctx.font='bold 9px Courier New';ctx.textAlign='center';ctx.fillStyle='#6677aa';ctx.fillText('← BACK',33,26);
   ctx.font='bold 18px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText(m2.mode==='battlebots'?'🗺 PICK YOUR ARENA':'🗺 PICK YOUR MAP',CW/2,30);
-  if(m2.mode==='battlebots'){const ib={x:CW-150,y:8,w:140,h:28};ctx.fillStyle='rgba(28,40,70,0.85)';rr(ib.x,ib.y,ib.w,ib.h,8);ctx.fill();ctx.strokeStyle='#5577aa';ctx.lineWidth=1;rr(ib.x,ib.y,ib.w,ib.h,8);ctx.stroke();ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillStyle='#bcd6ff';ctx.fillText('📥 IMPORT MAP',ib.x+ib.w/2,ib.y+18);} // v5.1.234 paste a share code
+  if(m2.mode==='battlebots'){const ib={x:CW-150,y:8,w:140,h:28};ctx.fillStyle='rgba(28,40,70,0.85)';rr(ib.x,ib.y,ib.w,ib.h,8);ctx.fill();ctx.strokeStyle='#5577aa';ctx.lineWidth=1;rr(ib.x,ib.y,ib.w,ib.h,8);ctx.stroke();ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillStyle='#bcd6ff';ctx.fillText('📥 IMPORT MAP',ib.x+ib.w/2,ib.y+18); // v5.1.234 paste a share code
+    const vb={x:CW-298,y:8,w:140,h:28};ctx.fillStyle='rgba(28,56,44,0.85)';rr(vb.x,vb.y,vb.w,vb.h,8);ctx.fill();ctx.strokeStyle='#4a8a6a';ctx.lineWidth=1;rr(vb.x,vb.y,vb.w,vb.h,8);ctx.stroke();ctx.fillStyle='#a8e6c8';ctx.fillText('🗳 OPEN PICK',vb.x+vb.w/2,vb.y+18);} // v5.1.236 T4 open-pick map vote (timer→random)
   if(mapEdMsg&&(performance.now()-mapEdMsgT)<2600){ctx.globalAlpha=Math.min(1,(2600-(performance.now()-mapEdMsgT))/600);ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle=mapEdMsg[0]==='✗'?'#ff8080':'#9fe0a0';ctx.fillText(mapEdMsg,CW/2,52);ctx.globalAlpha=1;}
   const cur=m2.set&&m2.set.map;
   for(const t of bbMapTiles()){const sel=(t.map===cur)||(t.map==='rand'&&cur==='rand');
@@ -4872,6 +4873,7 @@ function drawBBMapPicker(){
 function bbMapPickerClick(mx,my){
   if(inR(mx,my,{x:4,y:8,w:56,h:28})){phase='p2settings';sfx('click');return;}
   if(m2.mode==='battlebots'&&inR(mx,my,{x:CW-150,y:8,w:140,h:28})){mapImport();return;} // v5.1.234 IMPORT a shared map
+  if(m2.mode==='battlebots'&&inR(mx,my,{x:CW-298,y:8,w:140,h:28})){startMapVote(15);return;} // v5.1.236 OPEN PICK vote (15s → random)
   for(const t of bbMapTiles()){if(!inR(mx,my,t))continue;
     if(t.map==='new'){mapEditNew();return;}
     if(typeof t.map==='string'&&t.map!=='rand'){ // a CUSTOM map tile: ✎ edit / 🗑 delete / select
@@ -4944,6 +4946,33 @@ function drawMapEditor(){if(!mapEd){phase='p2bbmap';return;}ctx.fillStyle='#0707
   for(const tr of mapEdToolRects()){const act=mapEd.tool===tr.tool.id;ctx.fillStyle=act?'rgba(68,255,170,0.18)':'rgba(24,24,40,0.85)';rr(tr.x,tr.y,tr.w,tr.h,7);ctx.fill();ctx.strokeStyle=act?'#44ffaa':'#3a3a5a';ctx.lineWidth=act?2.5:1.2;rr(tr.x,tr.y,tr.w,tr.h,7);ctx.stroke();ctx.fillStyle=act?'#cfffe6':'#aab';ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillText(tr.tool.ic+' '+tr.tool.lab,tr.x+tr.w/2,tr.y+20);}
   ctx.fillStyle='#778';ctx.font='9px Courier New';ctx.textAlign='center';ctx.fillText((mapEd.tool==='wall'||mapEd.tool==='pit')?('drag on the field to draw a '+(mapEd.tool==='pit'?'PIT':'WALL')):(mapEd.tool==='erase'?'click an element to remove it':'click on the field to place a '+mapEd.tool.toUpperCase()),CW/2,r.y+r.h+16);}
 function bbMode(){return (m2.set&&m2.set.bbmode)||'ko';}
+// ── v5.1.236 TOURNAMENT T4: OPEN-PICK MAP VOTE (phase 'p2mapvote') — anyone taps an arena; a countdown auto-RANDOMIZES on timeout ──
+// Self-contained + reusable: startMapVote(seconds, onDone). onDone(chosenMapKey) is called once (a built-in index or a custom id).
+// The tournament will pass an onDone that starts the match; the standalone gallery path just selects the arena. Countdown is wall-clock (no update-loop hook).
+let mapVote=null; // {endT, dur, onDone}
+function mapVoteCandidates(){return (m2.mode==='battlebots')?[...TF2_MAPS.map((m,i)=>i),...customMaps.map(m=>m.id)]:[0,1,2,3];} // concrete arenas only (no 'rand'/'new'/'vote')
+function startMapVote(seconds,onDone){mapVote={endT:(typeof performance!=='undefined'?performance.now():0)+seconds*1000,dur:seconds,onDone:onDone||((m)=>{m2.set.map=m;phase='p2bbmap';sfx('claim');})};phase='p2mapvote';sfx('click');}
+function mapVoteRemain(){return mapVote?Math.max(0,(mapVote.endT-(typeof performance!=='undefined'?performance.now():0))/1000):0;}
+function mapVotePick(mapKey){if(!mapVote)return;const cb=mapVote.onDone;mapVote=null;if(cb)cb(mapKey);} // a concrete choice (or 'rand')
+function mapVoteAutoRandom(){const c=mapVoteCandidates();mapVotePick(c.length?c[Math.floor(Math.random()*c.length)]:0);} // timeout / no agreement → random concrete arena
+function mapVoteTiles(){const items=mapVoteCandidates();const cols=3,tw=Math.min(300,(CW-80)/cols-22),th=150,gx=22,gy=20,rows=Math.ceil(items.length/cols);
+  const totalW=cols*tw+(cols-1)*gx,x0=Math.round((CW-totalW)/2),y0=Math.round((CH-(rows*th+(rows-1)*gy))/2)+34;
+  return items.map((mp,k)=>{const c=k%cols,r=(k/cols)|0;return{x:x0+c*(tw+gx),y:y0+r*(th+gy),w:tw,h:th,map:mp};});}
+function drawMapVote(){if(!mapVote){phase='p2bbmap';return;}
+  if(mapVoteRemain()<=0){mapVoteAutoRandom();return;} // wall-clock timeout → auto-random (resolves + leaves this phase)
+  ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);for(let sy=0;sy<CH;sy+=3){ctx.fillStyle='rgba(0,0,0,0.12)';ctx.fillRect(0,sy,CW,1);}
+  const rem=mapVoteRemain(),frac=Math.max(0,Math.min(1,rem/mapVote.dur));
+  ctx.font='bold 18px Courier New';ctx.textAlign='center';ctx.fillStyle='#d4d4f4';ctx.fillText('🗳 OPEN PICK — TAP AN ARENA',CW/2,28);
+  // countdown bar
+  const bw=Math.min(560,CW-120),bx=(CW-bw)/2,by=42;ctx.fillStyle='rgba(20,20,36,0.9)';rr(bx,by,bw,16,8);ctx.fill();
+  ctx.fillStyle=frac<0.34?'#ff6a4d':(frac<0.67?'#ffd740':'#44ffaa');rr(bx,by,Math.max(6,bw*frac),16,8);ctx.fill();
+  ctx.font='bold 12px Courier New';ctx.fillStyle='#cdd';ctx.fillText('random in '+Math.ceil(rem)+'s if no one picks',CW/2,by+13);
+  const cur=m2.set&&m2.set.map;
+  for(const t of mapVoteTiles()){const isCustom=(typeof t.map==='string'),mp=isCustom?customMapById(t.map):TF2_MAPS[t.map];if(!mp)continue;const sel=(t.map===cur);
+    ctx.fillStyle=sel?'rgba(68,255,170,0.12)':'rgba(18,18,32,0.85)';rr(t.x,t.y,t.w,t.h,10);ctx.fill();ctx.strokeStyle=sel?'#44ffaa':'#3a3a5a';ctx.lineWidth=sel?2.6:1.3;rr(t.x,t.y,t.w,t.h,10);ctx.stroke();
+    bbDrawMapPreview(mp,t.x+12,t.y+12,t.w-24,t.h-40);ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle='#cfd0e6';ctx.fillText((mp.name||'CUSTOM')+((mp.haz&&mp.haz.length)?' ⚠':''),t.x+t.w/2,t.y+t.h-11);}
+  ctx.font='10px Courier New';ctx.fillStyle='#556';ctx.fillText('anyone can tap · Esc cancels',CW/2,CH-12);}
+function mapVoteClick(mx,my){if(!mapVote)return;for(const t of mapVoteTiles()){if(inR(mx,my,t)){sfx('claim');mapVotePick(t.map);return;}}}
 function bbModeHint(){const ctrl=' · LT/Shift = DASH · SPACE/RT = WEAPON';switch(bbMode()){ // v5.1.127 P9: the in-match HUD spells out each mode's win condition
   case'sumo':return'SUMO — shove them OUT of the ring; last bot inside wins'+ctrl;
   case'domination':return'DOMINATION — CAPTURE & HOLD the 3 control points (more points = faster score)'+ctrl;
@@ -6278,6 +6307,7 @@ function p2Back(){
   else if(phase==='p2race'&&tour&&tour.cur){r2=null;applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if((phase==='p2tank'||phase==='p2ball')&&tour&&tour.cur){r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if(phase==='p2drive'){if(m2._dp===1)m2._dp=0;else if(tour&&tour.cur){tour.cur=null;phase='p2tbracket';}else phase='p2modes';}
+  else if(phase==='p2mapvote'){mapVote=null;phase='p2bbmap';} // v5.1.236 Esc cancels the open-pick vote
   else if(phase==='p2mapedit'){mapEd=null;phase='p2bbmap';} // v5.1.233 Esc from the editor → back to the gallery
   else if(phase==='p2bbmap'){phase='p2settings';} // v5.1.147 Esc from the map picker → settings
   else if(phase==='p2settings'){phase='p2modes';}
@@ -6448,6 +6478,7 @@ function p2Click(mx,my){
     if(p2ShowPupCfg()&&inR(mx,my,p2PupCfgBtnRect())){pupSettingsReturn='p2settings';phase='p2pupSettings';sfx('click');return;}
     if(inR(mx,my,p2ResetBtnRect())){m2.set={...M2_SET_DEFAULTS};cpuSpeedMult=1.0;setDropdown=null;sfx('click');return;} // restore all match settings to defaults (incl. ALLIANCE CPU SPEED = cpuSpeedMult 100%)
     if(inR(mx,my,p2StartBtnRect())){p2cEnsureDrives();if(!(m2.claim[0]&&m2.claim[1])){m2.claim=[null,null];m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);}phase='p2claim';return;}
+  }else if(phase==='p2mapvote'){mapVoteClick(mx,my);return; // v5.1.236 T4 open-pick vote
   }else if(phase==='p2bbmap'){bbMapPickerClick(mx,my);return; // v5.1.147 RoboRumble map picker
   }else if(phase==='p2race'){
     if(r2&&r2.result!==null)p2NavClick(mx,my,FY+FH/2+34,startP2Race);
@@ -6763,6 +6794,7 @@ function p2Draw(){
       ctx.fillText(d.kind==='main'?'classic':d.kind==='holo'?'holonomic':'steering',r.x+r.w/2,r.y+62);}
     if(m2._dp===1&&m2.drive[0]){ctx.font='11px Courier New';ctx.textAlign='center';ctx.fillStyle=M2_COLS[0];
       ctx.fillText('P1 picked: '+m2.drive[0].name,CW/2,CH-30);}
+  }else if(phase==='p2mapvote'){drawMapVote(); // v5.1.236 T4 open-pick map vote
   }else if(phase==='p2mapedit'){drawMapEditor(); // v5.1.233 CUSTOM MAP EDITOR
   }else if(phase==='p2bbmap'){drawBBMapPicker(); // v5.1.147 RoboRumble map picker
   }else if(phase==='p2settings'){
@@ -9128,6 +9160,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.236 (2026-06-19): TOURNAMENT v2 — OPEN-PICK MAP VOTE (T4, first piece). A self-contained, reusable arena-vote module: **`startMapVote(seconds, onDone)`** opens a new screen (`phase==='p2mapvote'`, `drawMapVote`) showing the arena tiles with a **countdown bar**; anyone can tap a tile to lock it (`mapVotePick`), and on timeout the vote **auto-RANDOMIZES** to a concrete arena (`mapVoteAutoRandom`) — exactly Sam's "open / group discussion, randomize if no agreement" rule, and the agreed FIRST tournament build (no dependency on the bracket/seeding infra; the higher-seed / winners-bracket "whose turn" gate layers on later). Countdown runs off wall-clock (no update-loop hook); taps route through the normal click/touch dispatcher (no match-start path touched — safe). Reachable now via a **🗳 OPEN PICK** button on the RoboRumble ARENA gallery (15s demo; default onDone just selects the arena). The tournament will pass an onDone that starts the match. smoke57 +6 (open/arm, candidates, tap-resolves-once, timeout, auto-random, default onDone) → 521. Full battery green. Single file. (Next: tournament FORMAT setting + double-elim engine + captain draft — see HANDOFF_2026-06-19.md / OVERNIGHT_PLAN.md.)
   v5.1.235 (2026-06-19): CUSTOM MAP EDITOR — TOUCH support + UNDO (F5, ship 3/3 — feature complete). The editor was mouse-only; now its tool taps + drag-to-draw work on TOUCH too (the touchstart/move/end handlers route to `mapEditDown`/`Move`/`Up`, tracking the active touch id `mapEd._touch`). Added single-step+ **UNDO** — a `↶` button (next to BACK) and the **Z** key step back through a 40-deep snapshot stack (`mapEd.undo`, pushed before every wall/pit/saw/pickup/erase/clear); UNDO past the start is a safe no-op. That completes the custom map editor: build (ship 1) → share codes (ship 2) → touch + undo (ship 3). smoke57 +4 (undo across actions + no-op past start). Full battery green. Single file, no assets.
   v5.1.234 (2026-06-19): CUSTOM MAP EDITOR — SHARE codes (export / import) (F5, ship 2/3). Custom arenas are now shareable as a compact copy-paste **share code** (`DSMAP1:` + base64 of a minified JSON). In the editor a new **📤 SHARE** button copies the current arena's code to the clipboard (with a `prompt()` fallback that shows the code to copy); the gallery gets a **📥 IMPORT MAP** button that prompts for a pasted code, validates it (`mapFromCode` rejects garbage), and adds the arena to your `customMaps`. A fading toast confirms copy/import success or a bad code. This is the cross-device share path today; the format is the same clean JSON a future Steam-Workshop build would upload. `mapToCode`/`mapFromCode` reuse the game's existing prompt/clipboard idiom. smoke57 +4 (code round-trip, garbage rejected, import adds + selects). Full battery green. Single file, no assets. (Next: F5 ship 3 = touch support + editor polish.)
   v5.1.233 (2026-06-19): CUSTOM MAP EDITOR — build your own RoboRumble arena (backlog F5, ship 1/3). A new in-game editor: from the RoboRumble ARENA gallery, the **"+ NEW MAP"** tile opens a full-screen editor (`phase==='p2mapedit'`) where you paint on the field with five tools — **WALL** + **PIT** (drag to draw a rectangle), **SAW** + **PICKUP** (click to place), and **ERASE** (click an element to remove it) — plus a name field, CLEAR, and **SAVE & USE**. Saving stores the arena in `localStorage` (`customMaps` / `frcds_maps_v1`) and selects it; the gallery now lists your custom maps with **✎ edit** / **🗑 delete** affordances, and a new resolver (`bbMapObj`) plays a custom arena in any RoboRumble match (incl. RANDOM, which now rolls over built-ins + custom). The editor is mouse/touch-drag driven (its own mousedown/move/up path; the click dispatcher skips it). smoke57 +10 (create→draw→save→resolve→gallery→load), smoke52/smoke57 gallery-count asserts updated for the NEW tile. Full battery green. Single file, no assets. (Next: F5 ship 2 = JSON/share-code export-import; ship 3 = touch + polish.)
