@@ -184,7 +184,7 @@ src+=`
   ok('sfx toggle flips and persists',sfxOn===false&&localStorage.getItem('frcds_sfx')==='0');
   sfxToggle();
   ok('sfx toggle restores',sfxOn===true&&localStorage.getItem('frcds_sfx')==='1');
-  ok('rumble path no-throw',(()=>{try{p2Rumble(0,0.5);p2Rumble(1,0.3);return true;}catch(e){return false;}})());
+  ok('rumble path no-throw',(()=>{try{p2Rumble(0,0.5);p2Rumble(1,0.3);p2Rumble(0,0.6,'rev');return true;}catch(e){return false;}})());
   // ── v5.1.67: CPU vs CPU sims — the 2-card claim can hold TWO CPUs (tuning aid) ──
   applyLayout('land2p');phase='p2claim';tour=null;m2.mode='normal';m2.set.cpus=0;m2.claim=[null,null];m2.sens=[1,1];
   {const cb2=p2cCpuRect();

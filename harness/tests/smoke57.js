@@ -155,6 +155,23 @@ src+=`
    c.x=900;bbWeaponFire(1.0);ok('FLAME: heat decays when the foe leaves the cone',a.heat[1]<0.2);
    c.x=100+RR*1.5;c.hp=BB.HP;c.inv=0;c.burn=0;bbApplyHit(c,'front',30,0);ok('kinetic FRONT hit is immune',c.hp===BB.HP);
    c.inv=0;bbApplyFlame(c,30,0);ok('FLAME ignores front armor (burns through)',c.hp<BB.HP);}
+  // ── v5.1.211 FLAME human/CPU FORK restored + flame torches DRONES ──
+  {const hA=bbBotWith('flame','balanced',0,0,false),cA=bbBotWith('flame','balanced',0,2,true),v=bbBotWith('none','balanced',1,1,true);
+   v.hp=BB.HP;v.inv=0;v.burn=0;bb2.bots=[hA,v];bbApplyFlame(v,BB_W.flameDps*0.1,0);const humanBurn=v.burn;
+   v.burn=0;v.hp=BB.HP;v.inv=0;bb2.bots=[cA,v];bbApplyFlame(v,BB_W.flameDps*0.1,0);const cpuBurn=v.burn;
+   ok('FLAME FORK: a HUMAN flame fills the blow-up meter FASTER than a CPU',humanBurn>cpuBurn*1.5&&cpuBurn>0);
+   const fa=bbBotWith('flame','balanced',0,0,true);fa.ctl.brain.fire=true;fa.x=100;fa.y=100;fa.h=0;fa.heat={};
+   const drone={x:100+RR*2,y:100,h:0,side:1,owner:null,col:'#fff',dead:false,kind:'medic',hp:BB_W.medicHp,mhp:BB_W.medicHp,hurtFx:0};
+   bb2.bots=[fa];bb2.minis=[drone];bb2.result=null;bbWeaponPre(1/60);const dh0=drone.hp;for(let i=0;i<40;i++)bbWeaponFire(1/60);
+   ok('FLAME torches an enemy DRONE (pit-bot) caught in its cone',drone.hp<dh0);bb2.minis=[];}
+  // ── v5.1.211 PINCER mid-clamp takes MAJORLY reduced damage ──
+  {const pv=bbBotWith('pincer','balanced',0,0,true),foe=bbBotWith('none','balanced',1,1,true);
+   pv.x=300;pv.y=300;pv.hp=BB.HP;pv.inv=0;bb2.bots=[pv,foe];
+   const h0=pv.hp;bbApplyHit(pv,'rear',60,1);const dmgFree=h0-pv.hp;
+   pv.hp=BB.HP;pv.inv=0;pv.grab=foe;foe.held=pv;
+   const h1=pv.hp;bbApplyHit(pv,'rear',60,1);const dmgClamp=h1-pv.hp;
+   ok('PINCER takes MAJORLY reduced damage while clamping a foe',dmgClamp>0&&dmgClamp<dmgFree*0.5);
+   pv.grab=null;foe.held=null;}
   {const a=bbBotWith('wedge','balanced',0,0,true);
    ok('WEDGE softens its own ram damage (control, not damage)',Math.abs(bbContactDmg(a,20)-20*BB_W.wedgeDmg)<1e-9);
    const c=bbBotWith('none','balanced',1,1,true),free=bbBotWith('none','balanced',1,2,true);c.pinT=0.25;free.pinT=0;
