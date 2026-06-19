@@ -77,6 +77,10 @@ src+=`
    // graceful with a short field (10 teams, 8 alliances of 3): captains fill, picks run out cleanly
    const short=tourAllianceDraft([0,1,2,3,4,5,6,7,8,9],8,3);const st=new Set();let sdup=false;for(const a of short)for(const t of a.teams){if(st.has(t))sdup=true;st.add(t);}
    T('short field drafts without crashing or duplicates',short.length===8&&!sdup&&st.size===10);}
+  // ── v5.1.237 format-aware entrant cap (double-elim "FRC mode" ≤8 / single-elim party ≤16) ──
+  {const T=(l,c)=>console.log((c?'ok — ':'FAIL — ')+l);
+   tour={format:'double',names:[]};T('double-elim caps entrants at 8',tourMaxEntrants()===8);
+   tour.format='single';T('single-elim caps entrants at 16',tourMaxEntrants()===16);}
   tour=null;bb2=null;console.log('done');
 })();
 `;

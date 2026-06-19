@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.236.html
-  version: 5.1.236
+  file: drive_showdown_v5.1.237.html
+  version: 5.1.237
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -705,7 +705,7 @@ window.addEventListener('keydown',e=>{
     if(e.key==='Escape'){if(p2MatchLive())paused=!paused;else p2Back();e.preventDefault();return;}
     if(phase==='p2claim'){if(tankGridMode())tankGridKb(e);else p2ClaimKb(e);e.preventDefault();return;}
     if(phase==='p2tnames'){
-      if(e.key==='Enter'&&tour.buf.trim()&&tour.names.length<16){tour.names.push(tour.buf.trim());tour.buf='';}
+      if(e.key==='Enter'&&tour.buf.trim()&&tour.names.length<tourMaxEntrants()){tour.names.push(tour.buf.trim());tour.buf='';}
       else if(e.key==='Backspace')tour.buf=tour.buf.slice(0,-1);
       else if(e.key.length===1&&tour.buf.length<12)tour.buf+=e.key;
       e.preventDefault();return;
@@ -6000,6 +6000,7 @@ function tourAllianceDraft(ranked,nA,sz){
   for(const a of all)a.teams=[a.captain].concat(a.picks);
   return all;
 }
+function tourMaxEntrants(){return (tour&&(tour.format||'double')==='double')?8:16;} // v5.1.237 T-design: double-elim "FRC mode" ≤8 alliances; single-elim party ≤16
 function tourBuild(){
   // rank entrants: qualifier times ascending (Infinity = skipped → last), random otherwise
   const idx=tour.names.map((_,i)=>i);
@@ -6126,7 +6127,7 @@ function tourOpenInput(){
       +'font-size:'+Math.max(16,Math.round(18*sy))+'px;'; // ≥16px stops iOS focus-zoom
     const commit=()=>{
       const v=el.value.trim();
-      if(v&&tour&&tour.names.length<16)tour.names.push(v.slice(0,12));
+      if(v&&tour&&tour.names.length<tourMaxEntrants())tour.names.push(v.slice(0,12));
       el.value='';
     };
     el.addEventListener('keydown',ev=>{
@@ -6177,7 +6178,7 @@ function drawTourNames(){
     ['MATCH MODE',{normal:'NORMAL H2H',shooter:'SHOOTER H2H',tankfight:'TANK FIGHT',battlebots:'ROBORUMBLE',race:'OBSTACLE RACE'}[tour.mode]],
     ['DRIVE POLICY',tour.policy==='open'?'OPEN — pick every match':'CLOSED — first pick locks'],
     ['SEEDING',tour.seedMode==='rand'?'RANDOM':'QUALIFIER — solo time trial'],
-    ['BRACKET',(tour.format||'double')==='double'?'DOUBLE ELIMINATION (default)':'SINGLE ELIMINATION'],
+    ['BRACKET',(tour.format||'double')==='double'?'DOUBLE ELIMINATION · up to 8':'SINGLE ELIMINATION · up to 16'],
   ];
   for(let i=0;i<4;i++){
     const r=tourOptRect(i);
@@ -9160,6 +9161,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.237 (2026-06-19): TOURNAMENT v2 — format-aware ENTRANT CAP. From the locked design (double-elim "FRC mode" = up to 8 alliances; single-elim party = up to 16): `tourMaxEntrants()` returns 8 for double / 16 for single, and the registration name-entry (both the keyboard `Enter` and the DOM text-input commit paths) now gates additions by it instead of a flat 16; the BRACKET option label shows the cap ("DOUBLE ELIMINATION · up to 8" / "SINGLE ELIMINATION · up to 16"). Non-destructive (only gates NEW additions; never trims an existing list). NOTE for the next thread: the tournament BRACKET ENGINE was found to be far more complete than the docs claimed — the FORMAT toggle + full double-elim (losers bracket + Bo3 grand final) + bracket render + seeding (random/qualifier) + drive policy are ALL already built & reachable in the p2tnames setup screen. The real remaining Tournament-v2 work is the FRC layer: wire the headless `tourAllianceDraft` into a captain-draft SCREEN, route matches through the 3v3 grid (today `tourStartMatch` is 1v1), wire the v5.1.236 open-pick map vote into `tourStartMatch`, and add MANUAL seeding. See HANDOFF_2026-06-19.md → "⚠️ CORRECTED STATE". smoke33 +2. Full battery green.
   v5.1.236 (2026-06-19): TOURNAMENT v2 — OPEN-PICK MAP VOTE (T4, first piece). A self-contained, reusable arena-vote module: **`startMapVote(seconds, onDone)`** opens a new screen (`phase==='p2mapvote'`, `drawMapVote`) showing the arena tiles with a **countdown bar**; anyone can tap a tile to lock it (`mapVotePick`), and on timeout the vote **auto-RANDOMIZES** to a concrete arena (`mapVoteAutoRandom`) — exactly Sam's "open / group discussion, randomize if no agreement" rule, and the agreed FIRST tournament build (no dependency on the bracket/seeding infra; the higher-seed / winners-bracket "whose turn" gate layers on later). Countdown runs off wall-clock (no update-loop hook); taps route through the normal click/touch dispatcher (no match-start path touched — safe). Reachable now via a **🗳 OPEN PICK** button on the RoboRumble ARENA gallery (15s demo; default onDone just selects the arena). The tournament will pass an onDone that starts the match. smoke57 +6 (open/arm, candidates, tap-resolves-once, timeout, auto-random, default onDone) → 521. Full battery green. Single file. (Next: tournament FORMAT setting + double-elim engine + captain draft — see HANDOFF_2026-06-19.md / OVERNIGHT_PLAN.md.)
   v5.1.235 (2026-06-19): CUSTOM MAP EDITOR — TOUCH support + UNDO (F5, ship 3/3 — feature complete). The editor was mouse-only; now its tool taps + drag-to-draw work on TOUCH too (the touchstart/move/end handlers route to `mapEditDown`/`Move`/`Up`, tracking the active touch id `mapEd._touch`). Added single-step+ **UNDO** — a `↶` button (next to BACK) and the **Z** key step back through a 40-deep snapshot stack (`mapEd.undo`, pushed before every wall/pit/saw/pickup/erase/clear); UNDO past the start is a safe no-op. That completes the custom map editor: build (ship 1) → share codes (ship 2) → touch + undo (ship 3). smoke57 +4 (undo across actions + no-op past start). Full battery green. Single file, no assets.
   v5.1.234 (2026-06-19): CUSTOM MAP EDITOR — SHARE codes (export / import) (F5, ship 2/3). Custom arenas are now shareable as a compact copy-paste **share code** (`DSMAP1:` + base64 of a minified JSON). In the editor a new **📤 SHARE** button copies the current arena's code to the clipboard (with a `prompt()` fallback that shows the code to copy); the gallery gets a **📥 IMPORT MAP** button that prompts for a pasted code, validates it (`mapFromCode` rejects garbage), and adds the arena to your `customMaps`. A fading toast confirms copy/import success or a bad code. This is the cross-device share path today; the format is the same clean JSON a future Steam-Workshop build would upload. `mapToCode`/`mapFromCode` reuse the game's existing prompt/clipboard idiom. smoke57 +4 (code round-trip, garbage rejected, import adds + selects). Full battery green. Single file, no assets. (Next: F5 ship 3 = touch support + editor polish.)
