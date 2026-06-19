@@ -639,6 +639,7 @@ src+=`
     ok('REPAIR LIFE-STEAL: no ally → drains the enemy AND self-heals (weak)',foe.hp<fh&&me.hp>mh&&me._repairDrain===true&&me._repairTgt===foe);
     // drain is WEAK — far less than the heal rate (so it stays a support, loses 1v1s)
     ok('REPAIR life-steal DPS is weak (< the heal-per-sec, < raw weapon DPS)',BB_W.repairLifeDps<BB_W.repairHps&&BB_W.repairLifeDps<=35);
+    ok('REPAIR has an anti-kite move-slow while healing/life-stealing (mirrors the flame slow)',BB_W.repairMoveMul<1&&BB_W.repairMoveMul>=0.3);
     // with a hurt ally present, the dish HEALS (green) and does NOT drain
     const ally=bbBotWith('none','balanced',0,2,true);ally.x=320;ally.y=300;ally.hp=200;ally.mhp=BB.HP;ally.mob=BB.MOB;
     const foe2=bbBotWith('none','balanced',1,1,true);foe2.x=300+RR*4;foe2.y=300;foe2.hp=BB.HP;
@@ -669,15 +670,20 @@ src+=`
    const st=bbBotWith('none','balanced',0,0,true);st.ld.perk='sparetire';st.wheels=[{hp:5,dead:false},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];st._spareUsed=false;
    bbWheelDamage(st,100,null,null);ok('SPARE TIRE: the first wheel survives (re-welded) once',st.wheels.every(w=>!w.dead)&&st._spareUsed===true);
    bbWheelDamage(st,100,null,null);ok('SPARE TIRE: the SECOND wheel to break is lost (spare spent)',st.wheels.some(w=>w.dead));
-   // PIT STOP: v5.1.161 deploys a MEDIC drone that patches an ally's HP + mobility + wheels
+   // PIT STOP: v5.1.208 deploys a MEDIC drone that restores MOBILITY (tires/wheels) ONLY — NOT HP
    const ps=bbBotWith('none','balanced',0,0,true);ps.ld.perk='pitstop';ps.x=400;ps.y=400;ps.hp=BB.HP;ps.mhp=BB.HP;
    const ally=bbBotWith('none','balanced',0,0,true);ally.ld.perk='none';ally.x=420;ally.y=400;ally.hp=150;ally.mhp=BB.HP;ally.mob=10;ally.wheels=[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false}));ally.wheels[0].dead=true;ally.wheels[0].hp=0;
    const en=bbBotWith('none','balanced',1,1,true);en.dead=true;
    bb2.bots=[ps,ally,en];bb2.result=null;bb2.cd=0;bb2.minis=bbMiniSpawn();
    ok('PIT STOP deploys a MEDIC drone (owner-linked, same side)',bb2.minis.length===1&&bb2.minis[0].kind==='medic'&&bb2.minis[0].owner===ps&&bb2.minis[0].side===0);
    const h0=ally.hp,mob0=ally.mob;for(let i=0;i<160;i++)bbMiniUpdate(1/60); // drive the medic directly (no CPU wander) → it seeks + patches the hurt ally
-   ok('PIT STOP medic heals a damaged ally (HP + mobility climb)',ally.hp>h0&&ally.mob>mob0);
-   ok('PIT STOP medic re-welds a dead ally wheel',!ally.wheels[0].dead);}
+   ok('PIT STOP medic restores ally MOBILITY (tires)',ally.mob>mob0);
+   ok('PIT STOP medic does NOT heal HP (only mobility/tires)',ally.hp===h0);
+   ok('PIT STOP medic re-welds a dead ally wheel',!ally.wheels[0].dead);
+   // v5.1.208 a DASHING enemy can grind the drone down (no weapon needed)
+   const m=bb2.minis[0];m.hp=m.mhp;const dh=m.hp;const dasher=bbBotWith('none','balanced',1,1,true);dasher.x=m.x;dasher.y=m.y;dasher.boostT=0.2;dasher.dead=false;bb2.bots=[ps,ally,dasher];
+   for(let i=0;i<20;i++){dasher.boostT=0.2;dasher.x=m.x;dasher.y=m.y;bbMiniUpdate(1/60);}
+   ok('a DASHING enemy damages the drone (no weapon)',m.hp<dh);}
   // ── v5.1.181 NEW PERKS: ADRENALINE / PAINKILLER / LAST STAND ──
   {ok('new perks exist: ADRENALINE, PAINKILLER, LAST STAND',['adrenaline','painkiller','laststand'].every(id=>BB_PERKS_PICK.some(p=>p.id===id)));
    const ad=bbBotWith('none','balanced',0,0,true);ad.ld.perk='adrenaline';ad.mhp=BB.HP;
