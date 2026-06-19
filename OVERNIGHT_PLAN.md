@@ -1,14 +1,19 @@
 # 🌙 OVERNIGHT AUTONOMOUS GOAL — RoboRumble (2026-06-16 → morning)
 
-## 🌙 TONIGHT (2026-06-19, thread `inspiring-turing`) — START HERE — tip v5.1.219, all green on `dev`
-**A long live-playtest session with Sam (v5.1.199→219).** See `MIGRATION.md` → "⏩ CURRENT STATE — 2026-06-19, v5.1.218" for the full shipped list (repair bot, MECHA iai dash-slash, tier-difficulty-as-damage-vs-human, cannon cheats split + explosive/MG/bouncy, CTF return-home, respawn↔timer rule, grid weapon render, abs-heading snap fix, Last-Stand win-in-window fix).
+## 🌙 TONIGHT (2026-06-19, thread `inspiring-turing`) — START HERE — tip v5.1.220, all green on `dev`
+**A long live-playtest session with Sam (v5.1.199→220).** See `MIGRATION.md` → "⏩ CURRENT STATE — 2026-06-19, v5.1.220" for the full shipped list (repair bot, MECHA iai dash-slash, tier-difficulty-as-damage-vs-human, cannon cheats split + explosive/MG/bouncy, CTF return-home, respawn↔timer rule, grid weapon render, abs-heading snap fix, Last-Stand win-in-window fix, gray cannon, map gallery→Tank Fight).
 
 **Sam's mode tonight = FEEL-FIRST live iteration**, not an autonomous balance grind. The 1v1 CPU-sim is a coarse directional tool (spinner 72 / pincer 11 / kamikaze 0) — **NOT a tuning target.** Ship one green increment per fix, drop a build at each.
 
+**📋 APPROVED BACKLOG PLAN (2026-06-19) — see `/root/.claude/plans/moonlit-scribbling-zephyr.md` for the full phased plan.** Sam approved planning all of tonight's backlog. Sequence (small→big): **F1 map gallery ✅ v5.1.220** → **F2 eggs full paint + color picker + achievements** → **F5 custom map editor** → **F3 Tournament v2 (T2/T4/T1)** → **F4 STOCK→6p FFA**. Two surprises from exploration: the achievements SCREEN already exists (eggs just need wiring into it), and the RoboRumble map gallery already existed (F1 = extend to Tank Fight, done). F2 Original Sin livery is LOCKED by Sam: black+silver body, **4 black animated/spinning wheels even in tank drive** (override treads), **yellow dozer blade**.
+
+**🎬 FUTURE VISION — CAREER / STORY MODE (Sam, 2026-06-19):** a narrative campaign that threads the existing modes into a progression as the player "grows up": **middle school** = learning to drive → **OBSTACLE RACE**; **high school** seasons = the **BALL** modes, first PUSHER then SHOOTER the next season; **college** = TANK FIGHT framed as "the video game you play in your dorm"; **graduate** = you're now competing in **ROBORUMBLE**. Big feature (new meta-shell: progression state, unlocks, story beats between matches) — captured here so it isn't lost; not scoped yet.
+
 **Backlog / what's parked (most needs Sam in the loop):**
-- **STOCK → 6-player FFA** — scoped ~10h+ (engine hard-wires 2 sides: spawn, win-detection, ~30 HUD sites). Recommend a playtest session, not unattended. No separate format toggle — the lives/timer settings (kept valid by the respawn↔timer rule) pick last-standing vs most-kills.
-- **Tournament v2** — T2 (3v3 grid) / T4 (per-match map) / T1 (input typing). Model landed (`tourAllianceDraft`); rest is UI + decisions. Needs Sam.
-- **TABLED by Sam 2026-06-19:** KAMIKAZE 0%-in-3v3 CPU brain · tier-difficulty lapse/react depth · jet CPU dash-through. **Earlier:** repair heal↔buff cycle · map gallery · egg paint+achievements · weapon-balance feel re-tune · the goofy-neon→gray cannon/tank render (Sam flagged; next).
+- **STOCK → 6-player FFA** (F4) — scoped ~10h+ (engine hard-wires 2 sides: spawn, win-detection, ~51 touchpoints). Recommend a playtest session, not unattended. No separate format toggle — the lives/timer settings (kept valid by the respawn↔timer rule) pick last-standing vs most-kills.
+- **Tournament v2** (F3) — T2 (3v3 grid) / T4 (per-match map) / T1 (input typing). Model landed (`tourAllianceDraft`); rest is UI + decisions. Needs Sam.
+- **Custom MAP EDITOR** (F5) — in-game editor (paint walls/hazards/pickups on the field) → save to `customMaps` in localStorage → export/import as JSON or share-code. Steam Workshop needs an Electron + Steamworks packaging layer (out of scope for the HTML build) but the JSON format is Workshop-ready.
+- **TABLED by Sam 2026-06-19:** KAMIKAZE 0%-in-3v3 CPU brain · tier-difficulty lapse/react depth · jet CPU dash-through. **Earlier:** repair heal↔buff cycle · weapon-balance feel re-tune. **DONE this session:** gray cannon render (v5.1.219), map gallery→Tank Fight (v5.1.220).
 
 **Operating ritual unchanged** (see below): `./extract.sh && ./battery.sh` ALL GREEN → `git mv` vN→vN+1 → `sed` filename into `extract.sh`+`MIGRATION.md` → commit "Release …" → push `dev` + session branch.
 
