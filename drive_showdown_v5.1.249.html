@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.248.html
-  version: 5.1.248
+  file: drive_showdown_v5.1.249.html
+  version: 5.1.249
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -4086,7 +4086,7 @@ function bbLoadoutForBind(bind){ // MULTI grid seat loadout, else 1v1 claim load
 }
 // ── P2.5: weapon/armor loadout PICKER (tap-cyclers on each RoboRumble grid seat; the grid covers 1v1→3v3) ──
 function bbSeatLoadout(i){if(!m2.tseats||!m2.tseats[i])return {weapon:'wedge',armor:'balanced'};if(!m2.tseats[i].loadout)m2.tseats[i].loadout={weapon:'wedge',armor:'balanced'};return m2.tseats[i].loadout;} // v5.1.104: default picker seat = the DOZER blade (every bot has at least a blade; RAM-only is no longer a pickable/default)
-function bbCycleField(ld,field,dir){const list=field==='weapon'?BB_WEAPONS.filter(x=>x.id!=='none'&&(x.id!=='cannon'||cannonWeapon)):field==='perk'?BB_PERKS_PICK:BB_ARMOR,ids=list.map(x=>x.id),n=ids.length,i=ids.indexOf(ld[field]),cur=(i<0)?(dir>0?-1:0):i;ld[field]=ids[((cur+dir)%n+n)%n];sfx('click');} // v5.1.103: weapon cycler SKIPS RAM-ONLY; v5.1.155: 'perk' cycles the PICKABLE perks; v5.1.215 CANNON unlock is UNLOCK CANNON only again (cycler + rail + CPU pool)
+function bbCycleField(ld,field,dir){const list=field==='weapon'?BB_WEAPONS.filter(x=>x.id!=='none'&&(x.id!=='cannon'||cannonWeapon)):field==='perk'?BB_PERKS_PICK:BB_ARMOR,ids=list.map(x=>x.id),n=ids.length,i=ids.indexOf(ld[field]),cur=(i<0)?(dir>0?-1:0):i;ld[field]=ids[((cur+dir)%n+n)%n];sfx('click');bbLoadoutTouched(ld);} // v5.1.103: weapon cycler SKIPS RAM-ONLY; v5.1.155: 'perk' cycles the PICKABLE perks; v5.1.249 persist 1v1 loadout
 function bbStatBars(ld){const r=bbResolveLoadout(ld);return{speed:clamp((r.speedMul-0.45)/0.55,0,1),mob:clamp((r.mobMax/BB.MOB-1)/0.5,0,1),dmg:clamp((r.deal-0.6)/1.0,0,1),tough:clamp((1.4-r.take)/0.9,0,1)};} // 0..1 readout bars: SPEED / MOBILITY / DAMAGE / TOUGHNESS
 // ── v5.1.90 BB grid polish: per-seat stat bars + drag-to-copy a loadout between seats ──
 function bbSeatStatsRect(c){return{x:c.x+12,y:c.y+108,w:90,h:38};} // 4 thin SPD/MOB/DMG/TUF bars in the left column, under the preview, clear of the loadout bar (c.x+108+) and the SENS slider (c.x+120+)
@@ -4466,10 +4466,10 @@ const PAINT_JOBS=[ // v5.1.232 COLOR PICKER palette (index 0 = team/drive defaul
   {name:'Magenta',body:'#330a2a',stroke:'#ff5ad0',accent:'#ff5ad0'},
   {name:'Cyan',   body:'#062a2e',stroke:'#3fe0e0',accent:'#3fe0e0'},
 ];
-function bbCyclePaint(ld,dir){if(!ld)return;ld.paint=(((ld.paint|0)+dir)%PAINT_JOBS.length+PAINT_JOBS.length)%PAINT_JOBS.length;sfx('click');} // cycle a seat's BODY paint
+function bbCyclePaint(ld,dir){if(!ld)return;ld.paint=(((ld.paint|0)+dir)%PAINT_JOBS.length+PAINT_JOBS.length)%PAINT_JOBS.length;sfx('click');bbLoadoutTouched(ld);} // cycle a seat's BODY paint
 const ACCENT_COLS=[ // v5.1.248 independent ACCENT color (stroke / bumper / wheels). index 0 = use the BODY skin's own accent
   null,'#ff4d4d','#ff8a2e','#ffcf3a','#5bd169','#3fe0e0','#5a7bff','#b06bff','#ff5ad0','#ffffff','#11131a'];
-function bbCycleAccent(ld,dir){if(!ld)return;ld.accent=(((ld.accent|0)+dir)%ACCENT_COLS.length+ACCENT_COLS.length)%ACCENT_COLS.length;sfx('click');} // cycle a seat's ACCENT color
+function bbCycleAccent(ld,dir){if(!ld)return;ld.accent=(((ld.accent|0)+dir)%ACCENT_COLS.length+ACCENT_COLS.length)%ACCENT_COLS.length;sfx('click');bbLoadoutTouched(ld);} // cycle a seat's ACCENT color
 function bbPaintFor(ld){ // v5.1.248 compose the active paint from BODY (ld.paint) + ACCENT (ld.accent); null = no custom paint
   if(!ld)return null;const p=ld.paint|0,a=ld.accent|0;if(p<=0&&a<=0)return null;
   const base=(p>0&&PAINT_JOBS[p])?PAINT_JOBS[p]:{body:'#191922',stroke:'#cfd2dd',accent:'#cfd2dd'}; // accent-only → neutral dark body
@@ -5967,7 +5967,7 @@ const TF2_CPU_COLS=TF2_BLUE_COLS; // back-compat alias
 const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,tdrv:'open',tfmt:'1v1',ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true,bbmode:'ko',bblives:1,bbtime:0,bbgoals:3,tfmode:'deathmatch'}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
-function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];m2.tseats=null;m2.tsel=0;m2.bbLoadout=[null,null];m2.claimSel=null;}
+function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];m2.tseats=null;m2.tsel=0;m2.bbLoadout=loadBBLoadout();m2.claimSel=null;} // v5.1.249 restore the last-used 1v1 loadout (was reset to [null,null])
 function p2Exit(){tour=null;tf2=null;bb2=null;r2=null;tfObs=null;b2Teardown();resetBinds();applyLayout('legacy');phase='splash';} // back out of multiplayer to the SPLASH hub. resetBinds: restore single-player input routing (else SP reads the stale 2P bind and ignores gamepad sticks)
 // ═══ PHASE 11: TOURNAMENT ═══
 // 4–16 typed entrants, generic double elimination (byes to the next power of two),
@@ -6655,7 +6655,7 @@ function p2Click(mx,my){
       const empty=m2.claim.findIndex(c=>!c);sfx('claim');
       if(empty>=0)m2.claim[empty]={type:'cpu',tier:1};
       else{const ci=m2.claim.findIndex(c=>c&&c.type==='cpu');if(ci>=0)m2.claim[ci]=null;}return;}
-    if(inR(mx,my,p2cSwapRect())){const t=m2.claim[0];m2.claim[0]=m2.claim[1];m2.claim[1]=t;const tn=m2.name[0];m2.name[0]=m2.name[1];m2.name[1]=tn;const td=m2.drive[0];m2.drive[0]=m2.drive[1];m2.drive[1]=td;const ts=m2.sens[0];m2.sens[0]=m2.sens[1];m2.sens[1]=ts;if(m2.bbLoadout){const tl=m2.bbLoadout[0];m2.bbLoadout[0]=m2.bbLoadout[1];m2.bbLoadout[1]=tl;}sfx('click');return;}
+    if(inR(mx,my,p2cSwapRect())){const t=m2.claim[0];m2.claim[0]=m2.claim[1];m2.claim[1]=t;const tn=m2.name[0];m2.name[0]=m2.name[1];m2.name[1]=tn;const td=m2.drive[0];m2.drive[0]=m2.drive[1];m2.drive[1]=td;const ts=m2.sens[0];m2.sens[0]=m2.sens[1];m2.sens[1]=ts;if(m2.bbLoadout){const tl=m2.bbLoadout[0];m2.bbLoadout[0]=m2.bbLoadout[1];m2.bbLoadout[1]=tl;saveBBLoadout();}sfx('click');return;}
     if(m2.claim[0]&&m2.claim[1]&&inR(mx,my,p2StartBtnRect())){
       playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];
       if(tour&&tour.cur)p2Series=null;else p2SeriesStart();
@@ -6691,16 +6691,20 @@ function p2cSwapRect(){return{x:CW-300,y:CH-78,w:180,h:34};}
 // ── RoboRumble 1v1 claim "layout": weapon/armor cyclers + AUTOBUILD, per side in m2.bbLoadout (read by bbLoadoutForBind). Sits where the drive stat bars go in other modes. ──
 function bbClaimLoadRects(pl){const cx=p2cCol(pl);return{w:{l:{x:cx-150,y:356,w:26,h:26},r:{x:cx+124,y:356,w:26,h:26}},a:{l:{x:cx-150,y:388,w:26,h:26},r:{x:cx+124,y:388,w:26,h:26}},p:{l:{x:cx-150,y:420,w:26,h:26},r:{x:cx+124,y:420,w:26,h:26}},auto:{x:cx-100,y:450,w:200,h:24}};} // v5.1.136: tighter pitch + a PERK row + a slimmer AUTOBUILD, all above the controller box (y=484)
 function bbClaimLd(pl){return (m2.bbLoadout&&m2.bbLoadout[pl])||null;} // null = "default" (CPU auto-arms at spawn, human stays RAM/neutral — see startP2BB)
+// v5.1.249 PERSIST the 1v1 RoboRumble loadout (weapon/armor/perk/paint/accent) across sessions — was reset to [null,null] every menu entry
+function saveBBLoadout(){try{localStorage.setItem('frcds_bbload_v1',JSON.stringify(m2.bbLoadout||[null,null]));}catch(e){}}
+function loadBBLoadout(){try{const a=JSON.parse(localStorage.getItem('frcds_bbload_v1')||'null');return (Array.isArray(a)&&a.length===2)?a:[null,null];}catch(e){return [null,null];}}
+function bbLoadoutTouched(ld){if(m2.bbLoadout&&(m2.bbLoadout[0]===ld||m2.bbLoadout[1]===ld))saveBBLoadout();} // a generic cycler touched a 1v1 loadout → persist it (grid seats are ignored)
 function bbClaimEnsure(pl){if(!m2.bbLoadout)m2.bbLoadout=[null,null];if(!m2.bbLoadout[pl])m2.bbLoadout[pl]={weapon:'wedge',armor:'balanced',perk:'none'};return m2.bbLoadout[pl];} // v5.1.104: default 1v1 claim loadout = the DOZER blade (no RAM-only default); v5.1.136: + perk slot (NONE default)
-function bbClaimAutobuild(pl){if(!m2.bbLoadout)m2.bbLoadout=[null,null];const c=m2.claim&&m2.claim[pl],tier=(c&&c.type==='cpu')?(c.tier|0):2;m2.bbLoadout[pl]=bbCpuPickLoadout(tier);sfx('click');} // roll a concrete weapon+armor you can then tweak
+function bbClaimAutobuild(pl){if(!m2.bbLoadout)m2.bbLoadout=[null,null];const c=m2.claim&&m2.claim[pl],tier=(c&&c.type==='cpu')?(c.tier|0):2;m2.bbLoadout[pl]=bbCpuPickLoadout(tier);sfx('click');saveBBLoadout();} // roll a concrete weapon+armor you can then tweak; v5.1.249 persist
 // ── v5.1.203 1v1 CLAIM CARDS get the same drag-drop ARMORY RAIL as the 3v3 grid (drag a chip onto a card) — see all options at once ──
 function bb1v1ArmoryOn(){return phase==='p2claim'&&m2.mode==='battlebots'&&!tankGridMode()&&!tour;} // the legacy 2-card RoboRumble claim (1v1)
 function bb1v1SideAt(mx,my){for(let pl=0;pl<2;pl++){if(inR(mx,my,p2cCardRect(pl)))return pl;}return -1;} // which 1v1 card (0/1) is under the point
 function bb1v1Equip(pl,kind,id){const ld=bbClaimEnsure(pl); // drop a chip on a card → set its weapon/armor/perk in m2.bbLoadout[pl] (read by bbLoadoutForBind)
-  if(kind==='weapon'&&BB_WEAPONS.some(w=>w.id===id)){ld.weapon=id;return true;}
-  if(kind==='armor'&&BB_ARMOR.some(a=>a.id===id)){ld.armor=id;return true;}
-  if(kind==='perk'&&BB_PERKS.some(p=>p.id===id)){ld.perk=id;return true;}
-  return false;}
+  if(kind==='weapon'&&BB_WEAPONS.some(w=>w.id===id)){ld.weapon=id;saveBBLoadout();return true;}
+  if(kind==='armor'&&BB_ARMOR.some(a=>a.id===id)){ld.armor=id;saveBBLoadout();return true;}
+  if(kind==='perk'&&BB_PERKS.some(p=>p.id===id)){ld.perk=id;saveBBLoadout();return true;}
+  return false;} // v5.1.249 persist on equip
 // v5.1.137: 3v3 grid — one button rolls a fresh loadout for EVERY non-player (CPU) seat; human seats are left alone
 function bbGridHasCpu(){return (m2.tseats||[]).some(s=>s&&s.type==='cpu');}
 function bbGridAutoRect(){return {x:CW/2-322,y:CH-84,w:184,h:30};} // v5.1.150 moved to the bottom row (left of START) so it no longer covers the ARMORY drag-drop rail
@@ -9294,6 +9298,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.249 (2026-06-19): your 1v1 RoboRumble LOADOUT now PERSISTS across sessions. It used to reset to default every time you entered the multiplayer menu (`p2Enter` wiped `m2.bbLoadout`), so weapon/armor/perk/paint/accent never stuck. Now `saveBBLoadout`/`loadBBLoadout` (localStorage `frcds_bbload_v1`) persist it: every equip / cycler / autobuild / swap saves, and `p2Enter` restores your last setup. Grid (3v3) seats are left out (transient per-match). smoke57 +2. Full battery green.
   v5.1.248 (2026-06-19): independent ACCENT color (Sam request). The paint is now TWO picks: a BODY skin (PAINT_JOBS, click the bot preview) + a separate ACCENT color (new ACCENT_COLS palette — click the 🎨 dot) that recolors the stroke / bumper / WHEELS independently. `bbPaintFor(ld)` composes body+accent (accent 0 = the skin's own accent; accent-only = neutral dark body + your accent); `bbCycleAccent` + the 🎨 dot on the 1v1 card and each 3v3 grid seat. `accent` passes through `bbResolveLoadout` so it renders in-match. smoke57 +6. Full battery green.
   v5.1.247 (2026-06-19): FIX + polish — CUSTOM PAINT now actually shows IN-MATCH, and it paints the WHEELS too (Sam playtest). (1) BUG: `bbResolveLoadout` rebuilt the loadout for the match but DROPPED the `paint` field, so the in-match bot's `ld.paint` was undefined → `_bbPaint` stayed null → the chosen color only ever showed on the setup preview, never in game. Now `paint` passes through. (2) The paint palette now also tints the WHEELS (and swerve pods / chassis details) to the chosen accent — `drawRobot`'s wheel `col` becomes the paint accent when a custom paint is active (livery/Original-Sin still overrides). So picking a color now recolors the whole bot, in-match. smoke57 +2. Full battery green.
   v5.1.246 (2026-06-19): hover-tip DESCRIPTIONS refreshed (weapons / armor / perks) — accuracy pass + counter hints (Sam playtest). Fixes: CANNON no longer claims base shells are "explosive" (they're only EXPLOSIVE with the cheat); ARMOR blurbs now state the rock-paper-scissors that actually drives loadout choice — HARDPLATE resists kinetic but FLAME melts it, HEATSHIELD is the flame answer (~18% general cut), LIGHT gets shredded by spinners. Added the key nuances that had drifted: SPINNER self-damages on walls, BUZZSAW holds speed after a bite, PINCER shrugs off damage mid-clamp, KAMIKAZE costs a life, SPARE TIRE is once-per-match. All in `BB_DESC`. Full battery green.

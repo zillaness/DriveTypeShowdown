@@ -1344,6 +1344,12 @@ src+=`
    ok('no body + no accent = null (team default)',bbPaintFor({paint:0,accent:0})===null);
    const l2={accent:0};bbCycleAccent(l2,1);ok('bbCycleAccent advances the accent index',l2.accent===1);
    ok('bbResolveLoadout preserves ACCENT into the match',bbResolveLoadout({weapon:'spinner',armor:'light',accent:4}).accent===4);}
+  // v5.1.249 the 1v1 RoboRumble loadout persists across sessions
+  {const sv=m2.bbLoadout;m2.bbLoadout=[{weapon:'spinner',armor:'light',perk:'vampire',paint:2,accent:5},null];saveBBLoadout();
+   m2.bbLoadout=[null,null]; // simulate the menu-entry reset
+   const r=loadBBLoadout();
+   ok('1v1 loadout round-trips through localStorage (weapon/armor/perk/paint/accent)',!!r[0]&&r[0].weapon==='spinner'&&r[0].armor==='light'&&r[0].perk==='vampire'&&r[0].paint===2&&r[0].accent===5);
+   ok('loadBBLoadout always returns a length-2 array',Array.isArray(r)&&r.length===2);m2.bbLoadout=sv;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
