@@ -81,6 +81,16 @@ src+=`
   {const T=(l,c)=>console.log((c?'ok — ':'FAIL — ')+l);
    tour={format:'double',names:[]};T('double-elim caps entrants at 8',tourMaxEntrants()===8);
    tour.format='single';T('single-elim caps entrants at 16',tourMaxEntrants()===16);}
+  // ── v5.1.238 T4: RoboRumble tournament votes on the arena before each match ──
+  {const T=(l,c)=>console.log((c?'ok — ':'FAIL — ')+l);m2.set=m2.set||{};
+   tour={names:['A','B','C','D'],drv:[null,null,null,null],policy:'open',seedMode:'rand',format:'single',mode:'battlebots',buf:'',seeds:[],M:[],qi:0};
+   tourBuild();phase='x';tourStartMatch();
+   T('RoboRumble tournament match opens the arena VOTE first',phase==='p2mapvote'&&!!mapVote);
+   mapVotePick(0);
+   T('resolving the vote proceeds into the match (drive pick) + sets the arena',phase==='p2drive'&&m2.set.map===0);
+   tour={names:['A','B','C','D'],drv:[null,null,null,null],policy:'open',seedMode:'rand',format:'single',mode:'normal',buf:'',seeds:[],M:[],qi:0};
+   tourBuild();phase='x';mapVote=null;tourStartMatch();
+   T('non-RoboRumble tournament skips the vote (straight to drive)',phase==='p2drive'&&!mapVote);}
   tour=null;bb2=null;console.log('done');
 })();
 `;

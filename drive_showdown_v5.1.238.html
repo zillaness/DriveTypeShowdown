@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.237.html
-  version: 5.1.237
+  file: drive_showdown_v5.1.238.html
+  version: 5.1.238
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -4951,7 +4951,7 @@ function bbMode(){return (m2.set&&m2.set.bbmode)||'ko';}
 // The tournament will pass an onDone that starts the match; the standalone gallery path just selects the arena. Countdown is wall-clock (no update-loop hook).
 let mapVote=null; // {endT, dur, onDone}
 function mapVoteCandidates(){return (m2.mode==='battlebots')?[...TF2_MAPS.map((m,i)=>i),...customMaps.map(m=>m.id)]:[0,1,2,3];} // concrete arenas only (no 'rand'/'new'/'vote')
-function startMapVote(seconds,onDone){mapVote={endT:(typeof performance!=='undefined'?performance.now():0)+seconds*1000,dur:seconds,onDone:onDone||((m)=>{m2.set.map=m;phase='p2bbmap';sfx('claim');})};phase='p2mapvote';sfx('click');}
+function startMapVote(seconds,onDone,onCancel){mapVote={endT:(typeof performance!=='undefined'?performance.now():0)+seconds*1000,dur:seconds,onDone:onDone||((m)=>{m2.set.map=m;phase='p2bbmap';sfx('claim');}),onCancel:onCancel||null};phase='p2mapvote';sfx('click');} // v5.1.238 onCancel lets a caller (e.g. a tournament) override Esc → resolve instead of bailing to the gallery
 function mapVoteRemain(){return mapVote?Math.max(0,(mapVote.endT-(typeof performance!=='undefined'?performance.now():0))/1000):0;}
 function mapVotePick(mapKey){if(!mapVote)return;const cb=mapVote.onDone;mapVote=null;if(cb)cb(mapKey);} // a concrete choice (or 'rand')
 function mapVoteAutoRandom(){const c=mapVoteCandidates();mapVotePick(c.length?c[Math.floor(Math.random()*c.length)]:0);} // timeout / no agreement → random concrete arena
@@ -6080,9 +6080,14 @@ function tourEntrants(m){
 function tourStartMatch(){
   const m=tourNext();if(!m)return;
   tour.cur=m;
-  const [eA,eB]=tourEntrants(m);
-  tour.curE=[eA,eB];
+  tour.curE=tourEntrants(m);
   m2.mode=tour.mode;
+  // v5.1.238 T4: RoboRumble tournaments vote on the arena first (open pick, countdown→random; Esc resolves to random)
+  if(tour.mode==='battlebots'){startMapVote(15,(mapKey)=>{m2.set.map=mapKey;tourProceedMatch();},()=>mapVoteAutoRandom());return;}
+  tourProceedMatch();
+}
+function tourProceedMatch(){
+  const [eA,eB]=tour.curE;
   if(tour.policy==='closed'&&tour.drv[eA]&&tour.drv[eB]){
     m2.drive[0]=tour.drv[eA];m2.drive[1]=tour.drv[eB];
     m2.claim=[null,null];m2._gpPrev=gpBtnsAll.map(a=>a?a.slice():a);phase='p2claim';
@@ -6308,7 +6313,7 @@ function p2Back(){
   else if(phase==='p2race'&&tour&&tour.cur){r2=null;applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if((phase==='p2tank'||phase==='p2ball')&&tour&&tour.cur){r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if(phase==='p2drive'){if(m2._dp===1)m2._dp=0;else if(tour&&tour.cur){tour.cur=null;phase='p2tbracket';}else phase='p2modes';}
-  else if(phase==='p2mapvote'){mapVote=null;phase='p2bbmap';} // v5.1.236 Esc cancels the open-pick vote
+  else if(phase==='p2mapvote'){if(mapVote&&mapVote.onCancel){mapVote.onCancel();}else{mapVote=null;phase='p2bbmap';}} // v5.1.236 Esc cancels the open-pick vote; v5.1.238 a caller's onCancel (tournament) resolves instead
   else if(phase==='p2mapedit'){mapEd=null;phase='p2bbmap';} // v5.1.233 Esc from the editor → back to the gallery
   else if(phase==='p2bbmap'){phase='p2settings';} // v5.1.147 Esc from the map picker → settings
   else if(phase==='p2settings'){phase='p2modes';}
@@ -9161,6 +9166,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.238 (2026-06-19): TOURNAMENT v2 — T4 map vote WIRED into matches. A RoboRumble (battlebots-mode) tournament now runs the open-pick arena vote (v5.1.236) before EACH match: `tourStartMatch` → `startMapVote(15, onDone=set arena+proceed, onCancel=auto-random)` → `tourProceedMatch` (the old drive/claim tail, extracted). Non-RoboRumble tournaments skip the vote (straight to drive). `startMapVote` gained an `onCancel` arg so a caller can override Esc (the tournament resolves to random instead of bailing to the gallery). smoke33 +3. Full battery green. (Next: captain-draft screen + 3v3 routing + manual seeding — see HANDOFF.)
   v5.1.237 (2026-06-19): TOURNAMENT v2 — format-aware ENTRANT CAP. From the locked design (double-elim "FRC mode" = up to 8 alliances; single-elim party = up to 16): `tourMaxEntrants()` returns 8 for double / 16 for single, and the registration name-entry (both the keyboard `Enter` and the DOM text-input commit paths) now gates additions by it instead of a flat 16; the BRACKET option label shows the cap ("DOUBLE ELIMINATION · up to 8" / "SINGLE ELIMINATION · up to 16"). Non-destructive (only gates NEW additions; never trims an existing list). NOTE for the next thread: the tournament BRACKET ENGINE was found to be far more complete than the docs claimed — the FORMAT toggle + full double-elim (losers bracket + Bo3 grand final) + bracket render + seeding (random/qualifier) + drive policy are ALL already built & reachable in the p2tnames setup screen. The real remaining Tournament-v2 work is the FRC layer: wire the headless `tourAllianceDraft` into a captain-draft SCREEN, route matches through the 3v3 grid (today `tourStartMatch` is 1v1), wire the v5.1.236 open-pick map vote into `tourStartMatch`, and add MANUAL seeding. See HANDOFF_2026-06-19.md → "⚠️ CORRECTED STATE". smoke33 +2. Full battery green.
   v5.1.236 (2026-06-19): TOURNAMENT v2 — OPEN-PICK MAP VOTE (T4, first piece). A self-contained, reusable arena-vote module: **`startMapVote(seconds, onDone)`** opens a new screen (`phase==='p2mapvote'`, `drawMapVote`) showing the arena tiles with a **countdown bar**; anyone can tap a tile to lock it (`mapVotePick`), and on timeout the vote **auto-RANDOMIZES** to a concrete arena (`mapVoteAutoRandom`) — exactly Sam's "open / group discussion, randomize if no agreement" rule, and the agreed FIRST tournament build (no dependency on the bracket/seeding infra; the higher-seed / winners-bracket "whose turn" gate layers on later). Countdown runs off wall-clock (no update-loop hook); taps route through the normal click/touch dispatcher (no match-start path touched — safe). Reachable now via a **🗳 OPEN PICK** button on the RoboRumble ARENA gallery (15s demo; default onDone just selects the arena). The tournament will pass an onDone that starts the match. smoke57 +6 (open/arm, candidates, tap-resolves-once, timeout, auto-random, default onDone) → 521. Full battery green. Single file. (Next: tournament FORMAT setting + double-elim engine + captain draft — see HANDOFF_2026-06-19.md / OVERNIGHT_PLAN.md.)
   v5.1.235 (2026-06-19): CUSTOM MAP EDITOR — TOUCH support + UNDO (F5, ship 3/3 — feature complete). The editor was mouse-only; now its tool taps + drag-to-draw work on TOUCH too (the touchstart/move/end handlers route to `mapEditDown`/`Move`/`Up`, tracking the active touch id `mapEd._touch`). Added single-step+ **UNDO** — a `↶` button (next to BACK) and the **Z** key step back through a 40-deep snapshot stack (`mapEd.undo`, pushed before every wall/pit/saw/pickup/erase/clear); UNDO past the start is a safe no-op. That completes the custom map editor: build (ship 1) → share codes (ship 2) → touch + undo (ship 3). smoke57 +4 (undo across actions + no-op past start). Full battery green. Single file, no assets.
