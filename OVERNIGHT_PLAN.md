@@ -9,6 +9,11 @@
 
 **🎬 FUTURE VISION — CAREER / STORY MODE (Sam, 2026-06-19):** a narrative campaign that threads the existing modes into a progression as the player "grows up": **middle school** = learning to drive → **OBSTACLE RACE**; **high school** seasons = the **BALL** modes, first PUSHER then SHOOTER the next season; **college** = TANK FIGHT framed as "the video game you play in your dorm"; **graduate** = you're now competing in **ROBORUMBLE**. Big feature (new meta-shell: progression state, unlocks, story beats between matches) — captured here so it isn't lost; not scoped yet.
 
+**🎮 LIVE PLAYTEST QUEUE (2026-06-19, Sam — newest first):**
+- **PUSH-BALL weapon interactions** (design open): body-shove works for all bots; Sam wants weapons to react. Easy = dozer/pincer/pusher/jet (physical). Open Qs = flame (hot-gas nudge?), spinner/buzzsaw (contact fling off-angle?), piston (whack), cannon (shell shove). Proposed scheme pending Sam's confirm. (Physics phasing/spawn bug FIXED v5.1.222.)
+- **CONTROLLER COMPAT gaps:** (a) the **SPLASH** screen should be controller-navigable (gamepad can't drive the front door); (b) you **can't fully set up the 3v3 card picker with only a controller** (some seats/loadout/start need mouse). Audit gamepad nav across splash → grid → loadout → start.
+- **ABSOLUTE HEADING default coupling** (design): should **field-centric drive default absolute-heading ON**, and **robot-centric default it OFF** (rate turn)? Both stay toggleable for fun — this only changes the DEFAULT. (My read: yes — field-centric + absolute heading are both field-frame = coherent; robot-centric pairs naturally with rate turn. Only meaningful for holonomic/swerve drives.)
+
 **Backlog / what's parked (most needs Sam in the loop):**
 - **STOCK → 6-player FFA** (F4) — scoped ~10h+ (engine hard-wires 2 sides: spawn, win-detection, ~51 touchpoints). Recommend a playtest session, not unattended. No separate format toggle — the lives/timer settings (kept valid by the respawn↔timer rule) pick last-standing vs most-kills.
 - **Tournament v2** (F3) — T2 (3v3 grid) / T4 (per-match map) / T1 (input typing). Model landed (`tourAllianceDraft`); rest is UI + decisions. Needs Sam.

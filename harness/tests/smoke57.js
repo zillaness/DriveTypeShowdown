@@ -1093,6 +1093,15 @@ src+=`
    ok('PUSH-BALL: ball in the LEFT goal scores for side 1 + resets to center',bb2.pscore[1]===1&&Math.abs(bb2.pball.x-FW/2)<1);
    bb2.bots=[];bb2.pball={x:20,y:FH/2,vx:0,vy:0};bb2.pscore=[0,BB_PB_TARGET-1];bb2.result=null;bbModeUpdate(0.05);
    ok('PUSH-BALL: reaching the goal target wins',bb2.result===1);
+   // v5.1.222 ball PHYSICS: spawn clear of obstacles + reflect off them (was phasing through + spawning inside a center pillar)
+   {const savO=tfObs;tfObs=[{x:FW/2-60,y:FH/2-90,w:120,h:180}]; // a center pillar like the 'pillar' arena
+    const pbS={x:0,y:0,vx:0,vy:0};bbBallSpawn(pbS,FW/2,FH/2);
+    ok('PUSH-BALL: ball spawns CLEAR of a center pillar (not inside the obstacle)',bbBallClear(pbS.x,pbS.y,BB_PB_R));
+    const pbE={x:FW/2,y:FH/2,vx:0,vy:0};bbBallObs(pbE,BB_PB_R);const O=tfObs[0]; // a ball overlapping the pillar centre
+    ok('PUSH-BALL: a ball overlapping an obstacle is ejected out of it',!(pbE.x>O.x&&pbE.x<O.x+O.w&&pbE.y>O.y&&pbE.y<O.y+O.h));
+    const pbR={x:(FW/2-60)-BB_PB_R+8,y:FH/2,vx:150,vy:0};bbBallObs(pbR,BB_PB_R); // pressed into the left face, moving INTO it
+    ok('PUSH-BALL: a ball is REFLECTED (bounces back) off an obstacle face',pbR.vx<0);
+    tfObs=savO;}
    // STOCK (limited lives + respawn)
    ok('GAME MODE includes STOCK',BB_MODES.some(m=>m.id==='stock'));
    m2.set.bbmode='stock';
