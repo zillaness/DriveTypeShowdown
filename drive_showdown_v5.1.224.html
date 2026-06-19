@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.223.html
-  version: 5.1.223
+  file: drive_showdown_v5.1.224.html
+  version: 5.1.224
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -4227,6 +4227,7 @@ function bbHitLoc(victim,fromX,fromY){ // contact point (toward the other bot) c
 }
 function bbApplyHit(victim,loc,dmg,owner,fromX,fromY,frontPierce){ // kinetic hit: front immune (unless PIERCING), rear→HP, side→mobility (+ a corner WHEEL) then spillover
   if(victim.dead||victim.inv>0||dmg<=0||(victim._lastStandT>0))return; // v5.1.181 LAST STAND: invulnerable during its window
+  if(bbEggActive(victim)==='originalsin'){bbEggUnlock('originalsin');return;} // v5.1.224 ORIGINAL SIN egg buff = INDESTRUCTIBLE — immune to all kinetic damage (the legendary won't-die wedge)
   if(victim.ld&&victim.ld.reactive&&owner!=null&&bb2&&bb2.bots[owner]){ // v5.1.160 REACTIVE ARMOR: the FIRST hit on each side (front / side ×2 / rear) is fully ABSORBED (no damage taken) AND blasts the attacker for meaningful damage; then that side's charge is spent
     if(!victim._react)victim._react={front:1,side:2,rear:1};
     if(victim._react[loc]>0){victim._react[loc]--;
@@ -4525,6 +4526,7 @@ function bbContactDmg(att,ram){ // contact (ram) damage a weapon deals to the fo
 }
 function bbApplyFlame(victim,dmg,owner){ // THERMAL: continuous, IGNORES directional armor (burns the FRONT too); feeds the blow-up meter (P2.3)
   if(victim.dead||dmg<=0||(victim._lastStandT>0))return; // v5.1.181 LAST STAND: invulnerable during its window
+  if(bbEggActive(victim)==='originalsin'){bbEggUnlock('originalsin');return;} // v5.1.224 ORIGINAL SIN = INDESTRUCTIBLE — immune to flame/blow-up too
   if((victim.ld&&victim.ld.perk)==='flameproof'||(victim.ld&&victim.ld.armor==='heatshield'))return; // v5.1.112 FLAMEPROOF perk OR v5.1.181 HEATSHIELD armor: immune to flame DPS + blow-up
   const atk=(owner!=null&&bb2&&bb2.bots[owner])?bb2.bots[owner]:null;
   const deal=((atk&&atk.ld)?atk.ld.deal:1)*bbAdrenaline(atk)*((atk&&(atk._repairBuffT||0)>0)?BB_W.repairDmgBuff:1),take=victim.ld?victim.ld.take:1,rps=bbRps(atk&&atk.ld?atk.ld.wcls:'thermal',victim.ld?victim.ld.arps:'balanced'); // v5.1.181 ADRENALINE + v5.1.198 REPAIR buff scale flame HP damage too
@@ -4654,7 +4656,7 @@ function bbGrabUpdate(dt){ // v5.1.103 DOZER grab-and-slam: a gripped foe is STU
     if(a.dead||c.dead||!(a.ld&&(a.ld.weapon==='wedge'||a.ld.weapon==='pincer'))){bbGrabRelease(a);continue;}
     a.grabT=(a.grabT||0)-dt;
     c.x=a.x+Math.cos(a.h)*RR*2;c.y=a.y+Math.sin(a.h)*RR*2;c.pinT=BB_W.wedgePinT; // glue to the holder's front + keep it pinned
-    if(c.firing&&a.inv<=0&&bbFoeAngOk(c,a,Math.PI*0.62)){const fb=BB_W.heldFightDps*dt;a.hp-=fb;if(c.side!==a.side)c.dmgDealt=(c.dmgDealt||0)+fb;if(c.ctl)p2Rumble(c.ctl.bind,0.25,'bite');if(a.ctl)p2Rumble(a.ctl.bind,0.2);if(a.hp<=0&&!a.dead){const oi=bb2.bots.indexOf(c);bbGrabRelease(a);bbKill(a,oi);continue;}} // v5.1.197 FIGHT BACK: a held captive that TURNS to face its captor + FIRES grinds it down (works for any weapon incl. dozer) — holding a foe is now RISKY
+    if(c.firing&&a.inv<=0&&bbEggActive(a)!=='originalsin'&&bbFoeAngOk(c,a,Math.PI*0.62)){const fb=BB_W.heldFightDps*dt;a.hp-=fb;if(c.side!==a.side)c.dmgDealt=(c.dmgDealt||0)+fb;if(c.ctl)p2Rumble(c.ctl.bind,0.25,'bite');if(a.ctl)p2Rumble(a.ctl.bind,0.2);if(a.hp<=0&&!a.dead){const oi=bb2.bots.indexOf(c);bbGrabRelease(a);bbKill(a,oi);continue;}} // v5.1.197 FIGHT BACK: a held captive that TURNS to face its captor + FIRES grinds it down (works for any weapon incl. dozer) — holding a foe is now RISKY; v5.1.224 an INDESTRUCTIBLE Original Sin captor doesn't take the grind
     if(a.ld.weapon==='pincer'){ // v5.1.140 PINCER clamp — held as long as the trigger is down (NO forced timer — v5.1.198). The COUNTER is the captive's FIGHT-BACK (above): grinding the holder makes it WANT to let go.
       if(!a.firing){bbGrabRelease(a);continue;} // the holder lets go by releasing fire (its choice — usually when the fight-back damage piles up)
       c.mob=Math.max(0,c.mob-BB_W.pincerDrain*dt); // slower drain (38)
@@ -5207,7 +5209,7 @@ function bbDrawWeapon(b){ // P2.2 basic weapon cosmetics (the picker UI + polish
   }else if(w==='wedge'){ctx.rotate(b.h); // v5.1.101 BULLDOZER BLADE — a low, curved front plow (replaces the old triangle); turns amber while firing, red while gripping
     const front=RR*1.05,half=RR*1.0,grab=!!b.grab;
     ctx.strokeStyle='#6b7686';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(RR*0.3,-half*0.5);ctx.lineTo(front-RR*0.2,-half*0.86);ctx.moveTo(RR*0.3,half*0.5);ctx.lineTo(front-RR*0.2,half*0.86);ctx.stroke();ctx.lineCap='butt'; // push-arms back to the chassis
-    ctx.fillStyle=grab?'#ff6a4d':(b.firing?'#ffd24d':(bbNameEgg(b)==='originalsin'?'#ffd21a':'#b9c4d4')); // the blade — v5.1.221 ORIGINAL SIN runs a YELLOW dozer blade
+    ctx.fillStyle=grab?'#ff6a4d':(bbNameEgg(b)==='originalsin'?'#ffe600':(b.firing?'#ffd24d':'#b9c4d4')); // the blade — v5.1.221/v5.1.224 ORIGINAL SIN runs a BRIGHT-YELLOW dozer blade (always, even while firing)
     ctx.beginPath();ctx.moveTo(front,-half);ctx.quadraticCurveTo(front+RR*0.5,0,front,half);ctx.lineTo(front-RR*0.34,half);ctx.quadraticCurveTo(front+RR*0.05,0,front-RR*0.34,-half);ctx.closePath();ctx.fill();
     ctx.strokeStyle='#20202c';ctx.lineWidth=1.6;ctx.stroke();
     ctx.strokeStyle='#20202c';ctx.lineWidth=1;for(let i=-2;i<=2;i++){const yy=i*half*0.4;ctx.beginPath();ctx.moveTo(front-RR*0.28,yy);ctx.lineTo(front+RR*0.03,yy);ctx.stroke();} // blade ribs
@@ -6904,15 +6906,6 @@ function drawTrack(x1,x2,y,spin,color){
     ctx.beginPath();ctx.moveTo(tx,y-h/2);ctx.lineTo(tx,y+h/2);ctx.stroke();}
   ctx.strokeStyle=color+'99';ctx.lineWidth=1.2;ctx.strokeRect(x1,y-h/2,x2-x1,h);
 }
-function drawSinWheel(cx,cy,spin){ // v5.1.221 a round BLACK wheel with a silver hub + spinning spokes (ORIGINAL SIN runs 4 wheels even in tank drive)
-  ctx.save();ctx.translate(cx,cy);
-  ctx.fillStyle='#0a0a0c';ctx.beginPath();ctx.arc(0,0,6,0,Math.PI*2);ctx.fill(); // tyre
-  ctx.strokeStyle='#33343c';ctx.lineWidth=1.4;ctx.stroke();
-  ctx.rotate(spin*0.6);ctx.strokeStyle='#5a5e6a';ctx.lineWidth=1.2; // spinning spokes
-  ctx.beginPath();ctx.moveTo(-4.5,0);ctx.lineTo(4.5,0);ctx.moveTo(0,-4.5);ctx.lineTo(0,4.5);ctx.stroke();
-  ctx.fillStyle='#c6cad6';ctx.beginPath();ctx.arc(0,0,2,0,Math.PI*2);ctx.fill(); // silver hub
-  ctx.restore();
-}
 // Swerve module: prominent housing + rotating wheel + direction arrow
 function drawSwerveWhl(cx,cy,dir,spin,color){
   ctx.save();ctx.translate(cx,cy);
@@ -6985,9 +6978,10 @@ function drawWheels(inp,layer){
   if(id==='tank'||id==='arcade'){
     const lv=inp.vx-inp.vr*RR*0.7,rv=inp.vx+inp.vr*RR*0.7;
     wSpin.l=(wSpin.l+lv*S+M)%M; wSpin.r=(wSpin.r+rv*S+M)%M;
-    if(_bbLivery&&BB_LIVERY[_bbLivery]&&BB_LIVERY[_bbLivery].wheels4){ // v5.1.221 ORIGINAL SIN runs 4 round BLACK wheels (animated spin), not treads
-      drawSinWheel( RR*0.6,-(RR+3),wSpin.l);drawSinWheel(-RR*0.6,-(RR+3),wSpin.l);
-      drawSinWheel( RR*0.6, (RR+3),wSpin.r);drawSinWheel(-RR*0.6, (RR+3),wSpin.r);
+    if(_bbLivery&&BB_LIVERY[_bbLivery]&&BB_LIVERY[_bbLivery].wheels4){ // v5.1.221/v5.1.224 ORIGINAL SIN runs 4 BLACK H-strafer-style wheels (no center strafe wheel), animated spin — not treads
+      const Y=RR+3,BW='#2c2c36'; // gunmetal-black omni wheels
+      drawOmniWhl( RR*0.6,-Y,0,wSpin.l,BW);drawOmniWhl(-RR*0.6,-Y,0,wSpin.l,BW);
+      drawOmniWhl( RR*0.6, Y,0,wSpin.r,BW);drawOmniWhl(-RR*0.6, Y,0,wSpin.r,BW);
     }else{
       drawTrack(-RR+1,RR-1,-(RR+3),wSpin.l,col);
       drawTrack(-RR+1,RR-1,(RR+3),wSpin.r,col);
@@ -8983,6 +8977,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.224 (2026-06-19): ORIGINAL SIN egg polish (Sam playtest). (1) WHEELS — the 4 black wheels are now the **H-strafer omni-wheel** style (`drawOmniWhl` in gunmetal-black at the 4 corners ±RR*0.6, ±(RR+3)), **no center strafe wheel**, still spinning off the tread spin (`wSpin.l/r`); the old round-spoke `drawSinWheel` helper is removed. (2) BLADE — the dozer plow is now **bright yellow** (`#ffe600`, up from `#ffd21a`) and stays yellow even while firing. (3) BUFF — the Original Sin egg buff is now **INDESTRUCTIBLE** (Sam: "the perk should be indestructible"): an active Original Sin (its name + TANK drive + DOZER blade) takes **zero kinetic AND zero flame/blow-up damage** (guards at the top of `bbApplyHit` + `bbApplyFlame`), and a held captor doesn't take the fight-back grind — the legendary won't-die wedge. Still gated to the buff conditions (name alone = paint only); balance sim unaffected (sim bots aren't egg-named). smoke57 +3 (indestructible to kinetic + flame; non-egg bot still takes damage), −1 (drawSinWheel test → omni-wheel renderer) → 470. Full battery green. Single file, no assets.
   v5.1.223 (2026-06-19): PUSH-BALL — FLAVORED weapon interactions (Sam: "all interact, flavored"). On top of the base body-shove (every bot, speed-scaled), each weapon now hits the ball its own way: **PUSHER** = a big forward FLING, **PISTON** = a hard directional WHACK (both fire on the stroke FX window), **JET** = a sustained shove scaled by thrust, **FLAME** = a gentle hot-gas NUDGE along the cone (can nudge, can't dominate), **SPINNER/BUZZSAW** = a chaotic OFF-ANGLE fling (adds a perpendicular component, stronger with RPM), and **CANNON** shells SHOVE the ball at range (then the shell is consumed). **PINCER can CLAMP + CARRY the ball** (Sam) — a firing pincer that's facing the ball glues it to its front and drives it goalward until it's KNOCKED LOOSE (any other bot touching the ball releases it), the holder lets go, or it scores. `pb.heldBy` tracks the carrier; the free-physics shove/flavor loops are skipped while carried. (Dozer/drill ride the existing body-shove — their blade/front already plows the ball.) smoke57 +5 (spinner off-angle fling; pincer clamp→carry→knock-loose; cannon shell shove) → 467. Full battery green. Single file, no assets.
   v5.1.222 (2026-06-19): PUSH-BALL physics FIX — no more phasing through obstacles or spawning inside one (Sam playtest). The push-ball only ever bounced off the ARENA walls; it sailed straight through the map's pillars/walls, and on the CENTER-PILLAR arena it spawned the ball INSIDE the pillar. Two new helpers: `bbBallObs(pb,r)` reflects the ball off every map obstacle each frame (deep-penetration eject along the shallowest axis + a 0.6-restitution bounce off faces — mirrors the bot `obsCheck` but bounces instead of just stopping), and `bbBallSpawn(pb,cx,cy)` places the ball at the first CLEAR candidate point (center if open, else stepped offsets) on both the opening kickoff and every post-goal reset (`bbBallClear` validates walls + obstacles). Win conditions were already correct (first to BB_PB_TARGET=3 goals, OR most goals when the TIME LIMIT clocks out via `bbTimeUpResult`). NOTE: richer per-weapon ball interactions (pusher fling / piston whack / spinner-buzzsaw flings / flame nudge / cannon-shell shove) are a tracked follow-up — for now every bot shoves the ball by BODY contact (scaled by speed). smoke57 +3 (spawns clear of a center pillar; an overlapping ball is ejected; a ball reflects off an obstacle face) → 462. Full battery green. Single file, no assets.
   v5.1.221 (2026-06-19): BOT-NAME EGGS get FULL LIVERY (was a bare two-tone ring). The three named eggs now repaint the whole chassis instead of drawing just a colored ring (Sam: "full custom paint"). New `BB_LIVERY` table + a `_bbLivery` flag set around the RoboRumble `drawRobot` call so the shared body/wheel render knows which livery to paint. **ORIGINAL SIN** (Sam's exact spec from the real bot): mostly **black + silver body**, a **YELLOW dozer blade** (the wedge weapon render turns yellow for this egg), and — even in TANK/ARCADE drive — **4 round BLACK wheels instead of treads**, animated/spinning (new `drawSinWheel` with a silver hub + rotating spokes, driven by the existing `wSpin` left/right tread-spin). **OPTIMUS** = blue cab + red rear split, blue/red trim. **BUMBLEBEE** = black body + yellow racing stripes. The old `BB_EGG_PAINT` ring is suppressed when a full livery exists; the `bbEggActive` ★ buff star stays. (In-match render only for now; the 1v1 card / 3v3 grid previews still show the base chassis — a follow-up.) smoke57 +4 (livery table, Original Sin 4-wheel/black-silver spec, Bumblebee stripes + Optimus split, drawSinWheel renders). Full battery green. Single file, no assets.

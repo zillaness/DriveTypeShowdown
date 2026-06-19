@@ -779,13 +779,17 @@ src+=`
    m2.drive[0]={kind:'main',idx:0};const op2=bbBotWith('none','balanced',0,0,true);op2.ctl.name='Optimus Prime';ok('OPTIMUS on a NON-steering drive = paint only, NO buff',bbEggActive(op2)===null&&bbNameEgg(op2)==='optimus');
    const os=bbBotWith('wedge','balanced',0,0,true);os.ctl.name='Original Sin';os.wheels=[{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
    bbWheelDamage(os,100,null,null);ok('ORIGINAL SIN (tank+blade): wheels are INVULNERABLE',os.wheels.every(w=>!w.dead&&w.hp===40));
+   os.inv=0;os.hp=BB.HP;os.burn=0;os._lastStandT=0;bbApplyHit(os,'rear',999,null,os.x+50,os.y); // v5.1.224 INDESTRUCTIBLE buff
+   ok('ORIGINAL SIN buff = INDESTRUCTIBLE (kinetic damage does nothing)',os.hp===BB.HP&&!os.dead);
+   bbApplyFlame(os,999,null);ok('ORIGINAL SIN: immune to flame + blow-up too',os.hp===BB.HP&&(os.burn||0)===0);
+   const osN=bbBotWith('wedge','balanced',0,0,true);osN.ctl.name='RANDO';osN.inv=0;osN.hp=BB.HP;osN._lastStandT=0;bbApplyHit(osN,'rear',999,0,osN.x+50,osN.y);ok('a NON-egg bot still takes kinetic damage (indestructibility is egg-gated)',osN.hp<BB.HP);
    const os2=bbBotWith('wedge','balanced',0,0,true);os2.ctl.name='RANDO';os2.wheels=[{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
    bbWheelDamage(os2,100,null,null);ok('a normal bot DOES take wheel damage',os2.wheels.some(w=>w.dead||w.hp<40));m2.drive[0]=sd;}
   // ── v5.1.221: P6 egg FULL LIVERY (full-body paint replaces the old two-tone ring) ──
   {ok('BB_LIVERY defines a full paint job for all three eggs',!!(BB_LIVERY.optimus&&BB_LIVERY.bumblebee&&BB_LIVERY.originalsin));
    ok('ORIGINAL SIN livery runs 4 wheels even in tank drive + black/silver body (Sam spec)',BB_LIVERY.originalsin.wheels4===true&&BB_LIVERY.optimus.wheels4!==true&&!!BB_LIVERY.originalsin.body&&!!BB_LIVERY.originalsin.stroke);
    ok('BUMBLEBEE livery has racing stripes; OPTIMUS has a two-tone split',BB_LIVERY.bumblebee.stripe===true&&!!BB_LIVERY.optimus.body2);
-   ok('drawSinWheel (4-wheel ORIGINAL SIN look) renders without throwing',(()=>{try{drawSinWheel(0,0,1.2);return true;}catch(e){return false;}})());}
+   ok('ORIGINAL SIN 4-wheel look uses the H-strafer omni-wheel renderer',typeof drawOmniWhl==='function');}
   // ── v5.1.116: P7 combat cheat — MOVE OR DIE (stand still → bleed HP) ──
   {const sv=moveOrDie;moveOrDie=true;const b=bbBotWith('none','balanced',0,0,true);b.x=400;b.y=400;b.hp=BB.HP;b.mob=BB.MOB;b._modX=400;b._modY=400;
    const foe=bbBotWith('none','balanced',1,1,true);foe.dead=true;bb2.bots=[b,foe];bb2.result=null;bb2.cd=0;bb2.t=1;
