@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.245.html
-  version: 5.1.245
+  file: drive_showdown_v5.1.246.html
+  version: 5.1.246
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -4117,34 +4117,34 @@ function bbDrawLoadDrag(){ // drop-target halos + the floating loadout chip that
 // ── v5.1.94 ARMORY: a rail of weapon + armor chips you DRAG onto any seat to equip it (vs only the per-seat ◀▶ cyclers) ──
 const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'PUSH',ic:'⏩'},{id:'pincer',lab:'PINCE',ic:'🦀'},{id:'kamikaze',lab:'KAMI',ic:'💣'},{id:'drill',lab:'DRILL',ic:'⛏'},{id:'repair',lab:'REPAIR',ic:'🔧'},{id:'cannon',lab:'CANNON',ic:'💥'},{id:'jet',lab:'JET',ic:'🚀'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE; v5.1.154 REPAIR TORCH; v5.1.175 CANNON; v5.1.182 JET ENGINE
 const BB_ARMORY_A=[{id:'balanced',lab:'BAL',ic:'⚖'},{id:'hardplate',lab:'HARD',ic:'🛡'},{id:'heatshield',lab:'HEAT',ic:'♨'},{id:'light',lab:'LIGHT',ic:'🪶'},{id:'runflat',lab:'RUN',ic:'🛞'},{id:'reactive',lab:'REACT',ic:'💥'}]; // v5.1.156 RUNFLAT; v5.1.157 REACTIVE
-const BB_DESC={ // v5.1.196 hover-tip blurbs (ids are unique across weapon/armor/perk)
-  spinner:'360° spin-up disc — bites all around incl. the front; lower per-hit but constant',
+const BB_DESC={ // v5.1.246 hover-tip blurbs (ids unique across weapon/armor/perk) — accuracy pass + counter hints
+  spinner:'360° spin-up disc — bites all around incl. the front; constant but lower per-hit. Slamming a WALL bleeds spin + self-damages.',
   piston:'front-arc hammer — big armor-piercing strikes on a cooldown',
-  flame:'thermal jet — ignores front armor + builds a BLOW-UP meter that detonates a foe',
-  wedge:'DOZER blade — grab & slam foes into walls; deflects spinners; tanky control',
-  buzzsaw:'front-only spin-up cutter — HIGH damage in a narrow front arc',
-  flipper:'PUSHER — RT thrust flings a foe back; ring them into walls (push utility)',
-  pincer:'grab + IMMOBILIZE — clamp & drain a foe (a 3v3 role; weak 1v1)',
-  kamikaze:'RT SELF-DESTRUCT — a big blast that takes nearby foes with you (3v3)',
+  flame:'thermal jet — ignores front armor + builds a BLOW-UP meter that detonates a foe. Countered by HEATSHIELD / FLAMEPROOF.',
+  wedge:'DOZER blade — grab & slam foes into walls; DEFLECTS spinners; tanky control',
+  buzzsaw:'front-only spin-up cutter — HIGH damage in a narrow front arc; HOLDS its speed after a bite (no re-spin)',
+  flipper:'PUSHER — RT thrust shoves a foe back; ring them out into walls (push / setup utility)',
+  pincer:'grab + IMMOBILIZE — clamp & drain a foe; shrugs off most damage mid-clamp (a 3v3 role; weak 1v1)',
+  kamikaze:'RT SELF-DESTRUCT — a big blast that takes nearby foes with you; costs you a life (3v3; useless 1v1)',
   drill:'sustained front grinder — DPS ramps the longer it stays on a foe; sticks on. DRILL ON + DASH = BORE through walls/obstacles & foes (pierce dmg)',
-  repair:'SUPPORT torch — heals an ally (HP + tires) in front; only chips enemies',
-  cannon:'ranged EXPLOSIVE shells — fire at range; turreted aim (cheat-unlock)',
+  repair:'SUPPORT torch — heals an ally HP + tires in front; only chips enemies (a 3v3 role)',
+  cannon:'ranged shell-launcher — RT fires shells at range; turreted aim (cheat-unlock). EXPLOSIVE only with the EXPLOSIVE SHELLS cheat.',
   jet:'JET ENGINE — area-denial thrust: huge PUSH + wall/bot SLAMS; trickle dmg; overheats',
   balanced:'neutral armor — no bonuses or penalties',
-  hardplate:'heavy plate — big damage reduction + HP pool; kinetic-tough but slower',
-  heatshield:'FLAMEPROOF (immune to fire) + general damage reduction; light',
-  light:'fast & fragile — big speed boost but takes MORE damage',
+  hardplate:'heavy plate — RESISTS spinners/pistons (kinetic) + a bigger HP pool, but FLAME melts it and it drives slower',
+  heatshield:'FLAMEPROOF (immune to fire) + ~18% general damage cut — the answer to flame builds',
+  light:'fast & fragile — big speed boost, but takes MORE damage (spinners shred it)',
   runflat:'neutral stats; popped tires keep driving at a usable crawl (never frozen)',
   reactive:'the FIRST hit on each side is absorbed AND blasts the attacker',
   none:'NO PERK — a clean, neutral build (nothing extra to manage)',
   partinggift:'a big EXPLOSION on death — take foes with you',
-  flameproof:'immune to flamethrower damage + blow-up',
+  flameproof:'immune to flamethrower damage + blow-up (lets a non-heatshield armor go fireproof)',
   minibot:'deploy a harasser drone that shoves & pins enemies',
   vampire:'destroying an enemy heals you',
-  sparetire:'the first wheel to break is instantly re-welded (once)',
-  pitstop:'deploy a MEDIC drone that restores MOBILITY (tires / wheels) — not HP',
+  sparetire:'the first wheel to break is instantly re-welded (once per match)',
+  pitstop:'deploy a MEDIC drone that restores ally MOBILITY (tires / wheels) — not HP',
   adrenaline:'deal MORE damage the lower your HP (berserk)',
-  painkiller:'first mobility hit → a grace window of full speed, then it catches up',
+  painkiller:'first mobility hit → a grace window of full speed, then the damage catches up',
   laststand:'on death, a short INVULNERABLE window to take the foe with you'};
 function bbDescFull(kind,id){const t=kind==='weapon'?bbWeaponById(id):kind==='armor'?bbArmorById(id):bbPerkById(id);return ((t&&t.name)||id)+' — '+(BB_DESC[id]||'');}
 const BB_PERKS=[ // v5.1.112 P2: a 3rd loadout slot — PERK (id stays in ld.perk; 'none' kept ONLY as the no-effect fallback, NOT pickable since v5.1.155)
@@ -9281,6 +9281,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.246 (2026-06-19): hover-tip DESCRIPTIONS refreshed (weapons / armor / perks) — accuracy pass + counter hints (Sam playtest). Fixes: CANNON no longer claims base shells are "explosive" (they're only EXPLOSIVE with the cheat); ARMOR blurbs now state the rock-paper-scissors that actually drives loadout choice — HARDPLATE resists kinetic but FLAME melts it, HEATSHIELD is the flame answer (~18% general cut), LIGHT gets shredded by spinners. Added the key nuances that had drifted: SPINNER self-damages on walls, BUZZSAW holds speed after a bite, PINCER shrugs off damage mid-clamp, KAMIKAZE costs a life, SPARE TIRE is once-per-match. All in `BB_DESC`. Full battery green.
   v5.1.245 (2026-06-19): FIX — ORIGINAL SIN got STUCK despite invulnerable wheels (Sam playtest). Its wheel-invulnerability (in `bbWheelDamage`) only stops wheels being chewed off — but MOBILITY (`b.mob`) is a separate stat that also gates speed, and it was still drained to 0 by a PINCER's grip-drain (and side-bashing). At mob=0, `bbSpeed` returns 0 → frozen. Now `bbSpeed` treats Original Sin as FULL mobility (like its painkiller/last-stand peers), so invulnerable wheels genuinely means never-immobilized. Normal bots are unaffected (mobility drain still immobilizes them). smoke57 +2. Full battery green.
   v5.1.244 (2026-06-19): TOURNAMENT v2 — QUALIFIER is now a 1v1 vs CPU IN THE TOURNAMENT'S MODE (Sam: "seeding shouldn't just be a time trial"). Instead of always a solo obstacle-race, the QUALIFIER seeding runs each entrant in a 1v1 vs a benchmark VETERAN CPU in the tournament's own mode, seeded by that mode's metric: ball = your GOALS, timed tank = KILLS, lives tank = LIVES left, RoboRumble = DAMAGE dealt, race = TIME. It stays 1v1 even when the tournament is a 3v3 alliance event (no allies in the qualifier). `tourStartQualRun` launches the mode's start (startP2Ball/Tank/BB or solo race) with side0=human / side1=CPU and zeroed allies; `tourQualMetric` returns a seed value (lower=better; losses seed below wins); `tourQualDisplay` shows the result on the standings card. smoke12 updated + mode-metric asserts. Full battery green.
   v5.1.243 (2026-06-19): TOURNAMENT v2 — bracket shows ALLIANCE ROSTERS. With ALLIANCES on, the bracket's NEXT-match card now shows each side's drafted roster (RED: captain +tier +tier / BLUE: …) and the CHAMPION banner lists the winning alliance (captain + both drafted bots with tiers). Purely presentational (`drawTourBracket`); the bracket boxes still show captain names to stay legible. smoke33 +2 (draw paths don't throw). Full battery green.
