@@ -12,11 +12,14 @@
 **🎮 LIVE PLAYTEST QUEUE (2026-06-19, Sam — newest first; ✅ = shipped):**
 - ✅ PUSH-BALL: physics fix (v5.1.222), flavored weapon interactions + pincer carry (v5.1.223), kamikaze launches the ball + FF blasts (v5.1.225), soccer ball + GOALS TO WIN setting (v5.1.226).
 - ✅ ORIGINAL SIN: full livery + H-strafer black wheels + yellow blade (v5.1.221/224), invuln wheels + ½ damage buff (v5.1.225).
-- **PENDING — PUSH-BALL CPU weapon-awareness:** the push-ball CPU only body-shoves the ball; it does NOT fire its weapon strategically on the ball (pusher fling / pincer clamp-carry / flame nudge / kamikaze launch). `bbCpuUpdate` pushball branch (~4369) sets movement to get behind the ball but `br.fire` (~4372+) is keyed to the nearest FOE, not the ball. ADD: when behind the ball + aimed at the enemy goal, fire the weapon (and pincer should clamp+carry, kamikaze should position to launch it goalward). Mode-gated so the sim is untouched.
-- **PENDING — 3v3 grid SENSITIVITY:** if you forget to set a seat's sensitivity, you can't change it later with the BUMPERS (the bumper-sens adjust isn't reachable for an already-placed seat). Audit the grid seat controls.
-- **PENDING — CONTROLLER COMPAT:** (a) the SPLASH front door isn't gamepad-navigable; (b) you can't fully set up the 3v3 card picker with only a controller. Audit gamepad nav splash → grid → loadout → start.
-- **PENDING — ABSOLUTE HEADING default coupling** (Sam locked the design): it stays a single GLOBAL toggle, but switching to **field-centric auto-sets it ON**, **robot-centric auto-sets it OFF** — and the user can still override after. Only meaningful for holonomic/swerve drives.
-- **PENDING — F2b/F2c eggs:** wire egg unlocks into the Achievements screen (`bb_egg_*` → `achUnlock`, add "Autobots Roll Out"/"Unoriginal Sin"); a body+accent COLOR PICKER on the 1v1 card / 3v3 seat (`ld.paint`).
+- ✅ PUSH-BALL CPU weapon-awareness (v5.1.227): the push-ball CPU now FACES the ball and FIRES its weapon (pusher/piston/jet/flame/dozer/drill/pincer/spinner) when lined up behind it, not just body-shoving. (`bbCpuUpdate` pushball block.) Also: Original Sin buff on tank OR arcade.
+- ✅ 3v3 IN-MATCH SENSITIVITY (v5.1.228): `p2SensAdjust` looped only 2 players → 3v3 back seats couldn't change sens mid-match. Now loops all `playerBind`; toasts via `p2SeatSide`.
+- ✅ CONTROLLER COMPAT (v5.1.229): SPLASH gets stick/D-pad nav + focus cursor + A-select (SETTINGS reachable on a pad); 3v3 GRID — D-pad no longer instantly claims the seat under the cursor, BACK drops a CPU into the next open seat, B releases/swaps.
+- ✅ ABSOLUTE HEADING ↔ DRIVE FRAME coupling (v5.1.230): field-centric drives auto-enable absHeading, bot-centric disable it; still a global toggle the user can override. `driveFieldCentric`/`absHeadingCouple`.
+- ✅ EGG ACHIEVEMENTS (v5.1.231, F2b): egg unlocks now show in the Achievements screen ("Autobots, Roll Out" / "Unoriginal Sin"); legacy `bb_egg_*` migrated.
+- ✅ CUSTOM PAINT picker (v5.1.232, F2c): click a bot's chassis preview (🎨) on the 1v1 card / 3v3 seat to cycle a paint palette (`ld.paint`); `_bbPaint` repaints body+accent in-match + on the setup preview. Completes the eggs "Both" request.
+
+**ALL of the live playtest queue + the approved F1–F5 backlog are SHIPPED (tip v5.1.232, all green on `dev`).** Remaining big-ticket backlog (needs Sam, not yet started): STOCK→6-player FFA (F4, ~10h+), Tournament v2 (F3: T2 3v3-grid / T4 per-match map / T1 input), custom MAP EDITOR (F5), career/story mode (future vision).
 
 **Backlog / what's parked (most needs Sam in the loop):**
 - **STOCK → 6-player FFA** (F4) — scoped ~10h+ (engine hard-wires 2 sides: spawn, win-detection, ~51 touchpoints). Recommend a playtest session, not unattended. No separate format toggle — the lives/timer settings (kept valid by the respawn↔timer rule) pick last-standing vs most-kills.
