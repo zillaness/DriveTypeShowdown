@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Repair dish — GRID PARABOLIC</title>
+<style>html,body{margin:0;background:#07070e;color:#dfe2f4;font-family:'Courier New',monospace}
+h1{font-size:18px;text-align:center;padding:14px 8px 2px;margin:0;color:#7CFC8A}
+p.sub{text-align:center;margin:2px 8px 10px;font-size:12px;color:#9aa0b4}canvas{display:block;margin:0 auto}</style></head>
+<body>
+<h1>REPAIR DISH — GRID PARABOLIC antenna</h1>
+<p class="sub">Pivots at the vertex · opens out · parallel grid rods across the aperture · feed at the focus. Left = IDLE scan · Right = LOCKED heal (green) / LIFE-STEAL drain (red). Bottom row = the Cassegrain for comparison.</p>
+<canvas id="c" width="720" height="560"></canvas>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),RR=40;
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function chassis(){ctx.save();ctx.fillStyle='#2b3550';ctx.strokeStyle='#46527a';ctx.lineWidth=2;rr(-RR*0.78,-RR*0.78,RR*1.56,RR*1.56,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#1a2238';for(const sx of[-1,1])for(const sy of[-1,1]){rr(sx*RR*0.6-4,sy*RR*0.66-7,8,14,3);ctx.fill();}ctx.restore();}
+
+function gridParabolic(healing,drain){const lit=healing||drain;const acc=drain?'#ff7a6b':(healing?'#7CFC8A':'#9fb3c8'),accDim=drain?'rgba(255,122,107,0.55)':(healing?'rgba(124,252,138,0.55)':'rgba(150,170,195,0.5)');
+  const DR=RR*1.45,span=1.05,A0=Math.PI-span,A1=Math.PI+span;
+  ctx.fillStyle=healing?'rgba(20,46,32,0.3)':(drain?'rgba(46,24,24,0.3)':'rgba(28,36,52,0.3)');ctx.beginPath();ctx.arc(DR,0,DR,A0,A1);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=accDim;ctx.lineWidth=1.5;for(let i=1;i<=6;i++){const X=0.5*DR*(i/6.4),yy=Math.sqrt(Math.max(0,DR*DR-(X-DR)*(X-DR)));ctx.beginPath();ctx.moveTo(X,-yy);ctx.lineTo(X,yy);ctx.stroke();}
+  ctx.strokeStyle=acc;ctx.lineWidth=2.6;ctx.beginPath();ctx.arc(DR,0,DR,A0,A1);ctx.stroke();
+  ctx.strokeStyle='#8893a6';ctx.lineWidth=1.6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(RR*0.2,0);ctx.lineTo(RR*0.95,0);ctx.stroke();
+  ctx.fillStyle=lit?(drain?'#ffd0c4':'#bfffd0'):'#cfd6e6';ctx.beginPath();ctx.arc(RR*1.0,0,RR*0.12,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#222a36';ctx.strokeStyle='#3a4658';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,RR*0.24,0,Math.PI*2);ctx.fill();ctx.stroke();}
+
+function cassegrain(healing){const DR=RR*1.45,span=1.05,A0=Math.PI-span,A1=Math.PI+span;
+  ctx.fillStyle=healing?'rgba(22,52,36,0.9)':'rgba(33,42,56,0.9)';ctx.beginPath();ctx.arc(DR,0,DR,A0,A1);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=healing?'#7CFC8A':'#9fb3c8';ctx.lineWidth=2.7;ctx.beginPath();ctx.arc(DR,0,DR,A0,A1);ctx.stroke();
+  ctx.strokeStyle='#8893a6';ctx.lineWidth=1.7;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(RR*0.2,0);ctx.lineTo(DR*0.66,0);ctx.stroke();
+  const SR=DR*0.4;ctx.strokeStyle=healing?'#bfffd0':'#cfd6e6';ctx.lineWidth=2.6;ctx.beginPath();ctx.arc(DR,0,SR,Math.PI-0.72,Math.PI+0.72);ctx.stroke();
+  ctx.fillStyle='#222a36';ctx.strokeStyle='#3a4658';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,RR*0.24,0,Math.PI*2);ctx.fill();ctx.stroke();}
+
+function cell(cx,cy,kind,state,T){ctx.save();ctx.translate(cx,cy);
+  const healing=state==='heal',drain=state==='drain',idle=state==='idle';
+  if(idle){const fl=0.5+0.5*Math.sin(T*2.4);ctx.strokeStyle='rgba(255,210,120,'+(0.18+0.12*fl)+')';ctx.lineWidth=2;ctx.setLineDash([6,6]);ctx.beginPath();ctx.arc(0,0,RR*2.1,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
+  chassis();
+  let dishAng,tgt=null;
+  if(!idle){tgt={x:RR*3.0,y:Math.sin(T*1.4)*RR*0.5};dishAng=Math.atan2(tgt.y,tgt.x);}else dishAng=T*1.25;
+  ctx.save();ctx.rotate(dishAng);if(kind==='grid')gridParabolic(healing,drain);else cassegrain(healing);ctx.restore();
+  if(tgt){const ox=Math.cos(dishAng)*RR*0.9,oy=Math.sin(dishAng)*RR*0.9,fl=0.7+0.3*Math.sin(T*16);
+    const dx=tgt.x-ox,dy=tgt.y-oy,bl=Math.hypot(dx,dy)||1,px=-dy/bl,py=dx/bl,w0=RR*0.28,w1=RR*0.55;
+    const body=drain?'255,90,70':'80,240,140',core=drain?'255,120,95':'124,252,138';
+    ctx.fillStyle='rgba('+body+','+(0.16*fl)+')';ctx.beginPath();ctx.moveTo(ox+px*w0,oy+py*w0);ctx.lineTo(ox-px*w0,oy-py*w0);ctx.lineTo(tgt.x-px*w1,tgt.y-py*w1);ctx.lineTo(tgt.x+px*w1,tgt.y+py*w1);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba('+core+','+(0.6*fl)+')';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(tgt.x,tgt.y);ctx.stroke();
+    ctx.save();ctx.translate(tgt.x,tgt.y);ctx.scale(0.8,0.8);chassis();ctx.restore();
+    const hp=drain?0.6-0.2*Math.sin(T*0.8):0.45+0.25*Math.sin(T*0.8),rg=RR*0.95;
+    ctx.strokeStyle='rgba(0,0,0,0.45)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(tgt.x,tgt.y,rg,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle=drain?'#ff6b6b':(hp>0.5?'#7CFC8A':'#ffd166');ctx.lineWidth=3.2;ctx.beginPath();ctx.arc(tgt.x,tgt.y,rg,-Math.PI/2,-Math.PI/2+Math.PI*2*hp);ctx.stroke();
+    ctx.fillStyle=drain?'#ff8a6b':'#7CFC8A';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText((drain?'⤓':'')+Math.round(hp*100)+'%',tgt.x,tgt.y-rg-4);}
+  ctx.restore();}
+
+function frame(ts){const T=ts/1000;ctx.clearRect(0,0,cv.width,cv.height);
+  const cols=[140,360,580],labels=['IDLE scan','LOCKED — HEAL','LOCKED — LIFE-STEAL'],states=['idle','heal','drain'];
+  ctx.fillStyle='#cfe3ff';ctx.font='bold 15px Courier New';ctx.textAlign='center';ctx.fillText('GRID PARABOLIC (the pick)',cv.width/2,30);
+  for(let i=0;i<3;i++){ctx.fillStyle='#7c86a8';ctx.font='10px Courier New';ctx.fillText(labels[i],cols[i],58);cell(cols[i],150,'grid',states[i],T);}
+  ctx.strokeStyle='rgba(70,80,120,0.25)';ctx.beginPath();ctx.moveTo(20,300);ctx.lineTo(cv.width-20,300);ctx.stroke();
+  ctx.fillStyle='#cfe3ff';ctx.font='bold 15px Courier New';ctx.fillText('CASSEGRAIN (for comparison)',cv.width/2,326);
+  for(let i=0;i<2;i++){ctx.fillStyle='#7c86a8';ctx.font='10px Courier New';ctx.fillText(labels[i],cols[i],352);cell(cols[i],440,'cass',states[i],T);}
+  requestAnimationFrame(frame);}
+requestAnimationFrame(frame);
+</script></body></html>

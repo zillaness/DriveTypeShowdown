@@ -631,7 +631,20 @@ src+=`
    const far=bbBotWith('none','balanced',0,2,true);far.x=120+RR*9;far.y=300;far.hp=200;far.mhp=BB.HP;far.mob=BB.MOB;bb2.bots=[lr,far];bb2.result=null; // ~9×RR — supports from range (within the shrunk reach)
    const fh0=far.hp;for(let i=0;i<30;i++){lr.firing=true;bbWeaponFire(1/60);}
    ok('REPAIR heals an ally from range (within the shrunk reach)',far.hp>fh0);
-   ok('REPAIR attack buff is BIG (×2.5 damage)',BB_W.repairDmgBuff>=2.0);}
+   ok('REPAIR attack buff is a meaningful but softer multiplier (>1, ≤2)',BB_W.repairDmgBuff>1&&BB_W.repairDmgBuff<=2);
+   // v5.1.207 LIFE-STEAL: with NO ally to heal, holding the trigger DRAINS the nearest enemy + weakly self-heals; with an ally to heal it does NOT drain
+   {const me=bbBotWith('repair','balanced',0,0,true);me.x=300;me.y=300;me.h=0;me.firing=true;me.hp=300;me.mhp=BB.HP;
+    const foe=bbBotWith('none','balanced',1,1,true);foe.x=300+RR*4;foe.y=300;foe.hp=BB.HP;bb2.bots=[me,foe];bb2.result=null;
+    const fh=foe.hp,mh=me.hp;for(let i=0;i<30;i++){me.firing=true;bbWeaponFire(1/60);}
+    ok('REPAIR LIFE-STEAL: no ally → drains the enemy AND self-heals (weak)',foe.hp<fh&&me.hp>mh&&me._repairDrain===true&&me._repairTgt===foe);
+    // drain is WEAK — far less than the heal rate (so it stays a support, loses 1v1s)
+    ok('REPAIR life-steal DPS is weak (< the heal-per-sec, < raw weapon DPS)',BB_W.repairLifeDps<BB_W.repairHps&&BB_W.repairLifeDps<=35);
+    // with a hurt ally present, the dish HEALS (green) and does NOT drain
+    const ally=bbBotWith('none','balanced',0,2,true);ally.x=320;ally.y=300;ally.hp=200;ally.mhp=BB.HP;ally.mob=BB.MOB;
+    const foe2=bbBotWith('none','balanced',1,1,true);foe2.x=300+RR*4;foe2.y=300;foe2.hp=BB.HP;
+    const me2=bbBotWith('repair','balanced',0,0,true);me2.x=300;me2.y=300;me2.h=0;me2.firing=true;bb2.bots=[me2,ally,foe2];bb2.result=null;
+    const f2=foe2.hp;for(let i=0;i<20;i++){me2.firing=true;bbWeaponFire(1/60);}
+    ok('REPAIR prefers HEALING over draining (no drain while an ally needs heal)',me2._repairTgt===ally&&!me2._repairDrain&&foe2.hp===f2);}}
   // ── v5.1.112: PERKS (3rd loadout slot) — data + effects (Parting Gift, Flameproof) ──
   {ok('bbResolveLoadout carries the PERK slot',bbResolveLoadout({weapon:'spinner',armor:'balanced',perk:'flameproof'}).perk==='flameproof');
    ok('a default loadout has no perk',bbResolveLoadout(null).perk==='none');
