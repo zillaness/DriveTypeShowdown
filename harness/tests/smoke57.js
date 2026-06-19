@@ -1328,6 +1328,11 @@ src+=`
    got=null;mapVoteAutoRandom();ok('timeout auto-randomizes to a concrete arena',(typeof got==='number'||typeof got==='string')&&mapVote===null);
    startMapVote(15);mapVotePick(2);ok('default onDone selects the arena + returns to the gallery',m2.set.map===2&&phase==='p2bbmap');
    phase=svPhase;m2.set.map=svMap;mapVote=null;}
+  // v5.1.245 Original Sin: invulnerable wheels = never immobilized (mob drained to 0 still drives)
+  {const _eg=bbEggActive;bbEggActive=()=>'originalsin';
+   const sin={mob:0,ld:{mobMax:BB.MOB,weapon:'wedge'},ctl:{bind:0}};const spSin=bbSpeed(sin);bbEggActive=_eg;
+   ok('ORIGINAL SIN drives at full speed even at mob=0 (never stuck)',spSin>0);
+   ok('a normal bot at mob=0 IS frozen (control: drain still immobilizes others)',bbSpeed({mob:0,ld:{mobMax:BB.MOB}})===0);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
