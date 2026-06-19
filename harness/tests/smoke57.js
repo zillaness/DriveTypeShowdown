@@ -1301,6 +1301,14 @@ src+=`
    ok('the gallery lists the custom map + a NEW MAP tile',bbMapTiles().some(t=>t.map===savedId)&&bbMapTiles().some(t=>t.map==='new'));
    mapEditLoad(customMapById(savedId));ok('mapEditLoad opens an existing map for editing',phase==='p2mapedit'&&mapEd.id===savedId&&mapEd.obs.length>=1);
    customMaps.length=0;for(const m of svCM)customMaps.push(m);saveCustomMaps();m2.set.map=svMap;phase=svPhase;mapEd=null;}
+  // v5.1.234 EXPORT / IMPORT share codes
+  {const m={name:'SHARE TEST',obs:[{x:100,y:100,w:80,h:40}],haz:[{type:'saw',cx:300,cy:200,axis:'y',amp:140,spd:1.5}],pup:[{x:400,y:120}]};
+   const code=mapToCode(m);ok('mapToCode makes a DSMAP1 share code',typeof code==='string'&&code.indexOf('DSMAP1:')===0);
+   const back=mapFromCode(code);ok('mapFromCode round-trips the arena',!!back&&back.name==='SHARE TEST'&&back.obs.length===1&&back.haz.length===1&&back.pup.length===1&&back.obs[0].w===80);
+   ok('mapFromCode rejects garbage',mapFromCode('not a code')===null&&mapFromCode('DSMAP1:@@@')===null);
+   const svPrompt=window.prompt,svCM=customMaps.slice(),svMap=m2.set.map;window.prompt=()=>code;const n0=customMaps.length;mapImport();
+   ok('mapImport adds the pasted map to customMaps + selects it',customMaps.length===n0+1&&typeof m2.set.map==='string');
+   window.prompt=svPrompt;customMaps.length=0;for(const c of svCM)customMaps.push(c);saveCustomMaps();m2.set.map=svMap;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
