@@ -172,6 +172,16 @@ src+=`
    const h1=pv.hp;bbApplyHit(pv,'rear',60,1);const dmgClamp=h1-pv.hp;
    ok('PINCER takes MAJORLY reduced damage while clamping a foe',dmgClamp>0&&dmgClamp<dmgFree*0.5);
    pv.grab=null;foe.held=null;}
+  // ── v5.1.213 TIER DIFFICULTY: a CPU deals tier-scaled damage to a HUMAN (rookie softer, champ harder); CPU↔CPU is UNSCALED so weapon balance is untouched ──
+  {const champ=bbBotWith('none','balanced',0,0,true);champ.ctl.tier=3;champ.x=300;champ.y=300;
+   const rook=bbBotWith('none','balanced',0,2,true);rook.ctl.tier=0;rook.x=300;rook.y=300;
+   const humV=()=>{const v=bbBotWith('none','balanced',1,1,false);v.x=400;v.y=300;v.hp=BB.HP;v.inv=0;return v;};
+   let v=humV();bb2.bots=[champ,v];bb2.result=null;const c0=v.hp;bbApplyHit(v,'rear',100,0);const champDmg=c0-v.hp;
+   v=humV();bb2.bots=[rook,v];const r0=v.hp;bbApplyHit(v,'rear',100,0);const rookDmg=r0-v.hp;
+   ok('TIER: a CHAMPION CPU hits a HUMAN harder than a ROOKIE CPU (1.10× vs 0.90×)',champDmg>rookDmg&&Math.abs(champDmg/rookDmg-(BB_TIER_DMG[3]/BB_TIER_DMG[0]))<0.02);
+   const cv=bbBotWith('none','balanced',1,1,true);cv.x=400;cv.y=300;cv.hp=BB.HP;cv.inv=0;bb2.bots=[champ,cv];const cc0=cv.hp;bbApplyHit(cv,'rear',100,0);const champVsCpu=cc0-cv.hp;
+   const cv2=bbBotWith('none','balanced',1,2,true);cv2.x=400;cv2.y=300;cv2.hp=BB.HP;cv2.inv=0;bb2.bots=[rook,cv2];const cr0=cv2.hp;bbApplyHit(cv2,'rear',100,0);const rookVsCpu=cr0-cv2.hp;
+   ok('TIER: CPU→CPU damage is UNSCALED (champ == rookie vs a CPU — weapon balance safe)',champVsCpu>0&&Math.abs(champVsCpu-rookVsCpu)<1e-6);}
   {const a=bbBotWith('wedge','balanced',0,0,true);
    ok('WEDGE softens its own ram damage (control, not damage)',Math.abs(bbContactDmg(a,20)-20*BB_W.wedgeDmg)<1e-9);
    const c=bbBotWith('none','balanced',1,1,true),free=bbBotWith('none','balanced',1,2,true);c.pinT=0.25;free.pinT=0;
