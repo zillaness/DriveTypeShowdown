@@ -1256,6 +1256,16 @@ src+=`
    ok('3v3 in-match: a back seat (p5) LOWERS its sensitivity via LB',m2.sens[5]<1);
    ok('p2SeatSide maps 3v3 seats (0–2 RED, 3–5 BLUE)',p2SeatSide(1)===0&&p2SeatSide(4)===1);
    playerBind=svPB;m2.sens=svSens;gpBtnsAll=svG;m2.tseats=svT;}
+  // v5.1.229 CONTROLLER-ONLY 3v3 grid setup: D-pad navigates without claiming; FACE claims; BACK drops CPUs
+  {const svT=m2.tseats,svG=gpBtnsAll,svP=m2._gpPrev,svGP=gpPrevAll,svSel=m2.tsel,svM=m2.mode;m2.mode='battlebots';
+   m2.tseats=[null,null,null,null,null,null];m2.tsel=0;m2._gpPrev=[];gpPrevAll=[];
+   gpBtnsAll=[[]];gpBtnsAll[0][15]=true;tankGridGpPoll(); // D-pad RIGHT
+   ok('GRID pad: the D-pad does NOT claim a seat (cursor navigation is safe)',!m2.tseats[0]);
+   m2._gpPrev=[];gpBtnsAll=[[]];gpBtnsAll[0][0]=true;tankGridGpPoll(); // A on the selected empty seat
+   ok('GRID pad: a FACE button joins the selected empty seat as a player',!!(m2.tseats[0]&&m2.tseats[0].type==='human'&&m2.tseats[0].dev&&m2.tseats[0].dev.gp===0));
+   gpPrevAll=[];gpBtnsAll=[[]];gpBtnsAll[0][8]=true;tankGridGpNav(); // BACK by the pad that owns seat 0
+   ok('GRID pad: BACK drops a CPU into the next open seat (controller-only AI opponents)',m2.tseats.some(s=>s&&s.type==='cpu'));
+   m2.tseats=svT;gpBtnsAll=svG;m2._gpPrev=svP;gpPrevAll=svGP;m2.tsel=svSel;m2.mode=svM;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
