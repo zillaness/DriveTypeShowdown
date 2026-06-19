@@ -1099,6 +1099,14 @@ src+=`
    ok('PUSH-BALL: ball in the LEFT goal scores for side 1 + resets to center',bb2.pscore[1]===1&&Math.abs(bb2.pball.x-FW/2)<1);
    bb2.bots=[];bb2.pball={x:20,y:FH/2,vx:0,vy:0};bb2.pscore=[0,BB_PB_TARGET-1];bb2.result=null;bbModeUpdate(0.05);
    ok('PUSH-BALL: reaching the goal target wins',bb2.result===1);
+   // v5.1.226 configurable GOALS TO WIN + soccer-ball render
+   {const sg=m2.set.bbgoals;m2.set.bbgoals=2;
+    bb2.bots=[];bb2.pball={x:20,y:FH/2,vx:0,vy:0};bb2.pscore=[0,1];bb2.result=null;bbModeUpdate(0.05);
+    ok('PUSH-BALL: GOALS TO WIN=2 ends the match at 2 goals',bb2.result===1&&bbPbTarget()===2);
+    m2.set.bbgoals=sg;}
+   ok('bbDrawSoccerBall renders without throwing',(()=>{try{bbDrawSoccerBall(100,100,24,1.2);return true;}catch(e){return false;}})());
+   {const svM=m2.mode;m2.mode='battlebots';m2.set.bbmode='pushball';const hasG=p2SettingsRows().some(r=>r.k==='bbgoals');m2.set.bbmode='ko';const noG=p2SettingsRows().some(r=>r.k==='bbgoals');m2.set.bbmode='pushball';m2.mode=svM;
+    ok('GOALS TO WIN row shows for PUSH-BALL only',hasG===true&&noG===false);}
    // v5.1.222 ball PHYSICS: spawn clear of obstacles + reflect off them (was phasing through + spawning inside a center pillar)
    {const savO=tfObs;tfObs=[{x:FW/2-60,y:FH/2-90,w:120,h:180}]; // a center pillar like the 'pillar' arena
     const pbS={x:0,y:0,vx:0,vy:0};bbBallSpawn(pbS,FW/2,FH/2);
