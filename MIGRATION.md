@@ -1,17 +1,18 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-19, at v5.1.234** (see the CURRENT-STATE block immediately below; the older `⏩ LATEST STATE — v5.1.116` section and everything beneath it is earlier history).
+**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-19, at v5.1.235** (see the CURRENT-STATE block immediately below; the older `⏩ LATEST STATE — v5.1.116` section and everything beneath it is earlier history).
 
 ---
 
-## ⏩ CURRENT STATE — 2026-06-19, **v5.1.234** (READ THIS FIRST — supersedes the v5.1.116 block below)
+## ⏩ CURRENT STATE — 2026-06-19, **v5.1.235** (READ THIS FIRST — supersedes the v5.1.116 block below)
 
-**Build / branch:** tip = **`drive_showdown_v5.1.234.html`**, all green on **`dev`** (canonical; see `CLAUDE.md` BRANCH POLICY). `extract.sh` → `/tmp/g.js`; `./extract.sh && ./battery.sh` must print **ALL GREEN** before every commit. Commit as `Claude <noreply@anthropic.com>` is fine (Sam OK'd). Release ritual: edit → `git mv vN→vN+1` → `sed` the filename into `extract.sh` + `MIGRATION.md` → extract+battery green → commit "Release …" → push `dev` + the session branch. **After `git mv` you must Read the renamed file before Edit.**
+**Build / branch:** tip = **`drive_showdown_v5.1.235.html`**, all green on **`dev`** (canonical; see `CLAUDE.md` BRANCH POLICY). `extract.sh` → `/tmp/g.js`; `./extract.sh && ./battery.sh` must print **ALL GREEN** before every commit. Commit as `Claude <noreply@anthropic.com>` is fine (Sam OK'd). Release ritual: edit → `git mv vN→vN+1` → `sed` the filename into `extract.sh` + `MIGRATION.md` → extract+battery green → commit "Release …" → push `dev` + the session branch. **After `git mv` you must Read the renamed file before Edit.**
 
 **Operating mode (this session, 2026-06-19 — thread `inspiring-turing`):** Sam live-playtests fast; terse status, real battery results, drop a build (SendUserFile) at each ship, fold his feel-feedback in. **FEEL-FIRST** — he drives weapon/feel numbers by hand; do NOT chase the CPU-vs-CPU sim band unattended. The 1v1 sim (`bbbalance.js`) is a coarse, jumpy DIRECTIONAL tool (binary matchups → ~11%/flip), currently spinner 72 · buzzsaw 69 · piston 66 · flame/drill/jet 56 · flipper/wedge 51 · pincer 11 · kamikaze 0 — **not a tuning target right now.**
 
-**Shipped this session (v5.1.199 → v5.1.234), all on `dev`:**
+**Shipped this session (v5.1.199 → v5.1.235), all on `dev`:**
+- **MAP EDITOR touch + undo** (v5.1.235, F5 ship 3/3 — DONE): editor tools/drag work on touch (touchstart/move/end → mapEditDown/Move/Up); single-step UNDO (↶ button + Z key, 40-deep snapshot stack). Custom map editor feature COMPLETE.
 - **MAP EDITOR share codes** (v5.1.234, F5 ship 2/3): export a custom arena as a `DSMAP1:` base64 share code (📤 SHARE in the editor → clipboard/prompt) and import one (📥 IMPORT MAP in the gallery → paste). `mapToCode`/`mapFromCode`. Workshop-ready JSON. Next: touch + polish (ship 3).
 - **CUSTOM MAP EDITOR** (v5.1.233, F5 ship 1/3): in-game arena editor (`phase p2mapedit`) — WALL/PIT drag-draw, SAW/PICKUP place, ERASE; SAVE → `customMaps` in localStorage (`frcds_maps_v1`); gallery lists custom maps (✎/🗑) + a `+ NEW MAP` tile; `bbMapObj` resolver plays built-in OR custom arenas. Next: export/import (ship 2), touch/polish (ship 3).
 - **CUSTOM PAINT picker** (v5.1.232, F2c): click a bot's chassis preview (🎨) on the 1v1 card / 3v3 seat to cycle a `PAINT_JOBS` palette (stored as `ld.paint`); `_bbPaint` repaints body+accent in `drawRobot` (in-match + setup preview), suppressed under a name-egg livery. Completes the eggs "Both" request.
@@ -38,7 +39,7 @@ Self-contained context for continuing this project in a fresh thread.
 - **GAME MODES:** **CTF** carrier-death now RETURNS the flag home (small-map fix; the old drop-loose read as "no flag, match never ends"); **respawn↔timer rule** (`bbEnforceLivesTime`) — infinite respawns ⟹ a timer, no timer ⟹ finite lives (no endless matches).
 - **UI:** the **3v3 grid cards now show the chosen weapon** on the bot (like the 1v1 card); **ABSOLUTE HEADING snap** rewritten to a rate-capped no-overshoot controller that RESPONDS to the TURN-RATE knob (was overshooting/wobbling at high turn rate).
 
-**Sim/dev tools:** `bbbalance.js` (1v1), `bbbalance3.js` (3v3 teams), `bbrepair.js` (repair), `bbreport.js` (armor/perk), `/tmp/cannon.js` (cannon vs field). The bb sims now set `m2.mode='battlebots'` (RoboRumble tier table). 511 asserts in smoke57; full battery green.
+**Sim/dev tools:** `bbbalance.js` (1v1), `bbbalance3.js` (3v3 teams), `bbrepair.js` (repair), `bbreport.js` (armor/perk), `/tmp/cannon.js` (cannon vs field). The bb sims now set `m2.mode='battlebots'` (RoboRumble tier table). 515 asserts in smoke57; full battery green.
 
 **OPEN / BACKLOG (mostly needs Sam in the loop):**
 - **STOCK → 6-player FFA** — scoped at **~10h+**: the engine hard-wires 2 sides through spawn, win-detection, and ~30 HUD sites (score arrays are all `[0,0]`); combat + CPU-targeting already generalize. Recommend a playtest session, not unattended overnight. (No separate format toggle — the lives/timer settings, kept valid by the respawn↔timer rule, pick last-standing vs most-kills.)
@@ -52,7 +53,7 @@ Self-contained context for continuing this project in a fresh thread.
 ## ⏩ LATEST STATE — 2026-06-16, **v5.1.116** (older — the CURRENT-STATE block above supersedes this)
 
 **Builds / branches:**
-- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.234.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it. (v5.1.117 = P4 MINIBOTS: the MINIBOT perk deploys a shove/pin harasser, `bb2.minis`; v5.1.118 = P7 cheats UNLIMITED RESOURCES + MEGABOTS; v5.1.119 = P7 cheats AIRSTRIKE + ANIME SWORD — P7 combat-cheat pass complete; v5.1.120 = P3 arena hazards (DANGER ZONE: acid pit + saw blades) + map-select; v5.1.121 = P9 game-mode framework + SUMO ring-out; v5.1.122–123 = P9 DOMINATION (KOTH) + VIP modes; v5.1.124 = Tournament T3 — RoboRumble selectable in the bracket + result-router fixed for bb2; v5.1.125 = Tournament T1-light — alliance-framed registration; v5.1.126 = P9 CPU mode-awareness (hunt VIP / hold the DOMINATION point / avoid SUMO ring-out).)
+- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.235.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it. (v5.1.117 = P4 MINIBOTS: the MINIBOT perk deploys a shove/pin harasser, `bb2.minis`; v5.1.118 = P7 cheats UNLIMITED RESOURCES + MEGABOTS; v5.1.119 = P7 cheats AIRSTRIKE + ANIME SWORD — P7 combat-cheat pass complete; v5.1.120 = P3 arena hazards (DANGER ZONE: acid pit + saw blades) + map-select; v5.1.121 = P9 game-mode framework + SUMO ring-out; v5.1.122–123 = P9 DOMINATION (KOTH) + VIP modes; v5.1.124 = Tournament T3 — RoboRumble selectable in the bracket + result-router fixed for bb2; v5.1.125 = Tournament T1-light — alliance-framed registration; v5.1.126 = P9 CPU mode-awareness (hunt VIP / hold the DOMINATION point / avoid SUMO ring-out).)
 - **`claude/online-net-5wehy1` = ONLINE sandbox** (isolated so online netcode can't risk the stable build). Build **`drive_showdown_v5.2.0.html`** — online P1a only (dormant in local play).
 - `claude/sharp-newton-kn5ulv` — stale/behind; ignore.
 

@@ -1309,6 +1309,15 @@ src+=`
    const svPrompt=window.prompt,svCM=customMaps.slice(),svMap=m2.set.map;window.prompt=()=>code;const n0=customMaps.length;mapImport();
    ok('mapImport adds the pasted map to customMaps + selects it',customMaps.length===n0+1&&typeof m2.set.map==='string');
    window.prompt=svPrompt;customMaps.length=0;for(const c of svCM)customMaps.push(c);saveCustomMaps();m2.set.map=svMap;}
+  // v5.1.235 editor UNDO
+  {const svPhase=phase;applyLayout('land2p');m2.mode='battlebots';mapEditNew();const r=mapEdRect();
+   mapEd.tool='wall';mapEditDown(r.x+r.w*0.2,r.y+r.h*0.2);mapEditMove(r.x+r.w*0.4,r.y+r.h*0.4);mapEditUp();
+   mapEd.tool='pickup';mapEditDown(r.x+r.w*0.6,r.y+r.h*0.3);
+   ok('editor has 1 wall + 1 pickup before undo',mapEd.obs.length===1&&mapEd.pup.length===1);
+   mapEditUndo();ok('UNDO removes the last action (the pickup)',mapEd.obs.length===1&&mapEd.pup.length===0);
+   mapEditUndo();ok('UNDO again removes the wall',mapEd.obs.length===0);
+   mapEditUndo();ok('UNDO past the start is a safe no-op',mapEd.obs.length===0&&mapEd.pup.length===0);
+   mapEd=null;phase=svPhase;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

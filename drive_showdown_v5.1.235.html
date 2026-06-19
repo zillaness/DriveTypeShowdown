@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.234.html
-  version: 5.1.234
+  file: drive_showdown_v5.1.235.html
+  version: 5.1.235
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -437,6 +437,7 @@ C.addEventListener('touchstart',e=>{
       continue;
     }
     if(muteShown()&&inMuteBtn(p.x,p.y)){sfxToggle();continue;}
+    if(phase==='p2mapedit'){if(mapEd)mapEd._touch=t.identifier;mapEditDown(p.x,p.y);continue;} // v5.1.235 MAP EDITOR touch: tools + drag-to-draw
     if(phase==='cpuSettings'){
       if(presetNameEntry.active){
         // Tap outside box or on hint cancels; tap box does nothing (use keyboard)
@@ -520,6 +521,7 @@ C.addEventListener('touchstart',e=>{
 C.addEventListener('touchmove',e=>{
   e.preventDefault();
   for(const t of e.changedTouches){
+    if(phase==='p2mapedit'&&mapEd&&mapEd.drag&&t.identifier===mapEd._touch){const p=toCanvas(t);mapEditMove(p.x,p.y);continue;} // v5.1.235 MAP EDITOR drag-to-draw (touch)
     if(konamiActive&&konamiDrag!==null&&t.identifier===konamiDragTouch){applyKonamiSlider(konamiDrag,toCanvas(t).x);continue;}
     if(t.identifier===sliderTid){applySlider(toCanvas(t).x);continue;}
     if(bbArmDrag&&bbArmDrag.touchId===t.identifier){const p=toCanvas(t);if(Math.hypot(p.x-bbArmDrag.x,p.y-bbArmDrag.y)>4)_bbDragMoved=true;bbArmDrag.x=p.x;bbArmDrag.y=p.y;continue;}
@@ -545,6 +547,7 @@ C.addEventListener('touchmove',e=>{
 },{passive:false});
 function clearTouch(e){
   for(const t of e.changedTouches){
+    if(phase==='p2mapedit'&&mapEd&&t.identifier===mapEd._touch){mapEditUp();mapEd._touch=-1;continue;} // v5.1.235 MAP EDITOR commit the drag (touch)
     if(bbArmDrag&&bbArmDrag.touchId===t.identifier){if(_bbDragMoved){const to=bbSeatAt(bbArmDrag.x,bbArmDrag.y);if(to>=0){bbArmEquip(to,bbArmDrag.kind,bbArmDrag.id)&&sfx('click');}else if(bb1v1ArmoryOn()){const pl=bb1v1SideAt(bbArmDrag.x,bbArmDrag.y);if(pl>=0)bb1v1Equip(pl,bbArmDrag.kind,bbArmDrag.id)&&sfx('click');}}bbArmDrag=null;continue;}
     if(bbLoadDrag&&bbLoadDrag.touchId===t.identifier){if(_bbDragMoved){const to=bbSeatAt(bbLoadDrag.x,bbLoadDrag.y);if(to>=0)bbCopyLoadout(bbLoadDrag.from,to)&&sfx('click');}bbLoadDrag=null;continue;}
     if(konamiDrag!==null&&t.identifier===konamiDragTouch){konamiDrag=null;konamiDragTouch=-1;}
@@ -668,6 +671,7 @@ window.addEventListener('keydown',e=>{
     else if(e.key.length===1&&nameEntry.text.length<12&&/[a-zA-Z0-9 !._-]/.test(e.key)){nameEntry.text+=e.key.toUpperCase();}
     return;
   }
+  if(phase==='p2mapedit'&&(e.key==='z'||e.key==='Z')){mapEditUndo();e.preventDefault();return;} // v5.1.235 MAP EDITOR: Z = undo
   if(konamiActive){ // cheat menu: up/down move, left/right adjust a slider, Enter/Space toggles, Esc closes
     if(e.key==='ArrowUp')cheatMove(-1);
     else if(e.key==='ArrowDown')cheatMove(1);
@@ -4878,13 +4882,15 @@ function bbMapPickerClick(mx,my){
 // ── v5.1.233 CUSTOM MAP EDITOR (phase 'p2mapedit') — paint walls/pits/saws/pickups on the field, save to customMaps ──
 let mapEd=null; // {id, name, obs:[{x,y,w,h}], haz:[{type,...}], pup:[{x,y}], tool, drag}
 const MAP_TOOLS=[{id:'wall',ic:'▭',lab:'WALL'},{id:'pit',ic:'▦',lab:'PIT'},{id:'saw',ic:'✸',lab:'SAW'},{id:'pickup',ic:'◆',lab:'PICKUP'},{id:'erase',ic:'⌫',lab:'ERASE'}];
-function mapEditNew(){mapEd={id:null,name:'MY ARENA',obs:[],haz:[],pup:[],tool:'wall',drag:null};phase='p2mapedit';sfx('click');}
-function mapEditLoad(cm){mapEd={id:cm.id,name:cm.name||'MY ARENA',obs:(cm.obs||[]).map(o=>({...o})),haz:(cm.haz||[]).map(h=>({...h})),pup:(cm.pup||[]).map(p=>({...p})),tool:'wall',drag:null};phase='p2mapedit';sfx('click');}
+function mapEditNew(){mapEd={id:null,name:'MY ARENA',obs:[],haz:[],pup:[],tool:'wall',drag:null,undo:[]};phase='p2mapedit';sfx('click');}
+function mapEditLoad(cm){mapEd={id:cm.id,name:cm.name||'MY ARENA',obs:(cm.obs||[]).map(o=>({...o})),haz:(cm.haz||[]).map(h=>({...h})),pup:(cm.pup||[]).map(p=>({...p})),tool:'wall',drag:null,undo:[]};phase='p2mapedit';sfx('click');}
+function mapEdPush(){if(!mapEd)return;mapEd.undo.push(JSON.stringify({o:mapEd.obs,h:mapEd.haz,p:mapEd.pup}));if(mapEd.undo.length>40)mapEd.undo.shift();} // v5.1.235 snapshot before a mutation (single-step+ UNDO)
+function mapEditUndo(){if(!mapEd||!mapEd.undo.length)return;const s=JSON.parse(mapEd.undo.pop());mapEd.obs=s.o;mapEd.haz=s.h;mapEd.pup=s.p;sfx('click');}
 function mapEdRect(){const top=92,bot=CH-58,availW=CW-40,availH=bot-top,sc=Math.min(availW/FW,availH/FH),w=FW*sc,h=FH*sc;return{x:Math.round((CW-w)/2),y:top,w,h,sc};}
 function mapEdToField(mx,my){const r=mapEdRect();return{x:clamp((mx-r.x)/r.sc,0,FW),y:clamp((my-r.y)/r.sc,0,FH)};}
 function mapEdInField(mx,my){const r=mapEdRect();return mx>=r.x&&mx<=r.x+r.w&&my>=r.y&&my<=r.y+r.h;}
 function mapEdToolRects(){const n=MAP_TOOLS.length,bw=92,g=8,tot=n*bw+(n-1)*g,x0=(CW-tot)/2,y=CH-46;return MAP_TOOLS.map((t,i)=>({x:x0+i*(bw+g),y,w:bw,h:32,tool:t}));}
-function mapEdBtns(){return{back:{x:8,y:8,w:60,h:30},name:{x:CW/2-100,y:6,w:180,h:30},exp:{x:CW-300,y:8,w:76,h:30},clear:{x:CW-218,y:8,w:62,h:30},save:{x:CW-150,y:8,w:136,h:30}};}
+function mapEdBtns(){return{back:{x:8,y:8,w:58,h:30},undo:{x:72,y:8,w:48,h:30},name:{x:CW/2-100,y:6,w:180,h:30},exp:{x:CW-300,y:8,w:76,h:30},clear:{x:CW-218,y:8,w:62,h:30},save:{x:CW-150,y:8,w:136,h:30}};}
 function mapEditEraseAt(fx,fy){ // remove the topmost element near (fx,fy)
   for(let i=mapEd.pup.length-1;i>=0;i--){if(Math.hypot(mapEd.pup[i].x-fx,mapEd.pup[i].y-fy)<28){mapEd.pup.splice(i,1);return true;}}
   for(let i=mapEd.haz.length-1;i>=0;i--){const h=mapEd.haz[i];if(h.type==='saw'){if(Math.hypot(h.cx-fx,h.cy-fy)<34)return mapEd.haz.splice(i,1),true;}else if(fx>=h.x&&fx<=h.x+h.w&&fy>=h.y&&fy<=h.y+h.h)return mapEd.haz.splice(i,1),true;}
@@ -4893,18 +4899,19 @@ function mapEditEraseAt(fx,fy){ // remove the topmost element near (fx,fy)
 function mapEditDown(mx,my){if(!mapEd)return;const b=mapEdBtns();
   if(inR(mx,my,b.back)){mapEd=null;phase='p2bbmap';sfx('click');return;}
   if(inR(mx,my,b.name)){nameEntry={active:true,target:'mapname',text:mapEd.name||'',orig:mapEd.name||'MY ARENA'};sfx('click');return;}
+  if(inR(mx,my,b.undo)){mapEditUndo();return;} // v5.1.235 UNDO
   if(inR(mx,my,b.exp)){mapEditExport();return;} // v5.1.234 EXPORT a share code
-  if(inR(mx,my,b.clear)){mapEd.obs=[];mapEd.haz=[];mapEd.pup=[];sfx('click');return;}
+  if(inR(mx,my,b.clear)){if(mapEd.obs.length||mapEd.haz.length||mapEd.pup.length){mapEdPush();mapEd.obs=[];mapEd.haz=[];mapEd.pup=[];}sfx('click');return;}
   if(inR(mx,my,b.save)){mapEditSave();return;}
   for(const tr of mapEdToolRects())if(inR(mx,my,tr)){mapEd.tool=tr.tool.id;sfx('click');return;}
   if(!mapEdInField(mx,my))return;const f=mapEdToField(mx,my);
   if(mapEd.tool==='wall'||mapEd.tool==='pit')mapEd.drag={x0:f.x,y0:f.y,x1:f.x,y1:f.y};
-  else if(mapEd.tool==='saw'){mapEd.haz.push({type:'saw',cx:Math.round(f.x),cy:Math.round(f.y),axis:'y',amp:140,spd:1.5});sfx('click');}
-  else if(mapEd.tool==='pickup'){mapEd.pup.push({x:Math.round(f.x),y:Math.round(f.y)});sfx('click');}
-  else if(mapEd.tool==='erase'){mapEditEraseAt(f.x,f.y)&&sfx('click');}}
+  else if(mapEd.tool==='saw'){mapEdPush();mapEd.haz.push({type:'saw',cx:Math.round(f.x),cy:Math.round(f.y),axis:'y',amp:140,spd:1.5});sfx('click');}
+  else if(mapEd.tool==='pickup'){mapEdPush();mapEd.pup.push({x:Math.round(f.x),y:Math.round(f.y)});sfx('click');}
+  else if(mapEd.tool==='erase'){mapEdPush();if(!mapEditEraseAt(f.x,f.y))mapEd.undo.pop();else sfx('click');}}
 function mapEditMove(mx,my){if(mapEd&&mapEd.drag){const f=mapEdToField(mx,my);mapEd.drag.x1=f.x;mapEd.drag.y1=f.y;}}
 function mapEditUp(){if(!mapEd||!mapEd.drag)return;const d=mapEd.drag;mapEd.drag=null;const x=Math.min(d.x0,d.x1),y=Math.min(d.y0,d.y1),w=Math.abs(d.x1-d.x0),h=Math.abs(d.y1-d.y0);if(w<14||h<14)return;
-  if(mapEd.tool==='pit')mapEd.haz.push({type:'pit',x:Math.round(x),y:Math.round(y),w:Math.round(w),h:Math.round(h)});
+  mapEdPush();if(mapEd.tool==='pit')mapEd.haz.push({type:'pit',x:Math.round(x),y:Math.round(y),w:Math.round(w),h:Math.round(h)});
   else mapEd.obs.push({x:Math.round(x),y:Math.round(y),w:Math.round(w),h:Math.round(h)});sfx('click');}
 function mapEditSave(){if(!mapEd)return;const m={id:mapEd.id||('custom_'+Date.now().toString(36)),name:(mapEd.name||'MY ARENA').slice(0,18),obs:mapEd.obs.map(o=>({...o})),haz:mapEd.haz.map(h=>({...h})),pup:mapEd.pup.map(p=>({...p})),custom:true};
   const i=customMaps.findIndex(c=>c.id===m.id);if(i>=0)customMaps[i]=m;else customMaps.push(m);saveCustomMaps();m2.set.map=m.id;mapEd=null;phase='p2bbmap';sfx('claim');}
@@ -4921,6 +4928,7 @@ function mapImport(){let code='';try{code=window.prompt('Paste a map share code 
 function drawMapEditor(){if(!mapEd){phase='p2bbmap';return;}ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);for(let sy=0;sy<CH;sy+=3){ctx.fillStyle='rgba(0,0,0,0.12)';ctx.fillRect(0,sy,CW,1);}
   const b=mapEdBtns(),r=mapEdRect();
   ctx.fillStyle='rgba(30,30,50,0.8)';rr(b.back.x,b.back.y,b.back.w,b.back.h,8);ctx.fill();ctx.strokeStyle='#334466';ctx.lineWidth=1;rr(b.back.x,b.back.y,b.back.w,b.back.h,8);ctx.stroke();ctx.font='bold 10px Courier New';ctx.textAlign='center';ctx.fillStyle='#6677aa';ctx.fillText('← BACK',b.back.x+b.back.w/2,b.back.y+19);
+  {const can=mapEd.undo&&mapEd.undo.length;ctx.fillStyle=can?'rgba(40,40,64,0.85)':'rgba(24,24,36,0.6)';rr(b.undo.x,b.undo.y,b.undo.w,b.undo.h,8);ctx.fill();ctx.strokeStyle=can?'#556':'#333';ctx.lineWidth=1;rr(b.undo.x,b.undo.y,b.undo.w,b.undo.h,8);ctx.stroke();ctx.fillStyle=can?'#bcd':'#556';ctx.font='bold 14px Courier New';ctx.fillText('↶',b.undo.x+b.undo.w/2,b.undo.y+20);} // v5.1.235 UNDO
   const editing=(nameEntry.active&&nameEntry.target==='mapname'),blink=((Date.now()/450)|0)%2?'|':'';
   ctx.fillStyle='rgba(20,20,40,0.8)';rr(b.name.x,b.name.y,b.name.w,b.name.h,8);ctx.fill();ctx.strokeStyle=editing?'#ffd740':'#445';ctx.lineWidth=1.5;rr(b.name.x,b.name.y,b.name.w,b.name.h,8);ctx.stroke();ctx.font='bold 14px Courier New';ctx.fillStyle='#e8e8ff';ctx.textAlign='center';ctx.fillText('🗺 '+((editing?nameEntry.text+blink:mapEd.name)||'MY ARENA'),b.name.x+b.name.w/2,b.name.y+20);
   ctx.fillStyle='rgba(28,40,70,0.8)';rr(b.exp.x,b.exp.y,b.exp.w,b.exp.h,8);ctx.fill();ctx.strokeStyle='#5577aa';ctx.lineWidth=1;rr(b.exp.x,b.exp.y,b.exp.w,b.exp.h,8);ctx.stroke();ctx.fillStyle='#bcd6ff';ctx.font='bold 11px Courier New';ctx.fillText('📤 SHARE',b.exp.x+b.exp.w/2,b.exp.y+19); // v5.1.234 EXPORT
@@ -9120,6 +9128,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.235 (2026-06-19): CUSTOM MAP EDITOR — TOUCH support + UNDO (F5, ship 3/3 — feature complete). The editor was mouse-only; now its tool taps + drag-to-draw work on TOUCH too (the touchstart/move/end handlers route to `mapEditDown`/`Move`/`Up`, tracking the active touch id `mapEd._touch`). Added single-step+ **UNDO** — a `↶` button (next to BACK) and the **Z** key step back through a 40-deep snapshot stack (`mapEd.undo`, pushed before every wall/pit/saw/pickup/erase/clear); UNDO past the start is a safe no-op. That completes the custom map editor: build (ship 1) → share codes (ship 2) → touch + undo (ship 3). smoke57 +4 (undo across actions + no-op past start). Full battery green. Single file, no assets.
   v5.1.234 (2026-06-19): CUSTOM MAP EDITOR — SHARE codes (export / import) (F5, ship 2/3). Custom arenas are now shareable as a compact copy-paste **share code** (`DSMAP1:` + base64 of a minified JSON). In the editor a new **📤 SHARE** button copies the current arena's code to the clipboard (with a `prompt()` fallback that shows the code to copy); the gallery gets a **📥 IMPORT MAP** button that prompts for a pasted code, validates it (`mapFromCode` rejects garbage), and adds the arena to your `customMaps`. A fading toast confirms copy/import success or a bad code. This is the cross-device share path today; the format is the same clean JSON a future Steam-Workshop build would upload. `mapToCode`/`mapFromCode` reuse the game's existing prompt/clipboard idiom. smoke57 +4 (code round-trip, garbage rejected, import adds + selects). Full battery green. Single file, no assets. (Next: F5 ship 3 = touch support + editor polish.)
   v5.1.233 (2026-06-19): CUSTOM MAP EDITOR — build your own RoboRumble arena (backlog F5, ship 1/3). A new in-game editor: from the RoboRumble ARENA gallery, the **"+ NEW MAP"** tile opens a full-screen editor (`phase==='p2mapedit'`) where you paint on the field with five tools — **WALL** + **PIT** (drag to draw a rectangle), **SAW** + **PICKUP** (click to place), and **ERASE** (click an element to remove it) — plus a name field, CLEAR, and **SAVE & USE**. Saving stores the arena in `localStorage` (`customMaps` / `frcds_maps_v1`) and selects it; the gallery now lists your custom maps with **✎ edit** / **🗑 delete** affordances, and a new resolver (`bbMapObj`) plays a custom arena in any RoboRumble match (incl. RANDOM, which now rolls over built-ins + custom). The editor is mouse/touch-drag driven (its own mousedown/move/up path; the click dispatcher skips it). smoke57 +10 (create→draw→save→resolve→gallery→load), smoke52/smoke57 gallery-count asserts updated for the NEW tile. Full battery green. Single file, no assets. (Next: F5 ship 2 = JSON/share-code export-import; ship 3 = touch + polish.)
   v5.1.232 (2026-06-19): CUSTOM PAINT color picker for any bot (backlog F2c — completes the "Both" egg request). Any RoboRumble bot can now be recolored: **click the bot's chassis preview** (the 🎨 swatch) on the 1v1 card or a 3v3 grid seat to cycle a `PAINT_JOBS` palette (Team default → Crimson / Forest / Royal / Mono / Gold / Magenta / Cyan), stored on the loadout (`ld.paint`). A new `_bbPaint` flag (parallel to the name-egg `_bbLivery`) repaints the chassis body + accent in `drawRobot` — applied in-match AND on the setup preview (`p2cDrawDrivePreview`), and suppressed when a name-egg livery is active (eggs win). `bbCyclePaint` cycles it; `bbSeatLoadout`/`bbClaimEnsure` carry it. smoke57 +4. Full battery green (grid-layout audit unaffected — the picker reuses the preview, no new rects). Single file, no assets.

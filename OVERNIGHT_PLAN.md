@@ -37,7 +37,7 @@
 
 - **STOCK → 6-player FFA** (F4) — scoped ~10h+ (engine hard-wires 2 sides: spawn, win-detection, ~51 touchpoints). Recommend a playtest session, not unattended. No separate format toggle — the lives/timer settings (kept valid by the respawn↔timer rule) pick last-standing vs most-kills.
 - **Tournament v2** (F3) — see the LOCKED DESIGN block above. Model landed (`tourAllianceDraft`); rest is UI + the locked decisions. Needs Sam.
-- **Custom MAP EDITOR** (F5) — **IN PROGRESS (current build).** In-game editor (paint walls/hazards/pickups on the field) → save to `customMaps` in localStorage → export/import as JSON or share-code. Steam Workshop needs an Electron + Steamworks packaging layer (out of scope for the HTML build) but the JSON format is Workshop-ready.
+- **Custom MAP EDITOR** (F5) — ✅ **DONE (v5.1.233–235).** In-game editor (paint walls/hazards/pickups on the field) → save to `customMaps` in localStorage → export/import as JSON or share-code. Steam Workshop needs an Electron + Steamworks packaging layer (out of scope for the HTML build) but the JSON format is Workshop-ready.
 - **TABLED by Sam 2026-06-19:** KAMIKAZE 0%-in-3v3 CPU brain · tier-difficulty lapse/react depth · jet CPU dash-through. **Earlier:** repair heal↔buff cycle · weapon-balance feel re-tune. **DONE this session:** gray cannon render (v5.1.219), map gallery→Tank Fight (v5.1.220).
 
 **Operating ritual unchanged** (see below): `./extract.sh && ./battery.sh` ALL GREEN → `git mv` vN→vN+1 → `sed` filename into `extract.sh`+`MIGRATION.md` → commit "Release …" → push `dev` + session branch.
