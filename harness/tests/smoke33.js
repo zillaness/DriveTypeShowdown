@@ -109,6 +109,16 @@ src+=`
    // non-alliance still goes straight to the bracket
    tour={names:['A','B','C','D'],drv:[null,null,null,null],policy:'open',seedMode:'rand',format:'single',allianceMode:false,mode:'normal',buf:'',seeds:[],M:[],qi:0};
    phase='x';tourAfterSeed();T('ALLIANCES off → straight to the 1v1 bracket (no draft)',phase==='p2tbracket'&&!tour.draft);}
+  // ── v5.1.240 3v3 routing: an alliance match → captain + 2 drafted-tier CPU allies per side ──
+  {const T=(l,c)=>console.log((c?'ok — ':'FAIL — ')+l);
+   m2.claim=[{type:'human'},{type:'human'}];m2.set=m2.set||{};m2.set.tallies=0;m2.mode='battlebots';
+   tour={allianceMode:true,curE:[0,1],alli:{0:{captain:0,bots:[{tier:'champ'},{tier:'rookie'}]},1:{captain:1,bots:[{tier:'vet'},{tier:'vet'}]}}};
+   const seats=tankSeatsFromClaim(),mx=modeTiers().length-1;
+   T('RED = captain + 2 allies (3v3)',seats[0].length===3&&seats[0][0].type==='human'&&seats[0][1].type==='cpu'&&seats[0][2].type==='cpu');
+   T('BLUE = captain + 2 allies (3v3)',seats[1].length===3&&seats[1][0].type==='human');
+   T('RED allies use drafted tiers (champ→top, rookie→0)',seats[0][1].tier===Math.min(2,mx)&&seats[0][2].tier===0);
+   T('BLUE allies use drafted tiers (vet,vet)',seats[1][1].tier===Math.min(1,mx)&&seats[1][2].tier===Math.min(1,mx));
+   tour=null;const seats2=tankSeatsFromClaim();T('non-alliance match: no drafted allies (tallies=0 → 1v1)',seats2[0].length===1&&seats2[1].length===1);}
   tour=null;bb2=null;console.log('done');
 })();
 `;
