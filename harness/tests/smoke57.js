@@ -1266,6 +1266,15 @@ src+=`
    gpPrevAll=[];gpBtnsAll=[[]];gpBtnsAll[0][8]=true;tankGridGpNav(); // BACK by the pad that owns seat 0
    ok('GRID pad: BACK drops a CPU into the next open seat (controller-only AI opponents)',m2.tseats.some(s=>s&&s.type==='cpu'));
    m2.tseats=svT;gpBtnsAll=svG;m2._gpPrev=svP;gpPrevAll=svGP;m2.tsel=svSel;m2.mode=svM;}
+  // v5.1.230 ABSOLUTE-HEADING default couples to the drive frame (field-centric → ON, bot-centric → OFF; user can still override)
+  {const svAH=absHeading,svHC=holoCentric,svD=m2.drive;m2.drive=[null,null,null,null,null,null];
+   absHeading=false;p2cSetDrive(0,0,3);ok('FIELD-CENTRIC swerve auto-ENABLES absolute heading',absHeading===true);
+   p2cSetDrive(0,0,2);ok('BOT-CENTRIC swerve auto-DISABLES absolute heading',absHeading===false);
+   absHeading=true;p2cSetDrive(0,0,0);ok('a non-swerve drive (tank) leaves absolute heading unchanged (override preserved)',absHeading===true);
+   holoCentric=false;absHeadingCouple(holoCentric);ok('switching the holo frame to BOT-CENTRIC turns absHeading off',absHeading===false);
+   holoCentric=true;absHeadingCouple(holoCentric);ok('switching the holo frame to FIELD-CENTRIC turns absHeading on',absHeading===true);
+   ok('driveFieldCentric: fieldSwerve=true, botSwerve=false, tank=null',driveFieldCentric({kind:'main',idx:3})===true&&driveFieldCentric({kind:'main',idx:2})===false&&driveFieldCentric({kind:'main',idx:0})===null);
+   absHeading=svAH;holoCentric=svHC;m2.drive=svD;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
