@@ -119,6 +119,12 @@ src+=`
    T('RED allies use drafted tiers (champ→top, rookie→0)',seats[0][1].tier===Math.min(2,mx)&&seats[0][2].tier===0);
    T('BLUE allies use drafted tiers (vet,vet)',seats[1][1].tier===Math.min(1,mx)&&seats[1][2].tier===Math.min(1,mx));
    tour=null;const seats2=tankSeatsFromClaim();T('non-alliance match: no drafted allies (tallies=0 → 1v1)',seats2[0].length===1&&seats2[1].length===1);}
+  // ── v5.1.241 MANUAL seeding (rank by skill via ▲▼) ──
+  {const T=(l,c)=>console.log((c?'ok — ':'FAIL — ')+l);
+   tour={names:['Weak','Strong','Mid'],seedMode:'manual'};
+   T('MANUAL seed order = registration order',JSON.stringify(tourRankedIdx())==='[0,1,2]');
+   tourSwapSeed(0,1);T('▲▼ swap reorders entrants (seed)',tour.names[0]==='Strong'&&tour.names[1]==='Weak');
+   tourSwapSeed(0,-1);T('swap past the ends is a safe no-op',tour.names[0]==='Strong'&&tour.names.length===3);}
   tour=null;bb2=null;console.log('done');
 })();
 `;

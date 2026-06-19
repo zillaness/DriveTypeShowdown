@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.240.html
-  version: 5.1.240
+  file: drive_showdown_v5.1.241.html
+  version: 5.1.241
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -6002,6 +6002,7 @@ function tourAllianceDraft(ranked,nA,sz){
   return all;
 }
 function tourMaxEntrants(){return (tour&&(tour.format||'double')==='double')?8:16;} // v5.1.237 T-design: double-elim "FRC mode" ≤8 alliances; single-elim party ≤16
+function tourSwapSeed(i,j){if(!tour||i<0||j<0||i>=tour.names.length||j>=tour.names.length)return;const t=tour.names[i];tour.names[i]=tour.names[j];tour.names[j]=t;sfx('click');} // v5.1.241 manual seeding: ▲▼ reorder entrants (registration order = seed order)
 function tourRankedIdx(){ // v5.1.239 the seeded entrant order (best→worst): qualifier time, registration order (manual), or random
   const idx=tour.names.map((_,i)=>i);
   if(tour.seedMode==='qual')idx.sort((a,b)=>(tour.seeds[a]??Infinity)-(tour.seeds[b]??Infinity));
@@ -6208,14 +6209,16 @@ function drawTourNames(){
   ctx.fillText('ALLIANCES — '+tour.names.length+' of 4–16 registered',CW/2,ib.y+ib.h+22);
   if(empty){ctx.font='11px Courier New';ctx.fillStyle='#666688';
     ctx.fillText('tap the box on touch devices — the keyboard opens right there',CW/2,ib.y+ib.h+40);}
+  const manual=tour.seedMode==='manual';
   for(let i=0;i<tour.names.length;i++){
     const r=tourNameRect(i);
-    btn(r.x,r.y,r.w,r.h,(i+1)+'. '+tour.names[i].slice(0,12),'#8888ff');
+    btn(r.x,r.y,r.w,r.h,(i+1)+'. '+tour.names[i].slice(0,manual?9:12),'#8888ff');
+    if(manual){ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle=i>0?'#bfe':'#445';ctx.fillText('▲',r.x+r.w-27,r.y+r.h/2+5);ctx.fillStyle=i<tour.names.length-1?'#bfe':'#445';ctx.fillText('▼',r.x+r.w-11,r.y+r.h/2+5);} // v5.1.241 rank by skill
   }
   const opts=[
     ['MATCH MODE',{normal:'NORMAL H2H',shooter:'SHOOTER H2H',tankfight:'TANK FIGHT',battlebots:'ROBORUMBLE',race:'OBSTACLE RACE'}[tour.mode]],
     ['DRIVE POLICY',tour.policy==='open'?'OPEN — pick every match':'CLOSED — first pick locks'],
-    ['SEEDING',tour.seedMode==='rand'?'RANDOM':'QUALIFIER — solo time trial'],
+    ['SEEDING',{rand:'RANDOM',qual:'QUALIFIER — solo time trial',manual:'MANUAL — rank by skill (▲▼)'}[tour.seedMode]||'RANDOM'],
     ['BRACKET',(tour.format||'double')==='double'?'DOUBLE ELIMINATION · up to 8':'SINGLE ELIMINATION · up to 16'],
     ['ALLIANCES',tour.allianceMode?'ON — 3v3 captain DRAFT (FRC)':'OFF — 1v1, no draft'],
   ];
@@ -6343,11 +6346,15 @@ function drawTourBracket(){
 function tourClick(mx,my){
   if(phase==='p2tnames'){
     {const b=tourInputRect();if(inR(mx,my,b)){tourOpenInput();return;}}
-    for(let i=0;i<tour.names.length;i++){if(inR(mx,my,tourNameRect(i))){tour.names.splice(i,1);return;}}
+    for(let i=0;i<tour.names.length;i++){const r=tourNameRect(i);
+      if(tour.seedMode==='manual'){ // v5.1.241 ▲▼ rank entrants by skill (manual seeding)
+        if(inR(mx,my,{x:r.x+r.w-35,y:r.y,w:18,h:r.h})){tourSwapSeed(i,i-1);return;}
+        if(inR(mx,my,{x:r.x+r.w-18,y:r.y,w:18,h:r.h})){tourSwapSeed(i,i+1);return;}}
+      if(inR(mx,my,r)){tour.names.splice(i,1);return;}}
     for(let i=0;i<5;i++){if(inR(mx,my,tourOptRect(i))){
       if(i===0){const seq=['normal','shooter','tankfight','battlebots','race'];tour.mode=seq[(seq.indexOf(tour.mode)+1)%seq.length];} // v5.1.124 T3: RoboRumble joins the bracket mode list
       else if(i===1)tour.policy=tour.policy==='open'?'closed':'open';
-      else if(i===2)tour.seedMode=tour.seedMode==='rand'?'qual':'rand';
+      else if(i===2)tour.seedMode={rand:'qual',qual:'manual',manual:'rand'}[tour.seedMode]||'rand'; // v5.1.241 RANDOM → QUALIFIER → MANUAL
       else if(i===3)tour.format=(tour.format||'double')==='double'?'single':'double';
       else tour.allianceMode=!tour.allianceMode; // v5.1.239 ALLIANCES: 3v3 captain draft
       return;}}
@@ -9233,6 +9240,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.241 (2026-06-19): TOURNAMENT v2 — MANUAL SEEDING (rank by skill). The SEEDING toggle now cycles RANDOM → QUALIFIER → MANUAL. In MANUAL the registration name chips get ▲▼ buttons to reorder entrants — the order IS the seed order (1 = top seed), for "when you already kind of know who's better" (Sam). `tourRankedIdx()` already honored 'manual' (registration order); added `tourSwapSeed(i,j)` + the ▲▼ UI. This rounds out the Tournament-v2 build: FORMAT (single/double) + double-elim engine + Bo3 GF + CAPTAIN DRAFT + 3v3 alliance routing + per-match open-pick MAP VOTE + MANUAL/random/qualifier seeding + format size caps. (Future/tabled: higher-seed map-pick gating, per-match lineup swaps, T1 registration text-input.) smoke33 +3. Full battery green.
   v5.1.240 (2026-06-19): TOURNAMENT v2 — 3v3 ROUTING (drafted alliances hit the FIELD). With ALLIANCES on, a bracket match now plays 3v3: each captain fights alongside the 2 CPU bots they drafted, at the drafted TIERS (champ/vet/rookie). Done by teaching the existing claim-roster builder (`tankSeatsFromClaim`, which tournaments always use since the grid is `!tour`-gated) about the active alliance match: new `tourMatchAlly(side)` maps `tour.alli[tour.curE[side]]`'s drafted bot tiers → that side's two CPU allies (falls back to the symmetric tallies/allyTier when not an alliance match). No grid rebuild, no new match-start path — the lightweight 2-captain claim/drive flow is unchanged; the 4 allies just spawn into the roster. This completes the FRC loop: draft → 3v3 bracket with your alliance → Bo3 grand final. smoke33 +5. Full battery green.
   v5.1.239 (2026-06-19): TOURNAMENT v2 — CAPTAIN DRAFT screen (FRC alliance selection, the headline). New ALLIANCES toggle in registration (5th option): OFF = classic 1v1; ON = a 3v3 captain draft. When ON, after seeding the new draft screen (`phase==='p2tdraft'`, `drawTourDraft`) runs a snake draft — every entrant is a captain (in seed order), and each drafts 2 CPU bots from a pre-ranked-by-tier pool (champ/vet/rookie) to fill a 3-bot alliance. Higher seeds pick first; serpentine reverses each round; ⚡ AUTO-DRAFT fills the rest (current captain takes best-available); ▶ BUILD BRACKET locks it. Seeding was refactored into `tourRankedIdx()` so the draft + bracket share ONE seed order (`tour.rank`); `tourBuild` reuses it. Alliances stored in `tour.alli`. NOTE: the drafted bots don't hit the FIELD yet — matches still run captain-1v1 until the next ship wires 3v3 grid routing. smoke33 +8. Full battery green.
   v5.1.238 (2026-06-19): TOURNAMENT v2 — T4 map vote WIRED into matches. A RoboRumble (battlebots-mode) tournament now runs the open-pick arena vote (v5.1.236) before EACH match: `tourStartMatch` → `startMapVote(15, onDone=set arena+proceed, onCancel=auto-random)` → `tourProceedMatch` (the old drive/claim tail, extracted). Non-RoboRumble tournaments skip the vote (straight to drive). `startMapVote` gained an `onCancel` arg so a caller can override Esc (the tournament resolves to random instead of bailing to the gallery). smoke33 +3. Full battery green. (Next: captain-draft screen + 3v3 routing + manual seeding — see HANDOFF.)
