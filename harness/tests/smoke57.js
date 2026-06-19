@@ -1336,6 +1336,14 @@ src+=`
   // v5.1.247 custom PAINT carries into the in-match loadout (was stripped by bbResolveLoadout → never rendered in game)
   ok('bbResolveLoadout preserves the custom PAINT index',bbResolveLoadout({weapon:'spinner',armor:'light',paint:3}).paint===3);
   ok('no-paint loadout resolves to paint 0 (team/drive default)',bbResolveLoadout({weapon:'spinner',armor:'light'}).paint===0);
+  // v5.1.248 independent ACCENT color (body skin + separate accent)
+  {const p=bbPaintFor({weapon:'spinner',armor:'light',paint:1,accent:3});
+   ok('bbPaintFor: BODY from PAINT_JOBS, ACCENT from ACCENT_COLS',!!p&&p.body===PAINT_JOBS[1].body&&p.accent===ACCENT_COLS[3]&&p.stroke===ACCENT_COLS[3]);
+   ok('accent 0 = the body skin default accent',bbPaintFor({paint:1,accent:0}).accent===PAINT_JOBS[1].accent);
+   ok('accent-only (no body) = neutral dark body + chosen accent',(()=>{const q=bbPaintFor({paint:0,accent:5});return !!q&&q.accent===ACCENT_COLS[5]&&q.body==='#191922';})());
+   ok('no body + no accent = null (team default)',bbPaintFor({paint:0,accent:0})===null);
+   const l2={accent:0};bbCycleAccent(l2,1);ok('bbCycleAccent advances the accent index',l2.accent===1);
+   ok('bbResolveLoadout preserves ACCENT into the match',bbResolveLoadout({weapon:'spinner',armor:'light',accent:4}).accent===4);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
