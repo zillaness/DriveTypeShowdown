@@ -1,5 +1,19 @@
 # 🌙 OVERNIGHT AUTONOMOUS GOAL — RoboRumble (2026-06-16 → morning)
 
+## 🌙 TONIGHT (2026-06-19, thread `inspiring-turing`) — START HERE — tip v5.1.219, all green on `dev`
+**A long live-playtest session with Sam (v5.1.199→219).** See `MIGRATION.md` → "⏩ CURRENT STATE — 2026-06-19, v5.1.218" for the full shipped list (repair bot, MECHA iai dash-slash, tier-difficulty-as-damage-vs-human, cannon cheats split + explosive/MG/bouncy, CTF return-home, respawn↔timer rule, grid weapon render, abs-heading snap fix, Last-Stand win-in-window fix).
+
+**Sam's mode tonight = FEEL-FIRST live iteration**, not an autonomous balance grind. The 1v1 CPU-sim is a coarse directional tool (spinner 72 / pincer 11 / kamikaze 0) — **NOT a tuning target.** Ship one green increment per fix, drop a build at each.
+
+**Backlog / what's parked (most needs Sam in the loop):**
+- **STOCK → 6-player FFA** — scoped ~10h+ (engine hard-wires 2 sides: spawn, win-detection, ~30 HUD sites). Recommend a playtest session, not unattended. No separate format toggle — the lives/timer settings (kept valid by the respawn↔timer rule) pick last-standing vs most-kills.
+- **Tournament v2** — T2 (3v3 grid) / T4 (per-match map) / T1 (input typing). Model landed (`tourAllianceDraft`); rest is UI + decisions. Needs Sam.
+- **TABLED by Sam 2026-06-19:** KAMIKAZE 0%-in-3v3 CPU brain · tier-difficulty lapse/react depth · jet CPU dash-through. **Earlier:** repair heal↔buff cycle · map gallery · egg paint+achievements · weapon-balance feel re-tune · the goofy-neon→gray cannon/tank render (Sam flagged; next).
+
+**Operating ritual unchanged** (see below): `./extract.sh && ./battery.sh` ALL GREEN → `git mv` vN→vN+1 → `sed` filename into `extract.sh`+`MIGRATION.md` → commit "Release …" → push `dev` + session branch.
+
+---
+
 ## 🆕 FRESH THREAD — START HERE (handoff 2026-06-16)
 You are continuing an autonomous RoboRumble build run. **Canonical branch = `dev`** (see `CLAUDE.md`).
 1. `git fetch origin dev` and make sure you're on it. Current tip = **`drive_showdown_v5.1.210.html`** (v5.1.205). **See the `## 🌅 OVERNIGHT 2026-06-18` section near the bottom — that's the freshest state + open items.**

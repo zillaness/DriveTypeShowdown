@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.218.html
-  version: 5.1.218
+  file: drive_showdown_v5.1.219.html
+  version: 5.1.219
   author: Sam Cao
   created: 2026-06-11
-  last_updated: 2026-06-18
+  last_updated: 2026-06-19
   description: Single-file HTML5 canvas game demonstrating all robot drive types (tank, arcade, swerve, holonomic, steering) with CPU defenders, an H2H sticky-plow scoring cycle with steal, a unified Mario-Kart setup screen (drive + controller + rename per spot), a scalable ball count, gamepad/touch support, high scores, and easter eggs. Built for Team 2204 Rambots.
   ai_update: Update last_updated and version. Rename file to match. Append changelog comment at bottom. Patch with targeted edits only; never rewrite the full file. Run a JS syntax check after every change.
 -->
@@ -3770,16 +3770,16 @@ function updateP2Tank(dt){
   for(const bl of tf2.blasts)bl.t-=dt; tf2.blasts=tf2.blasts.filter(bl=>bl.t>0);
   p2AirstrikeUpdate(dt); // v5.1.159 cross-mode AIRSTRIKE (stun)
 }
-function drawTankCannon(t,col){ // v5.1.72 a basic cannon/turret on the tank chassis — points along cannonAng (chassis heading, or the foe under AUTO-AIM)
-  const ca=(t.cannonAng!=null)?t.cannonAng:t.h, aim=t.aimT>0;
+function drawTankCannon(t,col){ // v5.1.72 a basic cannon/turret on the tank chassis — points along cannonAng (chassis heading, or the foe under AUTO-AIM); v5.1.219 hardware is GUNMETAL GRAY (was the neon team color — looked goofy); the chassis carries side-ID
+  const ca=(t.cannonAng!=null)?t.cannonAng:t.h, aim=t.aimT>0, GUN='#8893a6';
   ctx.save();ctx.translate(FX+t.x,FY+t.y);ctx.rotate(ca);
   ctx.beginPath();ctx.arc(0,0,RR*0.52,0,Math.PI*2);ctx.fillStyle='#14161ce6';ctx.fill(); // turret base
-  ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();
+  ctx.strokeStyle=GUN;ctx.lineWidth=2;ctx.stroke();
   ctx.lineCap='round';
-  ctx.strokeStyle=aim?'#ffd240':col;ctx.lineWidth=5.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(RR+13,0);ctx.stroke(); // barrel (glows gold under AUTO-AIM)
+  ctx.strokeStyle=aim?'#ffd240':GUN;ctx.lineWidth=5.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(RR+13,0);ctx.stroke(); // barrel (glows gold under AUTO-AIM)
   ctx.strokeStyle='#0a0a12';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(RR*0.5,0);ctx.lineTo(RR+12,0);ctx.stroke(); // bore
   ctx.lineCap='butt';
-  ctx.beginPath();ctx.arc(RR+13,0,3,0,Math.PI*2);ctx.fillStyle=aim?'#ffd240':col;ctx.fill(); // muzzle
+  ctx.beginPath();ctx.arc(RR+13,0,3,0,Math.PI*2);ctx.fillStyle=aim?'#ffd240':GUN;ctx.fill(); // muzzle
   ctx.restore();
 }
 // drawPupChips(list,x,y,align): colored power-up chips for the tank HUD. Each chip = a dark rounded slab
@@ -4280,7 +4280,7 @@ function bbKill(victim,owner){ // KO + explosion + MUTUAL-DESTRUCTION chain: a n
   if(!bb2.blasts)bb2.blasts=[];if(!bb2.deb)bb2.deb=[];
   const R=RR*BB_W.blastRK;bb2.blasts.push({x:victim.x,y:victim.y,t:0.42,r:R});bbDeathFx(victim);
   if((victim.ld&&victim.ld.perk)==='partinggift'){const PR=RR*BB_W.partingRK;bb2.blasts.push({x:victim.x,y:victim.y,t:0.9,max:0.9,r:PR,parting:true});sfx('explosion');for(const o of bb2.bots){if(o===victim||o.dead||o.side===victim.side)continue;const d=Math.hypot(o.x-victim.x,o.y-victim.y);if(d<=PR){o.hp-=BB_W.partingDmg*Math.max(0.6,1-d/PR);o.inv=BB.hitCd;if(o.ctl)p2Rumble(o.ctl.bind,0.9,'heavy');if(o.hp<=0&&!o.dead)bbKill(o,owner);}}} // v5.1.173 PARTING GIFT: a big gold blast on death — ≥0.6× even at the edge so it really takes foes with you
-  for(const o of bb2.bots){if(o===victim||o.dead)continue;if(o.hp<=BB_W.blastLethalHp&&Math.hypot(o.x-victim.x,o.y-victim.y)<=R)bbKill(o,owner);} // chain reaction
+  for(const o of bb2.bots){if(o===victim||o.dead||o._lastStandT>0)continue;if(o.hp<=BB_W.blastLethalHp&&Math.hypot(o.x-victim.x,o.y-victim.y)<=R)bbKill(o,owner);} // chain reaction (a near-dead bot caught in the blast also dies) — v5.1.219 EXEMPT a LAST STAND bot: the chain can't finish it, so landing the winning blow mid-window lets you survive → WIN (only a deliberate PARTING GIFT death-bomb still takes you out → draw)
   if(owner!=null){const _k=bb2.bots[owner];if(_k&&!_k.dead&&bbPerkOf(_k)==='vampire'&&_k.side!==victim.side)_k.hp=Math.min(_k.mhp||BB.HP,_k.hp+BB_W.vampHeal);} // v5.1.155 VAMPIRE: destroying an enemy heals the killer
   bbCheckResult(owner);
 }
@@ -5133,7 +5133,7 @@ function bbDrawWeapon(b){ // P2.2 basic weapon cosmetics (the picker UI + polish
       ctx.strokeStyle='rgba(0,0,0,0.45)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(tx,ty,rg,0,Math.PI*2);ctx.stroke();
       ctx.strokeStyle=drain?'#ff6b6b':(hpFrac>0.5?'#7CFC8A':(hpFrac>0.25?'#ffd166':'#ff6b6b'));ctx.lineWidth=3.2;ctx.beginPath();ctx.arc(tx,ty,rg,-Math.PI/2,-Math.PI/2+Math.PI*2*hpFrac);ctx.stroke();
       ctx.fillStyle=drain?'rgba(255,120,95,0.95)':'rgba(124,252,138,0.95)';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText((drain?'⤓':'')+Math.round(hpFrac*100)+'%',tx,ty-rg-4);} // % HP (⤓ = draining)
-  }else if(w==='cannon'){ctx.rotate(b.weaponAng!=null?b.weaponAng:b.h);const rec=(b._tpFx>0)?3:0,col=b.col||'#cdd6e6'; // v5.1.215 render MATCHED to the tank-fight cannon (drawTankCannon): dark turret + round-capped stroke barrel + dark bore + muzzle dot; keeps the RoboRumble recoil/flash/reload-cue
+  }else if(w==='cannon'){ctx.rotate(b.weaponAng!=null?b.weaponAng:b.h);const rec=(b._tpFx>0)?3:0,col='#8893a6'; // v5.1.219 GUNMETAL GRAY hardware (was the neon team color — looked goofy); side-ID stays on the chassis. dark turret + round-capped stroke barrel + dark bore + muzzle dot; keeps the recoil/flash/reload-cue
     ctx.fillStyle='#14161ce6';ctx.beginPath();ctx.arc(0,0,RR*0.52,0,Math.PI*2);ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke(); // turret base
     ctx.lineCap='round';
     ctx.strokeStyle=col;ctx.lineWidth=5.5;ctx.beginPath();ctx.moveTo(-rec,0);ctx.lineTo(RR+13-rec,0);ctx.stroke(); // barrel
@@ -8930,6 +8930,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.219 (2026-06-19): GRAY CANNON + WIN-DURING-LAST-STAND. Two ship-tonight fixes. (1) GUNMETAL-GRAY CANNON (Sam — "in both tank mode and RoboRumble the tank should just be rendered gray, it looks goofy neon"): the cannon/turret hardware in `drawTankCannon` (tank-fight) AND the `w==='cannon'` branch of `bbDrawWeapon` (RoboRumble) now render in gunmetal gray `#8893a6` instead of the neon team color. The AUTO-AIM gold highlight (`#ffd240`), the dark turret base (`#14161ce6`), the dark bore (`#0a0a12`), and (RoboRumble) the muzzle flash + the human green reload cue are all kept; the side-ID stays on the chassis body so teams are still readable. (2) WIN DURING LAST STAND (Sam — "if you're the last two bots and you go into Last Stand but then you take them out with your weapon… you should just win"): the kill-blast CHAIN REACTION (a near-dead bot caught in a blast also dies) now EXEMPTS any bot whose `_lastStandT>0`, so landing the winning blow mid-window no longer chain-kills you into a draw — you SURVIVE and WIN. A deliberate PARTING-GIFT death-bomb is still lethal (→ draw), preserving that counter. smoke57 +3 (CTF flag RE-GRAB after return-home; Last Stand WIN; Parting-Gift DRAW). Full battery green. Single file, no assets.
   v5.1.218 (2026-06-19): ABSOLUTE HEADING snap now RESPONDS to the TURN-RATE tuning + no overshoot (Sam — "cranked to 3.00× it's still slow"). `absHeadingVr` was a proportional controller `clamp(dh*8,-1,1)*TSP`, and the pipeline then ×`sensitivity`×`rotRatio` — so at a high TURN RATE the per-frame step exceeded the remaining angle and it OVERSHOT/oscillated around the target (read as "slow / not snappy", and cranking the knob made it worse). Rewritten to a RATE-CAPPED, NO-OVERSHOOT snap: rotate toward the stick angle at up to `AH_SNAP`(2.4)×TSP×(sensitivity·rotRatio), but never past the remaining angle in one frame. Now the TURN-RATE knob directly controls snap speed (3× ≈ 3× faster) and it lands cleanly without wobble. smoke54 +2 (rate scales with the knob; small error doesn't overshoot). Full battery green. Single file, no assets.
   v5.1.217 (2026-06-19): NO ENDLESS MATCHES — respawn↔timer rule (Sam). The RoboRumble MATCH SETTINGS now keep LIVES + TIME LIMIT mutually valid so a match can always end: **infinite respawns ⟹ a TIME LIMIT is auto-added** (3 min) and **turning the TIME LIMIT off under infinite lives ⟹ LIVES snap finite** (3). The only invalid combo (inf lives + no clock = endless) self-corrects by fixing the field you did NOT just touch. New `bbEnforceLivesTime(changed)`, called from both settings-change paths (`p2CycleSet` cycle + the dropdown click). Finite-lives/no-timer (last-standing) and inf-lives/timed (most-kills) both stay allowed. smoke57 +4. Full battery green. Single file, no assets.
   v5.1.216 (2026-06-19): 3v3 GRID cards show the chosen WEAPON render (Sam — "same thing in the 3v3 card"). The v5.1.201 1v1-card weapon preview is now on the 3v3 grid seats too: each occupied RoboRumble grid seat draws the picked WEAPON on top of its drive-base preview (spinner bar / hammer / dish / claws / blade / flame nozzle / cannon / jet, etc.), so you see your loadout on the bot as you arm it. Refactor: `bbDrawClaimWeaponPreview` split into a reusable `bbDrawWeaponPreview(ld,cx,cy,scale)` that takes a loadout directly — the 1v1 card passes `bbClaimLd(pl)`, the grid passes `m2.tseats[i].loadout` (only when set → an un-armed seat keeps a bare chassis). Same `_wpnPreview` AoE-suppression + bb2 stub. smoke57 +2 (grid preview renders for every weapon bb2=null-safe; no-op for an unset/RAM seat). Full battery green. Single file, no assets.

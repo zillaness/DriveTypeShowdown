@@ -1,14 +1,43 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-16, at v5.1.116** (see ⏩ LATEST STATE below — much has changed since v5.1.80).
+**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-19, at v5.1.219** (see the CURRENT-STATE block immediately below; the older `⏩ LATEST STATE — v5.1.116` section and everything beneath it is earlier history).
 
 ---
 
-## ⏩ LATEST STATE — 2026-06-16, **v5.1.116** (READ THIS; the older sections below are pre-v5.1.80 history)
+## ⏩ CURRENT STATE — 2026-06-19, **v5.1.219** (READ THIS FIRST — supersedes the v5.1.116 block below)
+
+**Build / branch:** tip = **`drive_showdown_v5.1.219.html`**, all green on **`dev`** (canonical; see `CLAUDE.md` BRANCH POLICY). `extract.sh` → `/tmp/g.js`; `./extract.sh && ./battery.sh` must print **ALL GREEN** before every commit. Commit as `Claude <noreply@anthropic.com>` is fine (Sam OK'd). Release ritual: edit → `git mv vN→vN+1` → `sed` the filename into `extract.sh` + `MIGRATION.md` → extract+battery green → commit "Release …" → push `dev` + the session branch. **After `git mv` you must Read the renamed file before Edit.**
+
+**Operating mode (this session, 2026-06-19 — thread `inspiring-turing`):** Sam live-playtests fast; terse status, real battery results, drop a build (SendUserFile) at each ship, fold his feel-feedback in. **FEEL-FIRST** — he drives weapon/feel numbers by hand; do NOT chase the CPU-vs-CPU sim band unattended. The 1v1 sim (`bbbalance.js`) is a coarse, jumpy DIRECTIONAL tool (binary matchups → ~11%/flip), currently spinner 72 · buzzsaw 69 · piston 66 · flame/drill/jet 56 · flipper/wedge 51 · pincer 11 · kamikaze 0 — **not a tuning target right now.**
+
+**Shipped this session (v5.1.199 → v5.1.219), all on `dev`:**
+- **GRAY CANNON** (v5.1.219): the cannon/turret hardware renders gunmetal gray `#8893a6` in BOTH tank-fight (`drawTankCannon`) and RoboRumble (`bbDrawWeapon` cannon branch) instead of neon team color (Sam: "looks goofy neon"); AUTO-AIM gold + dark bore/turret + muzzle-flash/reload-cue kept; side-ID stays on the chassis.
+- **WIN DURING LAST STAND** (v5.1.219): the kill-blast chain reaction now EXEMPTS a `_lastStandT>0` bot, so landing the winning blow mid-window lets you SURVIVE → WIN (a deliberate Parting-Gift death-bomb is still lethal → draw).
+- **REPAIR support bot** finalized (passive AoE attack-buff field + hold-to-heal radar dish + life-steal when isolated + anti-kite move-slow), grid-parabolic dish render, favicon (gearhead logo).
+- **MECHA MODE** (the ANIME SWORD cheat, click-cycle OFF/YOU/EVERYONE): yellow Gundam V-fin + pink energy sword; **DASH = an IAI** — a wind-up pause → teleport-blink forward → **one-hit-kill** clean slash → anime cut-in.
+- **DRILL bore-dash** (drill-on + dash pierces walls/foes; ramp resets) + spinning-flute visual; **two-tier spinner rumble**; **jet overheats faster**.
+- **FLAME human/CPU fork restored** (human fills the blow-up ring fast + a wider ~90° cone so it builds in 3v3; CPU frozen → balance unchanged); flame now torches the pit-bot/drones; **PINCER takes 70% reduced damage while clamping**; **pit-stop = mobility-only**.
+- **CPU-tier difficulty = a DAMAGE-VS-HUMAN scale** (ROOKIE 0.90× … CHAMPION 1.10×, `BB_TIER_DMG`) applied only on CPU→human hits → **CPU-vs-CPU weapon sims provably unchanged**. RoboRumble got its own `CPU_TIERS_BB` clone (decoupled from Ball). (Tabled: lapse/react depth, the 2v3-as-a-metric idea.)
+- **AIRSTRIKE** = a wave of bombs at random spots + a merged on/off+rate slider; **TANK INVASION reworked → "EXPLOSIVE SHELLS"** (a modifier: cannon shells + all tank shots explode), **UNLOCK CANNON** = the plain cannon weapon (50% sim), and the cheat cannon now respects **MACHINE GUN** (full-auto) + **BOUNCY** (ricochet); cannon render matched to the tank-fight cannon.
+- **GAME MODES:** **CTF** carrier-death now RETURNS the flag home (small-map fix; the old drop-loose read as "no flag, match never ends"); **respawn↔timer rule** (`bbEnforceLivesTime`) — infinite respawns ⟹ a timer, no timer ⟹ finite lives (no endless matches).
+- **UI:** the **3v3 grid cards now show the chosen weapon** on the bot (like the 1v1 card); **ABSOLUTE HEADING snap** rewritten to a rate-capped no-overshoot controller that RESPONDS to the TURN-RATE knob (was overshooting/wobbling at high turn rate).
+
+**Sim/dev tools:** `bbbalance.js` (1v1), `bbbalance3.js` (3v3 teams), `bbrepair.js` (repair), `bbreport.js` (armor/perk), `/tmp/cannon.js` (cannon vs field). The bb sims now set `m2.mode='battlebots'` (RoboRumble tier table). 455 asserts in smoke57; full battery green.
+
+**OPEN / BACKLOG (mostly needs Sam in the loop):**
+- **STOCK → 6-player FFA** — scoped at **~10h+**: the engine hard-wires 2 sides through spawn, win-detection, and ~30 HUD sites (score arrays are all `[0,0]`); combat + CPU-targeting already generalize. Recommend a playtest session, not unattended overnight. (No separate format toggle — the lives/timer settings, kept valid by the respawn↔timer rule, pick last-standing vs most-kills.)
+- **Tournament v2** — T2 (3v3 via the grid), T4 (per-match map-select), T1 (native-input typing bug). Model/routing landed (`tourAllianceDraft`); the rest is UI + decisions (lineup at registration vs match-time, captain-draft cascade, 1v1 vs 3v3 default). UI/eyeball — needs Sam.
+- **TABLED by Sam (2026-06-19):** KAMIKAZE 0%-in-3v3 CPU brain, tier-difficulty lapse/react depth, jet CPU dash-through counter. **Earlier tabled:** repair heal↔buff CYCLE redesign; full-screen map gallery; egg full-paint + achievements screen; weapon-balance feel re-tune.
+
+**See `OVERNIGHT_PLAN.md` → "🌙 TONIGHT (2026-06-19)" for the live plan + tabled list.**
+
+---
+
+## ⏩ LATEST STATE — 2026-06-16, **v5.1.116** (older — the CURRENT-STATE block above supersedes this)
 
 **Builds / branches:**
-- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.218.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it. (v5.1.117 = P4 MINIBOTS: the MINIBOT perk deploys a shove/pin harasser, `bb2.minis`; v5.1.118 = P7 cheats UNLIMITED RESOURCES + MEGABOTS; v5.1.119 = P7 cheats AIRSTRIKE + ANIME SWORD — P7 combat-cheat pass complete; v5.1.120 = P3 arena hazards (DANGER ZONE: acid pit + saw blades) + map-select; v5.1.121 = P9 game-mode framework + SUMO ring-out; v5.1.122–123 = P9 DOMINATION (KOTH) + VIP modes; v5.1.124 = Tournament T3 — RoboRumble selectable in the bracket + result-router fixed for bb2; v5.1.125 = Tournament T1-light — alliance-framed registration; v5.1.126 = P9 CPU mode-awareness (hunt VIP / hold the DOMINATION point / avoid SUMO ring-out).)
+- **`dev` = CANONICAL stable (NEW, 2026-06-16).** All real work lives here; it **supersedes `claude/eager-sagan-5wehy1` and the old "push to both branches" ritual.** See `CLAUDE.md` → BRANCH POLICY (auto-loaded each session). Cut from the eager-sagan/jolly-hawking tip while they were identical, so nothing was lost. Latest **`drive_showdown_v5.1.219.html`** (note the **renamed file prefix** — trademark scrub). `extract.sh` points at it. (v5.1.117 = P4 MINIBOTS: the MINIBOT perk deploys a shove/pin harasser, `bb2.minis`; v5.1.118 = P7 cheats UNLIMITED RESOURCES + MEGABOTS; v5.1.119 = P7 cheats AIRSTRIKE + ANIME SWORD — P7 combat-cheat pass complete; v5.1.120 = P3 arena hazards (DANGER ZONE: acid pit + saw blades) + map-select; v5.1.121 = P9 game-mode framework + SUMO ring-out; v5.1.122–123 = P9 DOMINATION (KOTH) + VIP modes; v5.1.124 = Tournament T3 — RoboRumble selectable in the bracket + result-router fixed for bb2; v5.1.125 = Tournament T1-light — alliance-framed registration; v5.1.126 = P9 CPU mode-awareness (hunt VIP / hold the DOMINATION point / avoid SUMO ring-out).)
 - **`claude/online-net-5wehy1` = ONLINE sandbox** (isolated so online netcode can't risk the stable build). Build **`drive_showdown_v5.2.0.html`** — online P1a only (dormant in local play).
 - `claude/sharp-newton-kn5ulv` — stale/behind; ignore.
 

@@ -743,7 +743,16 @@ src+=`
    const foe=bbBotWith('none','balanced',1,1,true);foe.hp=BB.HP;bb2.bots=[ls,foe];
    bbKill(ls,1);ok('LAST STAND: a would-be KO instead grants a window (not dead)',!ls.dead&&(ls._lastStandT||0)>0&&ls._lastStandUsed===true);
    const lhp=ls.hp;bbApplyHit(ls,'rear',200,1,ls.x+10,ls.y);ok('LAST STAND: INVULNERABLE during the window',ls.hp===lhp&&!ls.dead);
-   ls._lastStandT=0.01;bb2.bots=[ls,foe];bbWeaponPre(1/60);ok('LAST STAND: when the window expires, the bot finally dies',ls.dead===true);}
+   ls._lastStandT=0.01;bb2.bots=[ls,foe];bbWeaponPre(1/60);ok('LAST STAND: when the window expires, the bot finally dies',ls.dead===true);
+   // v5.1.219 WIN during LAST STAND: killing the LAST enemy lets you survive the kill's chain reaction → you WIN (only a deliberate PARTING GIFT death-bomb takes you out → draw)
+   {startBB(0,2);bb2.cd=0;bb2.result=null;const me=bbBotWith('none','balanced',0,0,true);me.ld.perk='laststand';me.x=300;me.y=300;me.hp=1;me._lastStandT=5;me._lastStandUsed=true;me.dead=false;me.lives=0;
+    const enemy=bbBotWith('none','balanced',1,1,true);enemy.x=312;enemy.y=300;enemy.hp=BB.HP;enemy.dead=false;enemy.lives=0;
+    bb2.bots=[me,enemy];bb2.result=null;bbKill(enemy,0); // I (last stand, hp1) destroy the last enemy in melee; the normal death chain must NOT finish me
+    ok('LAST STAND: killing the last enemy mid-window → I survive the chain and WIN',me.dead===false&&bb2.result===0);
+    const me2=bbBotWith('none','balanced',0,0,true);me2.ld.perk='laststand';me2.x=300;me2.y=300;me2.hp=1;me2._lastStandT=5;me2._lastStandUsed=true;me2.dead=false;me2.lives=0;
+    const pg=bbBotWith('none','balanced',1,1,true);pg.ld.perk='partinggift';pg.x=312;pg.y=300;pg.hp=BB.HP;pg.dead=false;pg.lives=0;
+    bb2.bots=[me2,pg];bb2.result=null;bbKill(pg,0); // the last enemy had PARTING GIFT → its death-bomb still takes me out → DRAW
+    ok('LAST STAND: but a PARTING GIFT death-bomb still takes me out → DRAW',me2.dead===true&&bb2.result==='draw');}}
   // ── v5.1.181 HEATSHIELD: flamethrower-proof + general damage reduction ──
   {const hs=bbBotWith('none','heatshield',1,1,true);hs.x=300;hs.y=300;hs.h=0;hs.inv=0;hs.hp=BB.HP;hs.burn=0;
    bbApplyFlame(hs,60,0);ok('HEATSHIELD: flamethrower-PROOF (no flame damage or burn)',hs.hp===BB.HP&&(hs.burn||0)===0);
@@ -1059,6 +1068,8 @@ src+=`
    const fl2=bbCtfFlags();fl2[0].carrier=dead;fl2[0].home=false;fl2[0].x=400;fl2[0].y=300;
    bb2.bots=[dead];bb2.flags=fl2;bb2.ctf=[0,0];bb2.result=null;bbModeUpdate(0.05);
    ok('CTF: a carrier dying RETURNS the flag HOME (v5.1.215 small-map fix, was drop-loose)',fl2[0].carrier===null&&fl2[0].home===true&&fl2[0].x===fl2[0].hx&&fl2[0].y===fl2[0].hy);
+   {const regrab=bbBotWith('none','balanced',1,3,true);regrab.x=fl2[0].hx;regrab.y=fl2[0].hy;bb2.bots=[regrab];bb2.result=null;bbModeUpdate(0.05); // v5.1.218 the returned flag is grabbable again → the match keeps flowing (the despawn bug would have left nothing to grab)
+    ok('CTF: after returning home the flag can be RE-GRABBED (no despawn — match keeps flowing)',fl2[0].carrier===regrab&&fl2[0].home===false);}
    const ret=bbBotWith('none','balanced',0,2,true);ret.x=400;ret.y=300; // own (side 0) bot on its dropped flag
    const fl3=bbCtfFlags();fl3[0].carrier=null;fl3[0].home=false;fl3[0].x=400;fl3[0].y=300;
    bb2.bots=[ret];bb2.flags=fl3;bb2.ctf=[0,0];bb2.result=null;bbModeUpdate(0.05);
