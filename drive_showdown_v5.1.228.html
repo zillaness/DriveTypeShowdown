@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.227.html
-  version: 5.1.227
+  file: drive_showdown_v5.1.228.html
+  version: 5.1.228
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -3531,15 +3531,16 @@ function gpDirNav(items,cur,dir){
   return best;
 }
 // ── live per-player sensitivity (LB/RB on your pad, [ ] on keyboard) ──
-let _p2SensPrev=[],p2SensFlash=[0,0];
+let _p2SensPrev=[],p2SensFlash=[0,0,0,0,0,0]; // v5.1.228 sized for up to 6 players (3v3) — was [0,0], so seats 2–5 couldn't flash/adjust
+function p2SeatSide(p){return (Array.isArray(m2.tseats)&&m2.tseats.length===6&&m2.tseats.some(Boolean))?(p<3?0:1):(p?1:0);} // 3v3 grid: seats 0–2 RED / 3–5 BLUE; else 1v1: p0/p1
 function p2SensDelta(p,d){
+  if(m2.sens[p]==null)m2.sens[p]=1;
   m2.sens[p]=clamp(Math.round((m2.sens[p]+d)*10)/10,SENS_MIN,SENS_MAX);
   p2SensFlash[p]=1.4;
 }
 function p2SensAdjust(dt){
-  p2SensFlash[0]=Math.max(0,p2SensFlash[0]-dt);
-  p2SensFlash[1]=Math.max(0,p2SensFlash[1]-dt);
-  for(let p=0;p<2;p++){
+  for(let p=0;p<p2SensFlash.length;p++)p2SensFlash[p]=Math.max(0,p2SensFlash[p]-dt);
+  for(let p=0;p<playerBind.length;p++){ // v5.1.228 ALL players (was just 2) — every 3v3 seat can adjust its own sensitivity in-match via LB/RB
     const b=playerBind[p];
     if(b&&b.type==='gp'){
       const cur=gpBtnsAll[b.gp]||[],prev=_p2SensPrev[b.gp]||[];
@@ -3550,12 +3551,13 @@ function p2SensAdjust(dt){
   _p2SensPrev=gpBtnsAll.map(a=>a?a.slice():a);
 }
 function drawP2SensToasts(){
-  for(let p=0;p<2;p++){
-    if(p2SensFlash[p]<=0)continue;
+  for(let p=0;p<p2SensFlash.length;p++){ // v5.1.228 up to 6 players — stack RED toasts on the left, BLUE on the right
+    if(p2SensFlash[p]<=0||m2.sens[p]==null)continue;
+    const side=p2SeatSide(p),left=side===0,row=left?p:(p-3);
     ctx.globalAlpha=Math.min(1,p2SensFlash[p]);
-    ctx.font='bold 13px Courier New';ctx.textAlign=p===0?'left':'right';
-    ctx.fillStyle=M2_COLS[p];
-    ctx.fillText('SENS '+m2.sens[p].toFixed(1)+'×',p===0?10:CW-10,62);
+    ctx.font='bold 13px Courier New';ctx.textAlign=left?'left':'right';
+    ctx.fillStyle=M2_COLS[side];
+    ctx.fillText('P'+(p+1)+' SENS '+m2.sens[p].toFixed(1)+'×',left?10:CW-10,62+Math.max(0,row)*18);
     ctx.globalAlpha=1;
   }
 }
@@ -8995,6 +8997,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.228 (2026-06-19): 3v3 IN-MATCH SENSITIVITY for every seat (Sam bug: "can't adjust sens in-game after starting a 3v3"). The live per-player sensitivity handler `p2SensAdjust` (LB/RB on the pad) only looped `p<2`, and `p2SensFlash`/`drawP2SensToasts` were 2-wide — so in a 3v3 match the four back seats (players 2–5) could never change their sensitivity mid-match. Now it loops over ALL `playerBind` entries (up to 6) and the toast strip stacks RED on the left (seats 0–2) / BLUE on the right (seats 3–5) with a P# label, via a new `p2SeatSide(p)` (3v3 grid seats 0–2/3–5, else 1v1 p0/p1); `m2.sens[p]` is lazily defaulted to 1. smoke57 +3 (a back seat raises via RB / lowers via LB; seat-side mapping). Full battery green. Single file, no assets.
   v5.1.227 (2026-06-19): PUSH-BALL CPU now USES its weapon on the ball + ORIGINAL SIN buff on tank OR arcade (Sam playtest). (1) The RoboRumble CPU previously only body-shoved the push-ball (its weapon-fire was keyed to the nearest FOE). Now, in PUSH-BALL, a CPU positioned BEHIND the ball (on the goal-far side) FACES the ball and FIRES its weapon to drive it goalward — so the v5.1.223 flavored interactions actually show up in single-player: PUSHER fling / PISTON whack / JET·FLAME shove / DOZER plow / DRILL grind / PINCER clamp-and-carry / SPINNER·BUZZSAW fling. Gated to pushball + "near, aimed at the ball, on the goal-far side", so KO/sim behavior is untouched. (2) ORIGINAL SIN's buff (invuln wheels + ½ damage) + its 4-wheel/yellow-blade livery now confirmed to trigger on **TANK or ARCADE** drive — both are the differential "tank family" in `bbDriveFamily`, so this already worked; added a test to lock it. smoke57 +2 (CPU fires on the ball; Original Sin on arcade) → 478. Full battery green. Single file, no assets.
   v5.1.226 (2026-06-19): PUSH-BALL — a real SOCCER BALL + configurable GOALS TO WIN (Sam playtest). (1) The push-ball now renders as an actual **rolling soccer ball** (`bbDrawSoccerBall`): white body, a black center pentagon + 5 rim pentagons + seams, clipped to the ball and **spun by its travel speed** (`pb.roll`) so it visibly rolls — replaces the plain white disc. (2) **GOALS TO WIN is now a SETTING** (`m2.set.bbgoals`, default 3): a new row in the RoboRumble MATCH SETTINGS shown **only when GAME MODE = PUSH-BALL** (1 / 2 / 3 / 5 / 7 goals), via `bbPbTarget()` which feeds the goal-reset win-check and the on-field "first to N" readout (was the hardcoded `BB_PB_TARGET=3`). Combined with the existing TIME LIMIT, a push-ball match can now end on **either** a goal target **or** the clock (most goals at time-up). smoke57 +3 (GOALS TO WIN=2 ends at 2; soccer-ball renders; the row shows for push-ball only) → 476. Full battery green. Single file, no assets.
   v5.1.225 (2026-06-19): ORIGINAL SIN re-balance + KAMIKAZE push-ball + FRIENDLY-FIRE blasts (Sam playtest). (1) ORIGINAL SIN buff dialed back from full-indestructible to **indestructible WHEELS + GREATLY reduced damage (½ taken)** (Sam: "just indestructible wheels, and ~0.5 damage taken") — the `bbApplyHit`/`bbApplyFlame` guards now `dmg*=0.5` instead of returning, and the held-captor fight-back grinds at ½; wheels stay invulnerable via `bbWheelDamage`. Still killable, just very tanky. (2) KAMIKAZE now interacts with the PUSH-BALL — a self-destruct blast **ROCKETS the ball away from the detonation point** (direction depends on which side you blow up on; scaled by proximity) and knocks it off any pincer carrier. (3) FRIENDLY FIRE — **KAMIKAZE and PARTING GIFT now respect the Friendly Fire toggle**: with FF OFF (the default) the death-blasts SPARE your own alliance (kamikaze previously hit everyone in radius — it could nuke teammates); with FF ON they can still take teammates too (consistent with ram/guns/other blasts). smoke57 +6 (½ kinetic + ½ flame; kamikaze ball-launch; FF off spares ally / FF on hits ally) → 473. Full battery green. Single file, no assets.

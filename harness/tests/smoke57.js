@@ -1247,6 +1247,15 @@ src+=`
     ok('each GAME MODE shows its own objective hint',/SUMO/.test(hSumo)&&/DOMINATION/.test(hDom)&&/VIP/.test(hVip)&&/KOTH/.test(hKoth)&&/CTF/.test(hCtf)&&/PUSH-BALL/.test(hPb)&&hKo!==hSumo&&hSumo!==hDom&&hDom!==hVip&&hKoth!==hDom&&hCtf!==hKoth&&hPb!==hCtf);
     m2.set.bbmode=svmode;}
   }
+  // v5.1.228 in-match SENSITIVITY adjust now works for ALL 3v3 seats (was capped at 2 players)
+  {const svPB=playerBind,svSens=m2.sens,svG=gpBtnsAll,svT=m2.tseats;
+   m2.tseats=[{},{},{},{},{},{}];playerBind=[0,1,2,3,4,5].map(g=>({type:'gp',gp:g}));m2.sens=[1,1,1,1,1,1];
+   gpBtnsAll=[0,1,2,3,4,5].map(()=>[]);_p2SensPrev=[];gpBtnsAll[4][5]=true;p2SensAdjust(0.016);
+   ok('3v3 in-match: a back seat (p4) RAISES its sensitivity via RB (was unreachable)',m2.sens[4]>1);
+   gpBtnsAll=[0,1,2,3,4,5].map(()=>[]);_p2SensPrev=[];gpBtnsAll[5][4]=true;p2SensAdjust(0.016);
+   ok('3v3 in-match: a back seat (p5) LOWERS its sensitivity via LB',m2.sens[5]<1);
+   ok('p2SeatSide maps 3v3 seats (0–2 RED, 3–5 BLUE)',p2SeatSide(1)===0&&p2SeatSide(4)===1);
+   playerBind=svPB;m2.sens=svSens;gpBtnsAll=svG;m2.tseats=svT;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
