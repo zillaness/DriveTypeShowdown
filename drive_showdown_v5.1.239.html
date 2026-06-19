@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.238.html
-  version: 5.1.238
+  file: drive_showdown_v5.1.239.html
+  version: 5.1.239
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -3517,7 +3517,7 @@ function p2GpItems(){
   else if(phase==='p2drive'){for(const d of p2DriveList())it.push(p2DriveRect(d));}
   else if(phase==='p2settings'){const rows=p2SettingsRows();for(let i=0;i<rows.length;i++)it.push(p2SetRowRect(i));if(p2ShowCpuCfg())it.push(p2CpuCfgBtnRect());if(p2ShowPupCfg())it.push(p2PupCfgBtnRect());it.push(p2StartBtnRect());it.push(p2ResetBtnRect());}
   else if(phase==='p2pupSettings'){it.push(p2BackBtnRect());const ks=['puHp','puRapid','puSpeed','puShield','puExpl','puPierce','puAim'];for(let i=0;i<7;i++)it.push(p2SetRowRect(i));}
-  else if(phase==='p2tnames'){for(let i=0;i<4;i++)it.push(tourOptRect(i));if(tour&&tour.names.length>=4)it.push({x:CW/2-110,y:CH-92,w:220,h:42});}
+  else if(phase==='p2tnames'){for(let i=0;i<5;i++)it.push(tourOptRect(i));if(tour&&tour.names.length>=4)it.push({x:CW/2-110,y:CH-92,w:220,h:42});}
   else if(phase==='p2tqual'){it.push({x:CW/2-100,y:CH-100,w:200,h:40});}
   else if(phase==='p2tbracket'){
     if(tour&&tour.champ!==null){it.push({x:CW/2-230,y:CH-86,w:220,h:40});it.push({x:CW/2+10,y:CH-86,w:220,h:40});}
@@ -6001,11 +6001,17 @@ function tourAllianceDraft(ranked,nA,sz){
   return all;
 }
 function tourMaxEntrants(){return (tour&&(tour.format||'double')==='double')?8:16;} // v5.1.237 T-design: double-elim "FRC mode" ≤8 alliances; single-elim party ≤16
-function tourBuild(){
-  // rank entrants: qualifier times ascending (Infinity = skipped → last), random otherwise
+function tourRankedIdx(){ // v5.1.239 the seeded entrant order (best→worst): qualifier time, registration order (manual), or random
   const idx=tour.names.map((_,i)=>i);
   if(tour.seedMode==='qual')idx.sort((a,b)=>(tour.seeds[a]??Infinity)-(tour.seeds[b]??Infinity));
+  else if(tour.seedMode==='manual'){/* registration order = the seed order (drag with ▲▼ on the names) */}
   else for(let i=idx.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
+  return idx;
+}
+function tourBuild(){
+  // rank entrants once, then reuse (so a captain DRAFT and the bracket share the same seeding)
+  const idx=(tour.rank&&tour.rank.length===tour.names.length)?tour.rank.slice():tourRankedIdx();
+  tour.rank=idx.slice();
   const N=idx.length;let P=4;while(P<N)P*=2;
   const slot=tourSeedOrder(P).map(sd=>sd<=N?idx[sd-1]:-1); // -1 = BYE
   const M=[];const mk=(a,b,br,rd)=>{M.push({a,b,br,rd,w:null,l:null});return M.length-1;};
@@ -6073,6 +6079,26 @@ function tourNext(){
   if(tourGfReady()&&tour.champ===null)return 'gf';
   return null;
 }
+// ── v5.1.239 TOURNAMENT v2 — CAPTAIN DRAFT (FRC alliance selection). Every entrant is a captain; each drafts CPU bots to fill a 3-bot alliance. ──
+const TOUR_ALLY_SIZE=3; // captain + 2 drafted bots
+function tourTierOf(rank,total){return rank<total/3?'champ':(rank<2*total/3?'vet':'rookie');} // pre-rank the draft pool by tier (best first)
+function tourTierColor(t){return t==='champ'?'#ffd740':(t==='vet'?'#7ad0ff':'#9fe0a0');}
+function tourAfterSeed(){ if(tour.allianceMode){tourStartDraft();} else {tourBuild();phase='p2tbracket';} } // post-seed fork: draft (3v3) or straight to the 1v1 bracket
+function tourStartDraft(){
+  tour.rank=tourRankedIdx();
+  const caps=tour.rank.slice(); // every entrant is a captain, in seed order
+  const picksNeeded=caps.length*(TOUR_ALLY_SIZE-1);
+  const pool=[];for(let k=0;k<picksNeeded;k++)pool.push({name:'BOT '+String.fromCharCode(65+(k%26))+(k>=26?''+Math.floor(k/26):''),tier:tourTierOf(k,picksNeeded),by:null});
+  const order=[];for(let r=0;r<TOUR_ALLY_SIZE-1;r++){const row=caps.slice();if(r%2===1)row.reverse();for(const c of row)order.push(c);} // serpentine: higher seeds pick first, snake each round
+  tour.draft={pool,order,pick:0,caps};
+  tour.alli={};for(const c of caps)tour.alli[c]={captain:c,bots:[]};
+  phase='p2tdraft';sfx('click');
+}
+function tourDraftCaptain(){return (tour.draft&&tour.draft.pick<tour.draft.order.length)?tour.draft.order[tour.draft.pick]:-1;} // whose pick it is (-1 = done)
+function tourDraftPick(poolIdx){const d=tour.draft;if(!d||d.pick>=d.order.length)return false;const b=d.pool[poolIdx];if(!b||b.by!==null)return false;
+  const cap=d.order[d.pick];b.by=cap;tour.alli[cap].bots.push(b);d.pick++;sfx('claim');return true;}
+function tourDraftAuto(){const d=tour.draft;if(!d)return;while(d.pick<d.order.length){const cap=d.order[d.pick];const b=d.pool.find(x=>x.by===null);if(!b)break;b.by=cap;tour.alli[cap].bots.push(b);d.pick++;}sfx('click');} // current captain takes the best available, repeat
+function tourFinishDraft(){tourBuild();phase='p2tbracket';} // alliances locked → build the bracket (reuses tour.rank)
 function tourEntrants(m){
   if(m==='gf')return [tourRes(tour.gfFeeds[0]),tourRes(tour.gfFeeds[1])];
   return [tourRes(m.a),tourRes(m.b)];
@@ -6184,16 +6210,46 @@ function drawTourNames(){
     ['DRIVE POLICY',tour.policy==='open'?'OPEN — pick every match':'CLOSED — first pick locks'],
     ['SEEDING',tour.seedMode==='rand'?'RANDOM':'QUALIFIER — solo time trial'],
     ['BRACKET',(tour.format||'double')==='double'?'DOUBLE ELIMINATION · up to 8':'SINGLE ELIMINATION · up to 16'],
+    ['ALLIANCES',tour.allianceMode?'ON — 3v3 captain DRAFT (FRC)':'OFF — 1v1, no draft'],
   ];
-  for(let i=0;i<4;i++){
+  for(let i=0;i<opts.length;i++){
     const r=tourOptRect(i);
-    btn(r.x,r.y,r.w,r.h,opts[i][0]+': '+opts[i][1],'#ffd740');
+    btn(r.x,r.y,r.w,r.h,opts[i][0]+': '+opts[i][1],tour.allianceMode&&i===4?'#44ffaa':'#ffd740');
   }
   if(tour.names.length>=4)btn(CW/2-110,CH-92,220,42,'▶ START BRACKET','#44ffaa');
   else{ctx.font='12px Courier New';ctx.fillStyle='#666688';ctx.fillText((4-tour.names.length)+' more name(s) needed',CW/2,CH-70);}
 }
 function tourNameRect(i){const c=i%4,r=Math.floor(i/4);return{x:CW/2-2*180-8+c*184,y:236+r*38,w:176,h:32};}
-function tourOptRect(i){return{x:CW/2-210,y:404+i*46,w:420,h:38};}
+function tourOptRect(i){return{x:CW/2-210,y:398+i*42,w:420,h:36};} // v5.1.239 5 options (added ALLIANCES) — tighter pitch to clear START
+// ── v5.1.239 CAPTAIN DRAFT screen (phase 'p2tdraft') ──
+function tourDraftRect(i){return{x:50,y:150+i*48,w:380,h:42};} // alliance rows (left)
+function tourPoolRect(k){const cols=4,cw=150,ch=40,gx=12,gy=12,x0=470,y0=168,c=k%cols,r=(k/cols)|0;return{x:x0+c*(cw+gx),y:y0+r*(ch+gy),w:cw,h:ch};} // pool chips (right)
+function tourDraftBtnRect(){return{x:CW/2-120,y:CH-58,w:240,h:40};}
+function drawTourDraft(){
+  const d=tour.draft;if(!d){phase='p2tnames';return;}
+  const cap=tourDraftCaptain(),done=d.pick>=d.order.length;
+  p2Chrome('CAPTAIN DRAFT — FRC ALLIANCE SELECTION',done?'all alliances set — ▶ BUILD BRACKET':'higher seeds pick first · snake order · click a BOT to draft · ⚡ AUTO-DRAFT fills the rest · Esc cancels');
+  ctx.textAlign='center';ctx.font='bold 16px Courier New';ctx.fillStyle=done?'#44ffaa':'#ffd740';
+  ctx.fillText(done?'✓ DRAFT COMPLETE':('ON THE CLOCK:  '+tour.names[cap]+'   ·   pick '+(d.pick+1)+' of '+d.order.length),CW/2,116);
+  for(let i=0;i<d.caps.length;i++){const c=d.caps[i],r=tourDraftRect(i),onClock=(!done&&c===cap);
+    ctx.fillStyle=onClock?'rgba(68,255,170,0.14)':'rgba(20,20,38,0.82)';rr(r.x,r.y,r.w,r.h,8);ctx.fill();
+    ctx.strokeStyle=onClock?'#44ffaa':'#3a3a5a';ctx.lineWidth=onClock?2.4:1.2;rr(r.x,r.y,r.w,r.h,8);ctx.stroke();
+    ctx.textAlign='left';ctx.font='bold 13px Courier New';ctx.fillStyle='#cfd0e6';ctx.fillText('★ '+(i+1)+'. '+tour.names[c].slice(0,13),r.x+10,r.y+18);
+    const bots=tour.alli[c].bots;ctx.font='11px Courier New';
+    for(let b=0;b<TOUR_ALLY_SIZE-1;b++){const bx=r.x+14+b*185,by=r.y+35,bot=bots[b];ctx.fillStyle=bot?tourTierColor(bot.tier):'#556';ctx.fillText(bot?('• '+bot.name+' ['+bot.tier+']'):'• (empty)',bx,by);}}
+  ctx.textAlign='center';ctx.font='bold 12px Courier New';ctx.fillStyle='#8888aa';ctx.fillText('AVAILABLE BOTS — pre-ranked by tier',CW/2+254,148);
+  for(let k=0;k<d.pool.length;k++){const b=d.pool[k];if(b.by!==null)continue;const r=tourPoolRect(k);
+    ctx.fillStyle='rgba(24,24,40,0.92)';rr(r.x,r.y,r.w,r.h,7);ctx.fill();ctx.strokeStyle=tourTierColor(b.tier);ctx.lineWidth=1.4;rr(r.x,r.y,r.w,r.h,7);ctx.stroke();
+    ctx.textAlign='left';ctx.font='bold 12px Courier New';ctx.fillStyle='#e8e8ff';ctx.fillText(b.name,r.x+10,r.y+17);
+    ctx.font='9px Courier New';ctx.fillStyle=tourTierColor(b.tier);ctx.fillText(b.tier.toUpperCase(),r.x+10,r.y+31);}
+  const br=tourDraftBtnRect();btn(br.x,br.y,br.w,br.h,done?'▶ BUILD BRACKET':'⚡ AUTO-DRAFT REST',done?'#44ffaa':'#ffd740');
+}
+function tourDraftClick(mx,my){
+  const d=tour.draft;if(!d)return;const done=d.pick>=d.order.length;
+  if(inR(mx,my,tourDraftBtnRect())){if(done)tourFinishDraft();else tourDraftAuto();return;}
+  if(done)return;
+  for(let k=0;k<d.pool.length;k++){if(d.pool[k].by!==null)continue;if(inR(mx,my,tourPoolRect(k))){tourDraftPick(k);return;}}
+}
 function drawTourQual(){ /* qualifier runs reuse the race phase; this is the between-runs card */
   p2Chrome('QUALIFIER — SOLO TIME TRIAL','fastest run seeds highest · any device drives · Esc during a run skips (seeds last)');
   ctx.font='bold 20px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffd740';
@@ -6220,7 +6276,7 @@ function tourQualDone(t){
   const sv=tour._qsave;m2.mode=sv.sm;m2.drive[0]=sv.sd0;m2.drive[1]=sv.sd1;playerBind=sv.sb;
   tour.qual=false;r2=null;applyLayout('land2p');
   tour.qi++;
-  if(tour.qi>=tour.names.length){tourBuild();phase='p2tbracket';}
+  if(tour.qi>=tour.names.length){tourAfterSeed();}
   else phase='p2tqual';
 }
 function drawTourBracket(){
@@ -6281,23 +6337,25 @@ function tourClick(mx,my){
   if(phase==='p2tnames'){
     {const b=tourInputRect();if(inR(mx,my,b)){tourOpenInput();return;}}
     for(let i=0;i<tour.names.length;i++){if(inR(mx,my,tourNameRect(i))){tour.names.splice(i,1);return;}}
-    for(let i=0;i<4;i++){if(inR(mx,my,tourOptRect(i))){
+    for(let i=0;i<5;i++){if(inR(mx,my,tourOptRect(i))){
       if(i===0){const seq=['normal','shooter','tankfight','battlebots','race'];tour.mode=seq[(seq.indexOf(tour.mode)+1)%seq.length];} // v5.1.124 T3: RoboRumble joins the bracket mode list
       else if(i===1)tour.policy=tour.policy==='open'?'closed':'open';
       else if(i===2)tour.seedMode=tour.seedMode==='rand'?'qual':'rand';
-      else tour.format=(tour.format||'double')==='double'?'single':'double';
+      else if(i===3)tour.format=(tour.format||'double')==='double'?'single':'double';
+      else tour.allianceMode=!tour.allianceMode; // v5.1.239 ALLIANCES: 3v3 captain draft
       return;}}
     if(tour.names.length>=4&&inR(mx,my,{x:CW/2-110,y:CH-92,w:220,h:42})){
       tourCloseInput();
       tour.drv=tour.names.map(()=>null);tour.seeds=[];
       if(tour.seedMode==='qual'){tour.qi=0;phase='p2tqual';}
-      else{tourBuild();phase='p2tbracket';}
+      else{tourAfterSeed();}
       return;}
   }else if(phase==='p2tqual'){
     if(inR(mx,my,{x:CW/2-100,y:CH-100,w:200,h:40}))tourStartQualRun();
+  }else if(phase==='p2tdraft'){tourDraftClick(mx,my); // v5.1.239 captain draft
   }else if(phase==='p2tbracket'){
     if(tour.champ!==null){
-      if(inR(mx,my,{x:CW/2-230,y:CH-86,w:220,h:40})){tour={names:tour.names.slice(),drv:[],policy:tour.policy,seedMode:tour.seedMode,format:tour.format||'double',mode:tour.mode,buf:'',seeds:[],M:[],qi:0};phase='p2tnames';return;}
+      if(inR(mx,my,{x:CW/2-230,y:CH-86,w:220,h:40})){tour={names:tour.names.slice(),drv:[],policy:tour.policy,seedMode:tour.seedMode,format:tour.format||'double',allianceMode:tour.allianceMode,mode:tour.mode,buf:'',seeds:[],M:[],qi:0};phase='p2tnames';return;}
       if(inR(mx,my,{x:CW/2+10,y:CH-86,w:220,h:40})){p2Exit();return;}
     }else if(tourNext()&&inR(mx,my,{x:CW/2-110,y:CH-86,w:220,h:40}))tourStartMatch();
   }
@@ -6307,7 +6365,8 @@ function p2Back(){
   if(phase==='p2recs')phase='p2modes';
   else if(phase==='p2modes')p2Exit();
   else if(phase==='p2tnames'){tourCloseInput();phase='p2modes';}
-  else if(phase==='p2tqual'){tourBuild();phase='p2tbracket';} // skip remaining qualifiers: unseeded sort last
+  else if(phase==='p2tdraft'){tour.draft=null;tour.alli=null;phase='p2tnames';} // v5.1.239 Esc cancels the draft → back to registration
+  else if(phase==='p2tqual'){tourAfterSeed();} // skip remaining qualifiers: unseeded sort last
   else if(phase==='p2tbracket'){phase='p2modes';}
   else if(phase==='p2race'&&tour&&tour.qual){tourQualDone(Infinity);}
   else if(phase==='p2race'&&tour&&tour.cur){r2=null;applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
@@ -6451,10 +6510,10 @@ function p2Click(mx,my){
   if(phase==='p2modes'){
     for(let i=0;i<M2_MODES.length;i++){if(inR(mx,my,p2ModeRect(i))){tour=null;m2.mode=M2_MODES[i].id;m2._dp=0;p2cEnsureDrives();phase='p2settings';return;}}
     if(inR(mx,my,p2TourBtnRect())){
-      tour={names:[],drv:[],policy:'open',seedMode:'rand',format:'double',mode:'normal',buf:'',seeds:[],M:[],qi:0};
+      tour={names:[],drv:[],policy:'open',seedMode:'rand',format:'double',allianceMode:false,mode:'normal',buf:'',seeds:[],M:[],qi:0};
       phase='p2tnames';return;}
     if(inR(mx,my,p2RecBtnRect())){sfx('click');phase='p2recs';return;}
-  }else if(phase==='p2tnames'||phase==='p2tqual'||phase==='p2tbracket'){
+  }else if(phase==='p2tnames'||phase==='p2tqual'||phase==='p2tbracket'||phase==='p2tdraft'){
     tourClick(mx,my);return;
   }else if(phase==='p2drive'){
     for(const d of p2DriveList()){if(inR(mx,my,p2DriveRect(d))){
@@ -6761,6 +6820,7 @@ function p2Draw(){
   if(tankGridMode()){drawTankGrid();return;}
   if(phase==='p2recs'){drawH2HRec();return;}
   if(phase==='p2tnames'){drawTourNames();return;}
+  if(phase==='p2tdraft'){drawTourDraft();return;} // v5.1.239 captain draft
   if(phase==='p2tqual'){drawTourQual();return;}
   if(phase==='p2tbracket'){drawTourBracket();return;}
   if(phase==='p2race'){drawP2Race();return;}
@@ -9166,6 +9226,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.239 (2026-06-19): TOURNAMENT v2 — CAPTAIN DRAFT screen (FRC alliance selection, the headline). New ALLIANCES toggle in registration (5th option): OFF = classic 1v1; ON = a 3v3 captain draft. When ON, after seeding the new draft screen (`phase==='p2tdraft'`, `drawTourDraft`) runs a snake draft — every entrant is a captain (in seed order), and each drafts 2 CPU bots from a pre-ranked-by-tier pool (champ/vet/rookie) to fill a 3-bot alliance. Higher seeds pick first; serpentine reverses each round; ⚡ AUTO-DRAFT fills the rest (current captain takes best-available); ▶ BUILD BRACKET locks it. Seeding was refactored into `tourRankedIdx()` so the draft + bracket share ONE seed order (`tour.rank`); `tourBuild` reuses it. Alliances stored in `tour.alli`. NOTE: the drafted bots don't hit the FIELD yet — matches still run captain-1v1 until the next ship wires 3v3 grid routing. smoke33 +8. Full battery green.
   v5.1.238 (2026-06-19): TOURNAMENT v2 — T4 map vote WIRED into matches. A RoboRumble (battlebots-mode) tournament now runs the open-pick arena vote (v5.1.236) before EACH match: `tourStartMatch` → `startMapVote(15, onDone=set arena+proceed, onCancel=auto-random)` → `tourProceedMatch` (the old drive/claim tail, extracted). Non-RoboRumble tournaments skip the vote (straight to drive). `startMapVote` gained an `onCancel` arg so a caller can override Esc (the tournament resolves to random instead of bailing to the gallery). smoke33 +3. Full battery green. (Next: captain-draft screen + 3v3 routing + manual seeding — see HANDOFF.)
   v5.1.237 (2026-06-19): TOURNAMENT v2 — format-aware ENTRANT CAP. From the locked design (double-elim "FRC mode" = up to 8 alliances; single-elim party = up to 16): `tourMaxEntrants()` returns 8 for double / 16 for single, and the registration name-entry (both the keyboard `Enter` and the DOM text-input commit paths) now gates additions by it instead of a flat 16; the BRACKET option label shows the cap ("DOUBLE ELIMINATION · up to 8" / "SINGLE ELIMINATION · up to 16"). Non-destructive (only gates NEW additions; never trims an existing list). NOTE for the next thread: the tournament BRACKET ENGINE was found to be far more complete than the docs claimed — the FORMAT toggle + full double-elim (losers bracket + Bo3 grand final) + bracket render + seeding (random/qualifier) + drive policy are ALL already built & reachable in the p2tnames setup screen. The real remaining Tournament-v2 work is the FRC layer: wire the headless `tourAllianceDraft` into a captain-draft SCREEN, route matches through the 3v3 grid (today `tourStartMatch` is 1v1), wire the v5.1.236 open-pick map vote into `tourStartMatch`, and add MANUAL seeding. See HANDOFF_2026-06-19.md → "⚠️ CORRECTED STATE". smoke33 +2. Full battery green.
   v5.1.236 (2026-06-19): TOURNAMENT v2 — OPEN-PICK MAP VOTE (T4, first piece). A self-contained, reusable arena-vote module: **`startMapVote(seconds, onDone)`** opens a new screen (`phase==='p2mapvote'`, `drawMapVote`) showing the arena tiles with a **countdown bar**; anyone can tap a tile to lock it (`mapVotePick`), and on timeout the vote **auto-RANDOMIZES** to a concrete arena (`mapVoteAutoRandom`) — exactly Sam's "open / group discussion, randomize if no agreement" rule, and the agreed FIRST tournament build (no dependency on the bracket/seeding infra; the higher-seed / winners-bracket "whose turn" gate layers on later). Countdown runs off wall-clock (no update-loop hook); taps route through the normal click/touch dispatcher (no match-start path touched — safe). Reachable now via a **🗳 OPEN PICK** button on the RoboRumble ARENA gallery (15s demo; default onDone just selects the arena). The tournament will pass an onDone that starts the match. smoke57 +6 (open/arm, candidates, tap-resolves-once, timeout, auto-random, default onDone) → 521. Full battery green. Single file. (Next: tournament FORMAT setting + double-elim engine + captain draft — see HANDOFF_2026-06-19.md / OVERNIGHT_PLAN.md.)

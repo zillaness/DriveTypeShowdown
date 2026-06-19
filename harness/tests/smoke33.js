@@ -91,6 +91,24 @@ src+=`
    tour={names:['A','B','C','D'],drv:[null,null,null,null],policy:'open',seedMode:'rand',format:'single',mode:'normal',buf:'',seeds:[],M:[],qi:0};
    tourBuild();phase='x';mapVote=null;tourStartMatch();
    T('non-RoboRumble tournament skips the vote (straight to drive)',phase==='p2drive'&&!mapVote);}
+  // ── v5.1.239 captain DRAFT: alliance mode → draft screen → 3-bot alliances → bracket ──
+  {const T=(l,c)=>console.log((c?'ok — ':'FAIL — ')+l);
+   tour={names:['Cap1','Cap2','Cap3','Cap4'],drv:[null,null,null,null],policy:'open',seedMode:'manual',format:'single',allianceMode:true,mode:'normal',buf:'',seeds:[],M:[],qi:0};
+   phase='x';tourAfterSeed();
+   T('ALLIANCES on → opens the captain DRAFT screen',phase==='p2tdraft'&&!!tour.draft);
+   T('pool = captains×2 bots, pre-ranked (BOT A = champ)',tour.draft.pool.length===8&&tour.draft.pool[0].tier==='champ'&&tour.draft.pool[7].tier==='rookie');
+   T('snake order: 4 caps × 2 rounds = 8 picks; round 2 reversed',tour.draft.order.length===8&&tour.draft.order[0]===tour.rank[0]&&tour.draft.order[4]===tour.rank[3]);
+   const firstCap=tourDraftCaptain();tourDraftPick(0);
+   T('a pick assigns the bot to the on-clock captain + advances',tour.alli[firstCap].bots.length===1&&tour.draft.pool[0].by===firstCap&&tour.draft.pick===1);
+   tourDraftAuto();
+   T('AUTO-DRAFT fills every alliance to 3 (captain+2)',Object.values(tour.alli).every(a=>a.bots.length===2)&&tour.draft.pool.every(b=>b.by!==null));
+   const taken={};let dup=false;for(const b of tour.draft.pool){if(taken[b.name])dup=true;taken[b.name]=1;}
+   T('no bot drafted twice',!dup);
+   phase='x';tourFinishDraft();
+   T('BUILD BRACKET → bracket built (reusing the draft seed order)',phase==='p2tbracket'&&Array.isArray(tour.M)&&tour.M.length>0);
+   // non-alliance still goes straight to the bracket
+   tour={names:['A','B','C','D'],drv:[null,null,null,null],policy:'open',seedMode:'rand',format:'single',allianceMode:false,mode:'normal',buf:'',seeds:[],M:[],qi:0};
+   phase='x';tourAfterSeed();T('ALLIANCES off → straight to the 1v1 bracket (no draft)',phase==='p2tbracket'&&!tour.draft);}
   tour=null;bb2=null;console.log('done');
 })();
 `;
