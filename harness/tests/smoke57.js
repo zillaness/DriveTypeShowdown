@@ -1098,6 +1098,15 @@ src+=`
     ok('CTF defaults to infinite lives + a time limit',bbModeDef('ctf').lives==='inf'&&bbModeDef('ctf').time>0);
     ok('KOTH defaults to infinite lives + a time limit',bbModeDef('koth').lives==='inf'&&bbModeDef('koth').time>0);
     bbApplyModeDefaults('ctf');ok('selecting a mode applies its lives + time defaults',m2.set.bblives==='inf'&&m2.set.bbtime>0);
+    // v5.1.217 NO ENDLESS MATCHES: infinite respawns ⟹ a timer; no timer ⟹ finite lives
+    m2.set.bblives='inf';m2.set.bbtime=0;bbEnforceLivesTime('bblives');
+    ok('RESPAWN RULE: infinite lives + no timer → a timer is auto-added',m2.set.bblives==='inf'&&m2.set.bbtime>0);
+    m2.set.bblives='inf';m2.set.bbtime=0;bbEnforceLivesTime('bbtime');
+    ok('RESPAWN RULE: turning the timer OFF under infinite lives → lives snap finite',m2.set.bblives!=='inf'&&(m2.set.bbtime|0)===0);
+    m2.set.bblives=3;m2.set.bbtime=0;bbEnforceLivesTime('bblives');
+    ok('RESPAWN RULE: finite lives + no timer stays allowed (last-standing)',m2.set.bblives===3&&(m2.set.bbtime|0)===0);
+    m2.set.bblives='inf';m2.set.bbtime=180;bbEnforceLivesTime('bbtime');
+    ok('RESPAWN RULE: infinite lives WITH a timer stays allowed (most-kills)',m2.set.bblives==='inf'&&m2.set.bbtime===180);
     m2.set.bblives='inf';ok('bbLivesResolve: INFINITE → Infinity respawns',bbLivesResolve()===Infinity);
     m2.set.bblives=1;ok('bbLivesResolve: 1 life → 0 respawns',bbLivesResolve()===0);
     // infinite lives → a downed bot respawns
