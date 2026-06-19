@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.246.html
-  version: 5.1.246
+  file: drive_showdown_v5.1.247.html
+  version: 5.1.247
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -4077,7 +4077,7 @@ function bbResolveLoadout(ld){ // → derived stats; a null/default loadout is f
     turnMul:clamp((1-weight*BB_kTurn)*(a.spd||1),0.45,1.6),      // heavier = sluggish; LIGHT also turns quicker
     mobMax:Math.round(BB.MOB*(1+weight*BB_kMobHeavy)), // heavier = a bigger mobility bar (longer to immobilize)
     hpMul:(a.hpMul||1),runflat:!!a.runflat,reactive:!!a.reactive, // v5.1.156 HP-pool mult, runflat, reactive flags
-    deal:w.deal,take:a.take*w.take,zone:a.zone,perk:(ld&&ld.perk)||'none'};  // weapon fragility folds into damage-taken; v5.1.112 the PERK passes through
+    deal:w.deal,take:a.take*w.take,zone:a.zone,perk:(ld&&ld.perk)||'none',paint:(ld&&ld.paint)|0};  // weapon fragility folds into damage-taken; v5.1.112 PERK passes through; v5.1.247 PAINT passes through so the custom color actually renders IN-MATCH (was stripped here → never showed)
 }
 function bbLoadoutForBind(bind){ // MULTI grid seat loadout, else 1v1 claim loadout, else null (no loadout UI yet → neutral)
   if(tankGridActive()&&m2.tseats&&m2.tseats[bind]&&m2.tseats[bind].loadout)return m2.tseats[bind].loadout;
@@ -7253,7 +7253,8 @@ function drawOmniWhl(cx,cy,ang,spin,color){
 // ── Main wheel dispatch ─────────────────────────────────────────────
 function drawWheels(inp,layer){
   const id=curDrv().id;
-  const col=(curDrv()).c;
+  let col=(curDrv()).c;
+  if(_bbPaint&&!_bbLivery)col=_bbPaint.accent; // v5.1.247 custom PAINT also tints the WHEELS (+ pods/details) to the chosen color, not just the body
   const S=0.065,M=6284;
   const swerve=(id==='botSwerve'||id==='fieldSwerve');
   if(layer==='over'){ // swerve modules render ON TOP of the chassis so the body can't bury the pods (v5.1.44)
@@ -9281,6 +9282,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.247 (2026-06-19): FIX + polish — CUSTOM PAINT now actually shows IN-MATCH, and it paints the WHEELS too (Sam playtest). (1) BUG: `bbResolveLoadout` rebuilt the loadout for the match but DROPPED the `paint` field, so the in-match bot's `ld.paint` was undefined → `_bbPaint` stayed null → the chosen color only ever showed on the setup preview, never in game. Now `paint` passes through. (2) The paint palette now also tints the WHEELS (and swerve pods / chassis details) to the chosen accent — `drawRobot`'s wheel `col` becomes the paint accent when a custom paint is active (livery/Original-Sin still overrides). So picking a color now recolors the whole bot, in-match. smoke57 +2. Full battery green.
   v5.1.246 (2026-06-19): hover-tip DESCRIPTIONS refreshed (weapons / armor / perks) — accuracy pass + counter hints (Sam playtest). Fixes: CANNON no longer claims base shells are "explosive" (they're only EXPLOSIVE with the cheat); ARMOR blurbs now state the rock-paper-scissors that actually drives loadout choice — HARDPLATE resists kinetic but FLAME melts it, HEATSHIELD is the flame answer (~18% general cut), LIGHT gets shredded by spinners. Added the key nuances that had drifted: SPINNER self-damages on walls, BUZZSAW holds speed after a bite, PINCER shrugs off damage mid-clamp, KAMIKAZE costs a life, SPARE TIRE is once-per-match. All in `BB_DESC`. Full battery green.
   v5.1.245 (2026-06-19): FIX — ORIGINAL SIN got STUCK despite invulnerable wheels (Sam playtest). Its wheel-invulnerability (in `bbWheelDamage`) only stops wheels being chewed off — but MOBILITY (`b.mob`) is a separate stat that also gates speed, and it was still drained to 0 by a PINCER's grip-drain (and side-bashing). At mob=0, `bbSpeed` returns 0 → frozen. Now `bbSpeed` treats Original Sin as FULL mobility (like its painkiller/last-stand peers), so invulnerable wheels genuinely means never-immobilized. Normal bots are unaffected (mobility drain still immobilizes them). smoke57 +2. Full battery green.
   v5.1.244 (2026-06-19): TOURNAMENT v2 — QUALIFIER is now a 1v1 vs CPU IN THE TOURNAMENT'S MODE (Sam: "seeding shouldn't just be a time trial"). Instead of always a solo obstacle-race, the QUALIFIER seeding runs each entrant in a 1v1 vs a benchmark VETERAN CPU in the tournament's own mode, seeded by that mode's metric: ball = your GOALS, timed tank = KILLS, lives tank = LIVES left, RoboRumble = DAMAGE dealt, race = TIME. It stays 1v1 even when the tournament is a 3v3 alliance event (no allies in the qualifier). `tourStartQualRun` launches the mode's start (startP2Ball/Tank/BB or solo race) with side0=human / side1=CPU and zeroed allies; `tourQualMetric` returns a seed value (lower=better; losses seed below wins); `tourQualDisplay` shows the result on the standings card. smoke12 updated + mode-metric asserts. Full battery green.

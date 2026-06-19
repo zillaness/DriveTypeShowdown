@@ -44,9 +44,9 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
 ## 📍 Project context lives here
 
 - **`MIGRATION.md`** — read first: full project state, current focus, constraints.
-- **`HANDOFF_2026-06-19.md`** — LATEST thread handoff (tip v5.1.246): map editor (done), Tournament v2 locked design + the agreed next build. **Start here when resuming.**
+- **`HANDOFF_2026-06-19.md`** — LATEST thread handoff (tip v5.1.247): map editor (done), Tournament v2 locked design + the agreed next build. **Start here when resuming.**
 - **`OVERNIGHT_PLAN.md`** — the F1–F5 backlog + the 🏆 Tournament v2 LOCKED DESIGN block.
 - **`HANDOFF_2026-06-16.md`** — the in-depth narrative (weapons / perks / easter eggs / cheats vision).
 - PRDs: `frcds_roborumble_v2_prd_v1.0.md`, `frcds_online_prd_v1.1.md`, `frcds_tournament_v2_prd_v1.0.md`.
-- Build: latest is `drive_showdown_v5.1.246.html` (single self-contained HTML).
+- Build: latest is `drive_showdown_v5.1.247.html` (single self-contained HTML).
 - Balance sim: `./extract.sh && node harness/tests/bbbalance.js /tmp/g.js`.
