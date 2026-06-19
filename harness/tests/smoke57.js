@@ -1275,6 +1275,11 @@ src+=`
    holoCentric=true;absHeadingCouple(holoCentric);ok('switching the holo frame to FIELD-CENTRIC turns absHeading on',absHeading===true);
    ok('driveFieldCentric: fieldSwerve=true, botSwerve=false, tank=null',driveFieldCentric({kind:'main',idx:3})===true&&driveFieldCentric({kind:'main',idx:2})===false&&driveFieldCentric({kind:'main',idx:0})===null);
    absHeading=svAH;holoCentric=svHC;m2.drive=svD;}
+  // v5.1.231 egg unlocks now feed the ACHIEVEMENTS screen (were on an orphan bb_egg_* key)
+  {ok('both egg achievements exist in ACH_DEFS',ACH_DEFS.some(a=>a.id==='autobots')&&ACH_DEFS.some(a=>a.id==='unoriginalsin'));
+   delete achUnlocked.autobots;delete achUnlocked.unoriginalsin;
+   bbEggUnlock('bumblebee');ok('fielding OPTIMUS/BUMBLEBEE unlocks the "Autobots" achievement',!!achUnlocked.autobots);
+   bbEggUnlock('originalsin');ok('fielding ORIGINAL SIN unlocks the "Unoriginal Sin" achievement',!!achUnlocked.unoriginalsin);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

@@ -4,8 +4,8 @@ src+=`
   const ok=(lab,cond)=>console.log((cond?'PASS':'FAIL')+' — '+lab);
   const reset=()=>{achUnlocked={};achProg={drives:[],tiers:[]};achToast=null;};
 
-  ok('ACH_DEFS has 13 entries',ACH_DEFS.length===13);
-  ok('exactly 4 secret achievements',ACH_DEFS.filter(a=>a.secret).length===4);
+  ok('ACH_DEFS has 15 entries',ACH_DEFS.length===15); // v5.1.231 +autobots +unoriginalsin (bot-name eggs)
+  ok('exactly 6 secret achievements',ACH_DEFS.filter(a=>a.secret).length===6);
   ok('every def has id/name/desc',ACH_DEFS.every(a=>a.id&&a.name&&a.desc));
 
   reset();
