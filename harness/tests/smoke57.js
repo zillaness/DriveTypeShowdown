@@ -591,7 +591,20 @@ src+=`
    bbWeaponFire(1/60);const ramp1=dr._drillRamp;for(let i=0;i<60;i++)bbWeaponFire(1/60);const ramp2=dr._drillRamp;
    ok('DRILL ramp readout climbs as you keep it on the foe',ramp2>ramp1&&dr._drillFx>0&&ramp2<=1.0001);
    dr.firing=false;for(let i=0;i<200;i++)bbWeaponFire(1/60);
-   ok('DRILL ramp readout falls back + glow turns OFF when idle',dr._drillRamp<0.05&&!(dr._drillFx>0));}
+   ok('DRILL ramp readout falls back + glow turns OFF when idle',dr._drillRamp<0.05&&!(dr._drillFx>0));
+   // v5.1.210 BORE-DASH: drill ON + dash → PIERCE through a foe (no shove-apart separation) for bore damage; resets the bit's ramp
+   {startBB(0,2);bb2.cd=0;bb2.result=null;const bo=bbBotWith('drill','balanced',0,0,true),vt=bbBotWith('none','balanced',1,1,true);
+    bo.ctl.brain.fire=true;bo.x=300;bo.y=300;bo.h=0;bo.boostT=BOOST.dur;bo.drill={1:BB_W.drillRampT};bo._drillSpin=1;bo.hp=BB.HP;bo.mob=6;bo.inv=0; // low mob → the dash barely creeps, so it stays IN contact for the bore this frame
+    vt.x=300+RR;vt.y=300;vt.hp=BB.HP;vt.mob=BB.MOB;vt.inv=0;bb2.bots=[bo,vt];
+    const vh0=vt.hp,sep0=Math.hypot(bo.x-vt.x,bo.y-vt.y);updateBB(1/60);
+    ok('DRILL BORE-DASH damages the foe it pierces',vt.hp<vh0);
+    ok('DRILL BORE-DASH phases THROUGH (no shove-apart separation past body contact)',Math.hypot(bo.x-vt.x,bo.y-vt.y)<RR*2);
+    ok('DRILL BORE-DASH resets the bit ramp (must re-grind after)',(bo.drill[1]||0)<0.1);
+    // a drill NOT dashing (boost on cooldown) just bumps — the overlap shoves the two apart, no pierce
+    const b2=bbBotWith('drill','balanced',0,0,true),v2=bbBotWith('none','balanced',1,1,true);
+    b2.ctl.brain.fire=true;b2.x=300;b2.y=300;b2.h=0;b2.boostT=0;b2.boostCd=1;b2.drill={};b2._drillSpin=1;b2.hp=BB.HP;b2.mob=BB.MOB;b2.inv=0;
+    v2.x=300+RR*1.2;v2.y=300;v2.hp=BB.HP;v2.mob=BB.MOB;v2.inv=0;bb2.bots=[b2,v2];const sepN0=Math.hypot(b2.x-v2.x,b2.y-v2.y);updateBB(1/60);
+    ok('DRILL with no dash does NOT phase — the overlap separates the bots',Math.hypot(b2.x-v2.x,b2.y-v2.y)>sepN0);}}
   // ── v5.1.202: REPAIR DISH — PASSIVE = AoE attack-buff field (off while healing); ACTIVE = HOLD trigger to HEAL (right-stick targets, no stick → MOST-NEEDY); heal range == buff AoE (the AoE is the heal-range gauge) ──
   {ok('REPAIR is a PICKABLE weapon',BB_WEAPONS.some(w=>w.id==='repair')&&BB_ARMORY_W.some(w=>w.id==='repair'));
    // PASSIVE buff: a repair bot NOT firing buffs a nearby ally; FIRING (healing) turns the buff OFF
