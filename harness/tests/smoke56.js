@@ -333,6 +333,14 @@ src+=`
    ok('Tank SUMO: ringing out the last enemy WINS (last side standing)',tf2.result===0);
    m2.set.tfmode=sv;}
 
+  // ── v5.1.215 EXPLOSIVE SHELLS cheat: ALL tank shots explode without the powerup ──
+  {startTank(0,3);const sve=explosiveShells,svm=machineGun;machineGun=0;
+   explosiveShells=false;tf2.bullets=[];tf2Shoot(0);const plain=tf2.bullets[tf2.bullets.length-1];
+   explosiveShells=true;tf2.bullets=[];tf2Shoot(0);const boom=tf2.bullets[tf2.bullets.length-1];
+   ok('EXPLOSIVE SHELLS: a tank shot is plain without the cheat',!!plain&&!plain.expl);
+   ok('EXPLOSIVE SHELLS: a tank shot EXPLODES with the cheat (no powerup needed)',!!boom&&boom.expl===true);
+   explosiveShells=sve;machineGun=svm;}
+
   console.log('--- multi-tank (roster + N-tanks + TIMED + friendly-fire + 3v3 allies): '+P+' pass, '+F+' fail ---');
 })();
 `;

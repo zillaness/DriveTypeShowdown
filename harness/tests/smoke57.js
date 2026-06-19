@@ -848,18 +848,27 @@ src+=`
    bb2.bots=[hk,dyn];bb2.result=null;bb2.swordCut=null;bbSwordSlash(hk,0,true);
    ok('MECHA iai: a clean lethal slash ONE-HIT-KILLS (even hardplate) + fires the cut-in',dyn.dead&&!!bb2.swordCut);
    bb2.swordCut=null;animeSword=svs;}
-  // ── v5.1.212: TANK INVASION reworked — no more every-bot auto-fire; it unlocks the explosive-shell CANNON as a PICKABLE weapon in the CYCLER only (not the drag-drop rail) ──
-  {const svt=tankPort,svc=cannonWeapon;tankPort=false;cannonWeapon=false;
+  // ── v5.1.215: cannon cheats SPLIT — UNLOCK CANNON (plain weapon) vs EXPLOSIVE SHELLS (modifier) + MACHINE GUN full-auto + BOUNCY ricochet ──
+  {const svc=cannonWeapon,sve=explosiveShells,svm=machineGun,svb=bouncyMode;cannonWeapon=false;explosiveShells=false;machineGun=0;bouncyMode=false;
    const inCycler=()=>{const ld={weapon:'spinner',armor:'balanced',perk:'none'},seen={};for(let i=0;i<14;i++){bbCycleField(ld,'weapon',1);seen[ld.weapon]=1;}return !!seen.cannon;};
    const inRail=()=>bbArmoryChips().some(c=>c.kind==='weapon'&&c.id==='cannon');
-   ok('TANK INVASION off + no UNLOCK: CANNON is hidden from the cycler',!inCycler());
-   tankPort=true;
-   ok('TANK INVASION: CANNON becomes pickable in the weapon CYCLER',inCycler());
-   ok('TANK INVASION: CANNON stays OUT of the drag-drop armory rail',!inRail());
-   ok('TANK INVASION: bbTankPortUpdate is gone (no every-bot auto-fire)',typeof bbTankPortUpdate==='undefined');
-   tankPort=false;cannonWeapon=true;
-   ok('UNLOCK CANNON: still adds the CANNON to the drag-drop rail',inRail()&&inCycler());
-   tankPort=svt;cannonWeapon=svc;}
+   ok('CANNON hidden from cycler + rail with no UNLOCK CANNON',!inCycler()&&!inRail());
+   explosiveShells=true;
+   ok('EXPLOSIVE SHELLS does NOT unlock the cannon (it is only a shell modifier)',!inCycler()&&!inRail());
+   explosiveShells=false;cannonWeapon=true;
+   ok('UNLOCK CANNON adds the cannon to BOTH the cycler and the drag-drop rail',inCycler()&&inRail());
+   cannonWeapon=false;
+   const fire=(expl,mg)=>{explosiveShells=expl;machineGun=mg;const a=bbBotWith('cannon','balanced',0,0,true);a.x=300;a.y=300;a.h=0;a.firing=true;a.cannonCd=0;bb2.bots=[a];bb2.shells=[];bb2.result=null;bbWeaponFire(1/60);return {s:bb2.shells[0],cd:a.cannonCd};};
+   let r=fire(false,0);ok('PLAIN cannon shell is DIRECT-HIT (expl=0)',!!r.s&&!(r.s.expl>0));
+   r=fire(true,0);ok('EXPLOSIVE SHELLS makes the cannon shell EXPLOSIVE (expl>0)',!!r.s&&r.s.expl>0);
+   const norm=fire(false,0).cd,mgcd=fire(false,2).cd;
+   ok('MACHINE GUN shortens the cannon reload to cannonMgCd (full-auto)',mgcd<norm&&Math.abs(mgcd-BB_W.cannonMgCd)<1e-9);
+   explosiveShells=false;machineGun=0;bouncyMode=true; // BOUNCY: a plain shell ricochets off an arena wall instead of dying
+   const sh={x:FW-1,y:300,vx:600,vy:0,t:2,owner:0,side:0,dmg:50,kn:0,expl:0};bb2.bots=[];bb2.shells=[sh];bb2.result=null;bbShellsUpdate(1/60);
+   ok('BOUNCY: a plain cannon shell RICOCHETS off a wall (vx flips, not dead, bnc=1)',!sh.dead&&sh.vx<0&&sh.bnc===1);
+   bouncyMode=false;const sh2={x:FW-1,y:300,vx:600,vy:0,t:2,owner:0,side:0,dmg:50,kn:0,expl:0};bb2.shells=[sh2];bbShellsUpdate(1/60);
+   ok('no BOUNCY: a shell that leaves the arena dies',sh2.dead);
+   cannonWeapon=svc;explosiveShells=sve;machineGun=svm;bouncyMode=svb;}
   // ── v5.1.174: AIM ASSIST (a smidge of magnetism) + RUMBLE toggle ──
   {const sa=aimAssist;aimAssist=true;
    const me=bbBotWith('flame','balanced',0,0,true);me.x=300;me.y=300;
@@ -1044,7 +1053,7 @@ src+=`
    const dead=bbBotWith('none','balanced',1,1,true);dead.x=400;dead.y=300;dead.dead=true;
    const fl2=bbCtfFlags();fl2[0].carrier=dead;fl2[0].home=false;fl2[0].x=400;fl2[0].y=300;
    bb2.bots=[dead];bb2.flags=fl2;bb2.ctf=[0,0];bb2.result=null;bbModeUpdate(0.05);
-   ok('CTF: a carrier dying DROPS the flag (not home)',fl2[0].carrier===null&&fl2[0].home===false);
+   ok('CTF: a carrier dying RETURNS the flag HOME (v5.1.215 small-map fix, was drop-loose)',fl2[0].carrier===null&&fl2[0].home===true&&fl2[0].x===fl2[0].hx&&fl2[0].y===fl2[0].hy);
    const ret=bbBotWith('none','balanced',0,2,true);ret.x=400;ret.y=300; // own (side 0) bot on its dropped flag
    const fl3=bbCtfFlags();fl3[0].carrier=null;fl3[0].home=false;fl3[0].x=400;fl3[0].y=300;
    bb2.bots=[ret];bb2.flags=fl3;bb2.ctf=[0,0];bb2.result=null;bbModeUpdate(0.05);
