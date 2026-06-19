@@ -1102,6 +1102,23 @@ src+=`
     const pbR={x:(FW/2-60)-BB_PB_R+8,y:FH/2,vx:150,vy:0};bbBallObs(pbR,BB_PB_R); // pressed into the left face, moving INTO it
     ok('PUSH-BALL: a ball is REFLECTED (bounces back) off an obstacle face',pbR.vx<0);
     tfObs=savO;}
+   // v5.1.223 FLAVORED weapon × ball interactions (each weapon hits the ball its own way)
+   {const savW=tfObs;tfObs=[];bb2.result=null;bb2.pscore=[0,0];bb2.shells=[];
+    const spn=bbBotWith('spinner','balanced',0,0,true);spn.x=300;spn.y=FH/2;spn.h=0;spn.spin=1;spn._inp={vx:0,vy:0,vr:0};
+    bb2.bots=[spn];bb2.pball={x:300+(RR+BB_PB_R),y:FH/2,vx:0,vy:0};bbModeUpdate(0.02);
+    ok('PUSH-BALL: a spun-up SPINNER flings the ball off at an ANGLE',bb2.pball.vx>0&&Math.abs(bb2.pball.vy)>20);
+    // PINCER clamps + carries the ball, then is knocked loose by another bot
+    bb2.result=null;bb2.pscore=[0,0];
+    const pc=bbBotWith('pincer','balanced',0,0,true);pc.x=300;pc.y=FH/2;pc.h=0;pc.firing=true;pc.grab=null;pc.held=null;pc._inp={vx:0,vy:0,vr:0};
+    bb2.bots=[pc];bb2.pball={x:300+(RR+BB_PB_R+RR*0.4),y:FH/2,vx:0,vy:0};bbModeUpdate(0.02);
+    ok('PUSH-BALL: a firing PINCER clamps onto the ball',bb2.pball.heldBy===pc);
+    bbModeUpdate(0.02);ok('PUSH-BALL: the carried ball rides the pincer front',Math.abs(bb2.pball.x-(pc.x+(RR+BB_PB_R-2)))<1.5);
+    const knk=bbBotWith('none','balanced',1,1,true);knk.x=bb2.pball.x;knk.y=bb2.pball.y;bb2.bots=[pc,knk];bbModeUpdate(0.02);
+    ok('PUSH-BALL: another bot KNOCKS the ball loose from the pincer',bb2.pball.heldBy===null);
+    // CANNON shell shoves the ball at range
+    bb2.result=null;bb2.pscore=[0,0];bb2.bots=[];
+    bb2.pball={x:FW/2,y:FH/2,vx:0,vy:0};bb2.shells=[{x:FW/2-BB_PB_R,y:FH/2,vx:400,vy:0,owner:0,side:0,expl:0,dead:false}];bbModeUpdate(0.02);
+    ok('PUSH-BALL: a CANNON shell shoves the ball + is consumed',bb2.pball.vx>0&&bb2.shells[0].dead);tfObs=savW;}
    // STOCK (limited lives + respawn)
    ok('GAME MODE includes STOCK',BB_MODES.some(m=>m.id==='stock'));
    m2.set.bbmode='stock';
