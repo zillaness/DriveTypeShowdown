@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.243.html
-  version: 5.1.243
+  file: drive_showdown_v5.1.244.html
+  version: 5.1.244
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -3683,6 +3683,8 @@ function tf2CheckResult(lastKiller){ // LIVES: last SIDE standing wins. tf2.resu
   }
 }
 function tf2SideKills(s){let k=0;for(const t of tf2.tanks)if(t.side===s)k+=t.kills;return k;} // total kills for a side (TIMED scoring)
+function tf2SideLives(s){let L=0;if(tf2&&tf2.tanks)for(const t of tf2.tanks)if(t.side===s)L+=Math.max(0,t.lives|0);return L;} // v5.1.244 lives remaining (LIVES qualifier metric)
+function tourBBDamage(s){let d=0;if(bb2&&bb2.bots)for(const b of bb2.bots)if(b.side===s)d+=(b.dmgDealt||0);return d;} // v5.1.244 total damage dealt by a side (RoboRumble qualifier metric)
 function tf2TimeUp(){ // TIMED expiry: most kills wins; an exact tie enters sudden death (first kill wins, golden-goal)
   if(tf2.result!==null||tf2.sudden)return;
   const k0=tf2SideKills(0),k1=tf2SideKills(1);
@@ -3973,7 +3975,7 @@ function p2SeriesReport(winner){
 }
 function drawP2Nav(cy){
   if(tour&&(tour.cur||tour.qual)){
-    if(tour.qual){btn(CW/2-90,cy,180,40,'✓ RECORD TIME','#44ffaa');return;}
+    if(tour.qual){btn(CW/2-90,cy,180,40,'✓ RECORD','#44ffaa');return;}
     const [a,b]=tour.curE;
     ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillStyle='#8888aa';
     ctx.fillText(tourName(a,12)+' vs '+tourName(b,12)+(tour.cur==='gf'?'  ·  GRAND FINAL game '+(tour.gf.n+1):''),CW/2,cy-14);
@@ -4001,7 +4003,7 @@ function drawP2Nav(cy){
 function p2NavClick(mx,my,cy,rematch){
   if(tour&&(tour.cur||tour.qual)){
     if(tour.qual){
-      if(inR(mx,my,{x:CW/2-90,y:cy,w:180,h:40}))tourQualDone(r2.bots[0].fin!==null?r2.bots[0].fin:Infinity);
+      if(inR(mx,my,{x:CW/2-90,y:cy,w:180,h:40}))tourQualDone(tourQualMetric(),tourQualDisplay()); // v5.1.244 record the mode's 1v1 metric
       return true;}
     if(inR(mx,my,{x:CW/2-100,y:cy,w:200,h:40})){
       const w=r2?r2.result:tf2?tf2.result:bb2?bb2.result:b2.result; // v5.1.124 T3: RoboRumble (bb2) results now report into the bracket
@@ -6229,7 +6231,7 @@ function drawTourNames(){
   const opts=[
     ['MATCH MODE',{normal:'NORMAL H2H',shooter:'SHOOTER H2H',tankfight:'TANK FIGHT',battlebots:'ROBORUMBLE',race:'OBSTACLE RACE'}[tour.mode]],
     ['DRIVE POLICY',tour.policy==='open'?'OPEN — pick every match':'CLOSED — first pick locks'],
-    ['SEEDING',{rand:'RANDOM',qual:'QUALIFIER — solo time trial',manual:'MANUAL — rank by skill (▲▼)'}[tour.seedMode]||'RANDOM'],
+    ['SEEDING',{rand:'RANDOM',qual:'QUALIFIER — 1v1 vs CPU in your mode',manual:'MANUAL — rank by skill (▲▼)'}[tour.seedMode]||'RANDOM'],
     ['BRACKET',(tour.format||'double')==='double'?'DOUBLE ELIMINATION · up to 8':'SINGLE ELIMINATION · up to 16'],
     ['ALLIANCES',tour.allianceMode?'ON — 3v3 captain DRAFT (FRC)':'OFF — 1v1, no draft'],
   ];
@@ -6271,31 +6273,57 @@ function tourDraftClick(mx,my){
   if(done)return;
   for(let k=0;k<d.pool.length;k++){if(d.pool[k].by!==null)continue;if(inR(mx,my,tourPoolRect(k))){tourDraftPick(k);return;}}
 }
-function drawTourQual(){ /* qualifier runs reuse the race phase; this is the between-runs card */
-  p2Chrome('QUALIFIER — SOLO TIME TRIAL','fastest run seeds highest · any device drives · Esc during a run skips (seeds last)');
+// ── v5.1.244 QUALIFIER = a 1v1 vs a benchmark CPU IN THE TOURNAMENT'S MODE (not always a race). Seeded by the mode's own metric. 1v1 even when the tournament is 3v3. ──
+const TOUR_QUAL_TIER=1; // benchmark CPU tier (VETERAN) for the seeding qualifier
+function tourQualModeLabel(){return {normal:'NORMAL BALL — most GOALS',shooter:'SHOOTER BALL — most GOALS',tankfight:(m2.set.tformat==='timed'?'TANK FIGHT — most KILLS':'TANK FIGHT — LIVES left'),battlebots:'ROBORUMBLE — most DAMAGE',race:'OBSTACLE RACE — best TIME'}[tour.mode]||'1v1';}
+function tourQualMetric(){ // seed VALUE — LOWER = better seed (keeps the existing ascending sort). Per-mode metric, vs the benchmark CPU.
+  if(tour.mode==='race')return (r2&&r2.bots&&r2.bots[0]&&r2.bots[0].fin!=null)?r2.bots[0].fin:Infinity;
+  let res=null,score=0;
+  if((tour.mode==='normal'||tour.mode==='shooter')&&b2){res=b2.result;score=b2.score?b2.score[0]:0;}
+  else if(tour.mode==='tankfight'&&tf2){res=tf2.result;score=(m2.set.tformat==='timed')?tf2SideKills(0):tf2SideLives(0);}
+  else if(tour.mode==='battlebots'&&bb2){res=bb2.result;score=tourBBDamage(0);}
+  return (res===0?0:1e6)-score; // winners (≤0) rank above losers (≥~1e6); within each, more score = lower = better
+}
+function tourQualDisplay(){ // human-readable result for the standings card
+  if(tour.mode==='race')return (r2&&r2.bots&&r2.bots[0]&&r2.bots[0].fin!=null)?fmt(r2.bots[0].fin):'DNF';
+  let res=null,score=0,unit='';
+  if((tour.mode==='normal'||tour.mode==='shooter')&&b2){res=b2.result;score=b2.score?b2.score[0]:0;unit=' goals';}
+  else if(tour.mode==='tankfight'&&tf2){res=tf2.result;if(m2.set.tformat==='timed'){score=tf2SideKills(0);unit=' kills';}else{score=tf2SideLives(0);unit=' lives';}}
+  else if(tour.mode==='battlebots'&&bb2){res=bb2.result;score=Math.round(tourBBDamage(0));unit=' dmg';}
+  return (res===0?'WON':(res==='draw'?'DREW':'LOST'))+' · '+score+unit;
+}
+function drawTourQual(){
+  p2Chrome('QUALIFIER — 1v1 vs CPU','seed by your 1v1 result · '+tourQualModeLabel()+' · stays 1v1 even for alliance tournaments · Esc skips (seeds last)');
   ctx.font='bold 20px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffd740';
-  ctx.fillText('UP NEXT: '+tour.names[tour.qi],CW/2,260);
-  ctx.font='13px Courier New';ctx.fillStyle='#8888aa';
+  ctx.fillText('UP NEXT: '+tour.names[tour.qi],CW/2,250);
+  ctx.font='13px Courier New';
   for(let i=0;i<tour.names.length;i++){
-    const t=tour.seeds[i];
-    ctx.fillText(tour.names[i].padEnd(14,' ')+(t===undefined?'—':(t===Infinity?'SKIP':fmt(t))),CW/2,300+i*20);
+    const done=tour.seeds[i]!==undefined,lab=(tour.qlab&&tour.qlab[i]!=null)?tour.qlab[i]:(done?(tour.seeds[i]===Infinity?'SKIP':String(tour.seeds[i])):'—');
+    ctx.fillStyle=(i===tour.qi&&!done)?'#ffd740':'#8888aa';
+    ctx.fillText(tour.names[i].slice(0,14).padEnd(16,' ')+lab,CW/2,286+i*20);
   }
-  btn(CW/2-100,CH-100,200,40,'🏁 RUN','#44ffaa');
+  btn(CW/2-110,CH-96,220,40,'🏁 RUN 1v1','#44ffaa');
 }
 function tourStartQualRun(){
   tour.qual=true;
-  const sm=m2.mode,sd0=m2.drive[0],sd1=m2.drive[1],sb=playerBind.map(x=>x);
-  tour._qsave={sm,sd0,sd1,sb};
-  m2.mode='race';
+  const sm=m2.mode,sd0=m2.drive[0],sd1=m2.drive[1],sb=playerBind.map(x=>x),sc=m2.claim?m2.claim.slice():null,sta=m2.set.tallies,stc=m2.set.tcpus,scp=m2.set.cpus;
+  tour._qsave={sm,sd0,sd1,sb,sc,sta,stc,scp};
+  m2.mode=tour.mode;
   if(!m2.drive[0])m2.drive[0]={kind:'main',idx:3,name:'Field-Centric Swerve',c:'#e040fb'};
-  if(!m2.drive[1])m2.drive[1]=m2.drive[0];
-  playerBind=[{type:'any'},{type:'none'}];
-  p2Series=null;startP2Race();r2.solo=true;
+  m2.drive[1]=m2.drive[0];
+  playerBind=[{type:'any'},{type:'none'}];p2Series=null;
+  if(tour.mode==='race'){startP2Race();r2.solo=true;return;} // race = solo time-trial (time IS the metric)
+  // every other mode: a 1v1 — the qualifying human (side 0) vs ONE benchmark CPU (side 1); force 1v1 (zero alliance allies)
+  m2.claim=[{type:'human'},{type:'cpu',tier:TOUR_QUAL_TIER}];
+  m2.set.tallies=0;m2.set.tcpus=1;m2.set.cpus=0;
+  if(tour.mode==='battlebots')startP2BB();
+  else if(tour.mode==='tankfight')startP2Tank();
+  else startP2Ball(); // normal / shooter
 }
-function tourQualDone(t){
-  tour.seeds[tour.qi]=t;
-  const sv=tour._qsave;m2.mode=sv.sm;m2.drive[0]=sv.sd0;m2.drive[1]=sv.sd1;playerBind=sv.sb;
-  tour.qual=false;r2=null;applyLayout('land2p');
+function tourQualDone(seed,disp){
+  tour.seeds[tour.qi]=seed;tour.qlab=tour.qlab||{};tour.qlab[tour.qi]=(disp!=null?disp:(seed===Infinity?'SKIP':String(seed)));
+  const sv=tour._qsave||{};if(sv.sm!==undefined)m2.mode=sv.sm;m2.drive[0]=sv.sd0;m2.drive[1]=sv.sd1;if(sv.sb)playerBind=sv.sb;if(sv.sc)m2.claim=sv.sc;if(sv.sta!=null)m2.set.tallies=sv.sta;if(sv.stc!=null)m2.set.tcpus=sv.stc;if(sv.scp!=null)m2.set.cpus=sv.scp;
+  tour.qual=false;r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');
   tour.qi++;
   if(tour.qi>=tour.names.length){tourAfterSeed();}
   else phase='p2tqual';
@@ -6395,7 +6423,7 @@ function p2Back(){
   else if(phase==='p2tdraft'){tour.draft=null;tour.alli=null;phase='p2tnames';} // v5.1.239 Esc cancels the draft → back to registration
   else if(phase==='p2tqual'){tourAfterSeed();} // skip remaining qualifiers: unseeded sort last
   else if(phase==='p2tbracket'){phase='p2modes';}
-  else if(phase==='p2race'&&tour&&tour.qual){tourQualDone(Infinity);}
+  else if(tour&&tour.qual&&(phase==='p2race'||phase==='p2tank'||phase==='p2ball'||phase==='p2bb')){tourQualDone(Infinity,'SKIP');} // v5.1.244 Esc skips a qualifier run (any mode) → seeds last
   else if(phase==='p2race'&&tour&&tour.cur){r2=null;applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if((phase==='p2tank'||phase==='p2ball')&&tour&&tour.cur){r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if(phase==='p2drive'){if(m2._dp===1)m2._dp=0;else if(tour&&tour.cur){tour.cur=null;phase='p2tbracket';}else phase='p2modes';}
@@ -9253,6 +9281,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.244 (2026-06-19): TOURNAMENT v2 — QUALIFIER is now a 1v1 vs CPU IN THE TOURNAMENT'S MODE (Sam: "seeding shouldn't just be a time trial"). Instead of always a solo obstacle-race, the QUALIFIER seeding runs each entrant in a 1v1 vs a benchmark VETERAN CPU in the tournament's own mode, seeded by that mode's metric: ball = your GOALS, timed tank = KILLS, lives tank = LIVES left, RoboRumble = DAMAGE dealt, race = TIME. It stays 1v1 even when the tournament is a 3v3 alliance event (no allies in the qualifier). `tourStartQualRun` launches the mode's start (startP2Ball/Tank/BB or solo race) with side0=human / side1=CPU and zeroed allies; `tourQualMetric` returns a seed value (lower=better; losses seed below wins); `tourQualDisplay` shows the result on the standings card. smoke12 updated + mode-metric asserts. Full battery green.
   v5.1.243 (2026-06-19): TOURNAMENT v2 — bracket shows ALLIANCE ROSTERS. With ALLIANCES on, the bracket's NEXT-match card now shows each side's drafted roster (RED: captain +tier +tier / BLUE: …) and the CHAMPION banner lists the winning alliance (captain + both drafted bots with tiers). Purely presentational (`drawTourBracket`); the bracket boxes still show captain names to stay legible. smoke33 +2 (draw paths don't throw). Full battery green.
   v5.1.242 (2026-06-19): TOURNAMENT v2 — T4 map-pick RULE (higher seed / winners' bracket). The per-match arena vote is now FRAMED by the seed: in a bracket match the HIGHER SEED's side is shown as the picker (“RED (#2 seed) PICKS THE ARENA”); at a double-elim GRAND FINAL the WINNERS'-bracket team picks. `tourMapPicker()` resolves who (better rank in `tour.rank`; at GF the `gfFeeds[0]` WB team), passed to `startMapVote(...,picker)`; `drawMapVote` shows the label + “their call · others may weigh in.” The countdown still auto-randomizes (the “no agreement” fallback / open group weigh-in) — local hotseat keeps tap-anyone input; the label conveys the privilege. Completes the locked T4 rule (open-pick built first in v5.1.236/238, seed-gate layered on now). smoke33 +3. Full battery green.
   v5.1.241 (2026-06-19): TOURNAMENT v2 — MANUAL SEEDING (rank by skill). The SEEDING toggle now cycles RANDOM → QUALIFIER → MANUAL. In MANUAL the registration name chips get ▲▼ buttons to reorder entrants — the order IS the seed order (1 = top seed), for "when you already kind of know who's better" (Sam). `tourRankedIdx()` already honored 'manual' (registration order); added `tourSwapSeed(i,j)` + the ▲▼ UI. This rounds out the Tournament-v2 build: FORMAT (single/double) + double-elim engine + Bo3 GF + CAPTAIN DRAFT + 3v3 alliance routing + per-match open-pick MAP VOTE + MANUAL/random/qualifier seeding + format size caps. (Future/tabled: higher-seed map-pick gating, per-match lineup swaps, T1 registration text-input.) smoke33 +3. Full battery green.

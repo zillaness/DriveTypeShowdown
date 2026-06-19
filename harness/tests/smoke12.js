@@ -46,7 +46,7 @@ src+=`
   const top=tourRes(wb[0].a);
   console.log('qualifier seeding: seed1='+tour.names[top]+' (expect Fast); seed1 plays '+tour.names[tourRes(wb[0].b)]+' (expect Skip, the worst seed)');
   // solo qualifier run wiring
-  tour.qi=0;m2.set.course=0;m2.set.haz=false;
+  tour.qi=0;tour.mode='race';m2.set.course=0;m2.set.haz=false; // v5.1.244 race qualifier stays a solo time-trial
   tourStartQualRun();
   console.log('qual run: solo='+r2.solo+' bind any='+(playerBind[0].type==='any')+' phase='+phase);
   updateP2Race(3.1);
@@ -62,6 +62,14 @@ src+=`
   console.log('typed name committed: '+(tour.names.includes('Sam')));
   drawTourNames();
   tour.M=[];tourBuild===null;
+  // v5.1.244 mode-aware qualifier metric (1v1 vs CPU): per-mode score, lower seed value = better, losses seed below wins
+  tour={mode:'normal',seeds:[],qi:0};b2={result:0,score:[3,1]};
+  if(tourQualMetric()!==-3||!/WON · 3 goals/.test(tourQualDisplay()))throw new Error('ball qual metric wrong: '+tourQualMetric()+' / '+tourQualDisplay());
+  b2=null;tour={mode:'battlebots'};bb2={result:0,bots:[{side:0,dmgDealt:200},{side:1,dmgDealt:50}]};
+  if(tourQualMetric()!==-200)throw new Error('bb qual metric wrong: '+tourQualMetric());
+  bb2=null;tour={mode:'tankfight'};m2.set.tformat='lives';tf2={result:1,tanks:[{side:0,lives:1,kills:0},{side:1,lives:3,kills:4}]};
+  if(!(tourQualMetric()>0))throw new Error('a LOSS must seed worse than any win, got '+tourQualMetric());
+  tf2=null;console.log('mode-aware qualifier metrics OK (ball/bb/tank)');
   console.log('done');
 })();
 function keydownSim(k){window._kd({key:k,preventDefault:()=>{}});}
