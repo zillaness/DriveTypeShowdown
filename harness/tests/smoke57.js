@@ -389,6 +389,11 @@ src+=`
    // v5.1.201 the chosen WEAPON renders on the drive-base preview — must not throw even with bb2=null (claim screen) for EVERY weapon
    {const _sb=bb2;bb2=null;let pvThrew=false;for(const W of BB_WEAPONS){if(W.id==='none')continue;m2.bbLoadout[0]={weapon:W.id,armor:'balanced',perk:'none'};try{bbDrawClaimWeaponPreview(0,300,202,1.3);}catch(e){pvThrew=true;console.log('   weapon-preview err ('+W.id+'):',e.message);}}
     ok('1v1 weapon preview renders on the drive base for every weapon (bb2=null safe)',!pvThrew&&_wpnPreview===false&&bb2===null);bb2=_sb;m2.bbLoadout[0]=null;}
+   // v5.1.216 the SAME weapon render on the 3v3 GRID seat — bbDrawWeaponPreview takes a seat loadout directly + is bb2=null safe for every weapon
+   {const _sb=bb2;bb2=null;let gThrew=false;for(const W of BB_WEAPONS){if(W.id==='none')continue;try{bbDrawWeaponPreview({weapon:W.id,armor:'balanced'},300,200,0.8);}catch(e){gThrew=true;console.log('   grid-preview err ('+W.id+'):',e.message);}}
+    ok('3v3 grid weapon preview renders for every weapon (seat loadout, bb2=null safe)',!gThrew&&_wpnPreview===false&&bb2===null);
+    let nThrew=false;try{bbDrawWeaponPreview(null,300,200,0.8);bbDrawWeaponPreview({weapon:'none'},300,200,0.8);}catch(e){nThrew=true;}
+    ok('3v3 grid weapon preview is a no-op for an unset / RAM-only seat',!nThrew);bb2=_sb;}
    // v5.1.203 the 1v1 cards get the same drag-drop ARMORY RAIL as the 3v3 grid (drag a chip onto a card)
    {m2.bbLoadout=[null,null];
     ok('1v1 armory rail is ACTIVE on the battlebots 1v1 claim',bb1v1ArmoryOn()===true);
