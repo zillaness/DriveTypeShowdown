@@ -213,6 +213,14 @@ src+=`
    ok('ABS-HEADING: a centered stick (deadzone) → null (hold heading)',absHeadingVr(0.1,0.1,0)===null);
    absHeading=false;ok('ABS-HEADING off → null (default rate-of-rotation)',absHeadingVr(0,-1,0)===null);
    absHeading=true;const t1=toggleAbsHeading;t1();ok('toggleAbsHeading flips the flag',absHeading===false);t1();ok('toggleAbsHeading flips back',absHeading===true);
+   // v5.1.218 the snap RATE responds to the TURN-RATE tuning + never overshoots (no wobble)
+   {const sr=rotRatio,ss=sensitivity;sensitivity=1;
+    rotRatio=1;const v1=Math.abs(absHeadingVr(-1,0,0)*sensitivity*rotRatio);      // 180° turn → final applied rate at 1×
+    rotRatio=3;const v3=Math.abs(absHeadingVr(-1,0,0)*sensitivity*rotRatio);      // … at 3×
+    ok('ABS-HEADING: snap rate SCALES with the TURN RATE knob (3× ≈ 3× faster)',v3>v1*2.5);
+    rotRatio=3;const dh=0.05,fv=absHeadingVr(Math.cos(dh),Math.sin(dh),0)*sensitivity*rotRatio; // a tiny heading error
+    ok('ABS-HEADING: a small error does NOT overshoot (capped to land on target)',fv>0&&Math.abs(fv*(1/60))<=dh+1e-6);
+    rotRatio=sr;sensitivity=ss;}
    absHeading=sv;}
 
   // ── v5.1.53: beating SP with cheats on must NOT freeze (drawDone read best[k]=undefined → fmt(undefined) threw → killed the rAF loop) ──
