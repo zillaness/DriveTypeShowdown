@@ -88,6 +88,23 @@ src+=`
    applyLayout('legacy');phase='splash';click(R.mp.x+R.mp.w/2,R.mp.y+R.mp.h/2);p2Exit();
    ok('p2Exit returns to the SPLASH hub',phase==='splash');}
 
+  // v5.1.220 MAP GALLERY now serves BOTH modes (was RoboRumble-only)
+  {setDropdown=null;m2.mode='battlebots';phase='p2settings';m2.set.map=0;
+   const bbTiles=bbMapTiles();
+   ok('RoboRumble gallery lists every arena + a RANDOM tile ('+bbTiles.length+')',bbTiles.length===TF2_MAPS.length+1&&bbTiles.some(t=>t.map==='rand'));
+   m2.mode='tankfight';
+   const tfTiles=bbMapTiles();
+   ok('Tank Fight gallery lists only the 4 base arenas, no RANDOM/hazard ('+tfTiles.length+')',tfTiles.length===4&&!tfTiles.some(t=>t.map==='rand'));
+   // Tank Fight MAP row click now opens the full-screen gallery (not a dropdown)
+   m2.mode='tankfight';phase='p2settings';setDropdown=null;
+   const mi=p2SettingsRows().findIndex(r=>r.k==='map');const mrc=p2SetRowRect(mi);
+   p2Click(mrc.x+mrc.w*0.35,mrc.y+mrc.h/2);
+   ok('Tank Fight MAP row opens the map gallery (phase='+phase+')',phase==='p2bbmap');
+   // picking a tile sets m2.set.map and returns to settings
+   const tgt=bbMapTiles().find(t=>t.map===2);
+   bbMapPickerClick(tgt.x+tgt.w/2,tgt.y+tgt.h/2);
+   ok('picking a gallery tile sets the map + returns to settings',m2.set.map===2&&phase==='p2settings');}
+
   console.log('--- settings-options: '+P+' pass, '+F+' fail ---');
 })();
 `;
