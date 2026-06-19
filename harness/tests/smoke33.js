@@ -145,6 +145,14 @@ src+=`
    T('bracket: better-seeded side picks regardless of order (BLUE #2)',!!pk&&pk.side===1&&/#2/.test(pk.label));
    tour={rank:[0,1,2,3],curE:[0,1],cur:'gf',format:'double',gfFeeds:[{e:0},{e:1}]};pk=tourMapPicker();
    T("grand final: the winners' bracket team picks",!!pk&&pk.side===0&&/winners/.test(pk.label));}
+  // ── v5.1.243 bracket draws alliance rosters (next-match + champion) without throwing ──
+  {const T=(l,c)=>console.log((c?'ok — ':'FAIL — ')+l);applyLayout('land2p');
+   tour={names:['A','B','C','D'],seedMode:'manual',format:'single',allianceMode:true,mode:'normal',drv:[],seeds:[],M:[],qi:0,buf:''};
+   tour.rank=[0,1,2,3];tourStartDraft();tourDraftAuto();tourFinishDraft();
+   let drew=true;try{drawTourBracket();}catch(e){drew=false;}
+   T('bracket with a pending alliance match draws ok',drew);
+   tour.champ=0;let drew2=true;try{drawTourBracket();}catch(e){drew2=false;}
+   T('champion alliance banner draws ok',drew2);}
   tour=null;bb2=null;console.log('done');
 })();
 `;
