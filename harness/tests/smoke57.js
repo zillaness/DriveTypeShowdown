@@ -813,14 +813,30 @@ src+=`
    ok('AIRSTRIKE resets its timer after a strike',bb2.airT>0);
    airStrike=false;const ab2=bbBotWith('none','balanced',0,0,true);ab2.hp=BB.HP;bb2.bots=[ab2];bb2.blasts=[];bb2.airPending=null;bb2.airT=0.02;bbAirstrikeUpdate(0.05);
    ok('AIRSTRIKE off: no telegraph, no bombs, no damage',!bb2.airPending&&bb2.blasts.length===0&&ab2.hp===BB.HP);airStrike=sva;
-   const svs=animeSword;animeSword=true;
+   const svs=animeSword;animeSword=2; // v5.1.212 EVERYONE mode: CPUs auto-slash on the timer
    const sw=bbBotWith('none','balanced',0,0,true);sw.x=300;sw.y=300;sw.h=0;sw.swordCd=0;
    const front=bbBotWith('none','balanced',1,1,true);front.x=300+RR+10;front.y=300;front.h=0;front.hp=BB.HP;front.inv=0;
    const back=bbBotWith('none','balanced',1,2,true);back.x=300-RR-10;back.y=300;back.h=0;back.hp=BB.HP;back.inv=0;
-   bb2.bots=[sw,front,back];bb2.result=null;const fhp0=front.hp,bhp0=back.hp;bbSwordUpdate(1/60);
-   ok('ANIME SWORD slashes a foe in the FRONT arc (damage + FX)',front.hp<fhp0&&sw._swordFx>0);
+   bb2.bots=[sw,front,back];bb2.result=null;bb2.swordCut=null;const fhp0=front.hp,bhp0=back.hp;bbSwordUpdate(1/60);
+   ok('ANIME SWORD (EVERYONE) — a CPU slashes a foe in the FRONT arc (damage + FX)',front.hp<fhp0&&sw._swordFx>0);
    ok('ANIME SWORD spares a foe BEHIND (outside the front arc)',back.hp===bhp0);
-   ok('ANIME SWORD goes on cooldown after a swing',sw.swordCd>0);animeSword=svs;}
+   ok('ANIME SWORD goes on cooldown after a swing',sw.swordCd>0);
+   // v5.1.212 MECHA MODE: YOU-only gates CPUs out; the human slashes on a DASH; a human sword-KO fires the cut-in
+   animeSword=1;const cpu2=bbBotWith('none','balanced',0,0,true);cpu2.x=300;cpu2.y=300;cpu2.h=0;cpu2.swordCd=0;cpu2._swordDashed=false;
+   const ftgt=bbBotWith('none','balanced',1,1,true);ftgt.x=300+RR+10;ftgt.y=300;ftgt.hp=BB.HP;ftgt.inv=0;
+   bb2.bots=[cpu2,ftgt];bb2.result=null;const fh1=ftgt.hp;bbSwordUpdate(1/60);
+   ok('MECHA YOU-mode: a CPU does NOT get the sword',ftgt.hp===fh1&&!bbIsMecha(cpu2));
+   const hu=bbBotWith('none','balanced',0,0,false);hu.x=300;hu.y=300;hu.h=0;hu._swordDashed=false;hu.boostT=0;
+   const ht=bbBotWith('none','balanced',1,1,true);ht.x=300+RR+10;ht.y=300;ht.hp=BB.HP;ht.inv=0;
+   bb2.bots=[hu,ht];bb2.result=null;bb2.swordCut=null;bbSwordUpdate(1/60);
+   ok('MECHA dash-slash: a HUMAN does NOT slash without a dash',ht.hp===BB.HP&&bbIsMecha(hu));
+   hu.boostT=BOOST.dur;const ht0=ht.hp;bbSwordUpdate(1/60);
+   ok('MECHA dash-slash: a HUMAN slashes WHEN it dashes',ht.hp<ht0&&hu._swordFx>0);
+   const hk=bbBotWith('none','balanced',0,0,false);hk.x=300;hk.y=300;hk.h=0;hk._swordDashed=false;hk.boostT=BOOST.dur;
+   const dyn=bbBotWith('none','balanced',1,1,true);dyn.x=300+RR+10;dyn.y=300;dyn.hp=10;dyn.inv=0;
+   bb2.bots=[hk,dyn];bb2.result=null;bb2.swordCut=null;bbSwordUpdate(1/60);
+   ok('MECHA cut-in: a HUMAN sword KO triggers the anime cut-screen',!!bb2.swordCut&&dyn.dead);
+   bb2.swordCut=null;animeSword=svs;}
   // ── v5.1.172: P7 TANK INVASION — every bot mounts the Tank-Fight cannon, auto-firing shells at the nearest enemy ──
   {const svt=tankPort;tankPort=true;
    const gun=bbBotWith('wedge','balanced',0,0,true);gun.x=200;gun.y=300;gun.h=0;

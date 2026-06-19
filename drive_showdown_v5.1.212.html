@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.211.html
-  version: 5.1.211
+  file: drive_showdown_v5.1.212.html
+  version: 5.1.212
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-18
@@ -312,7 +312,7 @@ function applyKonamiSlider(i,mx){ // set CHEATS[i]'s slider value from a canvas 
 let arcadeMode=false,bouncyMode=false,machineGun=0,ballMult=1,cheatIdx=0,kbBoostHeld=false,konamiOpenT=0,_ckNav=0,moveOrDie=false; // machineGun: 0 OFF / 1 YOU only / 2 BOTH sides; v5.1.116 moveOrDie = RoboRumble anti-camp cheat
 let multiBall=false,stickyPlow=false,noClip=false,iceMode=false,ballScale=1,robotScale=1,ballPups=false,ramCdMult=1; // more cheats (ramCdMult scales the RAM dash cooldown; SENS_MAX cheat lives by the sensitivity consts)
 let bbUnlimited=false,megaBots=false; // v5.1.118 P7 RoboRumble combat cheats: UNLIMITED RESOURCES (no weapon cooldowns) + MEGABOTS (giant HP + crushing ram)
-let airStrike=false,animeSword=false; // v5.1.119 P7 RoboRumble combat cheats: AIRSTRIKE (periodic arena bombs) + ANIME SWORD (every bot gets a dramatic front-arc slash)
+let airStrike=false,animeSword=0; // v5.1.119 P7 RoboRumble combat cheats: AIRSTRIKE (periodic arena bombs) + ANIME SWORD/MECHA MODE (0=off,1=YOU only,2=EVERYONE) — v-fin + pink energy sword + dash-slash + anime KO cut-in
 let tankPort=false; // v5.1.172 P7 RoboRumble combat cheat: TANK INVASION — every bot also mounts a TANK-FIGHT cannon that auto-fires shells at the nearest enemy
 let cannonWeapon=false; // v5.1.188 RoboRumble cheat: UNLOCK the CANNON as a pickable loadout weapon (hidden from the armory/cycler/CPU pool until this is on)
 let arenaTraps=false; // v5.1.133 P7: ARENA TRAPS cheat — turn ANY arena into the DANGER ZONE (acid pit + saw blades) regardless of the chosen map
@@ -352,7 +352,7 @@ const CHEATS=[ // v5.1.158: grouped by THEME with each slider beside its related
   {name:'UNLIMITED RESRC', desc:'[ROBORUMBLE] no weapon cooldowns — full-auto hammer/flipper, always-spun disc, instant grab', get:()=>bbUnlimited, tog:()=>{bbUnlimited=!bbUnlimited;}}, // v5.1.118 P7
   {name:'MEGABOTS',       desc:'[ROBORUMBLE] giant HP pools + crushing ram damage — epic heavyweight slugfests (pair with ROBOT SIZE)', get:()=>megaBots, tog:()=>{megaBots=!megaBots;}}, // v5.1.118 P7
   {name:'AIRSTRIKE',      desc:'bombs rain every few seconds — KOs in RoboRumble, STUNS in tank & ball (side-agnostic)', get:()=>airStrike, tog:()=>{airStrike=!airStrike;}}, // v5.1.119 P7; v5.1.159 cross-mode (tank/ball stun)
-  {name:'ANIME SWORD',    desc:'[ROBORUMBLE] every bot gets a dramatic giant front-arc slash on a timer — big damage + knockback', get:()=>animeSword, tog:()=>{animeSword=!animeSword;}}, // v5.1.119 P7
+  {name:'ANIME SWORD',    desc:'[ROBORUMBLE] MECHA MODE — bright-yellow V-fin + glowing PINK energy sword; DASH = a samurai dash-slash (trail + slash arc + sound); a sword KO triggers an anime cut-in (藤原とうふ店). OFF / YOU only / EVERYONE', slider:true,min:0,max:2,step:1,get:()=>animeSword,set:v=>{animeSword=clamp(Math.round(v),0,2);},show:v=>['OFF','YOU','EVERYONE'][clamp(Math.round(v),0,2)]}, // v5.1.119 P7; v5.1.212 mecha mode
   {name:'TANK INVASION',  desc:'[ROBORUMBLE] port in the TANK-FIGHT cannon — every bot auto-fires shells at the nearest enemy (ranged combat on top of its weapon)', get:()=>tankPort, tog:()=>{tankPort=!tankPort;}}, // v5.1.172 P7
   {name:'UNLOCK CANNON',  desc:'[ROBORUMBLE] add the CANNON to the weapon roster — a pickable ranged shell-launcher in the loadout/armory (hidden until unlocked)', get:()=>cannonWeapon, tog:()=>{cannonWeapon=!cannonWeapon;}}, // v5.1.188 cheat-gated weapon
   {name:'ARENA TRAPS',    desc:'[ROBORUMBLE] turn ANY arena into the DANGER ZONE — a central acid pit + two saw blades', get:()=>arenaTraps, tog:()=>{arenaTraps=!arenaTraps;}}, // v5.1.133 P7
@@ -362,7 +362,7 @@ function cheatMove(d){cheatIdx=(cheatIdx+d+CHEATS.length)%CHEATS.length;sfx('cli
 function cheatToggle(){const c=CHEATS[cheatIdx];if(c.slider){c.set(c.get()>=c.max?c.min:c.get()+c.step);}else c.tog();sfx('claim');}
 function cheatAdjust(d){const c=CHEATS[cheatIdx];if(c.slider){c.set(clamp(c.get()+d*c.step,c.min,c.max));sfx('click');}else{const half=Math.ceil(CHEATS.length/2);cheatIdx=(cheatIdx+(d>0?half:-half)+CHEATS.length)%CHEATS.length;sfx('click');}} // v5.1.158 ◀▶: nudge a slider, else jump to the other column
 function cheatsAllOff(){ // ⟲ TURN OFF ALL CHEATS button — reset every cheat to its default
-  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;moveOrDie=false;bbUnlimited=false;megaBots=false;airStrike=false;animeSword=false;tankPort=false;cannonWeapon=false;arenaTraps=false;hazardMaster=false;
+  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;moveOrDie=false;bbUnlimited=false;megaBots=false;airStrike=false;animeSword=0;tankPort=false;cannonWeapon=false;arenaTraps=false;hazardMaster=false;
   ballMult=1;iceSlip=1;iceMode=false;MOM.ice.fri=0.4;clearMomentum();
   SENS_MAX=SENS_MAX_BASE;ramCdMult=1;ballScale=1;BR=clamp(BR0,4,18);robotScale=1;setRobotScale(1);
   sfx('claim');}
@@ -858,6 +858,7 @@ function sfx(name,vol){
     case 'hit':N(0.06,0.45,1800);V(220,160,0.06,'square',0.3);break;
     case 'boom':N(0.42,0.7,900);V(110,45,0.42,'sine',0.7);break;
     case 'explosion':N(0.34,0.8,700);V(150,40,0.34,'sawtooth',0.6);N(0.06,0.5,3000);break;
+    case 'slash':V(1500,420,0.18,'sawtooth',0.34);V(900,2200,0.07,'square',0.2);N(0.12,0.32,6000);break; // v5.1.212 MECHA energy-sword zing (descending metallic + a swish)
     case 'pickup':V(520,780,0.12,'triangle',0.34);break;
     case 'intake':V(300,430,0.06,'sine',0.26);break;
     case 'launch':N(0.12,0.32,2400);break;
@@ -4393,7 +4394,7 @@ const BB_W={
   wedgeDmg:0.76, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:158, grabDmg:44, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.6, pincerDrain:38, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, pincerGripDR:0.3, heldFightDps:40, // v5.1.166 WEDGE/DOZER buffed (contact 0.40→0.62, slam 85→115, grab 18→28 — it read as weak). Wider arc (±63°) + grab REACH ≈ 2.4×RR so no perfect ram needed. dozerCharge = forward boost while firing RT, dashBuff = LT-dash buff
   blowUp:46, burnCool:4, burnBuild:1.5, burnBuildCpu:0.54, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:6.0, partingDmg:480, // v5.1.183 HUMAN ring fills FASTER (burnBuild 1.0→1.5, ~3.3s sustained — Sam wanted quicker); CPU stays slow (burnBuildCpu, sim-balanced). burnCool 4 = the ring UNFILLS SLOWLY on contact break. KAMIKAZE 9×RR; PARTING GIFT inner boom
   wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:2.15, drillRampT:1.05, drillStick:90, drillMin:305, drillMax:510, drillCharge:1.5, drillBoreDmg:18, drillBoreKnock:6, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, repairArc:Math.PI*0.55, repairReachK:11.0, repairHps:110, repairMobps:80, repairWheelps:30, repairDmg:8, repairDmgBuff:1.3, repairBuffT:1.6, repairSpinRamp:0.6, repairBuffRK:12.0, repairLifeDps:28, repairLifeHeal:40, repairRampT:1.4, repairRampMin:0.3, repairMoveMul:0.5, vampHeal:130, medicReachK:2.6, medicHp:90, medicHps:42, medicMobps:90, medicWheelps:26, medicSpd:1.05, reactDmg:120, // v5.1.166 DRILL buffed (ramp 1.7→1.4, dps 45→80 / 175→250 — it read as weak); MEDIC now has its own HP (90, destructible) + heals tires less (55→26); v5.1.161 PIT STOP medic; raw HP damage PENETRATES the front; REACTIVE reflect 120
-  miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, miniHp:55, miniDps:80, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:9.0, airDmg:480, airTele:1.2, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14, tankPortCd:0.55, tankPortSpd:400, tankPortDmg:42, tankPortLife:2.0, cannonCd:0.8, cannonSpd:500, cannonDmg:135, cannonLife:1.9, cannonRangeK:7.0, cannonKnock:10, cannonBlastR:70 // v5.1.172 TANK INVASION cheat shells; v5.1.175 CANNON weapon; v5.1.189 cannonBlastR = EXPLOSIVE-round AoE radius (like the tank explosive powerup)
+  miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, miniHp:55, miniDps:80, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:9.0, airDmg:480, airTele:1.2, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14, swordCutT:0.85, tankPortCd:0.55, tankPortSpd:400, tankPortDmg:42, tankPortLife:2.0, cannonCd:0.8, cannonSpd:500, cannonDmg:135, cannonLife:1.9, cannonRangeK:7.0, cannonKnock:10, cannonBlastR:70 // v5.1.172 TANK INVASION cheat shells; v5.1.175 CANNON weapon; v5.1.189 cannonBlastR = EXPLOSIVE-round AoE radius (like the tank explosive powerup)
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
   const id=(typeof p2cDriveDef!=='undefined')?p2cDriveDef(bind).id:'tank';
@@ -4875,16 +4876,26 @@ function bbHazardStrike(x,y){ // v5.1.148 HAZARD MASTER: a player-aimed crusher 
   for(const b of bb2.bots){if(b.dead)continue;const d=Math.hypot(b.x-x,b.y-y);if(d<=R){const f=Math.max(0.4,1-d/R);b.hp-=BB_W.hazStrikeDmg*f;b.inv=BB.hitCd;if(b.ctl)p2Rumble(b.ctl.bind,0.7);if(b.hp<=0&&!b.dead)bbKill(b,null);}}
   return true;
 }
-function bbSwordUpdate(dt){ // v5.1.119 P7 ANIME SWORD: every bot gets a dramatic periodic front-arc slash (big dmg + knockback, pierces the front)
+function bbIsMecha(b){return !!(b&&!b.dead&&(animeSword===2||(animeSword>=1&&b.ctl&&b.ctl.type!=='cpu')));} // v5.1.212 who is an anime MECHA right now — EVERYONE (2) or just the human (1)
+function bbSwordSlash(a,ai){ // one dramatic front-arc PINK energy slash (+ a KO cut-in if a human lands the kill)
+  a._swordFx=0.45;sfx('slash');const R=RR+RR*BB_W.swordRange;
+  for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);
+    if(d<=R&&bbFoeAngOk(a,c,BB_W.swordArc)){bbApplyHit(c,bbHitLoc(c,a.x,a.y),BB_W.swordDmg,ai,a.x,a.y,0.7);
+      const m=d||1,nx=(c.x-a.x)/m,ny=(c.y-a.y)/m;c.x+=nx*BB_W.swordKnock;c.y+=ny*BB_W.swordKnock;obsCheck(c,RR);if(c.ctl)p2Rumble(c.ctl.bind,0.7);
+      if(c.hp<=0){if(a.ctl&&a.ctl.type!=='cpu')bb2.swordCut={t:BB_W.swordCutT,max:BB_W.swordCutT,h:a.h,col:a.col||'#ff39c0',x:a.x,y:a.y}; // a HUMAN sword KO → anime cut-in
+        bbKill(c,ai);}}}
+}
+function bbSwordUpdate(dt){ // v5.1.119 ANIME SWORD → v5.1.212 MECHA MODE: the human slashes on a DASH (samurai dash-slash); CPUs in EVERYONE mode keep the periodic auto-slash; a sword KO fires an anime cut-in
   if(!animeSword||!bb2)return;
+  if(bb2.swordCut){bb2.swordCut.t-=dt;if(bb2.swordCut.t<=0)bb2.swordCut=null;} // tick the KO cut-in
   for(let ai=0;ai<bb2.bots.length;ai++){const a=bb2.bots[ai];if(a.dead)continue;
     if(a._swordFx>0)a._swordFx=Math.max(0,a._swordFx-dt);
-    a.swordCd=(a.swordCd==null?BB_W.swordCd:a.swordCd)-dt;
-    if(a.swordCd>0)continue;
-    a.swordCd=BB_W.swordCd;a._swordFx=0.4;sfx('explosion');const R=RR+RR*BB_W.swordRange;
-    for(const c of bb2.bots){if(c.dead||c.side===a.side)continue;const d=Math.hypot(c.x-a.x,c.y-a.y);
-      if(d<=R&&bbFoeAngOk(a,c,BB_W.swordArc)){bbApplyHit(c,bbHitLoc(c,a.x,a.y),BB_W.swordDmg,ai,a.x,a.y,0.7);
-        const m=d||1,nx=(c.x-a.x)/m,ny=(c.y-a.y)/m;c.x+=nx*BB_W.swordKnock;c.y+=ny*BB_W.swordKnock;obsCheck(c,RR);if(c.ctl)p2Rumble(c.ctl.bind,0.7);if(c.hp<=0)bbKill(c,ai);}}
+    if(!bbIsMecha(a)){a._swordDashed=false;continue;}
+    if(a.ctl&&a.ctl.type!=='cpu'){ // SAMURAI DASH-SLASH: one slash per DASH (edge-triggered on boostT)
+      if((a.boostT||0)>0){if(!a._swordDashed){a._swordDashed=true;bbSwordSlash(a,ai);}}else a._swordDashed=false;
+    }else{ // CPU (EVERYONE mode): periodic auto-slash on a timer
+      a.swordCd=(a.swordCd==null?BB_W.swordCd:a.swordCd)-dt;if(a.swordCd<=0){a.swordCd=BB_W.swordCd;bbSwordSlash(a,ai);}
+    }
   }
 }
 function bbShells(){if(!bb2.shells)bb2.shells=[];return bb2.shells;}
@@ -5159,6 +5170,45 @@ function drawBBHazards(){ // v5.1.120 P3: paint the DANGER ZONE hazards — stri
       ctx.fillStyle='#2a2f38';ctx.beginPath();ctx.arc(0,0,HAZ.sawR*0.3,0,Math.PI*2);ctx.fill();ctx.restore();}
   }
 }
+function bbDrawMecha(b){ // v5.1.212 MECHA MODE cosmetics: a bright-yellow Gundam V-fin on the head + a glowing PINK energy sword along the nose
+  if(!bbIsMecha(b))return;
+  ctx.save();ctx.translate(FX+b.x,FY+b.y);ctx.rotate(b.h);
+  // PINK ENERGY SWORD — a glowing blade extending forward from the "hand" (offset to one side)
+  ctx.save();ctx.translate(RR*0.15,RR*0.5);const bl=RR*1.7;
+  ctx.shadowColor='#ff39c0';ctx.shadowBlur=14;ctx.lineCap='round';
+  ctx.strokeStyle='rgba(255,120,225,0.5)';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(bl,0);ctx.stroke(); // outer glow
+  ctx.strokeStyle='#ff39c0';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(bl,0);ctx.stroke();
+  ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(bl,0);ctx.stroke(); // white-hot core
+  ctx.shadowBlur=0;ctx.fillStyle='#2a2030';ctx.fillRect(-RR*0.3,-3,RR*0.3,6); // hilt
+  ctx.restore();
+  // YELLOW V-FIN — a Gundam antenna opening forward off the head + a red forehead cam
+  ctx.shadowColor='#ffe14d';ctx.shadowBlur=6;ctx.strokeStyle='#ffe14d';ctx.lineWidth=3;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(RR*0.18,-RR*0.16);ctx.lineTo(RR*0.98,-RR*0.36);ctx.moveTo(RR*0.18,RR*0.16);ctx.lineTo(RR*0.98,RR*0.36);ctx.stroke();
+  ctx.shadowBlur=0;ctx.fillStyle='#ff3b3b';ctx.beginPath();ctx.arc(RR*0.22,0,RR*0.1,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+function bbDrawSwordCut(){ // v5.1.212 anime KO cut-in (Persona/Guilty-Gear flavor + Initial-D 藤原とうふ店): dark wash, magenta speed-lines, a sweeping slash streak, a high-contrast mecha silhouette, bold kanji
+  const sc=bb2.swordCut,k=clamp(sc.t/(sc.max||1),0,1),app=Math.min(1,(1-k)*4),fade=Math.min(1,k*4),vis=Math.min(app,fade),T=(bb2.t||0); // ease in then out
+  ctx.save();
+  ctx.globalAlpha=0.66*vis;ctx.fillStyle='#0a0610';ctx.fillRect(0,0,CW,CH); // dark wash
+  ctx.globalAlpha=0.45*vis;ctx.strokeStyle='#ff39c0';ctx.lineWidth=2; // diagonal magenta speed-streaks
+  for(let i=0;i<16;i++){const yy=(i/16)*CH*1.5-CH*0.25+((T*260)%((CH*1.5)/16));ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(CW,yy-CH*0.5);ctx.stroke();}
+  const sw=clamp((1-k)*1.7,0,1); // the bright SLASH streak sweeps across the screen
+  ctx.save();ctx.translate(CW/2,CH/2);ctx.rotate(-0.5);ctx.shadowColor='#ff39c0';ctx.shadowBlur=30;
+  ctx.globalAlpha=vis*0.5;ctx.strokeStyle='#ff7ad6';ctx.lineWidth=26;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-CW*0.85,0);ctx.lineTo(-CW*0.85+CW*1.7*sw,0);ctx.stroke();
+  ctx.globalAlpha=vis;ctx.strokeStyle='#fff';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(-CW*0.85,0);ctx.lineTo(-CW*0.85+CW*1.7*sw,0);ctx.stroke();ctx.restore();
+  // high-contrast KILLER mecha silhouette (V-fin + energy sword), bottom-left
+  ctx.save();ctx.shadowBlur=0;ctx.globalAlpha=vis;const s=Math.min(CW,CH)/520*(1.05+0.12*app);ctx.translate(CW*0.30,CH*0.64);ctx.scale(s,s);
+  ctx.fillStyle='#000';ctx.strokeStyle='#ff39c0';ctx.lineWidth=6;ctx.beginPath();ctx.rect(-72,-72,144,144);ctx.fill();ctx.stroke(); // body
+  ctx.strokeStyle='#ffe14d';ctx.lineWidth=11;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(36,-30);ctx.lineTo(150,-64);ctx.moveTo(36,30);ctx.lineTo(150,64);ctx.stroke(); // V-fin
+  ctx.strokeStyle='#ff39c0';ctx.shadowColor='#ff39c0';ctx.shadowBlur=20;ctx.lineWidth=14;ctx.beginPath();ctx.moveTo(60,46);ctx.lineTo(300,46);ctx.stroke();ctx.restore(); // energy sword
+  // bold KANJI: 斬 (slash) + 藤原とうふ店 (Initial-D tofu shop), sliding in from the right
+  ctx.globalAlpha=vis;ctx.textAlign='right';ctx.textBaseline='alphabetic';const slide=(1-app)*140;
+  ctx.save();ctx.translate(CW-44+slide,CH*0.40);ctx.shadowColor='#ff39c0';
+  ctx.font='bold 72px "Yu Mincho","Hiragino Mincho ProN","MS Mincho",serif';ctx.fillStyle='#fff';ctx.shadowBlur=20;ctx.fillText('斬',0,0);
+  ctx.font='bold 30px "Yu Mincho","Hiragino Mincho ProN","MS Mincho",serif';ctx.shadowBlur=8;ctx.fillStyle='#ffd1f4';ctx.fillText('藤原とうふ店',0,46);ctx.restore();
+  ctx.restore();
+}
 function drawBB(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
   drawTFField();drawTFObstacles();drawBBHazards();
@@ -5202,16 +5252,18 @@ function drawBB(){
       if(warn){ctx.globalAlpha=0.6+0.4*Math.sin((bb2.t||0)*22);ctx.fillStyle='#ff5a2a';ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillText(b._jetOver?'OVERHEAT':'⚠ HOT',0,-BR-6);ctx.globalAlpha=1;}}
     ctx.restore();
     bbDrawWeapon(b); // P2.2 weapon cosmetic
+    if(animeSword)bbDrawMecha(b); // v5.1.212 MECHA MODE cosmetics (V-fin + pink energy sword)
     if(tankPort&&b._tpAim!=null){ctx.save();ctx.translate(FX+b.x,FY+b.y);ctx.rotate(b._tpAim);const rec=(b._tpFx>0)?3:0; // v5.1.172 TANK INVASION turret: a barrel that tracks the nearest enemy + recoils/flashes on fire
       ctx.fillStyle='#3a4250';ctx.beginPath();ctx.arc(0,0,RR*0.5,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#11151c';ctx.lineWidth=2;ctx.stroke();
       ctx.fillStyle='#566270';ctx.fillRect(RR*0.2-rec,-3.5,RR*0.95,7);ctx.strokeStyle='#11151c';ctx.lineWidth=1.5;ctx.strokeRect(RR*0.2-rec,-3.5,RR*0.95,7);
       if(b._tpFx>0){ctx.globalAlpha=b._tpFx/0.12;ctx.fillStyle='#fff7c0';ctx.beginPath();ctx.arc(RR*1.15-rec,0,5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
       ctx.restore();}
-    if(b._swordFx>0){ctx.save();ctx.translate(FX+b.x,FY+b.y);const a0=Math.min(1,b._swordFx*3),R2=RR+RR*BB_W.swordRange,h0=b.h-BB_W.swordArc/2,h1=b.h+BB_W.swordArc/2; // v5.1.163 ANIME SWORD slash: a dramatic bright sweep (glow + white core + flash) so it's unmistakable
-      ctx.globalAlpha=a0*0.5;ctx.fillStyle='#bfeaff';ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,R2,h0,h1);ctx.closePath();ctx.fill();
-      ctx.globalAlpha=a0;ctx.strokeStyle='#dff4ff';ctx.lineWidth=8;ctx.beginPath();ctx.arc(0,0,R2,h0,h1);ctx.stroke();
-      ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,R2,h0,h1);ctx.stroke();
-      ctx.globalAlpha=1;ctx.restore();}
+    if(b._swordFx>0){ctx.save();ctx.translate(FX+b.x,FY+b.y);const a0=Math.min(1,b._swordFx*3),R2=RR+RR*BB_W.swordRange,h0=b.h-BB_W.swordArc/2,h1=b.h+BB_W.swordArc/2; // v5.1.212 PINK energy slash: glow wedge + fading TRAIL echoes + a white-hot core
+      ctx.shadowColor='#ff39c0';ctx.shadowBlur=18;
+      ctx.globalAlpha=a0*0.42;ctx.fillStyle='#ff7ad6';ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,R2,h0,h1);ctx.closePath();ctx.fill();
+      for(let t=0;t<3;t++){ctx.globalAlpha=a0*(0.5-t*0.14);ctx.strokeStyle='#ff39c0';ctx.lineWidth=9-t*2;ctx.beginPath();ctx.arc(0,0,R2-t*5,h0,h1);ctx.stroke();} // trailing echo arcs
+      ctx.globalAlpha=a0;ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,R2,h0,h1);ctx.stroke();
+      ctx.shadowBlur=0;ctx.globalAlpha=1;ctx.restore();}
     bbDrawWheels(b); // P2.4 dead-wheel marks
     {const eg=bbNameEgg(b);if(eg){const pc=BB_EGG_PAINT[eg];ctx.save();ctx.translate(FX+b.x,FY+b.y);ctx.lineWidth=3;ctx.strokeStyle=pc[0];ctx.beginPath();ctx.arc(0,0,RR+5,-Math.PI/2,Math.PI/2);ctx.stroke();ctx.strokeStyle=pc[1];ctx.beginPath();ctx.arc(0,0,RR+5,Math.PI/2,Math.PI*1.5);ctx.stroke();if(bbEggActive(b)){ctx.fillStyle=pc[1];ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillText('★',0,-RR-9);}ctx.restore();}} // v5.1.115 P6 egg PAINT (two-tone ring; ★ = buff active)
     drawP2Tag(p,b,b.ctl.name||p2Name(b.ctl.bind),b.col); // show each bot's name above it, humans included
@@ -5272,6 +5324,7 @@ function drawBB(){
   ctx.font='9px Courier New';ctx.fillStyle='#556';ctx.fillText(bbModeHint(),CW/2,38);
   if(hazardMaster&&bb2.result===null&&bb2.cd<=0){const ready=(bb2.hazCd||0)<=0,R=RR*BB_W.hazStrikeRK;ctx.save();ctx.globalAlpha=ready?0.9:0.4;ctx.strokeStyle=ready?'#ff7a3d':'#888';ctx.lineWidth=2;ctx.setLineDash([6,5]);ctx.beginPath();ctx.arc(mouseX,mouseY,R,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(mouseX-9,mouseY);ctx.lineTo(mouseX+9,mouseY);ctx.moveTo(mouseX,mouseY-9);ctx.lineTo(mouseX,mouseY+9);ctx.stroke();ctx.restore();} // v5.1.148 HAZARD MASTER targeting reticle
   if(airStrike&&bb2.airPending){const p=bb2.airPending,k=clamp(p.t/(p.max||1),0,1),R=RR*BB_W.airR,rad=R*(1+1.6*k),cx=FX+p.x,cy2=FY+p.y;ctx.save();ctx.globalAlpha=0.45+0.55*(1-k);ctx.strokeStyle='#ff5a3d';ctx.lineWidth=2+(1-k)*2.5;ctx.beginPath();ctx.arc(cx,cy2,rad,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(cx-rad,cy2);ctx.lineTo(cx+rad,cy2);ctx.moveTo(cx,cy2-rad);ctx.lineTo(cx,cy2+rad);ctx.stroke();ctx.restore();} // v5.1.157 AIRSTRIKE telegraph: a crosshair that STARTS LARGE and shrinks onto the impact point
+  if(animeSword&&bb2.swordCut)bbDrawSwordCut(); // v5.1.212 MECHA MODE anime KO cut-in (over field+HUD, under the countdown/result)
   if(bb2.cd>0){ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,CW,CH);ctx.font='bold 84px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffd740';ctx.fillText(String(Math.ceil(bb2.cd)),CW/2,FY+FH/2);ctx.font='bold 13px Courier New';ctx.fillStyle='#8888aa';ctx.fillText('ROBORUMBLE — '+bb2.map.name,CW/2,FY+FH/2+40);}
   if(bb2.result!==null){ctx.fillStyle='rgba(0,0,0,0.74)';ctx.fillRect(0,0,CW,CH);const w=bb2.result,draw=(w==='draw');ctx.textAlign='center';ctx.font='bold 40px Courier New';ctx.fillStyle=draw?'#ffd740':M2_COLS[w];ctx.fillText(draw?'DRAW':((w===0?'RED':'BLUE')+' WINS'),CW/2,FY+FH/2-54);ctx.font='13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText((draw?'DOUBLE KO':'KO')+'  ·  '+fmt(bb2.t),CW/2,FY+FH/2-22);drawP2Nav(FY+FH/2+34);}
 }
@@ -8848,6 +8901,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.212 (2026-06-19): ANIME SWORD → MECHA MODE (Sam's request). The ANIME SWORD cheat becomes a 3-state lever — OFF / YOU / EVERYONE (was every-bot-on-a-timer). A MECHA bot wears a bright-yellow Gundam V-fin (+ a red forehead cam) and a glowing PINK energy sword along its nose. **DASH = a samurai dash-slash**: the human triggers the front-arc slash by dashing (LT/Shift) rather than on a timer — pink energy arc with a fading TRAIL + a new 'slash' energy-zing sfx; CPUs in EVERYONE mode keep the periodic auto-slash. **KO CUT-IN**: a sword KILL by the human fires a Persona-5/Guilty-Gear-style anime cut-screen — dark wash, magenta speed-lines, a sweeping slash streak, a high-contrast mecha silhouette (V-fin + sword), and bold kanji 斬 + 藤原とうふ店 (the Initial-D tofu-shop deep cut) sliding in. New `bbIsMecha`/`bbSwordSlash`/`bbDrawMecha`/`bbDrawSwordCut`; `animeSword` is now 0/1/2 (cheat slider OFF/YOU/EVERYONE); `bb2.swordCut` drives the cut-in; tunable `swordCutT` 0.85s. Cheat-only (gated behind ANIME SWORD), zero effect on normal play or the balance sim. smoke57 +5 (EVERYONE CPU slash kept; YOU-mode CPU-gated; human dash-slash on/off; human KO → cut-in). Full battery green. Single file, no assets.
   v5.1.211 (2026-06-19): SPINNER rumble + faster jet overheat + FLAME fixes + PINCER grip armor + airstrike/drill polish (Sam playtest pass). (1) SPINNER/BUZZSAW RUMBLE now tells a story — a super-light high-freq HUM while spinning up, then a HEAVIER low-freq 'rev' buzz once UP TO SPEED (spin≥spinMin); a hit ('bite') punches through + sheds spin, dropping you back to the light hum, so you FEEL "hit → slowed → spinning back up". New RUMBLE_PROF 'rev' (w:0.65,s:0.55); p2Rumble treats 'rev' like 'spin' (no audio drone, preemptible by impacts). (2) JET OVERHEATS faster — jetHeatUp 0.18→0.24 (~4.2s of thrust instead of ~5.6s). (3) FLAME human/CPU FORK RESTORED (the blow-up ring stopped building in 3v3 after v5.1.195 unified it): a HUMAN flame fills the meter FAST (burnBuild 0.54→1.5, ~3.3s) through a WIDER ~90° cone (flameHitArc π·0.34→π·0.5) so it lands on a foe in a crowd; the CPU stays frozen at the sim-balanced narrow cone + slow build (flameHitArcCpu π·0.34, burnBuildCpu 0.54) — CPU-vs-CPU balance UNCHANGED. (4) FLAME now TORCHES DRONES — the flame cone only ever checked bb2.bots, so a ranged flame could never burn down a pit-bot/harasser; it now also damages enemy minis in its cone (mirrors the jet's mini loop). (5) PINCER mid-clamp takes MAJORLY reduced damage (pincerGripDR 0.3 = −70%, kinetic + flame) so committing to a grab no longer leaves you a punching bag (esp. 3v3, where the captive's allies freely wailed on the anchored captor). (6) AIRSTRIKE cheat explosion buffed to kamikaze-size radius (airR 3.2→9.0) + parting-gift damage (airDmg 80→480). (7) DRILL bore-dash hover-tip added. All balance-neutral in the 1v1 sim (spinner/pincer/flame/jet unchanged). smoke57 +3 (flame human>cpu fork, flame torches a drone, pincer grip armor), smoke38 +rev rumble. Full battery green. Single file, no assets. (NOTE: TANK INVASION rework + ANIME SWORD "mecha mode" + CPU-tier differentiation queued next.)
   v5.1.210 (2026-06-19): DRILL — spinning-flute visual + BORE-DASH utility (Sam). VISUAL: the bit now shows diagonal flutes that scroll TIP→BASE while it spins (faster with the ramp; gold when grinding) so it reads as an actually-spinning drill. UTILITY — **BORE-DASH**: with the drill ON (firing) you can DASH to PIERCE straight through — phasing through WALLS/OBSTACLES and through an OPPONENT (no shove-apart separation), dealing `drillBoreDmg` (18) + a small knock on the way through. Boring THROUGH disengages the bit (ramp resets — you come out the far side and must re-grind), so it's a committed reposition/escape/opener, not a free sticking gap-closer. The CPU only bores when fully spun up AND lined up in a tight front cone (else a reliable gap-closer would erase the drill's built-in "struggles to stay on target" weakness). Tested both ideas Sam asked for: a forward speed-boost (Idea A) dropped the drill to ~28% 1v1 (it propels you PAST the target, breaking the grind); the bore-dash (Idea B), gated to a committed burst, lands the drill at **55.6% 1v1** — balance-neutral while adding the fun. smoke57 +4 (bore pierces+damages, phases-through no-separation, ramp resets, no-dash still separates). Full battery green. Single file, no assets.
   v5.1.209 (2026-06-19): PIT STOP mobility-only + drone DASH-kill + REPAIR anti-kite slow (Sam). (1) PIT STOP medic drone now restores **MOBILITY (tires/wheels) ONLY — not HP** (a pit stop fixes the tires, not battle damage); it targets the most mobility/tire-damaged ally + the tooltip updated. (2) A **DASHING** bot now damages a drone (medic OR harasser) on contact — `+miniDps` while `boostT>0` — so you can ram a drone down with the dash, no weapon needed. (3) The REPAIR bot now **SLOWS while healing or life-stealing** (`repairMoveMul` 0.5, mirroring the flame's torch-slow) so it can't kite infinitely — committing the dish makes you catchable. smoke57: pit-stop mobility-not-HP, dash-damages-drone, anti-kite slow. **TABLED** (Sam's call): the finite heal↔buff CYCLE redesign — parked for later. Full battery green (428). Single file, no assets.
