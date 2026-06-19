@@ -27,9 +27,9 @@
 - **TWO formats (a setting):**
   - **SINGLE-ELIM (party) — KEEP the EXISTING tournament, do NOT lose it.** Up to **16**, single bracket. Lighter: 1v1 (optionally + alliance bots) or 3v3 with one human per side.
   - **DOUBLE-ELIM ("FRC mode") — NEW.** Up to **8**. Losers' bracket + **best-of-3 GRAND FINAL**.
-- **Rosters: captain DRAFT from a shared pool** (snake order) — wire the existing `tourAllianceDraft`. Usable in BOTH formats.
-- **Seeding: MANUAL** seeding of the human players (rank the ≤8 humans); **pre-ranked CPUs (by tier) auto-fill the empty slots.**
-- **Lineup: set ONCE at registration (the drafted bots). NO per-match switching now.**
+- **Rosters: captain DRAFT (FRC alliance-selection — the teaching moment).** Snake-order draft via `tourAllianceDraft`. **8 captains (humans)** each build an alliance of 3 by drafting from a POOL that MIXES remaining humans + **pre-ranked CPUs**. Turnout-flexible: ~8 humans → captains draft mostly CPUs (alliance = captain + 2 CPUs); ~12 → captain + 1 human + 1 CPU; up to **16 humans** → captains draft other humans ("every captain picks another captain"). Usable in BOTH formats.
+- **Seeding is a SETTING: MANUAL (rank the human captains) or RANDOM (auto-shuffle, to save time).** Either way **pre-ranked CPUs (by tier) fill the rest of the draft pool / empty slots.** (The existing `seedMode` already has rand + a qual time-trial option.)
+- **Lineup timing is a TOURNAMENT SETTING (Sam: "both, depending on tournament rules"):** `once` (set at registration, FRC-standard) or `perMatch` (re-pick before each round). **Build `once` first; `perMatch` is the configurable extension.**
 - **Mode: ONE mode for the whole bracket; the MAP varies per match** (T4, reuses the generalized map gallery).
 - **Context:** ball modes are the best-tuned competitive showcase; RoboRumble tournaments lean on weapon-lineup strategy (its champ/vet/rookie tiers aren't as tuned yet).
 - **TABLED for the FUTURE (as tournament settings):** (a) per-match lineup/loadout swaps; (b) **4-bot alliances with a swappable BACKUP** (sub a bot in/out between matches, vs choosing any lineup).
