@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.220.html
-  version: 5.1.220
+  file: drive_showdown_v5.1.221.html
+  version: 5.1.221
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -4415,6 +4415,12 @@ function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot
 function bbBotName(b){return ((b&&b.ctl&&b.ctl.name)||(b&&b.ctl&&m2.name&&m2.name[b.ctl.bind])||'').toString();}
 function bbNameEgg(b){const n=bbBotName(b).toUpperCase().replace(/[^A-Z]/g,'');return n==='OPTIMUSPRIME'?'optimus':n==='BUMBLEBEE'?'bumblebee':n==='ORIGINALSIN'?'originalsin':null;}
 const BB_EGG_PAINT={optimus:['#1e4dff','#ff2e2e'],bumblebee:['#1a1a1a','#ffd21a'],originalsin:['#7a2eff','#2effd2']};
+let _bbLivery=null; // v5.1.221 active name-egg FULL LIVERY kind (set around the RoboRumble drawRobot call) → drawRobot/drawWheels repaint the chassis + wheels
+const BB_LIVERY={ // v5.1.221 full paint jobs for the bot-name eggs (replace the old two-tone ring)
+  optimus:{body:'#16233f',body2:'#9a1414',stroke:'#3a6cff',accent:'#ff3b3b'},   // blue cab + red rear split, blue/red trim
+  bumblebee:{body:'#16161c',stroke:'#ffd21a',accent:'#ffd21a',stripe:true},     // black body + yellow racing stripes
+  originalsin:{body:'#0e0e12',stroke:'#c6cad6',accent:'#c6cad6',wheels4:true},   // black + silver; 4 black wheels even in tank drive (Sam's spec)
+};
 function bbEggActive(b){ // the BUFF tier needs the right drive (+ weapon); the paint shows on the name alone
   const e=bbNameEgg(b);if(!e||!b.ctl)return null;
   if((e==='optimus'||e==='bumblebee')&&bbDriveFamily(b.ctl.bind)==='steer')return e;            // name + STEERING → heal
@@ -5176,7 +5182,7 @@ function bbDrawWeapon(b){ // P2.2 basic weapon cosmetics (the picker UI + polish
   }else if(w==='wedge'){ctx.rotate(b.h); // v5.1.101 BULLDOZER BLADE — a low, curved front plow (replaces the old triangle); turns amber while firing, red while gripping
     const front=RR*1.05,half=RR*1.0,grab=!!b.grab;
     ctx.strokeStyle='#6b7686';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(RR*0.3,-half*0.5);ctx.lineTo(front-RR*0.2,-half*0.86);ctx.moveTo(RR*0.3,half*0.5);ctx.lineTo(front-RR*0.2,half*0.86);ctx.stroke();ctx.lineCap='butt'; // push-arms back to the chassis
-    ctx.fillStyle=grab?'#ff6a4d':(b.firing?'#ffd24d':'#b9c4d4'); // the blade
+    ctx.fillStyle=grab?'#ff6a4d':(b.firing?'#ffd24d':(bbNameEgg(b)==='originalsin'?'#ffd21a':'#b9c4d4')); // the blade — v5.1.221 ORIGINAL SIN runs a YELLOW dozer blade
     ctx.beginPath();ctx.moveTo(front,-half);ctx.quadraticCurveTo(front+RR*0.5,0,front,half);ctx.lineTo(front-RR*0.34,half);ctx.quadraticCurveTo(front+RR*0.05,0,front-RR*0.34,-half);ctx.closePath();ctx.fill();
     ctx.strokeStyle='#20202c';ctx.lineWidth=1.6;ctx.stroke();
     ctx.strokeStyle='#20202c';ctx.lineWidth=1;for(let i=-2;i<=2;i++){const yy=i*half*0.4;ctx.beginPath();ctx.moveTo(front-RR*0.28,yy);ctx.lineTo(front+RR*0.03,yy);ctx.stroke();} // blade ribs
@@ -5265,7 +5271,7 @@ function drawBB(){
     const sc=bb2.pscore||[0,0];ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle='#d4d4f4';ctx.fillText('⚽ '+sc[0]+' — '+sc[1]+'  (first to '+BB_PB_TARGET+')',CW/2,FY+58);ctx.restore();}
   for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
     const blink=b.inv>0&&Math.floor(b.inv*12)%2===0;ctx.globalAlpha=blink?0.45:1;
-    _noScoop=true;withBot(b.ctl.bind,b,()=>{drawRobot();});_noScoop=false; // RoboRumble: a weapon replaces the ball plow
+    _noScoop=true;_bbLivery=bbNameEgg(b);withBot(b.ctl.bind,b,()=>{drawRobot();});_bbLivery=null;_noScoop=false; // RoboRumble: a weapon replaces the ball plow; v5.1.221 name-egg FULL LIVERY repaints the chassis + wheels
     ctx.save();ctx.translate(FX+b.x,FY+b.y);
     p2AllianceRing(p,b.col);
     ctx.strokeStyle='#ffffffcc';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,RR+13,b.h-BB.frontCone/2,b.h+BB.frontCone/2);ctx.stroke(); // FRONT-armor arc
@@ -5294,7 +5300,7 @@ function drawBB(){
       ctx.globalAlpha=a0;ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,R2,h0,h1);ctx.stroke();
       ctx.shadowBlur=0;ctx.globalAlpha=1;ctx.restore();}
     bbDrawWheels(b); // P2.4 dead-wheel marks
-    {const eg=bbNameEgg(b);if(eg){const pc=BB_EGG_PAINT[eg];ctx.save();ctx.translate(FX+b.x,FY+b.y);ctx.lineWidth=3;ctx.strokeStyle=pc[0];ctx.beginPath();ctx.arc(0,0,RR+5,-Math.PI/2,Math.PI/2);ctx.stroke();ctx.strokeStyle=pc[1];ctx.beginPath();ctx.arc(0,0,RR+5,Math.PI/2,Math.PI*1.5);ctx.stroke();if(bbEggActive(b)){ctx.fillStyle=pc[1];ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillText('★',0,-RR-9);}ctx.restore();}} // v5.1.115 P6 egg PAINT (two-tone ring; ★ = buff active)
+    {const eg=bbNameEgg(b);if(eg){const pc=BB_EGG_PAINT[eg];ctx.save();ctx.translate(FX+b.x,FY+b.y);if(!BB_LIVERY[eg]){ctx.lineWidth=3;ctx.strokeStyle=pc[0];ctx.beginPath();ctx.arc(0,0,RR+5,-Math.PI/2,Math.PI/2);ctx.stroke();ctx.strokeStyle=pc[1];ctx.beginPath();ctx.arc(0,0,RR+5,Math.PI/2,Math.PI*1.5);ctx.stroke();}if(bbEggActive(b)){ctx.fillStyle='#ffd740';ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillText('★',0,-RR-9);}ctx.restore();}} // v5.1.115 P6 egg PAINT; v5.1.221 full LIVERY replaces the ring (★ = buff active stays)
     drawP2Tag(p,b,b.ctl.name||p2Name(b.ctl.bind),b.col); // show each bot's name above it, humans included
     if(bbMode()==='vip'&&b.vip){ctx.fillStyle='#ffd740';ctx.font='bold 15px Courier New';ctx.textAlign='center';ctx.fillText('♛',FX+b.x,FY+b.y-RR-16);} // v5.1.123 P9 VIP crown
     if((b.outT||0)>0){ctx.fillStyle='#ff5252';ctx.font='bold 14px Courier New';ctx.textAlign='center';ctx.fillText('⚠ '+Math.max(1,Math.ceil(BB.countOut-b.outT)),FX+b.x,FY+b.y+RR+20);} // STALEMATE count-out timer (both stuck)
@@ -6873,6 +6879,15 @@ function drawTrack(x1,x2,y,spin,color){
     ctx.beginPath();ctx.moveTo(tx,y-h/2);ctx.lineTo(tx,y+h/2);ctx.stroke();}
   ctx.strokeStyle=color+'99';ctx.lineWidth=1.2;ctx.strokeRect(x1,y-h/2,x2-x1,h);
 }
+function drawSinWheel(cx,cy,spin){ // v5.1.221 a round BLACK wheel with a silver hub + spinning spokes (ORIGINAL SIN runs 4 wheels even in tank drive)
+  ctx.save();ctx.translate(cx,cy);
+  ctx.fillStyle='#0a0a0c';ctx.beginPath();ctx.arc(0,0,6,0,Math.PI*2);ctx.fill(); // tyre
+  ctx.strokeStyle='#33343c';ctx.lineWidth=1.4;ctx.stroke();
+  ctx.rotate(spin*0.6);ctx.strokeStyle='#5a5e6a';ctx.lineWidth=1.2; // spinning spokes
+  ctx.beginPath();ctx.moveTo(-4.5,0);ctx.lineTo(4.5,0);ctx.moveTo(0,-4.5);ctx.lineTo(0,4.5);ctx.stroke();
+  ctx.fillStyle='#c6cad6';ctx.beginPath();ctx.arc(0,0,2,0,Math.PI*2);ctx.fill(); // silver hub
+  ctx.restore();
+}
 // Swerve module: prominent housing + rotating wheel + direction arrow
 function drawSwerveWhl(cx,cy,dir,spin,color){
   ctx.save();ctx.translate(cx,cy);
@@ -6945,8 +6960,13 @@ function drawWheels(inp,layer){
   if(id==='tank'||id==='arcade'){
     const lv=inp.vx-inp.vr*RR*0.7,rv=inp.vx+inp.vr*RR*0.7;
     wSpin.l=(wSpin.l+lv*S+M)%M; wSpin.r=(wSpin.r+rv*S+M)%M;
-    drawTrack(-RR+1,RR-1,-(RR+3),wSpin.l,col);
-    drawTrack(-RR+1,RR-1,(RR+3),wSpin.r,col);
+    if(_bbLivery&&BB_LIVERY[_bbLivery]&&BB_LIVERY[_bbLivery].wheels4){ // v5.1.221 ORIGINAL SIN runs 4 round BLACK wheels (animated spin), not treads
+      drawSinWheel( RR*0.6,-(RR+3),wSpin.l);drawSinWheel(-RR*0.6,-(RR+3),wSpin.l);
+      drawSinWheel( RR*0.6, (RR+3),wSpin.r);drawSinWheel(-RR*0.6, (RR+3),wSpin.r);
+    }else{
+      drawTrack(-RR+1,RR-1,-(RR+3),wSpin.l,col);
+      drawTrack(-RR+1,RR-1,(RR+3),wSpin.r,col);
+    }
   }else if(id==='mecanum'){
     // Wheel bodies parallel to robot (+x forward). Rollers: FL+BR = / (+1), FR+BL = \ (-1)
     const ws=[[RR*0.6,-(RR+2), 1],[RR*0.6,(RR+2),-1],
@@ -7049,6 +7069,13 @@ function drawRobot(){
     rr(-RR,-RR,RR*2,RR*2,4);ctx.stroke();
     // Front bumper stripe (bright)
     ctx.fillStyle=d.c+'cc';ctx.fillRect(RR-5,-RR,5,RR*2);
+  }
+  if(_bbLivery&&BB_LIVERY[_bbLivery]&&!isKiwi){const L=BB_LIVERY[_bbLivery]; // v5.1.221 name-egg FULL LIVERY — repaint the square chassis in the egg's colors
+    rr(-RR,-RR,RR*2,RR*2,4);ctx.fillStyle=L.body;ctx.fill();
+    if(L.body2){ctx.save();rr(-RR,-RR,RR*2,RR*2,4);ctx.clip();ctx.fillStyle=L.body2;ctx.fillRect(-RR,-RR,RR,RR*2);ctx.restore();} // rear-half split (Optimus cab/trailer)
+    if(L.stripe){ctx.fillStyle=L.accent;ctx.fillRect(-RR,-RR*0.5,RR*2,RR*0.34);ctx.fillRect(-RR,RR*0.16,RR*2,RR*0.34);} // racing stripes (Bumblebee)
+    ctx.strokeStyle=L.stroke;ctx.lineWidth=3;rr(-RR,-RR,RR*2,RR*2,4);ctx.stroke();
+    ctx.fillStyle=L.accent;ctx.fillRect(RR-5,-RR,5,RR*2); // front accent bumper
   }
   // Ball scoop / funnel arms (hidden in obstacle course mode + on tank-fight combat chassis)
   if(!obstacleCourse&&!_noScoop){
@@ -8931,6 +8958,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.221 (2026-06-19): BOT-NAME EGGS get FULL LIVERY (was a bare two-tone ring). The three named eggs now repaint the whole chassis instead of drawing just a colored ring (Sam: "full custom paint"). New `BB_LIVERY` table + a `_bbLivery` flag set around the RoboRumble `drawRobot` call so the shared body/wheel render knows which livery to paint. **ORIGINAL SIN** (Sam's exact spec from the real bot): mostly **black + silver body**, a **YELLOW dozer blade** (the wedge weapon render turns yellow for this egg), and — even in TANK/ARCADE drive — **4 round BLACK wheels instead of treads**, animated/spinning (new `drawSinWheel` with a silver hub + rotating spokes, driven by the existing `wSpin` left/right tread-spin). **OPTIMUS** = blue cab + red rear split, blue/red trim. **BUMBLEBEE** = black body + yellow racing stripes. The old `BB_EGG_PAINT` ring is suppressed when a full livery exists; the `bbEggActive` ★ buff star stays. (In-match render only for now; the 1v1 card / 3v3 grid previews still show the base chassis — a follow-up.) smoke57 +4 (livery table, Original Sin 4-wheel/black-silver spec, Bumblebee stripes + Optimus split, drawSinWheel renders). Full battery green. Single file, no assets.
   v5.1.220 (2026-06-19): MAP GALLERY now serves TANK FIGHT too + preview polish. The full-screen tile MAP PICKER (the one with mini arena schematics) was RoboRumble-only; Tank Fight still dropped a plain text cycler for its MAP row. Now `bbMapTiles()` is mode-aware — RoboRumble lists every arena + a RANDOM 🎲 tile, Tank Fight lists just its 4 base arenas (no hazard/void/random, matching its existing MAP cycler values) — and the Tank Fight MAP row routes to the same gallery. Picker title reads "PICK YOUR MAP" in Tank Fight vs "PICK YOUR ARENA" in RoboRumble. Preview polish: `bbDrawMapPreview` now also dots the POWER-UP spawn points (light-blue), not just obstacles + hazards. smoke52 +4 (both modes' tile lists, Tank Fight row opens the gallery, picking a tile sets the map). Full battery green. Single file, no assets. (First of tonight's backlog batch — see OVERNIGHT_PLAN.md.)
   v5.1.219 (2026-06-19): GRAY CANNON + WIN-DURING-LAST-STAND. Two ship-tonight fixes. (1) GUNMETAL-GRAY CANNON (Sam — "in both tank mode and RoboRumble the tank should just be rendered gray, it looks goofy neon"): the cannon/turret hardware in `drawTankCannon` (tank-fight) AND the `w==='cannon'` branch of `bbDrawWeapon` (RoboRumble) now render in gunmetal gray `#8893a6` instead of the neon team color. The AUTO-AIM gold highlight (`#ffd240`), the dark turret base (`#14161ce6`), the dark bore (`#0a0a12`), and (RoboRumble) the muzzle flash + the human green reload cue are all kept; the side-ID stays on the chassis body so teams are still readable. (2) WIN DURING LAST STAND (Sam — "if you're the last two bots and you go into Last Stand but then you take them out with your weapon… you should just win"): the kill-blast CHAIN REACTION (a near-dead bot caught in a blast also dies) now EXEMPTS any bot whose `_lastStandT>0`, so landing the winning blow mid-window no longer chain-kills you into a draw — you SURVIVE and WIN. A deliberate PARTING-GIFT death-bomb is still lethal (→ draw), preserving that counter. smoke57 +3 (CTF flag RE-GRAB after return-home; Last Stand WIN; Parting-Gift DRAW). Full battery green. Single file, no assets.
   v5.1.218 (2026-06-19): ABSOLUTE HEADING snap now RESPONDS to the TURN-RATE tuning + no overshoot (Sam — "cranked to 3.00× it's still slow"). `absHeadingVr` was a proportional controller `clamp(dh*8,-1,1)*TSP`, and the pipeline then ×`sensitivity`×`rotRatio` — so at a high TURN RATE the per-frame step exceeded the remaining angle and it OVERSHOT/oscillated around the target (read as "slow / not snappy", and cranking the knob made it worse). Rewritten to a RATE-CAPPED, NO-OVERSHOOT snap: rotate toward the stick angle at up to `AH_SNAP`(2.4)×TSP×(sensitivity·rotRatio), but never past the remaining angle in one frame. Now the TURN-RATE knob directly controls snap speed (3× ≈ 3× faster) and it lands cleanly without wobble. smoke54 +2 (rate scales with the knob; small error doesn't overshoot). Full battery green. Single file, no assets.
