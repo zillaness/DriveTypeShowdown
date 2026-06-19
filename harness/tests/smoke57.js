@@ -1280,6 +1280,11 @@ src+=`
    delete achUnlocked.autobots;delete achUnlocked.unoriginalsin;
    bbEggUnlock('bumblebee');ok('fielding OPTIMUS/BUMBLEBEE unlocks the "Autobots" achievement',!!achUnlocked.autobots);
    bbEggUnlock('originalsin');ok('fielding ORIGINAL SIN unlocks the "Unoriginal Sin" achievement',!!achUnlocked.unoriginalsin);}
+  // v5.1.232 custom PAINT color picker (F2c)
+  {ok('PAINT_JOBS[0] = team default (no override) + a real palette',PAINT_JOBS[0]===null&&PAINT_JOBS.length>=6&&!!PAINT_JOBS[1].body&&!!PAINT_JOBS[1].accent);
+   const pld={weapon:'wedge',armor:'balanced'};bbCyclePaint(pld,1);ok('bbCyclePaint advances the seat paint index',pld.paint===1);
+   bbCyclePaint(pld,-1);ok('bbCyclePaint wraps back to 0 (team default)',pld.paint===0);
+   for(let k=0;k<PAINT_JOBS.length;k++)bbCyclePaint(pld,1);ok('a full lap of the palette returns to the start',pld.paint===0);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
