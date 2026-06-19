@@ -779,6 +779,7 @@ src+=`
    m2.drive[0]={kind:'main',idx:0};const op2=bbBotWith('none','balanced',0,0,true);op2.ctl.name='Optimus Prime';ok('OPTIMUS on a NON-steering drive = paint only, NO buff',bbEggActive(op2)===null&&bbNameEgg(op2)==='optimus');
    const os=bbBotWith('wedge','balanced',0,0,true);os.ctl.name='Original Sin';os.wheels=[{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false},{hp:40,dead:false}];
    bbWheelDamage(os,100,null,null);ok('ORIGINAL SIN (tank+blade): wheels are INVULNERABLE',os.wheels.every(w=>!w.dead&&w.hp===40));
+   {const sdA=m2.drive[0];m2.drive[0]={kind:'main',idx:1};const osA=bbBotWith('wedge','balanced',0,0,true);osA.ctl.name='Original Sin';ok('ORIGINAL SIN buff also triggers on ARCADE drive (tank family), not just tank',bbEggActive(osA)==='originalsin');m2.drive[0]=sdA;} // v5.1.227 Sam: tank OR arcade
    os.inv=0;os.hp=BB.HP;os.burn=0;os._lastStandT=0;bbApplyHit(os,'rear',200,null,os.x+50,os.y);const osLoss=BB.HP-os.hp; // v5.1.225 buff = invuln wheels + HALF damage taken
    const ref=bbBotWith('wedge','balanced',0,0,true);ref.ctl.name='RANDO';ref.inv=0;ref.hp=BB.HP;ref._lastStandT=0;bbApplyHit(ref,'rear',200,null,ref.x+50,ref.y);const refLoss=BB.HP-ref.hp; // identical bot, no egg = full damage
    ok('ORIGINAL SIN takes GREATLY REDUCED (~½) kinetic damage',osLoss>0&&refLoss>0&&Math.abs(osLoss-refLoss*0.5)<refLoss*0.12);
@@ -1230,6 +1231,11 @@ src+=`
     const pbf=bbBotWith('none','balanced',1,1,true);pbf.x=100;pbf.y=FH/2; // foe to the WEST
     bb2.pball={x:600,y:FH/2,vx:0,vy:0};bb2.bots=[pbc,pbf];bb2.result=null;bbCpuUpdate(1/60);
     ok('PUSH-BALL: a CPU positions behind the ball to push it goalward',pbc.ctl.brain.inp.vx>0);
+    // v5.1.227 the PUSH-BALL CPU now FIRES its weapon to drive the ball goalward (not just a body shove)
+    const pbw=bbBotWith('flipper','balanced',0,0,true);pbw.x=560;pbw.y=FH/2;pbw.h=0; // a PUSHER lined up behind the ball, facing the enemy goal
+    const pbe=bbBotWith('none','balanced',1,1,true);pbe.x=60;pbe.y=60; // a live foe far away
+    bb2.pball={x:600,y:FH/2,vx:0,vy:0};bb2.bots=[pbw,pbe];bb2.result=null;bbCpuUpdate(1/60);
+    ok('PUSH-BALL CPU fires its weapon when lined up behind the ball',pbw.ctl.brain.fire===true);
     m2.set.bbmode='sumo';
     const sme=bbBotWith('none','balanced',1,1,true);sme.x=FW/2;sme.y=FH/2-BB_RING*0.9;sme.h=0; // near the top ring edge
     const sfoe=bbBotWith('none','balanced',0,0,true);sfoe.x=FW/2;sfoe.y=FH/2-BB_RING*0.9-40;
