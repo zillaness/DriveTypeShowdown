@@ -22,9 +22,22 @@
 **ALL of the live playtest queue + the approved F1–F5 backlog are SHIPPED (tip v5.1.232, all green on `dev`).** Remaining big-ticket backlog (needs Sam, not yet started): STOCK→6-player FFA (F4, ~10h+), Tournament v2 (F3: T2 3v3-grid / T4 per-match map / T1 input), custom MAP EDITOR (F5), career/story mode (future vision).
 
 **Backlog / what's parked (most needs Sam in the loop):**
+
+**🏆 TOURNAMENT v2 — LOCKED DESIGN (Sam, 2026-06-19):**
+- **TWO formats (a setting):**
+  - **SINGLE-ELIM (party) — KEEP the EXISTING tournament, do NOT lose it.** Up to **16**, single bracket. Lighter: 1v1 (optionally + alliance bots) or 3v3 with one human per side.
+  - **DOUBLE-ELIM ("FRC mode") — NEW.** Up to **8**. Losers' bracket + **best-of-3 GRAND FINAL**.
+- **Rosters: captain DRAFT from a shared pool** (snake order) — wire the existing `tourAllianceDraft`. Usable in BOTH formats.
+- **Seeding: MANUAL** seeding of the human players (rank the ≤8 humans); **pre-ranked CPUs (by tier) auto-fill the empty slots.**
+- **Lineup: set ONCE at registration (the drafted bots). NO per-match switching now.**
+- **Mode: ONE mode for the whole bracket; the MAP varies per match** (T4, reuses the generalized map gallery).
+- **Context:** ball modes are the best-tuned competitive showcase; RoboRumble tournaments lean on weapon-lineup strategy (its champ/vet/rookie tiers aren't as tuned yet).
+- **TABLED for the FUTURE (as tournament settings):** (a) per-match lineup/loadout swaps; (b) **4-bot alliances with a swappable BACKUP** (sub a bot in/out between matches, vs choosing any lineup).
+- **Build phases (UI-heavy, hands-on):** ① keep single-elim intact + add a FORMAT setting (single ≤16 / double ≤8) → ② double-elim bracket engine (losers' bracket + bo3 final) → ③ manual human seeding + CPU tier auto-fill → ④ captain-draft screen (snake from shared pool → 3-bot rosters) → ⑤ T2 route bracket matches through the 6-seat grid with the drafted lineups → ⑥ T4 per-match map-select → ⑦ T1-hard registration text-input fix.
+
 - **STOCK → 6-player FFA** (F4) — scoped ~10h+ (engine hard-wires 2 sides: spawn, win-detection, ~51 touchpoints). Recommend a playtest session, not unattended. No separate format toggle — the lives/timer settings (kept valid by the respawn↔timer rule) pick last-standing vs most-kills.
-- **Tournament v2** (F3) — T2 (3v3 grid) / T4 (per-match map) / T1 (input typing). Model landed (`tourAllianceDraft`); rest is UI + decisions. Needs Sam.
-- **Custom MAP EDITOR** (F5) — in-game editor (paint walls/hazards/pickups on the field) → save to `customMaps` in localStorage → export/import as JSON or share-code. Steam Workshop needs an Electron + Steamworks packaging layer (out of scope for the HTML build) but the JSON format is Workshop-ready.
+- **Tournament v2** (F3) — see the LOCKED DESIGN block above. Model landed (`tourAllianceDraft`); rest is UI + the locked decisions. Needs Sam.
+- **Custom MAP EDITOR** (F5) — **IN PROGRESS (current build).** In-game editor (paint walls/hazards/pickups on the field) → save to `customMaps` in localStorage → export/import as JSON or share-code. Steam Workshop needs an Electron + Steamworks packaging layer (out of scope for the HTML build) but the JSON format is Workshop-ready.
 - **TABLED by Sam 2026-06-19:** KAMIKAZE 0%-in-3v3 CPU brain · tier-difficulty lapse/react depth · jet CPU dash-through. **Earlier:** repair heal↔buff cycle · weapon-balance feel re-tune. **DONE this session:** gray cannon render (v5.1.219), map gallery→Tank Fight (v5.1.220).
 
 **Operating ritual unchanged** (see below): `./extract.sh && ./battery.sh` ALL GREEN → `git mv` vN→vN+1 → `sed` filename into `extract.sh`+`MIGRATION.md` → commit "Release …" → push `dev` + session branch.
