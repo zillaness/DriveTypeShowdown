@@ -125,6 +125,18 @@ src+=`
    T('MANUAL seed order = registration order',JSON.stringify(tourRankedIdx())==='[0,1,2]');
    tourSwapSeed(0,1);T('▲▼ swap reorders entrants (seed)',tour.names[0]==='Strong'&&tour.names[1]==='Weak');
    tourSwapSeed(0,-1);T('swap past the ends is a safe no-op',tour.names[0]==='Strong'&&tour.names.length===3);}
+  // ── v5.1.241 END-TO-END: a 4-captain ALLIANCE tournament → draft → bracket → champion (3v3 throughout) ──
+  {const T=(l,c)=>console.log((c?'ok — ':'FAIL — ')+l);m2.set=m2.set||{};m2.set.tallies=0;m2.mode='normal';
+   tour={names:['A','B','C','D'],drv:[null,null,null,null],policy:'open',seedMode:'manual',format:'single',allianceMode:true,mode:'normal',buf:'',seeds:[],M:[],qi:0};
+   tourAfterSeed();tourDraftAuto();tourFinishDraft();
+   let guard=0,champ=null,every3v3=true;
+   while(guard++<30){const nx=tourNext();if(nx===null){champ=tour.champ;break;}
+     const eA=tourEntrants(nx)[0],eB=tourEntrants(nx)[1];tour.cur=nx;tour.curE=[eA,eB];
+     m2.claim=[{type:'human'},{type:'human'}];const se=tankSeatsFromClaim();if(se[0].length!==3||se[1].length!==3)every3v3=false;
+     if(nx==='gf'){tour.gf.n++;tour.gf.w[0]++;if(tour.gf.w[0]>=2)tour.champ=eA;}else{nx.w=eA;nx.l=eB;tourResolveByes();}
+     tour.cur=null;if(tour.champ!==null){champ=tour.champ;break;}}
+   T('alliance tournament plays to a CHAMPION',typeof champ==='number');
+   T('every bracket match was 3v3 (captain + 2 drafted bots per side)',every3v3);}
   tour=null;bb2=null;console.log('done');
 })();
 `;
