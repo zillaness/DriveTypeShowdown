@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.249.html
-  version: 5.1.249
+  file: drive_showdown_v5.1.250.html
+  version: 5.1.250
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-19
@@ -4291,11 +4291,10 @@ function bbCheckResult(lastKiller){ // last SIDE standing wins (KO); nobody left
     if(vd[0]){bb2.result=1;sfx('win');return;}
     if(vd[1]){bb2.result=0;sfx('win');return;}
   }
-  // v5.1.149 GENERAL: a side is OUT only when it has NO bot alive AND none can respawn (lives). With 1-life modes this reduces to last-standing.
-  const inPlay=[false,false];for(const b of bb2.bots)if(!b.dead||b.lives>0)inPlay[b.side]=true;
-  if(!inPlay[0]&&!inPlay[1]){bb2.result='draw';sfx('win');return;}
-  if(!inPlay[0]){bb2.result=1;sfx('win');return;}
-  if(!inPlay[1]){bb2.result=0;sfx('win');return;}
+  // v5.1.149 GENERAL: a side is OUT only when it has NO bot alive AND none can respawn (lives). v5.1.250: generalized to N FACTIONS — last distinct side standing wins (2-side & 6-player FFA both reduce to this).
+  const live=new Set();for(const b of bb2.bots)if(!b.dead||b.lives>0)live.add(b.side);
+  if(live.size===0){bb2.result='draw';sfx('win');return;}
+  if(live.size===1){bb2.result=[...live][0];sfx('win');return;}
 }
 function bbKill(victim,owner){ // KO + explosion + MUTUAL-DESTRUCTION chain: a near-dead bot caught in the blast also dies
   if(victim.dead)return;
@@ -4323,24 +4322,39 @@ function bbFxTick(dt){ // animate + retire explosions, debris, labels (runs even
   if(bb2.deb){for(const d of bb2.deb){d.x+=d.vx*dt;d.y+=d.vy*dt;d.vx*=0.9;d.vy*=0.9;d.r+=d.vr*dt;d.t-=dt;}bb2.deb=bb2.deb.filter(d=>d.t>0);}
   for(const f of bb2.fx)f.t-=dt;bb2.fx=bb2.fx.filter(f=>f.t>0);
 }
+// ── v5.1.250 6-PLAYER FREE-FOR-ALL (RoboRumble) — every bot is its own faction; last bot standing (lives) or most surviving HP (timed) wins ──
+const BB_FFA_N=6;
+const FFA_COLS=['#ff5555','#5599ff','#5bd169','#ffcf3a','#b06bff','#ff8a2e']; // red · blue · green · gold · purple · orange
+function bbIsFFA(){return !!(m2.set&&m2.set.tfmt==='ffa'&&m2.mode==='battlebots');}
+function bbFFASpawn(i,n){const cx=FW/2,cy=FH/2,R=Math.min(FW,FH)*0.37,a=-Math.PI/2+i/Math.max(1,n)*Math.PI*2;return{x:cx+Math.cos(a)*R,y:cy+Math.sin(a)*R,h:a+Math.PI};} // ring of N, each facing the center
+function bbFFAWinner(){if(!bb2)return null;const r=bb2.result;if(typeof r!=='number')return null;return bb2.bots.find(b=>b.side===r)||null;} // the winning bot in an FFA result
 function startP2BB(){cheatedRun=false;paused=false;
   applyLayout('tank2p');
   if(m2.set.map!=='rand'&&!(typeof m2.set.map==='string'&&customMapById(m2.set.map))&&(typeof m2.set.map!=='number'||!TF2_MAPS[m2.set.map]))m2.set.map=0; // 'rand' = RANDOM; a valid CUSTOM-map id is kept; else clamp to a valid built-in index
   const mp=bbMapObj();tfObs=mp.obs;phase='p2bb'; // v5.1.233 resolve built-in OR custom arena
   // roster: the 6-seat grid when set (up to 3/side, mixed human/CPU rumble), else the legacy 1v1 / vs-CPU claim (tournaments/tests)
-  const gridOn=tankGridActive();let roster;
-  if(gridOn){tankGridApply();roster=tankRosterFromSeats(tankGridToSeats());}
-  else{roster=[]; // v5.1.163 SIDE FIX: each claim SLOT keeps its own side (slot 0 = RED, slot 1 = BLUE) — a human who claimed the BLUE card now actually spawns BLUE (was hard-coded human→RED regardless of the picked side)
+  const ffa=bbIsFFA(); // v5.1.250 6-player free-for-all
+  const gridOn=!ffa&&tankGridActive();let roster;
+  if(ffa){ // every bot is its OWN faction (unique side); humans keep their bind, fill to BB_FFA_N with tier-mixed CPUs
+    let base=[];
+    if(tankGridActive()){tankGridApply();base=tankRosterFromSeats(tankGridToSeats()).map(r=>({bind:r.bind,type:r.type,tier:r.tier|0}));}
+    else for(let b=0;b<2;b++){if(m2.claim[b])base.push({bind:b,type:m2.claim[b].type==='cpu'?'cpu':'human',tier:m2.claim[b].type==='cpu'?(m2.claim[b].tier|0):0});}
+    base=base.slice(0,BB_FFA_N);
+    while(base.length<BB_FFA_N)base.push({bind:base.length,type:'cpu',tier:1+(base.length%3)});
+    roster=base.map((r,i)=>({side:i,bind:r.bind,type:r.type,tier:r.tier|0}));
+  }else if(gridOn){tankGridApply();roster=tankRosterFromSeats(tankGridToSeats());}
+  else{roster=[]; // v5.1.163 SIDE FIX: each claim SLOT keeps its own side (slot 0 = RED, slot 1 = BLUE)
     for(let b=0;b<2;b++){if(!m2.claim[b])continue;const isC=m2.claim[b].type==='cpu';roster.push({side:b,bind:b,type:isC?'cpu':'human',tier:isC?(m2.claim[b].tier|0):0});}
-    if(!roster.some(r=>r.side===0))roster.push({side:0,bind:0,type:'cpu',tier:1}); // fill any empty side with a CPU so the match is valid
+    if(!roster.some(r=>r.side===0))roster.push({side:0,bind:0,type:'cpu',tier:1});
     if(!roster.some(r=>r.side===1))roster.push({side:1,bind:1,type:'cpu',tier:1});}
   const nSide=[roster.filter(r=>r.side===0).length,roster.filter(r=>r.side===1).length];
-  const ys=[tf2SpawnYs(nSide[0]),tf2SpawnYs(nSide[1])],yIdx=[0,0],seat=[0,0];
-  bb2={t:0,cd:3,result:null,repd:false,map:mp,fx:[],blasts:[],deb:[],
-    bots:roster.map(r=>{const sp=tf2SpawnSide(r.side,ys[r.side][yIdx[r.side]++]);if((m2.set&&m2.set.bbmode)==='sumo')sp.x=r.side===0?FW/2-170:FW/2+170; // v5.1.121 P9 SUMO: spawn INSIDE the ring (default spawns sit at the arena edge = instant ring-out)
-      const ctl=tankMkCtl(r.bind);ctl.type=r.type;const si=seat[r.side]++,col=teamShade(r.side,si);
-      if(r.type==='cpu'){ctl.tier=r.tier;ctl.name='CPU'+(nSide[r.side]>1?' '+(si+1):'');}
+  const ys=[tf2SpawnYs(nSide[0]||1),tf2SpawnYs(nSide[1]||1)],yIdx=[0,0],seat=[0,0];
+  bb2={t:0,cd:3,result:null,repd:false,ffa:ffa,map:mp,fx:[],blasts:[],deb:[],
+    bots:roster.map((r,ri)=>{const sp=ffa?bbFFASpawn(ri,roster.length):tf2SpawnSide(r.side,ys[r.side][yIdx[r.side]++]);if(!ffa&&(m2.set&&m2.set.bbmode)==='sumo')sp.x=r.side===0?FW/2-170:FW/2+170; // v5.1.121 SUMO spawns inside the ring; v5.1.250 FFA spawns on a ring
+      const ctl=tankMkCtl(r.bind);ctl.type=r.type;const si=ffa?ri:seat[r.side]++,col=ffa?FFA_COLS[ri%FFA_COLS.length]:teamShade(r.side,si);
+      if(r.type==='cpu'){ctl.tier=r.tier;ctl.name=ffa?('CPU '+(ri+1)):('CPU'+(nSide[r.side]>1?' '+(si+1):''));}
       if(gridOn){const _gs=m2.tseats[r.bind];ctl.name=(r.type==='cpu')?((r.side===0?'RED':'BLUE')+' '+(si+1)):((_gs&&_gs.name)||('PLAYER '+(si+1)));} // grid: player name / CPU side+slot
+      else if(ffa&&r.type!=='cpu'){const _gs=(m2.tseats&&m2.tseats[r.bind]);ctl.name=(_gs&&_gs.name)||('PLAYER '+(ri+1));}
       ctl.brain=(r.type==='cpu')?{inp:{vx:0,vy:0,vr:0}}:null;
       const _ldSrc=bbLoadoutForBind(r.bind);const ld=bbResolveLoadout((r.type==='cpu'&&!_ldSrc)?bbCpuPickLoadout(r.tier|0):_ldSrc); // P2.1 loadout stats; P2.6: a CPU with no chosen loadout auto-arms (tier-scaled)
       const _mhp=BB.HP*(megaBots?BB_W.megaHp:1)*((ld&&ld.hpMul)||1); // v5.1.118 MEGABOTS HP; v5.1.156 ×armor hpMul (HARDPLATE bigger pool)
@@ -5061,7 +5075,9 @@ function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing he
   } // STOCK now uses the general respawn block above (lives setting)
 }
 function bbTimeUpResult(){ // v5.1.149 who wins when the clock expires: the objective leader; elimination modes fall back to most surviving HP; tie = draw
-  const m=bbMode();let s=[0,0];
+  const m=bbMode();
+  if(bb2.ffa){let best=null,bh=-1,tie=false;for(const b of bb2.bots){if(b.dead)continue;if(b.hp>bh){bh=b.hp;best=b;tie=false;}else if(b.hp===bh)tie=true;}return best?(tie?best.side:best.side):'draw';} // v5.1.250 FFA: most surviving HP wins (objective modes don't run in FFA)
+  let s=[0,0];
   if(m==='ctf')s=bb2.ctf||[0,0];
   else if(m==='domination')s=bb2.dom||[0,0];
   else if(m==='koth')s=(bb2.koth&&bb2.koth.score)||[0,0];
@@ -5570,7 +5586,10 @@ function drawBB(){
   if(airStrike&&bb2.airPending&&bb2.airPending.length)for(const p of bb2.airPending){const k=clamp(p.t/(p.max||1),0,1),R=RR*BB_W.airR,rad=R*(1+1.6*k),cx=FX+p.x,cy2=FY+p.y;ctx.save();ctx.globalAlpha=0.45+0.55*(1-k);ctx.strokeStyle='#ff5a3d';ctx.lineWidth=2+(1-k)*2.5;ctx.beginPath();ctx.arc(cx,cy2,rad,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(cx-rad,cy2);ctx.lineTo(cx+rad,cy2);ctx.moveTo(cx,cy2-rad);ctx.lineTo(cx,cy2+rad);ctx.stroke();ctx.restore();} // v5.1.157 AIRSTRIKE telegraph (per pending bomb): a crosshair that STARTS LARGE and shrinks onto each impact point
   if(animeSword&&bb2.swordCut)bbDrawSwordCut(); // v5.1.212 MECHA MODE anime KO cut-in (over field+HUD, under the countdown/result)
   if(bb2.cd>0){ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,CW,CH);ctx.font='bold 84px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffd740';ctx.fillText(String(Math.ceil(bb2.cd)),CW/2,FY+FH/2);ctx.font='bold 13px Courier New';ctx.fillStyle='#8888aa';ctx.fillText('ROBORUMBLE — '+bb2.map.name,CW/2,FY+FH/2+40);}
-  if(bb2.result!==null){ctx.fillStyle='rgba(0,0,0,0.74)';ctx.fillRect(0,0,CW,CH);const w=bb2.result,draw=(w==='draw');ctx.textAlign='center';ctx.font='bold 40px Courier New';ctx.fillStyle=draw?'#ffd740':M2_COLS[w];ctx.fillText(draw?'DRAW':((w===0?'RED':'BLUE')+' WINS'),CW/2,FY+FH/2-54);ctx.font='13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText((draw?'DOUBLE KO':'KO')+'  ·  '+fmt(bb2.t),CW/2,FY+FH/2-22);drawP2Nav(FY+FH/2+34);}
+  if(bb2.result!==null){ctx.fillStyle='rgba(0,0,0,0.74)';ctx.fillRect(0,0,CW,CH);const w=bb2.result,draw=(w==='draw');ctx.textAlign='center';ctx.font='bold 40px Courier New';
+    if(bb2.ffa){const win=bbFFAWinner();ctx.fillStyle=draw?'#ffd740':(win?win.col:'#ffd740');ctx.fillText(draw?'DRAW':((win&&win.ctl&&win.ctl.name?win.ctl.name:'?')+' WINS'),CW/2,FY+FH/2-54);} // v5.1.250 FFA: the winning bot
+    else{ctx.fillStyle=draw?'#ffd740':M2_COLS[w];ctx.fillText(draw?'DRAW':((w===0?'RED':'BLUE')+' WINS'),CW/2,FY+FH/2-54);}
+    ctx.font='13px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText((draw?'DOUBLE KO':(bb2.ffa?'LAST BOT STANDING':'KO'))+'  ·  '+fmt(bb2.t),CW/2,FY+FH/2-22);drawP2Nav(FY+FH/2+34);}
 }
 
 // ═══ PHASE 3: 2P OBSTACLE RACE (vertical slice) ═══
@@ -6475,7 +6494,7 @@ function p2SettingsRows(){
     {k:'tdrv',   lab:'DRIVE VARIETY',    vals:['open','norepeat','team','cat'], show:v=>({open:'OFF — any drive',norepeat:'NO REPEAT DRIVES',team:'NO REPEAT PER TEAM',cat:'ONE PER CATEGORY/TEAM'})[v]||'OFF'}, // enforced on the claim grid
   ];
   if(m2.mode==='battlebots')return[
-    {k:'tfmt',   lab:'TEAM FORMAT',      vals:['1v1','multi'],    show:v=>v==='multi'?'MULTI — up to 3v3 (grid)':'1v1 — classic 2-card'}, // 1v1 = original 2-card claim; multi = the 6-seat grid
+    {k:'tfmt',   lab:'TEAM FORMAT',      vals:['1v1','multi','ffa'], show:v=>v==='ffa'?'FFA — 6-player FREE-FOR-ALL':v==='multi'?'MULTI — up to 3v3 (grid)':'1v1 — classic 2-card'}, // v5.1.250 FFA: your bot + CPU fill to 6, every bot its own faction, last standing wins
     {k:'bestOf', lab:'BEST OF',          vals:[1,3,5],            show:v=>v===1?'OFF (1 round)':'BEST OF '+v},
     {k:'map',    lab:'ARENA',            vals:[...TF2_MAPS.map((m,i)=>i),'rand'], show:v=>v==='rand'?'RANDOM 🎲 (re-rolls each match)':(TF2_MAPS[v]||TF2_MAPS[0]).name}, // v5.1.120 P3: DANGER ZONE arena; v5.1.134: + RANDOM
     {k:'bbmode', lab:'GAME MODE',         vals:BB_MODES.map(m=>m.id), show:v=>(BB_MODES.find(m=>m.id===v)||BB_MODES[0]).name}, // v5.1.121 P9: KO / SUMO / DOMINATION / VIP win conditions
@@ -9298,6 +9317,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.250 (2026-06-19): 6-PLAYER FREE-FOR-ALL (F4, engine + reachable). New TEAM FORMAT = FFA in RoboRumble settings: your bot + CPU fill to 6, every bot its OWN faction (unique side), ring-spawned, distinct colors (FFA_COLS). Win detection generalized to N factions: `bbCheckResult` now counts DISTINCT live sides → last one standing wins (2-side & FFA both reduce to this, regression-tested); `bbTimeUpResult` FFA = most surviving HP. The win banner shows the winning BOT's name + color (`bbFFAWinner`); CPU AI already targets nearest non-same-side, so it fights everyone for free. Helpers: `bbIsFFA`, `BB_FFA_N`, `FFA_COLS`, `bbFFASpawn`. smoke57 +6. Full battery green. (Next FFA steps — multi-human FFA setup screen, an FFA scoreboard/kill-feed, AI tuning — want Sam's playtest.)
   v5.1.249 (2026-06-19): your 1v1 RoboRumble LOADOUT now PERSISTS across sessions. It used to reset to default every time you entered the multiplayer menu (`p2Enter` wiped `m2.bbLoadout`), so weapon/armor/perk/paint/accent never stuck. Now `saveBBLoadout`/`loadBBLoadout` (localStorage `frcds_bbload_v1`) persist it: every equip / cycler / autobuild / swap saves, and `p2Enter` restores your last setup. Grid (3v3) seats are left out (transient per-match). smoke57 +2. Full battery green.
   v5.1.248 (2026-06-19): independent ACCENT color (Sam request). The paint is now TWO picks: a BODY skin (PAINT_JOBS, click the bot preview) + a separate ACCENT color (new ACCENT_COLS palette — click the 🎨 dot) that recolors the stroke / bumper / WHEELS independently. `bbPaintFor(ld)` composes body+accent (accent 0 = the skin's own accent; accent-only = neutral dark body + your accent); `bbCycleAccent` + the 🎨 dot on the 1v1 card and each 3v3 grid seat. `accent` passes through `bbResolveLoadout` so it renders in-match. smoke57 +6. Full battery green.
   v5.1.247 (2026-06-19): FIX + polish — CUSTOM PAINT now actually shows IN-MATCH, and it paints the WHEELS too (Sam playtest). (1) BUG: `bbResolveLoadout` rebuilt the loadout for the match but DROPPED the `paint` field, so the in-match bot's `ld.paint` was undefined → `_bbPaint` stayed null → the chosen color only ever showed on the setup preview, never in game. Now `paint` passes through. (2) The paint palette now also tints the WHEELS (and swerve pods / chassis details) to the chosen accent — `drawRobot`'s wheel `col` becomes the paint accent when a custom paint is active (livery/Original-Sin still overrides). So picking a color now recolors the whole bot, in-match. smoke57 +2. Full battery green.

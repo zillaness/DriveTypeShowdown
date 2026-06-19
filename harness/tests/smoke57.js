@@ -1350,6 +1350,17 @@ src+=`
    const r=loadBBLoadout();
    ok('1v1 loadout round-trips through localStorage (weapon/armor/perk/paint/accent)',!!r[0]&&r[0].weapon==='spinner'&&r[0].armor==='light'&&r[0].perk==='vampire'&&r[0].paint===2&&r[0].accent===5);
    ok('loadBBLoadout always returns a length-2 array',Array.isArray(r)&&r.length===2);m2.bbLoadout=sv;}
+  // v5.1.250 6-player FREE-FOR-ALL — last faction standing / most HP; 2-side still resolves (regression)
+  {const svbb=bb2,svm=m2.mode;m2.mode='battlebots';m2.set=m2.set||{};m2.set.bbmode='ko';
+   bb2={result:null,ffa:true,bots:[]};for(let i=0;i<6;i++)bb2.bots.push({side:i,dead:false,lives:1,hp:100,ctl:{name:'CPU '+(i+1)},col:'#fff'});
+   bbCheckResult();ok('FFA: 6 factions alive → match continues (no result)',bb2.result===null);
+   for(let i=0;i<5;i++){bb2.bots[i].dead=true;bb2.bots[i].lives=0;}
+   bbCheckResult();ok('FFA: LAST bot standing wins (side 5)',bb2.result===5&&bbFFAWinner()===bb2.bots[5]);
+   bb2={result:null,ffa:true,bots:[{side:0,dead:false,lives:0,hp:40,ctl:{name:'A'}},{side:1,dead:false,lives:0,hp:90,ctl:{name:'B'}},{side:2,dead:true,lives:0,hp:0,ctl:{name:'C'}}]};
+   ok('FFA timed: most surviving HP wins',bbTimeUpResult()===1);
+   bb2={result:null,ffa:false,bots:[{side:0,dead:true,lives:0,hp:0},{side:1,dead:false,lives:1,hp:50}]};
+   bbCheckResult();ok('2-side regression: one side out → the other wins',bb2.result===1);
+   bb2=svbb;m2.mode=svm;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
