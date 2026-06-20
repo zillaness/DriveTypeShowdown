@@ -228,6 +228,43 @@ Keep branching **modest and data-driven**: a graph of **beats**, each with text 
 choice carrying an *effect* (where to go next + flags/unlocks). Conditions let a beat or choice depend on
 performance/flags/prior choices. This is the choose-your-own-adventure layer that sits *between* matches.
 
+**Branching philosophy (Sam, evolved live — capture the FINAL position):**
+- **Light, data-driven branching.** Choices + how you performed shape the *between-match* story. Keep it light — a
+  handful of meaningful forks, not a combinatorial tree.
+- **Some choices have MILD real differences** — not purely cosmetic. A choice might take a short **detour** stage
+  (e.g. the `steer_detour` "drive like a car" curveball), reorder which **concept** you meet next, nudge the
+  **difficulty** (pick the "tougher sparring partner" → +skill bump), or grant a small **unlock** (a paint, a perk).
+- **NOT full convergence — different choices tell different STORIES and different ENDINGS.** There are **multiple
+  endings** (aim for a small, authorable set — ~3–5 distinct ones), selected by your choices + performance + flags.
+  The narrative genuinely forks; the ending you reach is *yours*.
+- **You BASICALLY play the same GAMETYPES throughout (Sam, confirmed).** The gameplay/teaching backbone is
+  **common on every path** — every player plays through essentially the same modes (tank → arcade race → ball →
+  shooter → rumble) and is taught every core drive concept (tank → arcade → strafe → bot/field-centric →
+  holonomic → heading). Choices only *reorder / detour / re-frame / difficulty-nudge* that common spine. What
+  **truly diverges is the STORY layer** — the between-match narrative beats and **which ENDING you land on**.
+  So: **same gametypes, different stories & endings.** (This keeps it a complete tutorial for everyone while still
+  feeling like your own adventure — and it's far cheaper to build than branching gameplay.)
+- **The payoff: a personalized end-of-journey RECAP** (see §4.4) that stitches your choices + win/loss/skill history
+  + which ending you reached into a narrated "here's how *your* story went" summary.
+
+### 4.0 Choices with IN-GAME consequences (a light "build your robot" modifier layer)
+
+Beyond story/ending forks, **some choices apply a small GAMEPLAY modifier** to the matches that follow — a
+narrative decision with real mechanical weight (ideally with a fun tradeoff). Examples Sam floated:
+- *"Stay up late wrenching on the bot"* → a **performance bonus** (e.g. +HP / +a touch of speed / a free perk or a
+  weapon-tier bump) — maybe at a tiny cost (a tired-driver wobble, or you skip a story scene).
+- *"Couldn't afford the nicest motors"* → a **small sensitivity cap** / slightly lower top speed for a stretch.
+- Other hooks: a budget pick → fewer ally bots or a lower loadout tier; a sponsorship → a paint + a minor buff; a
+  risky overclock → high reward, small downside.
+
+**Model:** store active modifiers in `career.mods` (a small list of `{id, label, effect}`), persisted with the save.
+Apply them in **`startCareerMatch()`** (the launch hook, §5.2) by tweaking the about-to-start match *before* calling
+the mode's `startP2*` — e.g. clamp the effective `SENS_MAX` / per-seat `m2.sens`, bump an `m2.set` HP/speed knob,
+pre-set the loadout/perk, or add/remove an ally CPU. Keep each effect **small and reversible** — save/restore around
+the match exactly like the qualifier does (`tour._qsave` pattern), so a modifier never leaks into free-play. These
+also feed the recap ("…ran the budget motors all season and *still* made it"). **Open Q for Sam:** how impactful —
+flavor-with-a-wink, or genuinely build-defining?
+
 ### 4.1 `CAREER_BEATS` — the beat table
 
 ```js
@@ -356,6 +393,23 @@ taught, unlock granted) so progress survives a refresh — same discipline as `a
 One save slot is the default (single `frcds_career_v1`); slots = wrap in an array later (§7).
 
 ---
+
+### 4.4 The personalized end-of-journey RECAP (the finale payoff)
+
+The campaign ends on a generated **"your journey" summary** — the emotional payoff and the natural place to show
+what you *learned*. It reads the saved history and narrates **your** specific run:
+- **What it stitches:** `career.choices` (the forks you took), `career.log` (a small append-only list — each stage's
+  result + margin, modifiers picked, the ending reached), the `skill` arc (started shaky and climbed? dominated
+  throughout?), `taught[]` (the drive concepts you mastered, tank → … → heading), `mods` (e.g. "ran budget motors
+  all season"), `unlocks`, and **which ENDING** your choices + performance landed you on.
+- **Output:** a `careerRecap()` returning ordered narrated lines (a couple of short paragraphs), on a dedicated
+  **`'p2crecap'`** finale screen (reuse `drawCareerBeat`'s text layout). Warm, FRC-flavored — *"You started barely
+  able to keep the tank straight. By the end you read the field-centric stick like a second language. Ran the cheap
+  motors the whole way and still took the rumble."*
+- **Data needed:** a tiny `career.log = [{stage, result, margin, mods, choice}]` appended in `careerMatchEnd` and at
+  each choice — that's all the recap needs, no new systems.
+- **Why it matters:** the gametypes are common, but story + ending + mods + how-you-did differ, so the recap is what
+  makes two runs feel like genuinely different journeys — the "different stories & endings" promise on one screen.
 
 ## 5. Screens / phases needed
 
@@ -563,6 +617,17 @@ replay.*
   8229); the hub shows concepts learned + current skill + stages cleared.
 - **Tests:** beats/forks render; a gated choice appears only under its condition; the achievement fires
   once (idempotent); SKIP marks the concept taught.
+
+### Phase ⑦ — In-game modifiers, multiple endings + the personalized RECAP
+*Goal: choices carry mild gameplay weight; the journey ends on a generated "your story" summary.*
+- **Add:** `career.mods` applied in `startCareerMatch` with save/restore around the match (the `tour._qsave`
+  pattern) — a few authored modifiers (late-night build → +HP / a free perk; budget motors → a SENS cap; etc.);
+  `career.log` appended in `careerMatchEnd` and at each choice; a small set (~3–5) of **endings** chosen by
+  flags + performance; `careerRecap()` + the `'p2crecap'` finale screen that narrates the run (§4.4).
+- **Integrate:** the finale routes the skill arc + choices + mods + which ending into the recap lines; the recap
+  reveals unlocks + fires the achievement.
+- **Tests:** a modifier changes the next match's setup then RESTORES (never leaks to free-play); `careerRecap()`
+  produces ending-appropriate lines from a mocked `career.log`/flags; every ending is reachable from its conditions.
 
 ---
 
