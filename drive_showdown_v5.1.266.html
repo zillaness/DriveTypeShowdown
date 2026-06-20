@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.265.html
-  version: 5.1.265
+  file: drive_showdown_v5.1.266.html
+  version: 5.1.266
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -1977,6 +1977,39 @@ function drawPMGear(cx,cy,R,col){
   for(let i=0;i<n;i++){const a=(i/n)*2*Math.PI,w=2*Math.PI/n;pt(root,a);pt(tip,a+w*0.16);pt(tip,a+w*0.34);pt(root,a+w*0.50);}
   ctx.closePath();ctx.moveTo(hole,0);ctx.arc(0,0,hole,0,Math.PI*2);
   ctx.fillStyle=col;ctx.fill('evenodd');
+  ctx.restore();
+}
+// v5.1.266 vector recreation of the PROJECTS AND MODS wordmark — a toothed ring behind a bold condensed
+// "PROJECTS", with "AND" lower-left and "MODS" to the right, all on a slight upward slant. White artwork
+// meant for our dark cards. `u` is the base unit (gear radius ≈ u). Swap for an inlined logo data-URI if a
+// pixel-exact source asset is committed (see _logoMain/_logoIG for the pattern).
+function drawPMLogo(cx,cy,u,col){
+  col=col||'#eaf2ff';
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(-0.13);
+  // toothed ring (thick white rim, hollow center) — sits behind the word, slightly left
+  (function(){const n=12,tip=u,root=u*0.80,rim=u*0.56,gx=-u*0.10;
+    ctx.save();ctx.translate(gx,0);ctx.rotate(0.13);
+    ctx.beginPath();ctx.moveTo(root,0);
+    for(let i=0;i<n;i++){const a=(i/n)*2*Math.PI,w=2*Math.PI/n;
+      ctx.lineTo(Math.cos(a)*root,Math.sin(a)*root);
+      ctx.lineTo(Math.cos(a+w*0.18)*tip,Math.sin(a+w*0.18)*tip);
+      ctx.lineTo(Math.cos(a+w*0.32)*tip,Math.sin(a+w*0.32)*tip);
+      ctx.lineTo(Math.cos(a+w*0.50)*root,Math.sin(a+w*0.50)*root);}
+    ctx.closePath();ctx.moveTo(rim,0);ctx.arc(0,0,rim,0,Math.PI*2);
+    ctx.fillStyle=col;ctx.fill('evenodd');ctx.restore();})();
+  const COND='"Arial Narrow","Helvetica Neue",Impact,"Roboto Condensed",sans-serif';
+  ctx.fillStyle=col;ctx.textBaseline='alphabetic';
+  const hadLS=('letterSpacing'in ctx);
+  // PROJECTS — the hero line
+  ctx.font='900 '+(u*1.18).toFixed(1)+'px '+COND;ctx.textAlign='center';
+  if(hadLS)ctx.letterSpacing=(-u*0.015).toFixed(2)+'px';
+  ctx.fillText('PROJECTS',0,u*0.42);
+  if(hadLS)ctx.letterSpacing='0px';
+  // AND (small, tucked lower-left) + MODS (right, mid)
+  ctx.font='900 '+(u*0.34).toFixed(1)+'px '+COND;ctx.textAlign='left';
+  ctx.fillText('AND',-u*1.78,u*1.02);
+  ctx.font='900 '+(u*0.50).toFixed(1)+'px '+COND;
+  ctx.fillText('MODS',u*1.62,u*0.66);
   ctx.restore();
 }
 function drawKonami(){
@@ -9339,13 +9372,12 @@ function drawCredits(){
   ctx.font='bold 24px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('CREDITS',CW/2,84);
   ctx.font='bold 14px Courier New';ctx.fillStyle='#8899cc';ctx.fillText('DRIVE TYPE SHOWDOWN',CW/2,120);
   ctx.font='11px Courier New';ctx.fillStyle='#55556a';ctx.fillText('by Sam Cao · Team 2204 Rambots',CW/2,142);
-  // PROJECTS AND MODS card (logo + wordmark)
+  // PROJECTS AND MODS card — the vector wordmark logo
   const cx=CW/2, cy=Math.min(CH*0.42,300), cw=Math.min(CW-60,420);
   ctx.fillStyle='rgba(18,32,52,0.85)';rr(cx-cw/2,cy-72,cw,148,16);ctx.fill();
   ctx.strokeStyle='#34507a';ctx.lineWidth=1.5;rr(cx-cw/2,cy-72,cw,148,16);ctx.stroke();
-  drawPMGear(cx,cy-20,30,'#eaf2ff');
-  ctx.font='bold 20px Courier New';ctx.fillStyle='#eaf2ff';ctx.textAlign='center';ctx.fillText('PROJECTS AND MODS',cx,cy+34);
-  ctx.font='10px Courier New';ctx.fillStyle='#7f97b8';ctx.fillText('projects · mods · builds',cx,cy+54);
+  drawPMLogo(cx,cy-2,Math.min(34,cw*0.085),'#eaf2ff');
+  ctx.font='10px Courier New';ctx.fillStyle='#7f97b8';ctx.textAlign='center';ctx.fillText('projects · mods · builds',cx,cy+62);
   // link buttons
   const links=[
     {url:'https://www.youtube.com/@projectsandmods', text:'YouTube — @projectsandmods'},
@@ -10218,6 +10250,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.266 (2026-06-20): CREDITS LOGO — replaced the plain gear+wordmark on the credits card with drawPMLogo, a vector recreation of the PROJECTS AND MODS brand mark: a toothed ring behind a bold condensed "PROJECTS", with "AND" lower-left and "MODS" to the right, on a slight upward slant (white artwork on the navy card). Drawn in-canvas from a condensed-bold font stack (Arial Narrow / Helvetica Neue / Impact / Roboto Condensed) — no external asset, matching the single-file ethos. For a pixel-exact logo, commit the source PNG/SVG and inline it as a base64 data-URI like _logoMain/_logoIG, then call drawImage in place of drawPMLogo. Full battery ALL GREEN.
   v5.1.265 (2026-06-20): CREDITS SCREEN — a discoverable credits page (Sam chose "both": the cheat-menu links AND a real screen). A new ✦ CREDITS button shares the splash's bottom row with ⚙ SETTINGS (splashRects splits into two halves); also reachable by the `C` key and gamepad (splash focus idx 4). phase 'credits' → drawCredits: the game credit (DRIVE TYPE SHOWDOWN · by Sam Cao · Team 2204 Rambots) + a PROJECTS AND MODS card (the drawPMGear vector mark + wordmark) + the YouTube (@projectsandmods) and website (projectsandmods.com) link buttons (window.open), with a ← BACK button (Esc / pad-B also exit). Touch + mouse + gamepad all route to it. The logo is the vector gear for now — drop in the real PNG/SVG (base64 data-URI) to replace drawPMGear when it lands. Full battery ALL GREEN. Single file, no assets.
   v5.1.264 (2026-06-20): CREDITS — Projects and Mods links in the cheat menu (Sam). The cheat menu's link area (already the de-facto credits home — rambots.org + @frc2204) becomes a 2×2 GRID: the left column is the team, the right column is PROJECTS AND MODS (navy/white) — a YouTube button (youtube.com/@projectsandmods) and a website button (projectsandmods.com), each carrying a clean vector GEAR mark (drawPMGear — the PM logo is gear-based, drawn in-canvas so the single-file build needs no embedded image asset; an evenodd ring shows the hub through the gear). Same vertical footprint as the old 2-button stack, so the compacted menu doesn't overflow; both links open in a new tab via the existing window.open idiom. (If the exact PNG is committed to the repo it can be inlined as a base64 data-URI to replace the vector mark.) Full battery ALL GREEN. Single file, no assets.
   v5.1.263 (2026-06-20): STORY MODE playtest fixes (Sam, live) — universal controls · solo time-trial races · SP swerve-anim bug. (1) CONTROLS (Sam: "let you use either controller OR keyboard at the same time in story mode"): side 0 now binds to the UNIVERSAL 'any' device — keyboard AND every connected pad are all live at once. Upgraded the 'any' bind to read gamepad BUTTONS (new gpBtnAny: fire A/RT, boost LT) and the merged right-stick (turret aim / repair-dish), not just axes; p2FireHeld/p2BoostHeld/tank+RoboRumble turret aim all gained an 'any' path. The control-scheme beat is now an honest "both work, switch anytime" card (was an either/or). Also fixes the wrong-slot bind Sam hit (had to claim "gamepad 2"): updateGamepad tracks the ACTIVE pad slot (gpLastSlot) instead of trusting a phantom slot 0. (2) RACES ARE SOLO TIME-TRIALS (Sam: "on rookie that first match is CRAZY hard… should be a solo time trial, not a head-to-head"): the two race lessons (NEED FOR SPEED / SIDEWAYS) drop the CPU rival and run on the easy SP obstacle course (course 0, no hazards). ROOKIE just has to finish; higher lanes race a PAR clock (CAREER_RACE_PAR — arcade veteran/winner/champion 20/15/10, bot-centric 15/10/5; 5s gaps). The race HUD shows TIME TRIAL + target, the clock reddens past par, and a SOLO result banner (FINISH! / TOO SLOW) replaces the RED-vs-BLUE one. (3) BUGFIX (Sam): the SP OBSTACLE RACE never stored the live input, so the SWERVE MODULES never animated their steering direction — updateObstacleCourse now sets lastRobotInp like the main play loop. smoke83 → 107 asserts. Full battery ALL GREEN. Single file, no assets.
