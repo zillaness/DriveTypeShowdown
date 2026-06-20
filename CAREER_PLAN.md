@@ -1,42 +1,66 @@
 ---
 file: CAREER_PLAN.md
-version: 1.0
-author: Sam Cao (vision) — drafted by Claude thread `inspiring-turing`
-created: 2026-06-19
-build_grounded_against: drive_showdown_v5.1.249.html (9452 lines, single self-contained <script>)
+version: 2.0
+author: Sam Cao (vision) — drafted by Claude
+created: 2026-06-19 (v1.0) · MAJOR REFRAME 2026-06-20 (v2.0)
+build_grounded_against: drive_showdown_v5.1.251.html (9474 lines, single self-contained <script>)
 status: PLAN ONLY — no game code changed. Buildable spec for CAREER / STORY MODE.
+supersedes: v1.0 "growing-up through school grades" plan (middle→high→college→grad with one mode
+            per grade). That spine is DROPPED — see §0. The reusable bones (localStorage `frcds_*`
+            pattern, the tour* meta-shell precedent, the match-end interception, the phased build
+            order, the code-anchor appendix) are PRESERVED and re-pointed at the new design.
 ---
 
-# DriveShowdown — CAREER / STORY MODE plan
+# DriveShowdown — CAREER / STORY MODE plan (v2.0: the FUN TUTORIAL)
 
 ## ⭐ START HERE (for whoever builds this)
 
-**The vision (Sam):** a narrative campaign that threads the EXISTING game modes into a "growing up"
-progression. You play one mode per life-stage, advancing as you win:
+**Career mode is a FUN TUTORIAL wrapped in a choose-your-own-adventure (CYOA) story.** Its whole job is
+**onboarding**: teach the player every mode AND — the part that matters most — the **drive-control
+concepts** (tank vs arcade, bot-centric vs field-centric, holonomic drives, relative vs absolute
+heading). Story is the *delivery vehicle*, not the point. The point is: by the end, the player knows how
+to DRIVE and which modes exist, and they had fun learning.
 
-| Chapter | Life stage | Maps to MODE | `m2.mode` id |
-|---|---|---|---|
-| 1 | **Middle school** — learning to drive | **OBSTACLE RACE** | `race` |
-| 2 | **High school, season 1** — rookie team | **BALL · PUSHER** (push-ball) | `normal` |
-| 3 | **High school, season 2** — veteran team | **BALL · SHOOTER** | `shooter` |
-| 4 | **College** — "the video game you play in your dorm" | **TANK FIGHT** | `tankfight` |
-| 5 | **Graduate** — pro circuit | **ROBORUMBLE** | `battlebots` |
+Three pillars:
 
-**It is a NEW META-SHELL over the modes** — exactly like the existing **tournament** system, which is
-the closest precedent (persistent state, between-match screens, a result-router that advances a bracket).
-**Build the career shell by cloning the `tour*` pattern**, not by inventing new infrastructure.
+1. **Tutorial first.** Every stage teaches a real game concept. The backbone is a **controls
+   curriculum** (§2), sequenced simple→complex, with the existing modes as the vehicles that showcase
+   each concept.
+2. **TANK is stage 1 — the hook.** `tankfight` plays like an early **arcade game** (simple throttle +
+   steer). That is the origin moment where the player **falls in love with being a bot driver.** The old
+   plan opened on the obstacle race in "middle school" — that's gone. **Tank is where you start.**
+3. **CYOA between matches.** Between the actual games are **story beats with real choices** (2–3
+   options). Choices + how you performed drive light **branching** (which concept/mode you explore next,
+   story tone, flags). Modest and data-driven — a table of beats, not a giant tree.
+
+Two design rules that flow from "it's a tutorial":
+
+- **Adaptive difficulty, not a fixed ramp.** Each stage scales to **how you did on the previous bit** —
+  dominate and the next CPU tier steps up; struggle and it eases. A running **skill rating** (§3) maps to
+  the existing 5-tier CPU system. The story shifts slightly with performance too.
+- **You don't have to WIN to progress.** Losing still advances the campaign — the narrative just branches
+  ("you got knocked out, but you learned something" vs a triumphant path). **Progression is by CHOICE +
+  completion, never gated on wins.**
+
+**It is a NEW META-SHELL over the existing modes** — architecturally the closest precedent is the
+**tournament** (`tour*`): persistent state, between-match screens, a result-router that advances the
+journey. **Build the career shell by cloning the `tour*` pattern**, not by inventing new infrastructure.
 
 **The single most important architectural fact:** every mode already EXITS to a "continue" screen
-(`drawP2Nav` → `p2NavClick`) and the tournament already proves you can intercept that exit and route the
-result back into a meta-shell (`tourMatchEnd`). Career mode is the **same hook with a different shell.**
+(`drawP2Nav` → `p2NavClick`), and the tournament already proves you can intercept that exit and route the
+result back into a meta-shell (`tourMatchEnd`). Career is the **same hook with a different shell** — but
+its router (`careerMatchEnd`) advances on **win OR loss** and updates the skill rating.
 
 **Recommended build order (each step = a green `./battery.sh`):**
-1. **Career state + localStorage + a HUB/MAP screen** (phase `p2career`) — no matches yet, just the shell.
-2. **Chapter 1 end-to-end** (obstacle race): launch a career match, intercept its result, show win/loss.
-3. **Wire match-end → advance the career** (the `careerMatchEnd` router, mirrors `tourMatchEnd`).
-4. **Remaining chapters 2–5** (just data-table rows + the mode each launches).
-5. **Unlocks** (drives + RoboRumble loadout pieces earned per chapter).
-6. **Story beats + polish** (intro/outro screens from a data table; difficulty ramp; achievement).
+1. **Career state + localStorage + HUB + the CYOA BEAT screen** (text + 2–3 choice buttons) — no matches
+   yet, just the shell + the choose-your-own-adventure skeleton.
+2. **Stage 1 = TANK end-to-end** with its teaching card ("tank drive: each stick is a track") and
+   **win/loss BOTH advancing** to the next beat.
+3. **Wire match-end → next beat/stage** (`careerMatchEnd`, modeled on `tourMatchEnd`).
+4. **Adaptive difficulty** (skill rating → CPU tier; light story branch on performance).
+5. **Remaining stages + their drive-concept teaching beats** (arcade → field-centric → holonomic →
+   absolute-vs-relative heading), mapped to the modes that showcase them.
+6. **Branching/choices depth + unlocks + polish.**
 
 Ritual per increment is the project standard: edit → `git mv` vN→vN+1 → `sed` filename into
 `extract.sh`+`MIGRATION.md` → `./extract.sh && ./battery.sh` ALL GREEN → commit → push `dev`.
@@ -44,118 +68,236 @@ Ritual per increment is the project standard: edit → `git mv` vN→vN+1 → `s
 
 ---
 
+## 0. What changed from v1.0 (the reframe)
+
+| v1.0 (superseded) | v2.0 (this doc) |
+|---|---|
+| A "growing up through robotics" story; **school grades are the spine** (middle→high→college→grad). | **No grade spine.** A looser **driver's-journey origin story**; grades survive only as the faintest optional flavor, never the structure. |
+| **One mode per grade**, fixed order: race → ball-push → ball-shoot → tank → roborumble. | **The CONTROLS curriculum is the spine** (§2). Modes are vehicles for teaching concepts, ordered simple→complex. |
+| Opens on the **OBSTACLE RACE** in middle school. | **Opens on TANK FIGHT** — the arcade-game hook that makes you fall in love with driving. |
+| Tank was "the college dorm game." | Sam was unsatisfied with tank-as-college. **Tank is stage 1, the origin.** |
+| **Fixed difficulty ramp** ROOKIE→…→CHAMPION baked into the chapter table. | **Adaptive difficulty** — a `skill` rating moves with performance and picks the next tier (§3). |
+| Advance **only by winning** (clear a chapter to proceed). | Advance on **win OR loss**; losing branches the story (§4, §5). |
+| No mid-story choices (just intro/outro flavor cards). | **CYOA beats with 2–3 real choices** that branch concept/mode/tone (§4). |
+
+Everything reused from v1.0: the `frcds_*` localStorage JSON discipline, the `tour*` meta-shell as the
+build template, the `drawP2Nav`/`p2NavClick` match-end interception, the data-driven tables, the phased
+green-battery build order, and the code-anchor appendix (re-pointed to v5.1.251 line numbers).
+
+---
+
 ## 1. Overview & player fantasy
 
-DriveShowdown today is a **free-play** menu: pick a mode, pick a drive, configure settings, play. The
-modes are great but unconnected. **Career mode gives them a spine** — a single-player story where the
-player "grows up through robotics," and each life stage is taught by the mode that best fits it:
+DriveShowdown today is a **free-play** menu: pick a mode, pick a drive, configure, play. The modes are
+great but **nothing teaches you to use them** — a newcomer faces a wall of drivetrains (tank, arcade,
+bot-/field-centric swerve, mecanum, X-drive, kiwi, car/4-wheel steer) and a toggle called "Absolute
+Heading" with zero on-ramp. Career mode is **that on-ramp, made fun.**
 
-- **Middle school = you can barely drive.** The OBSTACLE RACE teaches control: thread the gaps, don't
-  crash, beat the clock. (Maps cleanly to the *existing* single-player obstacle-course skill + the 2P
-  race mode.)
-- **High school = you join a team.** Two seasons of the BALL game — first the gentle **PUSHER**
-  (push-ball, body-shoving — "rookie season"), then **SHOOTER** the next year (you've earned a launcher
-  — "you're a veteran now").
-- **College = the dorm video game.** TANK FIGHT, explicitly framed in-fiction as the arcade game you and
-  your hallmates play between classes. Lighter, gun-duel energy.
-- **Graduate = you've gone pro.** ROBORUMBLE — the deep combat sandbox with weapons/armor/perks. The
-  campaign's loadout unlocks all funnel here, so reaching graduate-school feels like arriving at the
-  "real" game with a kit you earned.
+**The fantasy: a driver's-journey origin story.** You're a kid who just got handed a controller. The
+first thing you touch is a **TANK** in a simple arcade-style duel — two sticks, two tracks, throttle and
+steer — and *that's the moment you fall in love with driving robots.* From there the story follows you
+**discovering and mastering** ever-richer ways to drive: you learn arcade (point-and-go), then that a
+robot can **strafe** (swerve), then the brain-bending difference between driving **relative to the robot**
+vs **relative to the field**, then exotic **holonomic** drives that move any direction at once, and
+finally the advanced idea that your right stick can set a **target heading to snap to** (absolute) instead
+of a **turn speed** (relative). Each new concept is unlocked by a stage that *naturally shows it off*, and
+the story reacts to how you do.
 
-The fantasy: **start clumsy, end a champion**, and along the way unlock drives and combat gear so the
-free-play modes get richer too. The campaign is **single-player vs CPU**, reusing the H2H CPU brains and
-the 5-tier difficulty system that already exist.
+It's **single-player vs CPU**, reusing the existing H2H CPU brains and the 5-tier difficulty system — but
+the tier is chosen **adaptively** by your skill rating, not fixed.
 
-**Coexistence with free-play:** career is a NEW front-door tile, not a replacement. The existing
-SINGLE PLAYER / MULTIPLAYER / SETTINGS splash stays. Career is its own button → its own hub. Unlocks it
-grants are additive (they widen what free-play offers); free-play remains fully playable standalone.
+**Coexistence with free-play:** career is a NEW front-door tile, not a replacement. The existing SINGLE
+PLAYER / MULTIPLAYER / SETTINGS splash stays. Career is its own button → its own hub. Anything it unlocks
+is **additive** (it widens free-play); free-play remains fully playable standalone, and the tutorial is
+**skippable for veterans** (§7 open Q).
 
 ---
 
-## 2. Progression structure
+## 2. The teaching curriculum (THE BACKBONE)
 
-### 2.1 The chapter table (a DATA-DRIVEN spine)
+This is the spine of the whole mode. Design the stage order around **CONTROLS**, simple→complex, and pick
+the mode that best *showcases* each concept. Every drive concept below is a real, in-game system — the
+grounding notes cite how it actually works in `drive_showdown_v5.1.251.html`.
 
-Define a const array `CAREER_CHAPTERS` near the other mode tables (model on `M2_MODES`, line ~5953).
-Each row is one stage. **Keep it a table so adding/reordering stages is a data edit, not a code edit.**
+### 2.1 The drive-control concepts to teach (in order)
+
+| # | Concept | What the player learns | In-game grounding (v5.1.251) |
+|---|---|---|---|
+| C1 | **TANK drive** | Each stick is a *track*. Push both = forward; split them = turn/spin in place. The raw, mechanical feel. | `DRIVES[0]` `tank` (line 88): "Left stick = Left track · Right stick = Right track". |
+| C2 | **ARCADE drive** | One stick: forward/back + turn. "Point and go." Why it's easier than tank but less expressive. | `DRIVES[1]` `arcade` (line 90): "W/S = Forward/Back, A/D = Turn". |
+| C3 | **Strafing / SWERVE (bot-centric)** | A robot can move **sideways** without turning. Translate on one stick, rotate on the other. Heading and travel direction decouple. | `botSwerve` (line 92, `DRIVES[2]`): "Strafe without turning — W points robot-forward". Stick-swap UI at line 515. |
+| C4 | **BOT-CENTRIC vs FIELD-CENTRIC** | The big one. Bot-centric: "forward" = where the robot points. Field-centric: "forward" = always up-field, no matter which way the robot faces. Why field-centric is easier once you're spun around. | `fieldSwerve` (line 94, `DRIVES[3]`): "W always moves up on field regardless of heading". `driveFieldCentric(d)` (line 164) is the literal frame test. |
+| C5 | **HOLONOMIC drives** | Drives that translate in *any* direction at will: **mecanum**, **X-drive**, **kiwi**, strafers (front/H/U). Same translate-stick + rotate-stick scheme, different mechanics/feel. | `HOLO_DRIVES` (line 98): mecanum/frontStrafer/hDrive/uDrive/xDrive/kiwi. `holoCentric` flag toggles their field/bot frame (line 994). |
+| C6 | **RELATIVE vs ABSOLUTE heading** (advanced) | The right stick can mean two things: **relative** = stick deflection is a *turn speed* (default); **absolute** = the stick's *angle* is a target facing the robot snaps toward. Twin-stick "point the robot where the stick points." | `absHeading` (line 162) + `absHeadingVr()` (line 172). Field-centric auto-enables it via `absHeadingCouple`/`driveFieldCentric` (lines 164–170); the "Absolute Heading" toggle hint at line 799. |
+| C7 *(optional/bonus)* | **STEER drives** (car / forklift / 4-wheel) | "Must be moving to turn" — Ackermann-style steering, the opposite of swerve. A fun contrast/curveball, not core. | `STEER_DRIVES` (line 113): carSteer/rearSteer/fourWheelSteer. |
+
+**Why this order:** C1→C2 are the two "you already get this from video games" drives (tank = each-track,
+arcade = point-and-go) — the gentle hook. C3 introduces the *idea* of decoupling heading from travel
+(strafing). C4 is the conceptual centerpiece (bot- vs field-centric) and only makes sense *after* you've
+felt strafing. C5 generalizes strafing to many drivetrains. C6 is the advanced right-stick concept that
+field-centric quietly turned on for you in C4 — now you learn it explicitly and can toggle it. C7 is an
+optional palate-cleanser contrast.
+
+### 2.2 Which mode showcases each concept
+
+The existing modes are the vehicles. Match each concept to the mode that *teaches it best*:
+
+| Mode (`m2.mode`) | Best teaches | Why |
+|---|---|---|
+| `tankfight` | **C1 TANK** (the hook), and a great venue for **C6 absolute heading** later (twin-stick aim). | Simple arcade duel; aiming a turret while driving is the perfect place to feel "stick angle = facing". |
+| `race` (obstacle) | **C2 ARCADE**, **C3 STRAFE**, **C7 STEER** | Threading gaps rewards precise point-and-go (arcade), then "oh I can sidestep that wall" (strafe); steer drives feel great on a course. |
+| `normal` (push-ball) | **C4 FIELD-CENTRIC** | Pushing a ball around the field while you get spun by contact is *exactly* when field-centric "up is always up-field" clicks. |
+| `shooter` (ball) | **C5 HOLONOMIC** + reinforce **C6** | Strafe-to-line-up-a-shot shows off mecanum/X/kiwi; aiming the launcher pairs with absolute heading. |
+| `battlebots` (RoboRumble) | **capstone** — combine everything | The deep combat sandbox: bring your best drive + the heading mode you like; "graduation" of the curriculum. |
+
+(This is a *recommended* mapping; the stage table §2.3 is data-driven, so Sam can re-pair freely.)
+
+### 2.3 The STAGE LIST (replaces the old school chapters)
+
+Each stage = `{ mode it launches, the drive concept(s) it teaches, the win/learn objective, how it
+connects to neighbors }`. **Stage 1 is TANK.** Stages advance on completion (win OR loss), with CYOA
+beats between them. The number/exact pairing is tunable (§7), but this is the intended simple→complex
+shape:
+
+| # | Stage id | Mode | Teaches | Drive locked/taught | Objective (the LEARN goal) | Connects to |
+|---|---|---|---|---|---|---|
+| 1 | `tank_hook` | `tankfight` | **C1 TANK** | `tank` | Drive with two tracks; win or lose a duel — the point is *falling in love with driving*. | → CYOA: "that was fun — what next?" |
+| 2 | `arcade_course` | `race` | **C2 ARCADE** | `arcade` | Point-and-go through an obstacle course; feel how arcade differs from tank. | branches from stage-1 beat |
+| 3 | `strafe_intro` | `race` *(or `normal`)* | **C3 STRAFE** | `botSwerve` | Discover strafing — sidestep a wall / line up without turning. | → the field-centric reveal |
+| 4 | `field_centric` | `normal` (push-ball) | **C4 BOT vs FIELD** | `fieldSwerve` | Get spun around pushing the ball; learn "up is always up-field." The centerpiece. | branches on whether it clicked |
+| 5 | `holo_shooter` | `shooter` | **C5 HOLONOMIC** | `mecanum`/`xDrive`/`kiwi` (player picks) | Strafe to line up shots with a holonomic drive; sample a few. | → heading lesson |
+| 6 | `heading_advanced` | `tankfight` *(or `shooter`)* | **C6 REL vs ABS heading** | any swerve/holo + `absHeading` toggle | Twin-stick: point the robot where the stick points (absolute) vs turn-speed (relative). | → capstone |
+| 7 | `capstone_rumble` | `battlebots` | **capstone** | player's choice of everything | Bring your favorite drive + heading mode to a real RoboRumble fight. Graduation. | → finale beat |
+| *(opt)* | `steer_detour` | `race` | **C7 STEER** | `carSteer`/`fourWheelSteer` | A side-detour curveball reachable via a CYOA choice — "try driving like a car." | optional branch |
+
+**Drive-lock per stage:** because each stage is *teaching one concept*, the campaign sets the player's
+drive for that stage (`m2.drive` from the stage's taught drive) so the lesson lands — see §5.2. The
+coaching card (§5) explains the concept *before* the match. Free-play stays fully open; the lock is
+career-only.
+
+---
+
+## 3. Adaptive-difficulty model (concrete, buildable)
+
+Difficulty is **not** a fixed ramp. It tracks a single persisted number — `career.skill` — that nudges up
+or down based on how you did, and maps to the existing CPU tier system.
+
+### 3.1 The skill rating
+
+- `career.skill` is a float, **range 0.0 … 4.0**, **starts at 0.5** (a touch above ROOKIE).
+- After every career match, update it from a **performance score** `perf ∈ [0,1]` derived from the result
+  (and, where cheap, the margin):
+  - **Win:** `perf = 0.75 + 0.25 * dominance` (dominance from margin if available — e.g. race time gap,
+    RoboRumble HP remaining, ball-goal differential — else 0.75).
+  - **Loss:** `perf = 0.25 * closeness` (closeness 1.0 = nail-biter, 0.0 = blowout; default 0.25).
+  - **Draw** (RoboRumble mutual KO): `perf = 0.5`.
+  - Update: `career.skill = clamp(career.skill + (perf - 0.5) * STEP, 0, 4)`, `STEP = 1.2`. So a clean win
+    pushes ~ +0.3, a blowout loss ~ −0.6, a close loss ~ −0.15. Performance moves you, but one match never
+    swings you more than ~half a tier.
+
+### 3.2 Skill → next stage's CPU tier
+
+The engine has **5 tiers** in `CPU_TIERS` (line 2232; per-mode clones `CPU_TIERS_SHOOTER/TANK/RACE/BB` at
+2245–2248), index 0 ROOKIE … 4 CHAMPION, routed by `modeTiers()` (line 2253). Map the rating to a tier
+when launching the next match:
 
 ```js
-// proposed shape — drop near M2_MODES (~line 5953)
-const CAREER_CHAPTERS = [
-  { id:'middle',  stage:'MIDDLE SCHOOL',     title:'Learning to Drive',
-    mode:'race',       tier:0/*ROOKIE*/,   matches:3, winCond:'race',   icon:'🏫', col:'#40c4ff',
-    unlock:{drive:'arcade'} },
-  { id:'hs1',     stage:'HIGH SCHOOL · YR 1', title:'Rookie Season',
-    mode:'normal',     tier:0,             matches:3, winCond:'best2of3',icon:'⚙',  col:'#44ffaa',
-    unlock:{drive:'botSwerve'} },
-  { id:'hs2',     stage:'HIGH SCHOOL · YR 2', title:'Veteran Season',
-    mode:'shooter',    tier:1/*VETERAN*/,  matches:3, winCond:'best2of3',icon:'🎯', col:'#ff8844',
-    unlock:{drive:'mecanum'} },
-  { id:'college', stage:'COLLEGE',           title:'The Dorm Champion',
-    mode:'tankfight',  tier:2/*WINNER*/,   matches:3, winCond:'best2of3',icon:'🎮', col:'#ffcc00',
-    unlock:{bbWeapon:'wedge'} },
-  { id:'grad',    stage:'GRADUATE',          title:'Turning Pro',
-    mode:'battlebots', tier:3/*CHAMPION*/, matches:5, winCond:'best3of5',icon:'🏆', col:'#ff6b6b',
-    unlock:{bbWeapon:'piston', bbPerk:'partinggift'} },
-];
+function careerTier(){                       // skill (0..4) → CPU tier index (0..4)
+  return clamp(Math.round(career.skill), 0, 4);
+}
 ```
 
-Field meaning:
-- `mode` — the exact `m2.mode` id the chapter launches (`race|normal|shooter|tankfight|battlebots`). These
-  are the SAME ids `M2_MODES` uses (line 5953), so the existing start functions just work.
-- `tier` — the CPU difficulty tier index into `CPU_TIERS` (line 2232): 0 ROOKIE → 3 CHAMPION. **This is
-  how difficulty ramps** — see §2.3.
-- `matches` — how many matches in the chapter (a short bracket-of-CPUs OR a best-of series; see §2.2).
-- `winCond` — how the chapter is cleared.
-- `unlock` — what reaching the END of this chapter grants (see §4).
-- `icon`/`col`/`stage`/`title` — hub-screen presentation.
+So a player who keeps winning climbs ROOKIE→…→CHAMPION naturally; a player who's struggling gets eased
+back down. The tier is set on the CPU claim exactly like the claim screen does today:
+`m2.claim[1] = {type:'cpu', tier: careerTier()}` (claim cpu shape lives at line ~2557; tier is read by
+`modeTiers()`/the per-mode tables). **RoboRumble bonus:** `BB_TIER_DMG` (line 2249) already scales CPU→
+human damage by tier, so the capstone auto-hits harder when your skill is high — free.
 
-### 2.2 Win conditions to advance
+### 3.3 Performance also nudges the STORY (lightly)
 
-Two simple shapes (both already exist in the engine — reuse, don't reinvent):
-
-- **`race`** (chapter 1): beat the CPU racer (the result is `r2.result === 0` = player wins). A chapter
-  can require winning N races (e.g. 3 "events") to advance — track wins in `career.matchWins`.
-- **`best2of3` / `best3of5`** (chapters 2–5): play a short series. The engine ALREADY has `p2Series`
-  (best-of series with `w[]`, `need`, `round`, `done`; see `drawP2Nav` line ~3976 and `p2SeriesStart`).
-  Career can reuse `p2Series` for the per-chapter series, OR — cleaner and more career-flavored — model
-  each chapter as a tiny **gauntlet of opponents** the way a tournament does (beat 3 CPUs in a row,
-  increasing tier). **Recommendation: a gauntlet**, because it (a) reuses the tournament "beat the next
-  opponent" loop, (b) gives natural difficulty steps inside a chapter, and (c) gives the story more
-  named rivals. Each chapter = `matches` opponents; lose and you re-try the current opponent (or the
-  chapter — a design decision for Sam, §8).
-
-**Advance rule:** clear all `matches` of a chapter → mark `career.chapter` complete, grant `unlock`,
-play the OUTRO beat, then the INTRO beat of the next chapter, then return to the hub with the next
-chapter highlighted/unlocked.
-
-### 2.3 Difficulty ramp (ties to existing CPU tiers)
-
-Difficulty is **entirely expressible through the existing tier system** — no new AI work:
-
-- The base tier per chapter is `chapter.tier` (0 ROOKIE → 3 CHAMPION), set on the CPU claim object
-  exactly like the claim screen does today: `m2.claim[1] = {type:'cpu', tier: chapter.tier}` (the same
-  shape produced at line 2557 and selected by the gamepad cycler at line 1496).
-- `modeTiers()` (line 2253) already routes to the right per-mode tier table
-  (`CPU_TIERS_SHOOTER/TANK/RACE/BB`), so a career match in any mode gets that mode's tuned difficulty for
-  free.
-- **Within a chapter**, ramp by bumping the tier per opponent in the gauntlet (e.g. chapter 4 college:
-  opponent 1 = WINNER, opponent 2 = WINNER, boss = CHAMPION). Store as a small `opps` sub-array on the
-  chapter, or compute `tier = clamp(base + matchIdx>=last ? 1 : 0, 0, 3)`.
-- **RoboRumble bonus:** `BB_TIER_DMG` (line 2249) already scales CPU→human damage by tier (ROOKIE 0.90×
-  … CHAMPION 1.10×), so the graduate chapter automatically hits harder. No extra code.
-
-The ramp across the whole campaign is therefore: ROOKIE → ROOKIE → VETERAN → WINNER → CHAMPION, which is
-a clean "you get better, so do they" curve and exercises every tier (also satisfies the existing
-**Tier Climber** achievement `alltiers`, line 308 — nice synergy).
+The same `perf` (or a coarse `result ∈ {win,loss,draw}`) sets a flag the next beat can read:
+`career.flags.lastResult = 'dominated' | 'won' | 'lost' | 'blown_out'`. CYOA beats branch on it (§4) so a
+dominant run gets a cocky narrator and a tougher fork offered, a blowout gets a "shake it off, here's a
+tip" fork. **This is how losing branches the story instead of ending it.**
 
 ---
 
-## 3. Data model
+## 4. Branching / CYOA data model
 
-### 3.1 The `career` state object
+Keep branching **modest and data-driven**: a graph of **beats**, each with text and 2–3 **choices**, each
+choice carrying an *effect* (where to go next + flags/unlocks). Conditions let a beat or choice depend on
+performance/flags/prior choices. This is the choose-your-own-adventure layer that sits *between* matches.
 
-Mirror the `tour` global (declared `let tour=null;` at line 5978). Add alongside it:
+### 4.1 `CAREER_BEATS` — the beat table
+
+```js
+// proposed — drop near M2_MODES (~line 5972). A MAP of beat-id → beat.
+const CAREER_BEATS = {
+  // ── a STORY/CHOICE beat: text + 2–3 choices that route the journey ──
+  'intro': {
+    kind:'story',
+    title:"FIRST DRIVE",
+    lines:[
+      "Someone hands you a controller and points at a robot.",
+      "\"It's a tank. Left stick is the left track, right stick is the right track. Go.\"" ],
+    choices:[
+      { label:"Let's GO (drive the tank)", goto:'stage:tank_hook' },
+      { label:"Wait — how do tracks work?", goto:'coach:C1', then:'stage:tank_hook' },
+    ],
+  },
+  // ── a COACHING beat: a teaching card shown BEFORE a stage (the tutorial heart) ──
+  'coach:C4': {
+    kind:'coach', concept:'C4',
+    title:"BOT-CENTRIC vs FIELD-CENTRIC",
+    lines:[
+      "Bot-centric: \"forward\" is wherever your robot is POINTING.",
+      "Field-centric: \"forward\" is always UP-FIELD — even when you're spun around.",
+      "You're about to get shoved around chasing a ball. Field-centric keeps 'up' = up.",
+      "Try it. If you hate it, you can flip back." ],
+    choices:[ { label:"Got it — drive", goto:'stage:field_centric' } ],
+  },
+  // ── a POST-MATCH branch beat: reads performance, forks the path ──
+  'after:tank_hook': {
+    kind:'story',
+    title:"...okay that was awesome",
+    when:{},                                   // always reachable after stage 1
+    lines:[
+      ({c})=> c.flags.lastResult==='lost'
+        ? "You got wrecked. But you were GRINNING. Yeah. You're a driver now."
+        : "You won your first duel. Welcome to robotics — it only gets weirder." ],
+    choices:[
+      { label:"Teach me to go FAST (a course)",        goto:'coach:C2', then:'stage:arcade_course' },
+      { label:"Can robots move SIDEWAYS?",             goto:'coach:C3', then:'stage:strafe_intro' },
+      { label:"Try driving like a CAR (detour)",       goto:'coach:C7', then:'stage:steer_detour',
+        when:{ flag:'lastResult', eq:'dominated' } }, // a flex option only if you crushed it
+    ],
+  },
+  // ...one 'after:<stage>' + the needed 'coach:<concept>' beats per stage (§2.3)
+};
+```
+
+**Beat shape:**
+- `kind`: `'story'` (narrative + choices that branch) · `'coach'` (a teaching card for one `concept`,
+  shown before its stage) · `'outro'`/`'finale'` (campaign end). The shared `drawCareerBeat()` renders
+  all kinds; coaching cards get a small concept badge + the "try it" framing.
+- `title`, `lines[]`: `lines` may be plain strings OR a `({c})=>string` function (gets `career` as `c`) so
+  copy can react to `flags`/`skill` without a combinatorial tree.
+- `choices[]` (1–3): each `{ label, goto, then?, when?, effect? }`.
+  - `goto`: a node ref — `'stage:<id>'` launches a stage, `'coach:<concept>'` / `'<beatId>'` go to a beat.
+  - `then`: a *follow-on* node after `goto` (e.g. `coach` then `stage`) — keeps the graph shallow.
+  - `when`: a condition (see below) — if false, the choice is hidden/greyed.
+  - `effect`: optional `{ setFlag:{...}, unlock:{...} }` applied when chosen.
+- `when` (beat-level or choice-level): `{ flag:'lastResult', eq:'dominated' }` /
+  `{ minSkill:2 }` / `{ choseBefore:'someChoiceId' }` — small declarative predicates evaluated against
+  `career`. Keep them tiny; no scripting.
+
+**The journey graph** is therefore: `intro` → (choice) → `coach:C1`? → `stage:tank_hook` (match) →
+`after:tank_hook` → (choice) → `coach:Cx` → `stage:...` → … → `finale`. Linear-ish with a few forks and an
+optional detour — **modest by design.**
+
+### 4.2 The `career` state object
+
+Mirror the `tour` global (declared `let tour=null;` at line 5997). Add alongside it:
 
 ```js
 let career=null;   // null when not in a campaign; an object while playing one
@@ -165,37 +307,38 @@ Shape (created by `careerNew()` or loaded from storage):
 
 ```js
 career = {
-  chapter:   0,          // index into CAREER_CHAPTERS — the current/active chapter
-  matchIdx:  0,          // which opponent within the chapter (0..chapter.matches-1)
-  matchWins: 0,          // wins banked in the current chapter (for race/gauntlet)
-  done:      [],         // array<bool> length = CAREER_CHAPTERS.length — chapter cleared?
-  unlocks: {             // everything the campaign has granted so far
-    drives:    [],       // drive ids unlocked (e.g. ['arcade','botSwerve'])
-    bbWeapons: [],       // RoboRumble weapon ids unlocked (e.g. ['wedge','piston'])
-    bbArmor:   [],       // armor ids
-    bbPerks:   [],       // perk ids
-    paints:    [],       // paint-job indices / cosmetic ids
+  node:    'intro',     // current position in the beat graph (a beat id, or 'stage:<id>' while a match is queued)
+  stage:   null,        // the stage id currently being played (set by startCareerMatch), else null
+  active:  false,       // a career match is in flight (transient — set in startCareerMatch, cleared in careerMatchEnd)
+  skill:   0.5,         // ADAPTIVE difficulty rating 0..4 (§3) → careerTier()
+  taught:  [],          // concepts the player has been coached on, e.g. ['C1','C2','C4'] (for "skip already-seen", progress UI)
+  cleared: [],          // stage ids completed (win OR loss) — drives hub progress + "don't re-teach"
+  choices: {},          // record of choices made: { 'after:tank_hook': 1, ... } — for `choseBefore` conditions
+  flags:   {            // story flags, incl. adaptive-story hooks
+    lastResult: null,   // 'dominated'|'won'|'lost'|'blown_out' — set by careerMatchEnd (§3.3)
   },
-  flags: {},             // story flags: {beatRivalX:true, sawIntroHs1:true, ...} — drives beats
-  drive:  null,          // the drive the player has chosen to use this campaign (career-locked, optional)
-  ver: 1,                // schema version for safe migration
+  unlocks: {            // additive reward ledger (§6) — bleeds into free-play
+    drives:[], bbWeapons:[], bbArmor:[], bbPerks:[], paints:[],
+  },
+  ver: 1,               // schema version for safe migration
 };
 ```
 
 Notes:
-- `chapter` + `done[]` together are the source of truth for "where am I." `done[]` lets the hub render
-  past chapters as completed even if the player jumps around (if revisiting is allowed — §8).
-- `unlocks` is **the persistent reward ledger**. Free-play menus consult it (see §4) so career rewards
-  bleed into the rest of the game.
-- `flags` is an open bag for story beats (§6) so beats can be conditional without schema churn.
+- `node` + `cleared[]` are the source of truth for "where am I." Progression appends to `cleared[]`
+  whether you **won or lost** — the *beat* you land on next differs (via `flags.lastResult`), but you
+  always move forward.
+- `taught[]` lets coaching cards self-skip on replay and powers a "concepts learned" progress readout.
+- `flags` is an open bag so beats stay conditional without schema churn.
+- `unlocks` is the persistent reward ledger (§6).
 
-### 3.2 localStorage persistence (follow the `frcds_*` + JSON pattern)
+### 4.3 localStorage persistence (the `frcds_*` + JSON pattern)
 
 The codebase has a consistent pattern: a key `frcds_<thing>_v<N>`, JSON-encoded, loaded once at startup
-with a try/catch fallback, saved through a tiny `saveX()` helper. Examples to copy literally:
-- achievements: `frcds_ach_v1` (line 284), `frcds_achp_v1` (line 286), saver `achSave()` (line 296)
-- custom maps: `frcds_maps_v1` (line 4845), saver `saveCustomMaps()` (line 4846)
-- RoboRumble loadout: `frcds_bbload_v1` (line 6695/6696)
+with a try/catch fallback, saved through a tiny `saveX()` helper. Copy literally:
+- achievements: `frcds_ach_v1` (line 284), saver `achSave()` (line 296)
+- custom maps: `frcds_maps_v1` (line 4859), saver `saveCustomMaps()` (line 4860)
+- RoboRumble loadout: `frcds_bbload_v1` save/load (lines 6714/6715)
 
 **Career key:** `frcds_career_v1`.
 
@@ -206,353 +349,337 @@ let careerSave = (()=>{ try{ const c=JSON.parse(localStorage.getItem('frcds_care
 function careerStore(){ try{ localStorage.setItem('frcds_career_v1', JSON.stringify(career)); }catch(e){} }
 ```
 
-`careerSave` is the *persisted* campaign (or null = no save yet). `career` is the *active* in-memory
-object. On entering the career hub: if `careerSave` exists, offer CONTINUE (load it into `career`);
-else NEW CAREER (`careerNew()` then `careerStore()`). **Call `careerStore()` after every meaningful
-state change** (match win, chapter clear, unlock grant) so progress survives a refresh — same discipline
-as `achSave()`/`saveBBLoadout()`.
-
-**Save-slot decision** is open for Sam (§8): the simplest is ONE save (single `frcds_career_v1`). Multiple
-slots would be `frcds_career_v1` holding an array — trivial to extend later because the per-campaign
-shape is self-contained.
-
----
-
-## 4. Unlocks
-
-Career rewards are **additive widenings of systems that already exist**, gated by reading
-`career.unlocks` (or the persisted `careerSave.unlocks`). Nothing about free-play breaks if career is
-never played — the unlock arrays just start empty and the gates fall through to "everything available."
-(Recommendation: in free-play, gate ONLY in career-flavored places; keep the sandbox fully open so we
-don't punish free-play users. Sam to confirm — §8.)
-
-What each chapter grants (see the `unlock` field in §2.1) and where it plugs in:
-
-| Reward type | Existing system it feeds | Where it's defined / consumed |
-|---|---|---|
-| **Drive types** | `DRIVES` (line 87), `HOLO_DRIVES` (98), `STEER_DRIVES` (113) | The drive picker (`p2drive` phase). Career grants the family progressively: arcade → swerve → mecanum/holonomic → … so the player "earns" fancier drivetrains, matching the FRC fiction (a rookie team runs tank/arcade; a top team runs swerve). |
-| **RoboRumble weapons** | `BB_WEAPONS` (line 4039), armory chips `BB_ARMORY_W` (4118) | The graduate chapter + late rewards. Unlocked weapons appear in the armory rail; locked ones could be hidden/greyed in a career-aware armory. The CANNON precedent (cheat-gated, hidden until unlocked) is the exact mechanism to copy. |
-| **RoboRumble armor** | `BB_ARMOR` (line 4054) | Same — armor chips `BB_ARMORY_A`. |
-| **RoboRumble perks** | `BB_PERKS` (line 4150), pick list `BB_PERKS_PICK` | Same — perk chips. |
-| **Paint / cosmetics** | `PAINT_JOBS` (line 4459), `ACCENT_COLS` (4470) | Cosmetic-only rewards (livery for clearing a chapter). The 🎨 paint picker (v5.1.232) already cycles `ld.paint`; career can grant additional palette entries / a "campaign livery." |
-
-**Loadout tie-in:** the player's RoboRumble loadout already persists in `frcds_bbload_v1`
-(`saveBBLoadout`/`loadBBLoadout`, line 6695). Career unlocks should expand the POOL the armory offers;
-the player still equips via the existing armory UI. For the graduate chapter, seed `m2.bbLoadout` from
-the campaign's earned weapons so the final stage feels like "use the kit you built."
-
-**Drive lock (optional, §8):** Sam may want the campaign to lock the player to ONE drive they chose at
-the start (`career.drive`), to emphasize "mastering your robot." Easy to support — set `m2.drive[0]` from
-`career.drive` when launching a career match instead of showing `p2drive`. Default OFF (let them pick).
+`careerSave` is the *persisted* campaign (or null). `career` is the *active* in-memory object. On entering
+the career hub: if `careerSave` exists → offer CONTINUE (load it into `career`); else NEW (`careerNew()` →
+`careerStore()`). **Call `careerStore()` after every meaningful change** (match end, choice made, concept
+taught, unlock granted) so progress survives a refresh — same discipline as `achSave()`/`saveBBLoadout()`.
+One save slot is the default (single `frcds_career_v1`); slots = wrap in an array later (§7).
 
 ---
 
 ## 5. Screens / phases needed
 
-Career adds a small set of new `phase` values. **Each new screen reuses the existing draw/click chrome
-and dispatch pattern** — there is one `draw()` switch that early-returns per phase (e.g. lines 6892–6895
-for the tournament phases) and one click dispatcher that routes per phase (e.g. line 6581 routes all
-`p2t*` phases to `tourClick`). Career follows the identical shape.
+Career adds a small set of new `phase` values. **Each reuses the existing draw/click chrome and dispatch
+pattern** — there is one `draw()` switch that early-returns per phase and one click dispatcher that routes
+per phase (the tournament's `p2t*` phases are the template; the click dispatcher is around line 6628's
+neighborhood, the draw dispatch near the tour draw entry). Career follows the identical shape, reusing
+`p2Chrome` (line 6851) for header/ESC.
 
 | New phase | Screen | Draw fn (new) | Click fn (new) | Models on |
 |---|---|---|---|---|
-| `'p2career'` | **Career HUB / MAP** — the stage map: 5 chapter nodes (middle→grad), current one highlighted, completed ones checked, a CONTINUE/NEW button, back to splash. | `drawCareerHub()` | `careerHubClick()` | `drawTourBracket` (line 6341) for the "overview of a multi-stage journey" layout; `p2Chrome` (line 6831) for header/ESC. |
-| `'p2cintro'` | **Chapter INTRO / story beat** — a card with stage art + a few lines of flavor + "▶ START". | `drawCareerBeat()` (shared) | `careerBeatClick()` | A simple full-screen text card; reuse `p2Chrome` + `btn()`. |
-| `'p2coutro'` | **Chapter OUTRO / unlock reveal** — "You graduated high school!" + the reward earned + "▶ CONTINUE". | `drawCareerBeat()` (shared, beat type='outro') | `careerBeatClick()` | Same card; show `unlock` granted with a small flourish (reuse the achievement-toast style, `drawAchToast` line ~8209). |
+| `'p2career'` | **Career HUB / INTRO** — NEW/CONTINUE; a journey readout (concepts learned, current skill, stages cleared); back to splash. | `drawCareerHub()` | `careerHubClick()` | `drawTourBracket` (line 6360) for "overview of a journey"; `p2Chrome`. |
+| `'p2cbeat'` | **CYOA BEAT screen** — the heart of the between-match layer: title + `lines[]` + **2–3 choice buttons**. Also renders `coach` cards (concept badge + "try it") and `outro`/`finale`. | `drawCareerBeat()` (shared) | `careerBeatClick()` | A full-screen text card; `p2Chrome` + `btn()` for choices. |
 
 Notes:
-- **One shared beat renderer** `drawCareerBeat()` takes the current beat object (from the beat table,
-  §6) and renders title/lines/button. The intro and outro phases differ only by which beat they pull —
-  keep the draw code single.
-- Career does NOT need new in-match phases. **Matches run in the existing `p2race`/`p2ball`/`p2tank`/
-  `p2bb` phases.** Career just (a) configures `m2` before calling the existing `startP2Race` /
-  `startP2Ball` / `startP2Tank` / `startP2BB` (lines 5850 / 2559 / 3339 / 4326), and (b) intercepts the
-  result on the way out (next section).
-- **Front-door tile:** add a CAREER button to the splash screen (the SINGLE/MULTIPLAYER split is around
-  line 978). Clicking it sets `phase='p2career'` and ensures `career`/`careerSave` are initialized.
+- **One shared beat renderer** `drawCareerBeat(beat)` handles `story` / `coach` / `outro` / `finale` by
+  branching on `beat.kind`. Story = lines + choice buttons; coach = a "HERE'S THE CONCEPT… try it" card
+  with one or two buttons (usually a single "drive" plus maybe "explain more"); outro/finale = celebrate +
+  CONTINUE. **Keep the draw code single** — the data drives the variation.
+- **Coaching cards are the tutorial.** Before a concept's first stage, its `coach:<C#>` beat delivers the
+  short teaching ("here's what bot-centric vs field-centric means, try it"). Mark the concept in
+  `career.taught` so it doesn't re-teach.
+- Career needs **NO new in-match phases.** Matches run in the existing
+  `p2race`/`p2ball`/`p2tank`/`p2bb` phases. Career just (a) configures `m2` + the drive-lock + the
+  adaptive tier before calling the existing start fn, and (b) intercepts the result on the way out (§5.1).
+- **Front-door tile:** add a CAREER button to the splash (the SINGLE/MULTIPLAYER split lives near the
+  splash draw/click around line ~978/994). Clicking it sets `phase='p2career'` and ensures
+  `career`/`careerSave` are initialized.
 
-### 5.1 The match-end interception (the keystone)
+### 5.1 The match-end interception (the keystone — win OR loss advances)
 
-This is the one wiring detail that makes the whole shell work, and the tournament shows EXACTLY how.
-
-Today, after a match, `drawP2Nav` (line 3976) shows a "▶ CONTINUE BRACKET" button **iff `tour` is
-active**, and `p2NavClick` (line 4003) reads the result and calls `tourMatchEnd(w)`. The result is read
-uniformly across modes at line 4011:
+The tournament shows EXACTLY how. After a match, `drawP2Nav` (line 3976) shows a "▶ CONTINUE…" button iff
+`tour` is active, and `p2NavClick` (line 4003) reads the result and calls `tourMatchEnd(w)`. The result is
+read uniformly across modes at **line 4009**:
 
 ```js
-const w = r2?r2.result : tf2?tf2.result : bb2?bb2.result : b2.result;  // 0 | 1 | 'draw'
+const w = r2 ? r2.result : tf2 ? tf2.result : bb2 ? bb2.result : b2.result;   // 0 | 1 | 'draw'
 ```
 
-**Career mirrors this exactly.** Add a parallel branch:
-- In `drawP2Nav`: `if(career && career.active){ show "▶ CONTINUE CAREER"; return; }` (place the check
-  alongside the `if(tour && ...)` branch, before the `p2Series`/REMATCH default).
-- In `p2NavClick`: when that button is clicked, read `w` the same way and call **`careerMatchEnd(w)`**.
+**Career mirrors this — but advances on win OR loss.** Add a parallel branch:
+- In `drawP2Nav`: `if(career && career.active){ show "▶ CONTINUE STORY"; return; }` (place alongside the
+  `if(tour && (tour.cur||tour.qual))` branch, before the `p2Series`/REMATCH default).
+- In `p2NavClick`: when that button is clicked, read `w` the same way and call **`careerMatchEnd(w)`** —
+  and DON'T early-return on a non-win; even a loss routes onward.
 
-`careerMatchEnd(side)` (the new router, modeled 1:1 on `tourMatchEnd`, line 6153):
+`careerMatchEnd(side)` (the new router, modeled on `tourMatchEnd`, line 6172):
+
 ```js
 function careerMatchEnd(side){
-  const ch = CAREER_CHAPTERS[career.chapter];
   const playerWon = (side === 0);             // career player is always RED / side 0
-  if(playerWon){
-    career.matchWins++; career.matchIdx++;
-    if(career.matchIdx >= ch.matches){        // chapter cleared
-      career.done[career.chapter] = true;
-      careerGrantUnlock(ch.unlock);           // push into career.unlocks (§4)
-      careerStore();
-      career.active=false; r2=tf2=bb2=null; b2Teardown(); applyLayout('land2p');
-      phase='p2coutro';                        // outro/unlock reveal → then hub → next chapter intro
-      return;
-    }
-  } else {
-    // loss: retry current opponent (or chapter) — see §8 retry policy
-    career.matchWins = 0;
-  }
+  const isDraw    = (typeof side !== 'number');
+  // 1) PERFORMANCE → skill rating + story flag (§3)
+  const perf = isDraw ? 0.5 : playerWon ? (0.75 + 0.25*careerDominance()) : (0.25*careerCloseness());
+  career.skill = clamp(career.skill + (perf - 0.5)*1.2, 0, 4);
+  career.flags.lastResult = isDraw ? 'won'
+      : playerWon ? (perf>0.9?'dominated':'won')
+      : (perf<0.1?'blown_out':'lost');
+  // 2) mark the stage cleared (WIN OR LOSS — progression is by completion, not winning)
+  const st = career.stage;
+  if(st && !career.cleared.includes(st)) career.cleared.push(st);
+  careerGrantUnlock(careerStageUnlock(st));   // any unlock tied to *finishing* the stage (§6)
+  // 3) tear the match down (same as the tournament) and go to the NEXT beat
+  career.active=false; career.stage=null; r2=tf2=bb2=null; b2Teardown(); applyLayout('land2p');
+  career.node = careerNextNode(st);           // e.g. 'after:tank_hook' (a branch beat that reads lastResult)
   careerStore();
-  career.active=false; r2=tf2=bb2=null; b2Teardown(); applyLayout('land2p');
-  phase='p2career';                            // back to hub; player picks "continue" to play next match
+  phase='p2cbeat';                            // → the CYOA beat that forks on win/loss
 }
 ```
 
-(`career.active` is a transient "a career match is in flight" flag — same role `tour.cur` plays for the
-tournament. Set it true in `startCareerMatch`, clear it here.)
+(`career.active` is the transient "a career match is in flight" flag — same role `tour.cur` plays.
+`careerDominance()`/`careerCloseness()` read the just-finished mode's margin where cheap — race time gap,
+`bb2` HP, ball goal diff — else return a neutral default. `careerNextNode(stageId)` returns the
+`after:<stage>` beat id from the stage table.)
 
-### 5.2 Launching a career match
+### 5.2 Launching a career match (drive-lock + adaptive tier)
 
-A small launcher `startCareerMatch()` configures `m2` then calls the existing start fn:
+A small launcher `startCareerMatch(stageId)` configures `m2` then calls the existing start fn:
+
 ```js
-function startCareerMatch(){
-  const ch = CAREER_CHAPTERS[career.chapter];
-  career.active = true;
-  m2.mode = ch.mode;
-  m2.set  = {...M2_SET_DEFAULTS};              // sane per-mode defaults (line 5967)
-  // (optionally tweak m2.set here per chapter, e.g. bestOf, bbmode='ko', etc.)
-  m2.claim = [ {type:'human', name:'YOU'}, {type:'cpu', tier: careerOppTier(ch)} ];  // §2.3
-  if(career.drive) m2.drive = [career.drive, career.drive];   // optional drive-lock (§4)
-  switch(ch.mode){
-    case 'race':       startP2Race(); break;   // line 5850
+function startCareerMatch(stageId){
+  const st = CAREER_STAGES[stageId];          // the stage row (§2.3 as a data table)
+  career.stage = stageId; career.active = true;
+  m2.mode = st.mode;
+  m2.set  = {...M2_SET_DEFAULTS};              // sane per-mode defaults (line 5986); tweak per stage if needed
+  m2.claim = [ {type:'human', name:'YOU'}, {type:'cpu', tier: careerTier()} ];   // ADAPTIVE tier (§3.2)
+  if(st.drive) careerSetDrive(0, st.drive);   // DRIVE-LOCK the lesson (set m2.drive[0]); see p2cSetDrive (line 6694)
+  if(st.absHeading!=null) absHeading = st.absHeading; // C6 stage can pre-set the heading mode to demo it
+  switch(st.mode){
+    case 'race':       startP2Race(); break;   // line 5869
     case 'normal':
     case 'shooter':    startP2Ball(); break;   // line 2559 (mode read from m2.mode)
     case 'tankfight':  startP2Tank(); break;   // line 3339
-    case 'battlebots': startP2BB();   break;   // line 4326
+    case 'battlebots': startP2BB();   break;   // line 4331
   }
 }
 ```
-`careerOppTier(ch)` returns `ch.tier` (optionally bumped on the chapter's last/boss opponent, §2.3).
-The career player occupies side 0 (RED); the CPU is side 1 (BLUE) — matching the claim-screen convention.
+
+`careerSetDrive(0, driveId)` resolves a drive id (`tank`/`arcade`/`botSwerve`/`fieldSwerve`/`mecanum`/…)
+to the `m2.drive[0]` `{kind,idx,...}` shape via `DGROUPS` (line 6690) + `p2cSetDrive` (line 6694) — which
+ALSO calls `absHeadingCouple(driveFieldCentric(...))`, so picking a field-centric drive *automatically*
+turns on absolute heading, exactly mirroring the lesson in C4→C6. The career player occupies side 0
+(RED); the CPU is side 1 (BLUE).
+
+(`CAREER_STAGES` is the §2.3 table as data — keyed by stage id — so adding/reordering stages is a data
+edit, like `M2_MODES` at line 5972.)
 
 ---
 
-## 6. Story / narrative beats
+## 6. Unlocks
 
-Keep beats **modular and data-driven** (a table, like everything else), so Sam can edit copy without
-touching logic. Tone: fun, FRC-robotics-flavored, lightly self-aware — matching the existing in-game
-copy ("push the rear, guard your front", the easter-egg achievements "Autobots, Roll Out").
+Unlocks are **additive widenings of systems that already exist**, gated by reading `career.unlocks`.
+Nothing about free-play breaks if career is never played — the arrays start empty and gates fall through
+to "everything available." Keep free-play fully open unless Sam wants it gated (§7).
 
-```js
-// proposed — a beats table keyed by chapter id + slot ('intro'|'outro')
-const CAREER_BEATS = {
-  middle: {
-    intro: { title:"MIDDLE SCHOOL", lines:[
-      "Your robotics club just handed you a controller for the first time.",
-      "It has two sticks and absolutely no chill.",
-      "Get through the obstacle course without redecorating the gym walls." ] },
-    outro: { title:"YOU PASSED DRIVER TRYOUTS", lines:[
-      "Coach is impressed. Mostly that you stopped hitting things.",
-      "Unlocked: ARCADE DRIVE — point and go.",
-      "High school is next. There's a ball involved." ] },
-  },
-  hs1: {
-    intro: { title:"HIGH SCHOOL · ROOKIE SEASON", lines:[
-      "Welcome to the JV team. Strategy this year: SHOVE THE BALL.",
-      "No launcher yet — you push it through the goal with your face.",
-      "(The robot's face. Probably.)" ] },
-    outro: { title:"ROOKIE BANNER EARNED", lines:[
-      "You pushed your way to a winning record.",
-      "Unlocked: SWERVE DRIVE — strafe like you mean it.",
-      "Next year they trust you with a launcher." ] },
-  },
-  hs2: {
-    intro: { title:"HIGH SCHOOL · VETERAN SEASON", lines:[
-      "You've earned a SHOOTER. Aim, launch, score.",
-      "The freshmen look up to you now. Don't airball." ] },
-    outro: { title:"REGIONAL CHAMPIONS", lines:[
-      "Banner secured. Recruiters are watching.",
-      "Unlocked: HOLONOMIC DRIVE.",
-      "Off to college — where the robots are, uh, virtual." ] },
-  },
-  college: {
-    intro: { title:"COLLEGE", lines:[
-      "Turns out the dorm's favorite game is TANK FIGHT.",
-      "It's you, your hallmates, and a bracket scrawled on a whiteboard.",
-      "Win the floor. For honor. And bragging rights." ] },
-    outro: { title:"DORM CHAMPION", lines:[
-      "Undefeated on Floor 3. They'll tell stories.",
-      "Unlocked: a RoboRumble WEAPON for what comes next.",
-      "After graduation... the pros." ] },
-  },
-  grad: {
-    intro: { title:"GRADUATE — TURNING PRO", lines:[
-      "This is ROBORUMBLE. Real weapons, real armor, real damage.",
-      "Everything you unlocked, you bring here. Build your machine.",
-      "Beat the champion. Become the champion." ] },
-    outro: { title:"CAREER COMPLETE", lines:[
-      "From a kid who couldn't drive to the RoboRumble champ.",
-      "The whole roster is yours. Go wreck free-play.",
-      "🏆 Achievement: 'From the Pits to the Podium'." ] },
-  },
-};
-```
+| Reward type | Existing system it feeds | Where defined / consumed |
+|---|---|---|
+| **Drive types** | `DRIVES` (line 87), `HOLO_DRIVES` (98), `STEER_DRIVES` (113), grouped in `DGROUPS` (6690) | The drive picker. Career *teaches* drives in curriculum order; finishing the stage that taught a drive can also mark it "mastered" in the ledger (a nice trophy even though free-play already has them). |
+| **RoboRumble weapons** | `BB_WEAPONS` (4039), armory chips `BB_ARMORY_W` (4118) | Capstone + late rewards; unlocked weapons appear in the armory rail. The CANNON precedent (hidden-until-unlocked) is the mechanism to copy. |
+| **RoboRumble armor / perks** | `BB_ARMOR` (4054) / `BB_PERKS` (4150), chips `BB_ARMORY_A` (4119) / `BB_PERKS_PICK` (4162) | Same — armory/perk chips. |
+| **Paint / cosmetics** | `PAINT_JOBS` (4473), the 🎨 paint picker | Cosmetic-only rewards (a "campaign livery" for finishing a stage/the story). |
 
-- `drawCareerBeat()` renders `title` big + `lines[]` stacked + a "▶ START" / "▶ CONTINUE" button.
-- Beats are **skippable** (a SKIP button + remember in `career.flags` so re-entering a chapter doesn't
-  replay them) — confirm with Sam (§8).
-- The final outro can fire a new **achievement** (add an entry to `ACH_DEFS`, line 267, e.g.
-  `{id:'careerwin', name:'From the Pits to the Podium', ...}` and `achUnlock('careerwin')` in
-  `careerMatchEnd` when the grad chapter clears) — reusing the achievements infra wholesale.
+**Loadout tie-in:** the player's RoboRumble loadout persists in `frcds_bbload_v1`
+(`saveBBLoadout`/`loadBBLoadout`, lines 6714/6715). For the **capstone** stage, seed `m2.bbLoadout` from
+the campaign's earned weapons so the finale feels like "use the kit you built."
+
+Because progression is by completion (not winning), unlocks are tied to **finishing** a stage, not winning
+it — losing still earns the trophy/livery and still teaches the concept.
 
 ---
 
 ## 7. Phased build plan
 
 Each phase is **independently shippable** (a green `./battery.sh`) and listed in dependency order. For
-each: the key functions to add and the integration points (file = the single HTML `<script>`).
+each: key functions to add + integration points (file = the single HTML `<script>`; line anchors are
+v5.1.251).
 
-### Phase 1 — Career shell: state + storage + HUB screen
-*Goal: a NEW CAREER / CONTINUE front door and a hub that shows the 5 chapters. No matches yet.*
-- **Add:** `let career=null;` (near line 5978), `let careerSave=…` loader + `careerStore()` (near line
-  284, the load block), `careerNew()` (init the object from §3.1), the `CAREER_CHAPTERS` table (near
-  5953), the `CAREER_BEATS` table (§6).
-- **Add phase `'p2career'`** + `drawCareerHub()` (model `drawTourBracket` + `p2Chrome`) and
-  `careerHubClick()`.
-- **Integrate:** splash gets a CAREER tile (~line 978 area); `draw()` switch gets a `p2career` branch
-  (alongside the tournament branches ~6892); click dispatcher routes `p2career` to `careerHubClick`
-  (alongside ~6581).
-- **Tests:** a new smoke (or extend an existing menu suite) asserting `careerNew()` shape, `careerStore`/
-  load round-trip through localStorage (the harness can stub localStorage as the map-editor/ach tests
-  do), hub renders without throwing.
+### Phase ① — Career shell: state + storage + HUB + the CYOA BEAT screen
+*Goal: a NEW/CONTINUE front door, a hub, and a working choose-your-own-adventure beat screen (text + 2–3
+choices). NO matches yet — the `goto:'stage:…'` just stubs/logs.*
+- **Add:** `let career=null;` (near 5997), `let careerSave=…` loader + `careerStore()` (near 284),
+  `careerNew()` (init §4.2), the `CAREER_STAGES` table (near 5972) and `CAREER_BEATS` map (§4.1).
+- **Add phases** `'p2career'` (+ `drawCareerHub` / `careerHubClick`) and `'p2cbeat'` (+ shared
+  `drawCareerBeat` / `careerBeatClick`). `careerBeatClick` evaluates a choice's `when`, applies `effect`,
+  and follows `goto`/`then` (beat→beat; `stage:` stubbed this phase).
+- **Integrate:** splash gets a CAREER tile (~978/994); `draw()` dispatch gets `p2career`/`p2cbeat`
+  branches (alongside the tour branches); click dispatcher routes them (alongside the `p2t*` route).
+- **Tests:** new smoke — `careerNew()` shape; `careerStore`/load round-trip through a stubbed localStorage
+  (as the map-editor/ach tests do); a beat renders; choosing a choice advances `career.node` and records
+  it in `career.choices`; a `when`-gated choice hides when its condition is false.
 
-### Phase 2 — Chapter 1 end-to-end (obstacle race)
-*Goal: from the hub, launch chapter 1, play a real race, and SEE a win/loss outcome.*
-- **Add:** `startCareerMatch()` (§5.2), `careerOppTier()`. Wire the hub's "▶ START / CONTINUE" to call
-  the chapter intro (`p2cintro`) → `startCareerMatch()`.
-- **Add phases `'p2cintro'`** + shared `drawCareerBeat()` + `careerBeatClick()`.
-- **Integrate:** `startCareerMatch` sets `m2.mode='race'`, claim = human vs ROOKIE cpu, calls
-  `startP2Race()` (line 5850).
-- **Tests:** smoke that runs `careerNew` → start chapter 1 → assert `phase==='p2race'`, `r2` exists,
-  `m2.claim[1].tier===0`.
+### Phase ② — Stage 1 = TANK end-to-end (the hook), win/loss both advance
+*Goal: from the hub/intro beat, get coached on TANK, play a real `tankfight` match, and land on the next
+beat whether you win or lose.*
+- **Add:** `startCareerMatch(stageId)` (§5.2), `careerSetDrive()` (wraps `p2cSetDrive`/`DGROUPS`),
+  `careerTier()` (§3.2 — fixed at this phase; adaptive in ④). Wire `goto:'stage:tank_hook'` to call
+  `startCareerMatch('tank_hook')`.
+- **Coaching:** the `coach:C1` card ("tank drive: left stick = left track…") shows before the match;
+  mark `career.taught.push('C1')`.
+- **Integrate:** `startCareerMatch` sets `m2.mode='tankfight'`, drive-locks `tank`, claim = human vs cpu,
+  calls `startP2Tank()` (line 3339).
+- **Tests:** smoke — `careerNew` → follow `intro` → `stage:tank_hook` → assert `phase==='p2tank'`, `tf2`
+  exists, `m2.drive[0]` is tank, `m2.claim[1].type==='cpu'`.
 
-### Phase 3 — Wire match-end back to the hub + advance
-*Goal: winning a chapter-1 match advances the career; losing retries.*
-- **Add:** `careerMatchEnd(side)` (§5.1), `careerGrantUnlock(unlock)` (push into `career.unlocks`),
-  `careerActive` flag handling.
-- **Integrate:** `drawP2Nav` (line 3976) gets a `if(career&&career.active)` branch showing
-  "▶ CONTINUE CAREER"; `p2NavClick` (line 4003) reads `w` (the existing line-4011 expression) and calls
-  `careerMatchEnd(w)`. Add `'p2coutro'` phase (reuses `drawCareerBeat`).
-- **Tests:** smoke that simulates `r2.result=0` → `careerMatchEnd(0)` advances `matchIdx`/clears the
-  chapter at the threshold → `phase==='p2coutro'`; `result=1` → retry path. Round-trip persists via
+### Phase ③ — Wire match-end → next beat (the router)
+*Goal: finishing the tank match (win OR loss) routes to the right `after:tank_hook` fork.*
+- **Add:** `careerMatchEnd(side)` (§5.1), `careerNextNode(stageId)`, `careerGrantUnlock()` (push into
+  `career.unlocks`), `careerStageUnlock()`.
+- **Integrate:** `drawP2Nav` (3976) gets a `if(career&&career.active)` branch → "▶ CONTINUE STORY";
+  `p2NavClick` (4003) reads `w` (the existing **line-4009** expression) and calls `careerMatchEnd(w)` for
+  BOTH win and loss (and `'draw'`).
+- **Tests:** smoke — simulate `tf2.result=0` (win) and `=1` (loss); BOTH push `tank_hook` to
+  `career.cleared` and set `phase==='p2cbeat'`; `career.flags.lastResult` differs; round-trips via
   `careerStore`.
 
-### Phase 4 — Remaining chapters 2–5
-*Goal: all five stages playable, each launching the right mode at the right tier.*
-- **Mostly DATA:** the `CAREER_CHAPTERS` rows already name the mode + tier; `startCareerMatch`'s switch
-  already routes to `startP2Ball`/`startP2Tank`/`startP2BB`. Verify each mode's `m2.set` is sane for
-  career (e.g. ball `format`, RoboRumble `bbmode:'ko'`, lives). Add any per-chapter `m2.set` overrides.
-- **Integrate:** confirm the result expression covers `bb2.result==='draw'` → treat as no-advance
-  (rematch), exactly like the tournament's draw guard.
-- **Tests:** extend the smoke to walk all 5 chapters to completion (assert mode per chapter, tier ramp,
-  `career.done` all true, final `phase` is the grad outro / hub).
+### Phase ④ — Adaptive difficulty (skill rating → tier; story nudge)
+*Goal: difficulty + story tone respond to performance.*
+- **Add:** the §3 skill update inside `careerMatchEnd` (perf from result + `careerDominance`/
+  `careerCloseness`); make `careerTier()` read `career.skill`; set `career.flags.lastResult` for beats.
+- **Integrate:** the per-mode margin readers (race time gap, `bb2` HP remaining, ball goal diff) feed
+  `careerDominance`/`careerCloseness`; `BB_TIER_DMG` (2249) gives the capstone its free damage ramp.
+- **Tests:** smoke — a string of wins raises `skill` and bumps `careerTier()`; a blowout loss lowers it;
+  `skill` clamps to [0,4]; a dominant result sets `lastResult==='dominated'` and a `when:{flag…}` choice
+  appears.
 
-### Phase 5 — Unlocks wired into the game
-*Goal: clearing a chapter actually GRANTS drives/weapons/perks/paint and they appear where used.*
-- **Add:** `careerGrantUnlock` populates `career.unlocks.{drives,bbWeapons,bbArmor,bbPerks,paints}`.
-- **Integrate (read-side):** career-aware gating where loadout/drive pools are built — the drive picker
-  (`p2drive`), the armory chip builders (`BB_ARMORY_W/A`, `BB_PERKS_PICK` ~line 4118), and the paint
-  cycler. **Keep free-play fully open** unless Sam wants free-play gated (§8); the in-campaign armory can
-  show only-unlocked. Seed the grad loadout from `career.unlocks` into `m2.bbLoadout`.
-- **Tests:** smoke asserting each chapter's `unlock` lands in `career.unlocks`; an unlocked weapon id is
-  present in the career armory pool.
+### Phase ⑤ — Remaining stages + their drive-concept teaching beats
+*Goal: the full curriculum C2→C7 playable, each stage launching the right mode + drive + coaching card.*
+- **Mostly DATA:** add the `CAREER_STAGES` rows (arcade_course, strafe_intro, field_centric, holo_shooter,
+  heading_advanced, capstone_rumble, optional steer_detour) and their `coach:C#` + `after:<stage>` beats.
+  `startCareerMatch`'s switch already routes every mode.
+- **Integrate:** verify per-mode `m2.set` is sane for each stage (ball `format`, RoboRumble
+  `bbmode:'ko'`, lives); the C4 field-centric stage relies on `careerSetDrive` auto-coupling absolute
+  heading (via `p2cSetDrive`→`absHeadingCouple`); the C6 stage pre-sets `absHeading` to demo rel-vs-abs.
+- **Tests:** extend the smoke to walk the whole curriculum to the finale (assert mode + taught concept +
+  drive per stage; `career.taught` contains C1..C6; final node is the finale beat).
 
-### Phase 6 — Story beats + polish
-*Goal: intros/outros from the beat table, skip handling, the campaign-complete achievement, ramp polish.*
-- **Add:** finalize `CAREER_BEATS` copy; `drawCareerBeat()` renders intro vs outro; SKIP + `career.flags`
-  remember-seen; `ACH_DEFS` entry `careerwin` + `achUnlock('careerwin')` on grad clear; per-opponent tier
-  bump (boss = +1 tier) inside `careerOppTier`.
-- **Integrate:** outro reveals the unlock with an achievement-toast-style flourish (`drawAchToast`
-  pattern ~8209). Hub shows completed chapters checked and the unlock ledger.
-- **Tests:** beats render; achievement fires once (idempotent — `achUnlock` self-guards); SKIP sets the
-  flag.
-
----
-
-## 8. Risks / open questions for Sam
-
-1. **One save vs multiple slots?** Plan assumes ONE `frcds_career_v1`. Slots = wrap in an array (easy to
-   add later; the per-campaign shape is self-contained). Pick before Phase 1.
-2. **Retry policy on a loss:** retry the current OPPONENT (gentle) or restart the whole CHAPTER (stakes)?
-   Plan defaults to retry-opponent. Also: is there ever a "game over"/permadeath, or always retry?
-3. **Skippable story?** Plan makes beats skippable + remembered. Confirm you want a SKIP, and whether to
-   auto-skip already-seen beats on replay.
-4. **Does career LOCK free-play?** Plan keeps free-play fully open (unlocks only widen, never restrict
-   the sandbox). If you'd rather free-play *also* gate behind career unlocks, that's a bigger,
-   more controversial change — say the word.
-5. **Drive-lock per campaign?** Optional `career.drive` to force one drivetrain ("master your robot")
-   vs. letting the player pick each match. Default OFF.
-6. **Chapter length / `matches` count:** 3 per chapter (5 for grad) is a guess. Longer = more story, more
-   grind. Tune the `matches` field.
-7. **Difficulty:** the ramp ROOKIE→CHAMPION is aggressive at the end (graduate = CHAMPION + 1.10× damage).
-   Is "graduate school is brutally hard" the intended feel, or should it cap at WINNER?
-8. **RoboRumble loadout for the grad chapter:** auto-equip the earned kit, or make the player build it in
-   the armory first (more agency, more friction)?
-9. **Map variety:** should chapters force specific arenas (career flavor) or use defaults/RANDOM? The map
-   gallery + `bbMapObj` resolver already support per-match maps if we want themed arenas.
-10. **Coexistence framing on the splash:** CAREER as a third top-level tile next to SINGLE/MULTIPLAYER,
-    or nested under SINGLE PLAYER? Plan assumes a peer tile.
+### Phase ⑥ — Branching/choices depth + unlocks + polish
+*Goal: the CYOA forks feel meaningful; unlocks land; a finale + achievement; coaching self-skips on
+replay.*
+- **Add:** the optional `steer_detour` fork + any flex choices gated on `dominated`; `careerGrantUnlock`
+  populates `unlocks.{drives,bbWeapons,bbArmor,bbPerks,paints}` and the capstone seeds `m2.bbLoadout`; a
+  finale beat + an `ACH_DEFS` entry (e.g. `{id:'careerwin', name:'First Driver'}`) fired via
+  `achUnlock('careerwin')` (line 298, self-guards); coaching cards skip when the concept is in
+  `career.taught` (a SKIP button + remember).
+- **Integrate:** outro/finale reveals unlocks with the achievement-toast flourish (`drawAchToast`, line
+  8229); the hub shows concepts learned + current skill + stages cleared.
+- **Tests:** beats/forks render; a gated choice appears only under its condition; the achievement fires
+  once (idempotent); SKIP marks the concept taught.
 
 ---
 
-## 9. Why this is low-risk to build
+## 8. Narrative tone samples
+
+Fun, FRC-robotics-flavored, lightly self-aware (matching the in-game voice — "push the rear, guard your
+front", "Autobots, Roll Out"). Coaching beats teach for real; story beats branch.
+
+**Sample 1 — the HOOK (stage-1 intro, `kind:'story'`):**
+> **FIRST DRIVE**
+> Someone shoves a controller into your hands and points at a squat little robot.
+> "It's a tank. Left stick runs the left track, right stick runs the right track. Both up = forward.
+> One up, one down = spin. That's the whole manual. Go win."
+> There's another bot across the field. It does not look friendly.
+> — ▶ Drive the tank
+> — ▶ Wait, how do tracks even work? *(→ a 10-second coaching card, then drive)*
+
+**Sample 2 — a COACHING beat (`kind:'coach'`, concept C6 — the advanced heading lesson):**
+> **HEADING: TURN-SPEED vs POINT-TO-FACE**
+> Your right stick can mean two different things.
+> **Relative (default):** how far you push = how *fast* you spin. Like steering with a throttle.
+> **Absolute:** the *direction* you push the stick = the direction the robot snaps to face. Point the
+> stick north, the bot turns north and holds it. Twin-stick shooter energy.
+> Field-centric quietly switched you to Absolute back when you learned "up is always up-field." Now you
+> know why. We turned it ON for this fight — flick it back anytime with the toggle.
+> — ▶ Let's aim something
+
+**Sample 3 — a POST-MATCH branch beat (`kind:'story'`, reads `flags.lastResult`):**
+> **...okay, that was awesome** *(loss variant: "you got wrecked — and you were grinning")*
+> You won your first duel / You ate the floor, but you learned the bot. Either way: you're a driver now.
+> Where to?
+> — ▶ Teach me to go FAST (an obstacle course) *(→ coach C2 arcade → race)*
+> — ▶ Wait — can these things move SIDEWAYS? *(→ coach C3 strafe → race/ball)*
+> — ▶ *[only if you DOMINATED]* Hot shot, huh? Try driving like a CAR. *(→ coach C7 steer → detour)*
+
+---
+
+## 9. Risks / open questions for Sam
+
+Resolved by the reframe (dropped): the school-grade structure; one-mode-per-grade ordering; win-gated
+progression. New/carried-forward:
+
+1. **How many stages total?** §2.3 lists 7 core + 1 optional detour. More = more thorough tutorial + more
+   story; fewer = snappier. Lock a count before Phase ⑤.
+2. **How heavy is the branching?** Plan keeps it modest (a near-linear graph with a couple of forks + one
+   detour, all condition-gated). Want richer branching (multiple endings, more detours), or even leaner?
+3. **Can a stage be replayed?** Plan lets you re-enter a cleared stage from the hub (coaching auto-skips
+   via `career.taught`). Confirm — and whether replay re-rolls the adaptive tier or pins it.
+4. **Is the tutorial skippable for veterans?** Likely yes — a "I know how to drive, take me to free-play"
+   option on the hub, or a per-concept skip. Confirm the shape.
+5. **Do free-play unlocks tie in?** Plan keeps free-play fully open; career unlocks are additive
+   trophies/cosmetics + seed the capstone loadout. If you'd rather free-play *gate* behind career, that's
+   a bigger, more controversial change — say the word.
+6. **Adaptive aggressiveness:** `STEP=1.2`, start `skill=0.5`. Should a single great run be able to jump
+   you ~half a tier (current), or should it move slower/faster? Should it ever *cap* below CHAMPION?
+7. **Drive-lock vs free pick per stage:** plan locks the taught drive so the lesson lands. Want a "you can
+   override the drive" escape hatch on coaching cards (more agency, risks muddying the lesson)?
+8. **One save vs slots?** Default one (`frcds_career_v1`). Slots = wrap in an array later (self-contained
+   per-campaign shape makes this easy).
+9. **Map variety:** force themed arenas per stage (career flavor) or use defaults/RANDOM? `bbMapObj`
+   already resolves per-match maps if we want themed fields.
+10. **Splash placement:** CAREER as a third top-level tile next to SINGLE/MULTIPLAYER, or nested under
+    SINGLE PLAYER? Plan assumes a peer tile.
+
+---
+
+## 10. Why this is low-risk to build
 
 - **Zero new engine systems.** Every match runs in an existing phase via an existing start function; the
-  result is read by the existing expression; the meta-shell is a near-copy of `tour*`.
-- **Additive only.** A null `career`/empty `unlocks` means free-play behaves exactly as today — the gates
-  fall through. Career is invisible until you open its tile.
-- **Data-driven.** Chapters, beats, and unlocks are tables — most of "more content" is editing data, not
-  code, which keeps each increment a small, green diff.
-- **Reuses persistence + achievements + tiers + loadouts verbatim**, so it inherits all their tests and
-  conventions (the `frcds_*` JSON pattern, `achUnlock` idempotency, `modeTiers()` routing,
-  `saveBBLoadout`).
+  result is read by the existing line-4009 expression; the meta-shell is a near-copy of `tour*`.
+- **Additive only.** A null `career`/empty `unlocks` means free-play behaves exactly as today.
+- **Data-driven.** Stages, beats, choices, and unlocks are tables/maps — most "more content" is editing
+  data, not code, so each increment is a small, green diff.
+- **Reuses persistence + achievements + tiers + drive-coupling + loadouts verbatim** — it inherits their
+  tests and conventions (the `frcds_*` JSON pattern, `achUnlock` idempotency, `modeTiers()` routing,
+  `p2cSetDrive`/`absHeadingCouple` coupling, `saveBBLoadout`).
+- **The tutorial leans on systems the game already explains itself** — e.g. field-centric already
+  auto-couples absolute heading (`driveFieldCentric`/`absHeadingCouple`), so the C4→C6 lesson is teaching
+  a behavior the engine already implements, not new mechanics.
 
 ---
 
-### Appendix: key code anchors (drive_showdown_v5.1.249.html)
+### Appendix: key code anchors (drive_showdown_v5.1.251.html)
 
 | What | Line | Use in career |
 |---|---|---|
-| `phase` declared (`'splash'`) | 155 | add `p2career`/`p2cintro`/`p2coutro` |
-| splash SINGLE/MULTIPLAYER split | ~978 | add the CAREER tile |
-| `M2_MODES` (mode ids + colors) | 5953 | model `CAREER_CHAPTERS`; mode ids match |
-| `p2Enter` / `p2Exit` | 5970/5971 | pattern for entering/tearing down a shell |
-| `p2Chrome(title,sub)` | 6831 | header/ESC chrome for all career screens |
-| `startP2Race` | 5850 | chapter 1 launcher |
-| `startP2Ball` | 2559 | chapters 2–3 (reads `m2.mode`) |
-| `startP2Tank` | 3339 | chapter 4 |
-| `startP2BB` | 4326 | chapter 5 |
-| `drawP2Nav` (CONTINUE button) | 3976 | add the "CONTINUE CAREER" branch |
-| `p2NavClick` (result read `w`) | 4003 / 4011 | call `careerMatchEnd(w)` |
-| `tourMatchEnd` (result→advance) | 6153 | template for `careerMatchEnd` |
-| `tour` state + `tourBuild`/draw | 5978 / 6025 / 6341 | template for `career` + hub |
-| tournament phase dispatch (draw) | 6892–6895 | add career phase branches |
-| tournament click dispatch | 6581 | add career click route |
-| `CPU_TIERS` + `modeTiers()` | 2232 / 2253 | per-chapter difficulty |
-| `BB_TIER_DMG` | 2249 | grad-chapter damage ramp (free) |
-| `m2.claim` cpu shape `{type,tier}` | 2557 | career opponent claim |
-| `M2_SET_DEFAULTS` / `m2.set` | 5967 | per-chapter match config |
-| achievements `ACH_DEFS`/`achUnlock` | 267 / 298 | `careerwin` achievement |
+| `phase` declared (`'splash'`) | 155 | add `p2career` / `p2cbeat` |
+| splash SINGLE/MULTIPLAYER split (draw ~978 / click ~994) | ~978/994 | add the CAREER tile + click |
+| **DRIVE CATALOG** `DRIVES` / `HOLO_DRIVES` / `STEER_DRIVES` | 87 / 98 / 113 | the C1–C7 curriculum drives |
+| `tank` / `arcade` (C1/C2) | 88 / 90 | hook + point-and-go lessons |
+| `botSwerve` / `fieldSwerve` (C3/C4) | 92 / 94 | strafe + bot-vs-field lessons |
+| `driveFieldCentric(d)` (frame test) | 164 | the literal "is this field-centric?" check |
+| `absHeading` + `toggleAbsHeading` | 162 / 163 | C6 relative-vs-absolute heading |
+| `absHeadingCouple` / `absHeadingVr` | 170 / 172 | auto-couple + the snap-to-angle math |
+| `DGROUPS` (drive groups) + `p2cSetDrive` | 6690 / 6694 | resolve a drive id → `m2.drive` (auto-couples heading) |
+| `CPU_TIERS` (+ per-mode clones) | 2232 (2245–2248) | adaptive tier target |
+| `modeTiers()` (per-mode tier routing) | 2253 | picks the right tier table per mode |
+| `BB_TIER_DMG` | 2249 | capstone damage ramp (free) |
+| `m2.claim` cpu shape `{type,tier}` | ~2557 | career CPU claim |
+| `M2_MODES` (mode ids + colors) | 5972 | model `CAREER_STAGES` near here; mode ids match |
+| `M2_SET_DEFAULTS` / `m2.set` | 5986 | per-stage match config |
+| `startP2Ball` | 2559 | stages: `normal` / `shooter` (reads `m2.mode`) |
+| `startP2Tank` | 3339 | stage 1 (the TANK hook) + C6 stage |
+| `startP2BB` | 4331 | capstone RoboRumble stage |
+| `startP2Race` | 5869 | arcade / strafe / steer course stages |
+| `drawP2Nav` (CONTINUE button) | 3976 | add the "CONTINUE STORY" branch |
+| `p2NavClick` (result read `w`) | 4003 / **4009** | call `careerMatchEnd(w)` on win OR loss |
+| `tourMatchEnd` (result→advance) | 6172 | template for `careerMatchEnd` |
+| `tour` state declared | 5997 | template for `career` global |
+| `drawTourBracket` | 6360 | template for the career hub layout |
+| tournament click route (in dispatcher) | ~6628 nbhd | add the career click route |
+| `p2Chrome(title,sub)` | 6851 | header/ESC chrome for all career screens |
+| achievements `ACH_DEFS` / `achUnlock` | 267 / 298 | `careerwin` achievement |
 | `frcds_ach_v1` load + `achSave` | 284 / 296 | storage pattern to copy |
-| custom-map storage `frcds_maps_v1` | 4845 / 4846 | storage pattern to copy |
-| loadout `frcds_bbload_v1` save/load | 6695 / 6696 | seed grad loadout from unlocks |
-| `DRIVES`/`HOLO_DRIVES`/`STEER_DRIVES` | 87 / 98 / 113 | drive unlocks |
-| `BB_WEAPONS`/`BB_ARMOR`/`BB_PERKS` | 4039 / 4054 / 4150 | RoboRumble unlocks |
-| armory chips `BB_ARMORY_W/A` | 4118 | career-aware armory pool |
-| `PAINT_JOBS`/`ACCENT_COLS` | 4459 / 4470 | cosmetic unlocks |
-| `drawAchToast` (toast style) | ~8209 | unlock-reveal flourish |
+| custom-map storage `frcds_maps_v1` | 4859 / 4860 | storage pattern to copy |
+| loadout `frcds_bbload_v1` save/load | 6714 / 6715 | seed capstone loadout from unlocks |
+| `BB_WEAPONS` / `BB_ARMOR` / `BB_PERKS` | 4039 / 4054 / 4150 | RoboRumble unlocks |
+| armory chips `BB_ARMORY_W/A` / `BB_PERKS_PICK` | 4118 / 4119 / 4162 | career-aware armory pool |
+| `PAINT_JOBS` | 4473 | cosmetic unlocks / campaign livery |
+| `drawAchToast` (toast style) | 8229 | unlock-reveal flourish |
