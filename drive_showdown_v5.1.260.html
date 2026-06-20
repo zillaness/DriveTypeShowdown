@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.259.html
-  version: 5.1.259
+  file: drive_showdown_v5.1.260.html
+  version: 5.1.260
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -6051,11 +6051,22 @@ const CAREER_STAGES={
   holo_shooter:    {mode:'shooter',   drive:'mecanum',     concept:'C5', name:'LINE IT UP',      tag:'holonomic'},
   heading_advanced:{mode:'tankfight', drive:'fieldSwerve', concept:'C6', name:'POINT & SHOOT',   tag:'absolute heading', absHeading:true},
   capstone_rumble: {mode:'battlebots',drive:null,          concept:null, name:'GRADUATION DAY',  tag:'RoboRumble'},
+  capstone_ball:   {mode:'normal',    drive:null,          concept:null, name:'THE BIG GAME',    tag:'ball match'},   // v5.1.260 veteran HS finale = ball mode
   steer_detour:    {mode:'race',      drive:'carSteer',    concept:'C7', name:'DRIVE LIKE A CAR',tag:'car steering'},
 };
+// THE FINALE LADder (Sam): the lane decides the finale's PRESTIGE, MODE and round count (FRC: scrimmage →
+// district/HS → regional → worlds). Rookie = the quickest single rumble; veteran = a HS BALL tournament;
+// winner = a REGIONAL RoboRumble tournament; champion = the WORLD championship.
+const CAREER_FINALE={
+  rookie:  {name:'Graduation Scrimmage',  sub:'a friendly send-off',         stage:'capstone_rumble', rounds:1, title:'Graduate',            ending:'graduate'},
+  veteran: {name:'High-School Tournament',sub:'your first real bracket',     stage:'capstone_ball',   rounds:3, title:'High-School Champion', ending:'hschamp'},
+  winner:  {name:'Regional Championship', sub:'the regional bracket',        stage:'capstone_rumble', rounds:3, title:'Regional Champion',    ending:'regional'},
+  champion:{name:'World Championship',    sub:'the world stage — no mercy',  stage:'capstone_rumble', rounds:3, title:'WORLD CHAMPION',       ending:'world'},
+};
+function careerFinaleCfg(){return CAREER_FINALE[career.diff]||CAREER_FINALE.rookie;}
 const CAREER_STAGE_ORDER=['tank_hook','arcade_course','strafe_intro','field_centric','holo_shooter','heading_advanced','capstone_rumble'];
 // ── THE QUESTION BANK (inlined from career/quiz_bank.js — Sam's FRC lectures; regenerate that file → reinline). KNOWLEDGE is the most rewarding (CAREER_PLAN §6). ──
-const CAREER_QUIZ={topics:{"power":{label:"Batteries & Power",reward:"speed"},"electricity":{label:"Electricity Basics",reward:"speed"},"design":{label:"Engineering Design"},"materials":{label:"Materials"},"tools":{label:"Tools & Shop Safety",reward:"hp"},"fasteners":{label:"Fasteners"},"fab":{label:"3D Printing & CAD"}},
+const CAREER_QUIZ={topics:{"power":{label:"Batteries & Power",reward:"speed"},"electricity":{label:"Electricity Basics",reward:"speed"},"design":{label:"Engineering Design"},"materials":{label:"Materials"},"tools":{label:"Tools & Shop Safety",reward:"hp"},"fasteners":{label:"Fasteners"},"fab":{label:"3D Printing & CAD"},"permit":{label:"Permit Test (driving)"}},
   Q:[
     {id:"pw01",t:"power",lv:"core",q:"A battery cell’s VOLTAGE is like what, in the water analogy?",o:["Water pressure (the push)","The size of the tank","The length of the hose","The temperature of the water"],a:0,x:"Voltage is the push — how hard the cell shoves electricity through the circuit, just like water pressure in a hose."},
     {id:"pw02",t:"power",lv:"core",q:"A cell’s CAPACITY is measured in mAh. What does it tell you?",o:["How much energy it holds (how long it runs)","How hard it pushes","How heavy it is","How fast it charges"],a:0,x:"Capacity is the size of the tank. More mAh means the battery runs longer before it’s empty."},
@@ -6116,7 +6127,21 @@ const CAREER_QUIZ={topics:{"power":{label:"Batteries & Power",reward:"speed"},"e
     {id:"fb08",t:"fab",lv:"core",q:"In CAD, the operation that pushes a flat 2D sketch out into a solid is…",o:["Extrude","Fillet","Mirror","Sketch"],a:0,x:"Extrude is the workhorse: a rectangle becomes a box, a circle becomes a cylinder. (Revolve spins a profile to make round parts.)"},
     {id:"fb09",t:"fab",lv:"core",q:"\"Parametric\" CAD modeling means…",o:["Change one number and the whole model updates","You can never change it","It only works in 2D","It draws by hand"],a:0,x:"You set rules and named values (parameters). Change the frame length once and everything that depends on it updates automatically."},
     {id:"fb10",t:"fab",lv:"core",q:"Which file format do you usually export to 3D-print a part?",o:["STL","MP3","DOCX","JPG"],a:0,x:"STL is the universal 3D-printing mesh. (STEP is the exact format for CNC; DXF is for 2D laser cutting.)"},
-    {id:"fb11",t:"fab",lv:"core",q:"In CAD, what does a \"fillet\" do to an edge?",o:["Rounds it off (also makes it stronger)","Cuts a hole","Deletes it","Paints it"],a:0,x:"A fillet rounds an edge; a chamfer cuts a flat angled bevel. Rounded corners also relieve stress, so the part is stronger."}
+    {id:"fb11",t:"fab",lv:"core",q:"In CAD, what does a \"fillet\" do to an edge?",o:["Rounds it off (also makes it stronger)","Cuts a hole","Deletes it","Paints it"],a:0,x:"A fillet rounds an edge; a chamfer cuts a flat angled bevel. Rounded corners also relieve stress, so the part is stronger."},
+    {id:"lic01",t:"permit",lv:"core",q:"A red eight-sided (octagon) sign means…",o:["STOP — come to a complete stop","Slow down a little","Yield if busy","No parking"],a:0,x:"A red octagon is always STOP: come to a FULL stop, check it’s clear, then go."},
+    {id:"lic02",t:"permit",lv:"core",q:"A downward-pointing triangle (yield) sign means…",o:["Slow down and let others go first","Stop completely every time","Speed up to merge","Road closed"],a:0,x:"YIELD: slow down, give the right-of-way to other traffic and pedestrians, and only go when it’s safe."},
+    {id:"lic03",t:"permit",lv:"core",q:"At a four-way stop, who goes first?",o:["Whoever arrived (stopped) first","The biggest vehicle","Whoever is fastest","Always the car on the left"],a:0,x:"First to stop goes first. If two arrive together, the driver on the RIGHT goes first."},
+    {id:"lic04",t:"permit",lv:"core",q:"How much space should you keep behind the car ahead?",o:["At least a 3-second following distance","One car length at any speed","As close as possible","Half a second"],a:0,x:"The 3-second rule: pick a fixed point, and you should pass it at least 3 seconds after the car ahead. More in rain/snow."},
+    {id:"lic05",t:"permit",lv:"core",q:"A school bus stops ahead with its red lights flashing and stop-arm out. You should…",o:["STOP and wait until the lights stop flashing","Slow down and pass carefully","Honk and go around","Speed up to clear it"],a:0,x:"Stop for a school bus with flashing red lights (both directions, unless a divided highway separates you) — kids may be crossing."},
+    {id:"lic06",t:"permit",lv:"core",q:"When should you use your turn signal?",o:["Before every turn or lane change","Only on the highway","Only if someone is behind you","Never — it’s optional"],a:0,x:"Signal BEFORE you turn or change lanes, every time, so others can predict what you’ll do."},
+    {id:"lic07",t:"permit",lv:"core",q:"Before changing lanes you should…",o:["Signal, check mirrors AND your blind spot","Just check the mirror","Close your eyes and hope","Speed up first"],a:0,x:"Mirrors don’t show everything — turn your head to check the blind spot before moving over."},
+    {id:"lic08",t:"permit",lv:"core",q:"A pedestrian is in a crosswalk. You should…",o:["Stop and let them cross","Drive around them","Honk so they hurry","Speed up before they reach you"],a:0,x:"Always yield to pedestrians in a crosswalk — they have the right of way."},
+    {id:"lic09",t:"permit",lv:"core",q:"A solid YELLOW line on your side of the road means…",o:["No passing — don’t cross to pass","Pass whenever you like","Parking lane","Bike lane"],a:0,x:"A solid yellow line means passing is not allowed on your side. Dashed yellow = passing is allowed when clear."},
+    {id:"lic10",t:"permit",lv:"core",q:"Texting while driving is…",o:["Dangerous and illegal in most places","Fine at red lights","Okay if you’re quick","Only a problem at night"],a:0,x:"Taking your eyes off the road to text hugely raises crash risk — it’s illegal in most places. Eyes up, phone down."},
+    {id:"lic11",t:"permit",lv:"core",q:"When should you turn your headlights on?",o:["At dusk/night and in rain, fog or snow","Only on the freeway","Only when it’s fully dark","Never in the daytime"],a:0,x:"Headlights help you SEE and BE SEEN — use them at dawn/dusk/night and any time visibility drops (rain, fog, snow)."},
+    {id:"lic12",t:"permit",lv:"core",q:"Entering a roundabout, you must…",o:["Yield to traffic already in the circle","Stop fully even if empty","Go counter to the arrows","Speed up to merge"],a:0,x:"Yield to vehicles already circulating, then enter when there’s a gap and go the direction of the arrows."},
+    {id:"lic13",t:"permit",lv:"core",q:"Everyone in the car should…",o:["Wear a seatbelt","Only the driver buckles up","Skip belts on short trips","Buckle only on highways"],a:0,x:"Seatbelts save lives — every passenger, every trip, no matter how short."},
+    {id:"lic14",t:"permit",lv:"core",q:"A flashing red traffic light means…",o:["Treat it like a STOP sign","Go — it’s just broken","Speed up through it","Yield only"],a:0,x:"A flashing red = STOP: come to a full stop, then proceed when clear (like a stop sign). Flashing yellow = slow down and proceed with caution."}
   ],
   F:[{tool:"Drill press",tip:"Never wear gloves — a glove can catch the spinning chuck and pull your hand in. Clamp the work instead."},{tool:"Angle grinder",tip:"Always keep the guard on and wear a face shield — it throws sparks and can kick back hard."},{tool:"Impact driver",tip:"No clutch! Great for big screws, but it can snap small ones if you’re not careful."},{tool:"Cordless drill",tip:"The numbered ring sets TORQUE, not speed — lower numbers stop you from over-driving screws."},{tool:"Table saw",tip:"The riving knife and anti-kickback pawls are there to stop the wood being thrown back at you."},{tool:"Laser cutter",tip:"Never leave it running alone, and keep the fume fan ON — burning plastic smoke is toxic."},{tool:"Soldering iron",tip:"Use the lowest temperature that makes a clean joint (about 315–370°C). Hotter is not better."},{tool:"Calipers",tip:"Measure to a thousandth of an inch — they can tell a 6 mm part from an 8 mm one."},{tool:"File",tip:"Cuts only on the push stroke. Lift it on the way back so you don’t dull the teeth."},{tool:"Deburring tool",tip:"Its little rotating blade shaves off the sharp burr a drill leaves around a hole."},{tool:"Heat gun",tip:"Blows 200–600°C air to shrink heat-shrink tubing — no open flame near the electronics."},{tool:"Hacksaw",tip:"A fine 18–24 TPI blade cuts metal and pipe; install it with the teeth pointing forward."},{tool:"3D printer",tip:"Parts are weakest between layers (Z). Orient yours so the load doesn’t pull the layers apart."},{tool:"Bench vise",tip:"Clamp small parts in the vise — never hold a tiny piece by hand near a moving blade."},{tool:"VEX V5 battery",tip:"It’s a 4S1P LiFePO4 pack: 4 × 3.2 V = 12.8 V. LiFePO4 is the safest lithium chemistry."}]};
 
@@ -6219,11 +6244,16 @@ const CAREER_BEATS={
     intro:"Three quick ones about the battery & power that drive your bot. Nail your chemistry and you roll a safe, heat-shielded pack with a better weapon. Botch it and you'll be running a volatile LiPo — and LiPos do NOT like fire. Either way, you learn.",
     next:'pre:capstone'},
   'pre:capstone':{kind:'story',title:'PIT LANE',lines:[
-    ({c})=> c.flags.chem==='volatile'
-      ? "Your power answers were shaky, so you're stuck with a cheap LiPo pack. Light and punchy — but it HATES heat. Your rival noticed, and bolted a FLAMETHROWER onto their bot. This could get toasty."
-      : "You spec'd a LiFePO4 pack — heavy, but it laughs at heat and abuse. You bolted on a heat shield. Let them bring fire.",
-    "Last fight. Everything you've learned, all at once."],
-    choices:[{label:"Roll out — RoboRumble", goto:'stage:capstone_rumble'}]},
+    ({c})=>{const f=careerFinaleCfg();return c.diff==='rookie'
+      ? "This is it — your graduation match. A friendly scrimmage to show what you've learned. No bracket, just one good fight."
+      : "You qualified for the "+f.name+" — "+f.sub+". Win your way through the bracket and the title is yours.";},
+    ({c})=> c.diff==='veteran'
+      ? "It's a BALL tournament — push the most through the gap, round after round. Drive smart."
+      : (c.flags.chem==='volatile'
+        ? "And about your battery: those shaky power answers stuck you with a volatile LiPo. It HATES heat — and your rivals brought FLAMETHROWERS. Drive careful."
+        : "And your LiFePO4 pack? It laughs at heat — you bolted on a heat shield. Let them bring fire."),
+    "Everything you've learned, all at once."],
+    choices:[{label:"▶ Take the field", goto:'finale'}]},
   'after:steer_detour':{kind:'story',title:'OKAY, BACK TO REAL DRIVING',lines:[
     "Cars are fun. Cars are also why you'll appreciate swerve for the rest of your life.",
     "Let's get back to the good stuff — sideways."],
@@ -6259,6 +6289,7 @@ function careerApplyEffect(eff){
 function careerGoto(ref,thenRef){
   if(ref==='hub'){phase='p2career';careerStore();return;}
   if(ref==='recap'){careerRecapStart();return;}
+  if(ref==='finale'){careerFinaleStart();return;}
   if(ref&&ref.indexOf('stage:')===0){careerStartStage(ref.slice(6),thenRef);return;}
   career._then=thenRef||null;
   career.node=ref;
@@ -6271,6 +6302,16 @@ function careerGoto(ref,thenRef){
 function careerContinue(){const t=career._then;career._then=null;if(t)careerGoto(t);else{phase='p2career';careerStore();}}
 function careerStartStage(sid,thenRef){career._rematchLeft=careerRematchBudget();startCareerMatch(sid);} // a FRESH attempt: grant the difficulty's rematch budget, then launch
 function careerRematch(){if(career&&career.stage)startCareerMatch(career.stage);} // re-run the SAME stage (budget already decremented by the caller; not reset)
+// THE FINALE (Sam): a lane-prestige bracket. Rookie = a single rumble; veteran/winner/champion = a single-elim
+// gauntlet (HS-ball / regional / world). careerMatchEnd advances the rounds; win them all = the lane's title.
+function careerFinaleStart(){
+  const cfg=careerFinaleCfg();
+  career.finale={name:cfg.name,sub:cfg.sub,stage:cfg.stage,rounds:cfg.rounds,title:cfg.title,ending:cfg.ending,round:1,won:0,active:true,result:null};
+  careerStore();
+  careerStartStage(cfg.stage); // launch round 1 (rematch budget applies per round)
+}
+function careerFinaleRoundLabel(){const fin=career.finale;if(!fin)return'';if(fin.rounds<=1)return'';
+  const left=fin.rounds-fin.round; return left===0?'FINAL':left===1?'SEMIFINAL':left===2?'QUARTERFINAL':('ROUND '+fin.round);}
 
 // ── PHASE ②: launch a real career match (drive-lock + adaptive tier), then the existing mode engine runs ──
 function careerTier(){return clamp(Math.round(career.skill),0,careerMaxTier());} // adaptive skill → a VALID CPU tier index (0..3). The lane seeds the starting skill; performance nudges it.
@@ -6373,9 +6414,21 @@ function careerMatchEnd(side){
   const st=career.stage;
   if(st&&!career.cleared.includes(st))career.cleared.push(st);
   career.log.push({stage:st,result:career.flags.lastResult,skill:+career.skill.toFixed(2)});
-  // 3) tear the match down (same as the tournament) and route to the NEXT beat (which forks on lastResult)
+  // tear the match down (same as the tournament)
   career.active=false;career.stage=null;
   r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');
+  // 3a) IN THE FINALE? advance the bracket (win → next round / champion; loss → eliminated) → the recap
+  const fin=career.finale;
+  if(fin&&fin.active){
+    if(!career.cleared.includes('capstone_rumble'))career.cleared.push('capstone_rumble'); // counts as the graduation stage
+    if(won||isDraw){
+      fin.won++;
+      if(fin.round>=fin.rounds){fin.result='champion';fin.active=false;careerStore();careerRecapStart();return;} // ran the table
+      fin.round++;career.flags.finaleRound=fin.round;careerStore();careerStartStage(fin.stage);return;          // next round
+    }
+    fin.result='eliminated';fin.active=false;careerStore();careerRecapStart();return;                            // knocked out (still graduates)
+  }
+  // 3b) normal stage → route to the NEXT beat (which forks on lastResult)
   career.node=st?careerNextNode(st):'intro';
   careerStore();
   phase='p2cbeat';
@@ -6514,19 +6567,18 @@ function careerNavRects(canRe,cy){return canRe
 // your lane + skill arc + concepts + chemistry choice + rematches + capstone result into YOUR story, and picks
 // one of a small set of ENDINGS. Same gametypes for everyone — different stories & endings (CAREER_PLAN §4.4). ──
 const CAREER_ENDINGS={
-  flawless:{title:'🏆 FLAWLESS GRADUATE', sub:'the perfect run'},
-  scholar: {title:'🧠 THE ENGINEER',      sub:'won with your head as much as your hands'},
-  phoenix: {title:'🔥 PHOENIX',           sub:'knocked down, got back up'},
-  grinder: {title:'💪 THE GRINDER',       sub:'ate the floor and kept driving'},
-  driver:  {title:'🎮 DRIVER',            sub:'a driver, through and through'},
+  world:   {title:'🌎 WORLD CHAMPION',        sub:'the top of the mountain'},
+  regional:{title:'🏆 REGIONAL CHAMPION',     sub:'best in the region'},
+  hschamp: {title:'🏫 HIGH-SCHOOL CHAMPION',  sub:'first bracket, first banner'},
+  graduate:{title:'🎓 GRADUATE',              sub:'you took the scrimmage'},
+  deeprun: {title:'💪 DEEP RUN',              sub:'eliminated — but you belonged there'},
+  driver:  {title:'🎮 DRIVER',                sub:'a driver, through and through'},
 };
 function careerEnding(){
-  const f=career.flags, won=(f.lastResult==='won'||f.lastResult==='dominated'), sk=career.skill;
-  if(won&&sk>=3.0&&f.chem==='safe'&&career.diff==='champion') return 'flawless';
-  if(won&&f.chem==='safe'&&(f.quizScore|0)>=2)               return 'scholar';
-  if(won&&(f.rematches|0)>0)                                  return 'phoenix';
-  if(!won)                                                    return 'grinder';
-  return 'driver';
+  const fin=career.finale||{}, f=career.flags;
+  if(fin.result==='champion') return fin.ending||'graduate';   // ran the table → the lane's title (world/regional/hschamp/graduate)
+  if(fin.result==='eliminated') return 'deeprun';              // knocked out, still graduated
+  return (f.lastResult==='lost'||f.lastResult==='blown_out')?'deeprun':'driver'; // no finale recorded (fallback)
 }
 function careerRecap(){
   const f=career.flags, L=[], lane={rookie:'Rookie',veteran:'Veteran',winner:'Winner',champion:'Champion'}[career.diff]||career.diff, sk=career.skill;
@@ -6539,11 +6591,16 @@ function careerRecap(){
   if(f.chem==='safe')     L.push("You spec'd a LiFePO4 pack and laughed off the flames.");
   else if(f.chem==='volatile') L.push("You ran a volatile LiPo and felt the heat — literally. Next time, know your chemistry.");
   if((f.rematches|0)>0)   L.push("You ran "+f.rematches+" fight"+(f.rematches>1?'s':'')+" back rather than accept a loss.");
-  L.push((f.lastResult==='lost'||f.lastResult==='blown_out')
-    ? "The rumble didn't go your way — but you rolled in driving a real robot, every concept earned."
-    : "And you took the rumble.");
+  // the FINALE line — prestige by lane
+  const fin=career.finale;
+  if(fin&&fin.result==='champion') L.push(fin.rounds>1
+    ? ("You ran the table at the "+fin.name+" — "+fin.won+" rounds, no slip-ups. "+fin.title+".")
+    : ("You took the "+fin.name+". "+fin.title+"."));
+  else if(fin&&fin.result==='eliminated') L.push("You made it to the "+careerFinaleRoundLabelFor(fin)+" of the "+fin.name+" before you got knocked out. A real run.");
+  else L.push("And you took the rumble.");
   return L;
 }
+function careerFinaleRoundLabelFor(fin){const left=(fin.rounds||1)-(fin.round||1);return left<=0?'final':left===1?'semifinal':left===2?'quarterfinal':('round '+(fin.round||1));}
 function careerRecapStart(){
   career.flags.ending=careerEnding();
   career._recap=careerRecap();
@@ -9991,6 +10048,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.260 (2026-06-20): CAREER / STORY MODE — the FINALE: a lane-prestige bracket (Sam's FRC ladder) + a permit-quiz topic. The capstone is now lane-differentiated (CAREER_FINALE): ROOKIE = the quick single-rumble Graduation Scrimmage (no bracket); VETERAN = a 3-round HIGH-SCHOOL **ball** tournament (different MODE); WINNER = a 3-round REGIONAL RoboRumble tournament; CHAMPION = the 3-round WORLD Championship. A single-elim gauntlet: careerFinaleStart seeds career.finale, careerMatchEnd advances the rounds (win → next / champion; loss → eliminated, still graduates), and the lane-framed pre:capstone beat routes via goto:'finale'. ENDINGS reworked around the result: 🌎 WORLD CHAMPION / 🏆 REGIONAL CHAMPION / 🏫 HIGH-SCHOOL CHAMPION / 🎓 GRADUATE / 💪 DEEP RUN; the recap narrates the run ("ran the table at the Regional Championship — 3 rounds, no slip-ups"). Also added a PERMIT-TEST quiz topic (14 rules-of-the-road questions in career/quiz_bank.js, re-inlined) for the upcoming driver's-license mini-game. smoke83 → 86 asserts (per-lane finale mode/rounds, the 3-0 run, a round-1 KO → deep run, ending titles, the full walk to the recap via the bracket). Full battery green.
   v5.1.259 (2026-06-20): CAREER / STORY MODE — Phase ⑥ (achievements · coach-skip · bonus tuning) + a splash card-bound fix. (1) ACHIEVEMENTS: 3 new ACH_DEFS — First Driver (graduate the tutorial), Honor Roll (ace a quiz — every answer right), Untouchable (graduate on the CHAMPION lane) — fired idempotently from careerRecapStart / careerQuizFinish. (2) COACH SELF-SKIP: on a replay, an already-learned coaching card swaps "Got it — let's drive" for "⏩ Skip — you know this one" (careerGoto tracks `_coachKnown` before marking taught). (3) BONUS TUNING: magnitudes are now explicit tunable constants (CAREER_BONUS = +25% control speed · up to +2 tank lives), and the hub shows your earned "Knowledge edge" (careerBonusSummary). Also wired the dormant LICENSE perks (a licensed driver — §11.1 future mini-game — gets +1 life + a SPARE-PART 'sparetire' perk in the rumble). (4) SPLASH FIX (Sam: "the text breaks the bounds of the career mode card"): the CAREER banner tagline overran the card edge — now a short tagline + a measureText shrink-to-fit guard on the title; SINGLE/MULTIPLAYER cards restored to full height. Verified by a headless-Chromium screenshot pass (no page errors). smoke83 → 82 asserts; smoke42 ACH count → 18. Full battery green.
   v5.1.258 (2026-06-20): CAREER / STORY MODE — difficulty lanes renamed to the engine's 4 CPU tiers + a latent tier-index bugfix (Sam: "should be rookie, veteran, winner, champion"). The lanes now match the game's real difficulty vocabulary (CPU_TIERS = ROOKIE/VETERAN/WINNER/CHAMPION) — and the LANE both names AND SEEDS your starting tier: CAREER_LANE_TIER {rookie:0,veteran:1,winner:2,champion:3} sets `career.skill`, the adaptive rating nudges from there, and rematch budgets are rookie ∞ / veteran 5 / winner 2 / champion 0. BUGFIX: the engine has 4 CPU tiers (indices 0..3 — a deliberate 5→4 rework), but `careerTier()`/the skill clamp were capping at 4 (an out-of-range index that would feed `m2.claim[1].tier=4` → undefined tier params); both now clamp to `careerMaxTier()` (= CPU_TIERS.length-1 = 3). The hub's rating readout also used wrong names (AMATEUR/PRO) — now reads the real `CPU_TIERS[i].name`. Quiz grade-band is now 4-way (rookie core · veteran +algebra · winner harder/4 · champion hardest/4). smoke83 → 73 asserts. Full battery green.
   v5.1.257 (2026-06-20): CAREER / STORY MODE — quizzes ACROSS the curriculum (Sam: "all educational"). Two more quiz beats join the headline POWER CHECK so knowledge is tested throughout, each rewarding a different build stat: 🔧 SHOP CHECK (tools/shop-safety → +HP/durability) before the field-centric stage, and 🖨️ FAB CHECK (3D-printing & CAD → +speed) before the holonomic shooter. Reached coach → quiz → stage (via the existing `then`-chain) so the lesson is fresh; bonuses accrue into career.bonuses and apply in careerApplyBonuses (hp→tank lives, speed→control, weapon→capstone loadout). smoke83 → 70 asserts (the curriculum walk now confirms it hits tools+fab+power quizzes and accrues hp+speed+weapon bonuses). Full battery green.

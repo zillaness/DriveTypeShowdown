@@ -906,20 +906,33 @@ each is its own build. **Status: DESIGN / backlog** (the core mode through v5.1.
   systems): **+rematches** ("get to more practices"), a **free build part** (a perk/weapon for the capstone), or
   **grant-money/parts**. Store `career.flags.license=true`; apply in `careerApplyBonuses` / the finale draft.
 
-### 11.2 🏆 TOURNAMENT FINALE + a RELATIONSHIP / FAVOR economy
-*"Maybe the whole thing ends in a big double-elimination tournament. And the allies and friends you've made
-along the way limit who you can recruit — or things you've answered correctly/incorrectly. Maybe you lent
-someone a spare part during a previous competition; they'll then be willing to be your ally — or lend you a
-spare part when you need it."*
-- **The campaign climaxes in the EXISTING TOURNAMENT** (`tour*`: double-elimination + the v2 **captain draft /
-  3v3 alliances**). The career finale seeds you into a `tour` as a captain and runs it to a champion.
-- **A relationship ledger built through the story:** `career.allies` / `career.favors`. Story beats add
-  **favor choices** — e.g. *"lend a rival your spare part"* (a short-term cost) → that person becomes a
-  **recruitable ally** (or **lends you a part**) later. Quiz performance also gates relationships ("things you've
-  answered correctly or incorrectly").
-- **Recruitment gating at the draft:** who you can pick for your alliance (and which **spare parts** you can
-  borrow for your loadout) is filtered by `career.allies`/`career.favors` earned across the run. Leverages the
-  existing `tour.alli` draft + `bbLoadout` — mostly **data + a gate**, since the tournament engine already exists.
+### 11.2 🏆 TOURNAMENT FINALE — lane-differentiated PRESTIGE (Sam, evolving live 2026-06-20)
+*"Maybe the whole thing ends in a big tournament… single-elim?… limit it to winner and champion… win on champion
+= you're WORLD champion (world stage); winner = a regional… that puts championship at another prestige level…
+I want some differentiation from rookie to winner now."*
+
+**THE PRESTIGE LADDER (the synthesis).** The finale's SCALE + name + champion title scale with the chosen lane —
+mirroring the real FRC event ladder (scrimmage → district → regional → FIRST Championship/worlds):
+
+| Lane | Finale | Format | Win title |
+|---|---|---|---|
+| **rookie** | **Scrimmage** | 1 match (the capstone rumble, framed as practice) | "Scrimmage Winner" |
+| **veteran** | **District Event** | 1 match | "District Champion" |
+| **winner** | **REGIONAL Championship** | a single-elim **tournament** (multi-round gauntlet) | "Regional Champion" |
+| **champion** | **WORLD Championship** | a single-elim **tournament**, the top prestige | **"WORLD CHAMPION"** |
+
+- **The top two lanes get a real TOURNAMENT** (Sam: "limit it to winner and champion"); a **single-elim gauntlet**
+  (Sam: "or maybe it's just a single elim tourney?") of ~3 RoboRumble rounds (quarter → semi → final). Rookie/
+  veteran get the single reframed rumble.
+- **Win = the lane's champion title** in the recap/ending; champion-lane win = **WORLD CHAMPION** (the headline
+  prestige). Losing a round still graduates you (a "deep run" ending).
+- **Build approach:** a `CAREER_FINALE` config + a finale controller that loops `startCareerMatch('capstone_rumble')`
+  for the lane's round count, tracking the bracket in `careerMatchEnd`. Reuses the match flow already built. *(A
+  later layer can swap the gauntlet for the full `tour*` bracket + the allies/favors recruitment below.)*
+
+**RELATIONSHIP / FAVOR economy (later layer):** allies/friends + favors (lend a spare part → recruitable ally / a
+borrowed part later) + quiz performance gate who you recruit and what parts you borrow at the bracket draft.
+Leverages `tour.alli` + `bbLoadout`. Captured for a future ship.
 - *Note:* this would likely **replace or follow** the single `capstone_rumble` as the true finale, then flow into
   the recap (§4.4) which already narrates allies/choices.
 

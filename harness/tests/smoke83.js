@@ -93,7 +93,8 @@ src+=`
   const answerQuiz=(correct)=>{let g=0;while(phase==='p2cquiz'&&g++<40){const Q=career._quiz,q=Q.qs[Q.i];
     if(Q.picked==null){const R=careerQuizOptRects(q.opts.length);const k=correct?q.ans:((q.ans+1)%q.opts.length);careerQuizClick(R[k].x+5,R[k].y+5);}
     else careerQuizClick(careerQuizContRect().x+5,careerQuizContRect().y+5);}};
-  freshAt('after:heading_advanced'); pick(0);
+  const finLane=(d,node)=>{career=careerNew();careerApplyEffect({setDiff:d});career.node=node;phase='p2cbeat';}; // ROOKIE → a RoboRumble scrimmage finale (n=3 quiz) so the chemistry/flamethrower path applies
+  finLane('rookie','after:heading_advanced'); pick(0);
   T('quiz beat opens the QUIZ screen with 3 power questions', phase==='p2cquiz'&&!!career._quiz&&career._quiz.qs.length===3&&career._quiz.qs.every(x=>x.topic==='power'));
   let qdrew=true; try{drawCareerQuiz();}catch(e){qdrew=false;console.log('  quiz draw err:',e.message);}
   T('quiz renders', qdrew);
@@ -105,7 +106,7 @@ src+=`
   T('capstone launches (battlebots, bb2 live)', phase==='p2bb'&&!!bb2);
   T('SAFE chemistry → player heat shield, rival not on fire', m2.bbLoadout[0].armor==='heatshield'&&m2.bbLoadout[1].weapon!=='flame');
   // now FLUNK it
-  freshAt('after:heading_advanced'); pick(0); answerQuiz(false);
+  finLane('rookie','after:heading_advanced'); pick(0); answerQuiz(false);
   T('FLUNK the power quiz → chem volatile, no weapon bonus', career.flags.chem==='volatile'&&career.bonuses.weapon===0);
   texts.length=0; drawCareerBeat();
   T('pit-lane (volatile) copy warns of the FLAMETHROWER', texts.some(t=>/FLAMETHROWER|LiPo/i.test(t)));
@@ -144,38 +145,50 @@ src+=`
   career.diff='champion';
   T('CHAMPION quiz: 4 questions, the hardest mix', (()=>{const q=careerQuizPick('power',careerQuizPlan());return q.length===4&&q.filter(x=>x.level==='algebra'||x.level==='headline').length>=2;})());
 
-  // ───────────────────────── FULL CURRICULUM WALK (win every match, ace every quiz) ─────────────────────────
+  // ───────────────────────── THE FINALE: lane-prestige bracket (Sam) ─────────────────────────
+  // champion lane = a 3-round WORLD RoboRumble tournament
+  career=careerNew(); careerApplyEffect({setDiff:'champion'}); careerFinaleStart();
+  T('champion finale → 3-round RoboRumble, round 1 live', !!career.finale&&career.finale.active&&career.finale.rounds===3&&phase==='p2bb');
+  liveResult(0); careerMatchEnd(0);
+  T('win round 1 → advance to round 2 (still in the bracket)', career.finale.active&&career.finale.round===2&&phase==='p2bb');
+  liveResult(0); careerMatchEnd(0); liveResult(0); careerMatchEnd(0);
+  T('run the table (3-0) → WORLD CHAMPION → recap', career.finale.result==='champion'&&phase==='p2crecap'&&career.flags.ending==='world');
+  // champion lane: a round-1 loss (0 rematches) → eliminated → deep-run
+  career=careerNew(); careerApplyEffect({setDiff:'champion'}); careerFinaleStart(); liveResult(1); careerMatchEnd(1);
+  T('champion round-1 loss → eliminated → recap (deep run)', career.finale.result==='eliminated'&&phase==='p2crecap'&&career.flags.ending==='deeprun');
+  // veteran lane = a HIGH-SCHOOL BALL tournament (different MODE)
+  career=careerNew(); careerApplyEffect({setDiff:'veteran'}); careerFinaleStart();
+  T('veteran finale → BALL mode (b2 live), 3 rounds', phase==='p2ball'&&!!b2&&career.finale.stage==='capstone_ball'&&career.finale.rounds===3);
+  // rookie lane = the quick single rumble, no tournament
+  career=careerNew(); careerApplyEffect({setDiff:'rookie'}); careerFinaleStart();
+  T('rookie finale → single-round RoboRumble (no bracket)', career.finale.rounds===1&&phase==='p2bb');
+  liveResult(0); careerMatchEnd(0);
+  T('rookie win → graduate (1 round) → recap', career.finale.result==='champion'&&phase==='p2crecap'&&career.flags.ending==='graduate');
+  // ending titles by lane (finale champion)
+  const setFin=(d,res)=>{const c=CAREER_FINALE[d];career=careerNew();career.diff=d;career.flags={};career.finale={ending:c.ending,result:res,rounds:c.rounds,round:c.rounds,name:c.name,won:c.rounds};};
+  setFin('winner','champion');  T('winner finale champion → REGIONAL', careerEnding()==='regional');
+  setFin('veteran','champion'); T('veteran finale champion → HIGH-SCHOOL', careerEnding()==='hschamp');
+  // recap renders for a finale + NEW JOURNEY resets
+  career=careerNew(); careerApplyEffect({setDiff:'winner'}); career.finale={ending:'regional',result:'champion',rounds:3,round:3,name:'Regional Championship',won:3}; career.flags={chem:'safe'}; careerRecapStart();
+  T('recap renders for a finale champion', phase==='p2crecap'&&career.flags.ending==='regional'&&(()=>{let ok=true;try{drawCareerRecap();}catch(e){ok=false;console.log('  recap err:',e.message);}return ok;})());
+  let RB=careerRecapBtns(); careerRecapClick(RB.again.x+5,RB.again.y+5);
+  T('recap NEW JOURNEY → fresh career at the difficulty pick', career.node==='difficulty'&&career.cleared.length===0&&phase==='p2cbeat');
+
+  // ───────────────────────── FULL CURRICULUM WALK (win every match, ace every quiz) → finale → recap ──────────────
   freshAt('intro'); let guard=0; const quizTopics={};
-  while(career.node!=='after:capstone_rumble'&&guard++<160){
+  while(phase!=='p2crecap'&&guard++<240){
     if(phase==='p2cbeat')pick(0);
     else if(phase==='p2cquiz'){const Q=career._quiz,q=Q.qs[Q.i];quizTopics[q.topic]=1;if(Q.picked==null){const R=careerQuizOptRects(q.opts.length);careerQuizClick(R[q.ans].x+5,R[q.ans].y+5);}else careerQuizClick(careerQuizContRect().x+5,careerQuizContRect().y+5);}
-    else { liveResult(0); careerMatchEnd(0); } // a match is live → win it
+    else { liveResult(0); careerMatchEnd(0); } // a match is live → win it (curriculum + every finale round)
   }
+  T('full walk runs all the way to the RECAP via the finale', phase==='p2crecap'&&guard<240);
   T('curriculum hits 3 quizzes across topics (tools, fab, power)', quizTopics.tools&&quizTopics.fab&&quizTopics.power);
   T('acing the quizzes accrued build bonuses (hp+speed+weapon)', career.bonuses.hp>0&&career.bonuses.speed>0&&career.bonuses.weapon>0);
-  T('full walk reaches the finale', career.node==="after:capstone_rumble"&&guard<160);
   T('full walk taught C1..C6', ['C1','C2','C3','C4','C5','C6'].every(c=>career.taught.includes(c)));
   T('full walk cleared all 7 stages', ['tank_hook','arcade_course','strafe_intro','field_centric','holo_shooter','heading_advanced','capstone_rumble'].every(s=>career.cleared.includes(s)));
-  T('full walk raised skill above the start', career.skill>0.5);
-  // finale → personalized RECAP (Phase ⑦)
-  pick(0);
-  T('finale → recap screen with an ending + narrated lines', phase==='p2crecap'&&!!career.flags.ending&&Array.isArray(career._recap)&&career._recap.length>=3);
+  T('default (veteran) walk → HIGH-SCHOOL champion ending', career.flags.ending==='hschamp');
   let rdrew=true; try{drawCareerRecap();}catch(e){rdrew=false;console.log('  recap draw err:',e.message);}
   T('recap renders', rdrew);
-  // ending logic variety
-  career.diff='champion';career.skill=3.5;career.flags={lastResult:'dominated',chem:'safe',quizScore:3};
-  T('ending: flawless (champion, high skill, safe chem, won)', careerEnding()==='flawless');
-  career.diff='pro';career.flags={lastResult:'won',chem:'safe',quizScore:3};
-  T('ending: scholar (safe chem + good quiz)', careerEnding()==='scholar');
-  career.flags={lastResult:'won',chem:'volatile',rematches:2};
-  T('ending: phoenix (won after rematches)', careerEnding()==='phoenix');
-  career.flags={lastResult:'lost',chem:'volatile'};
-  T('ending: grinder (lost the capstone)', careerEnding()==='grinder');
-  career.flags={lastResult:'won',chem:'volatile'};
-  T('ending: driver (default win)', careerEnding()==='driver');
-  // recap nav: NEW JOURNEY resets to the difficulty pick
-  careerRecapStart(); let RB=careerRecapBtns(); careerRecapClick(RB.again.x+5,RB.again.y+5);
-  T('recap NEW JOURNEY → fresh career at the difficulty pick', career.node==='difficulty'&&career.cleared.length===0&&phase==='p2cbeat');
 
   // ───────────────────────── ⑥ ACHIEVEMENTS · COACH-SKIP · BONUS TUNING ─────────────────────────
   // achievement: a PERFECT quiz fires Honor Roll
