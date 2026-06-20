@@ -250,12 +250,17 @@ performance/flags/prior choices. This is the choose-your-own-adventure layer tha
 ### 4.0 Choices with IN-GAME consequences (a light "build your robot" modifier layer)
 
 Beyond story/ending forks, **some choices apply a small GAMEPLAY modifier** to the matches that follow — a
-narrative decision with real mechanical weight (ideally with a fun tradeoff). Examples Sam floated:
-- *"Stay up late wrenching on the bot"* → a **performance bonus** (e.g. +HP / +a touch of speed / a free perk or a
-  weapon-tier bump) — maybe at a tiny cost (a tired-driver wobble, or you skip a story scene).
-- *"Couldn't afford the nicest motors"* → a **small sensitivity cap** / slightly lower top speed for a stretch.
-- Other hooks: a budget pick → fewer ally bots or a lower loadout tier; a sponsorship → a paint + a minor buff; a
-  risky overclock → high reward, small downside.
+narrative decision with real mechanical weight. **The core rule (Sam): it's ALL learning-gated — get questions right
+→ bonuses; get them wrong → you lose out.** Examples:
+- **"Dedication" / shop time** → a **performance bonus** for putting in the work. ⚠️ **Metric = total TIME the
+  player spends LEARNING in-game** (exploring shop factoids, taking quizzes) — **NOT the real-world system clock.**
+  Sam explicitly does **not** want to reward staying up late or punish younger players, so there's no real-clock or
+  "late-night" check; effort is measured purely by in-game learning engagement (patience-gated).
+- *"Couldn't afford the nicest motors"* → a **small sensitivity cap** / slightly lower top speed — fixed by earning
+  **grant money** (§6.4), i.e. by doing the optional writing exercise.
+- **Power-chemistry knowledge** → a **speed / weapon-damage** bonus (answer the Li-ion vs SLA + cells-in-series/
+  parallel questions right → "the better battery chemistry powered a higher-performance weapon"). The headline of
+  *correct answers = real in-match bonuses*.
 
 **Model:** store active modifiers in `career.mods` (a small list of `{id, label, effect}`), persisted with the save.
 Apply them in **`startCareerMatch()`** (the launch hook, §5.2) by tweaking the about-to-start match *before* calling
@@ -624,6 +629,18 @@ real and googleable. Right → unlock/bonus; wrong → you still advance, just w
   explain:"Li-ion ≈ 3–4× the energy density of lead-acid and holds voltage better under load → a lighter, "+
           "longer-running bot. AGM is cheap and robust but heavy and sags under high current." }
 ```
+
+**Shop factoids / safety tips (patience-gated discovery, Sam).** Every tool you click on in the workshop shows a
+short **factoid or safety tip** — so simply *exploring* teaches you (and primes the quiz answers). The "effort"
+bonus (§4.0) is measured by this kind of in-game learning engagement, not the clock. It's **all educational**: the
+amount you get **right on the quizzes is what grants bonuses; wrong answers lose out** (which adds light replay
+value — or you just look it up, which is fine, because you learn either way).
+
+**Content pipeline — Sam's lectures (offered, yes please).** The question bank + per-tool factoids should be sourced
+from **Sam's actual lecture material** (Li-ion vs SLA, cells in series/parallel, drivetrains, etc.). Workflow: Sam
+pastes the text or drops the files → distill into `CAREER_QUIZ` rows (`prompt`/`options`/`answer`/`explain`) + shop
+factoid/safety-tip strings. Keep it authentic and real — that *is* the point. (A correct power-chemistry answer →
+the speed/weapon-damage bonus, per §4.0.)
 
 ### 6.3 You have a NAME (Sam)
 
