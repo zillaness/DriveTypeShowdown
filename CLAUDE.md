@@ -58,5 +58,5 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
   is in one block after `let tour=null;`; the inlined question bank is `CAREER_QUIZ`; tests in
   `harness/tests/smoke83.js` — 70 asserts.)
 - PRDs: `frcds_roborumble_v2_prd_v1.0.md`, `frcds_online_prd_v1.1.md`, `frcds_tournament_v2_prd_v1.0.md`.
-- Build: latest is `drive_showdown_v5.1.260.html` (single self-contained HTML).
+- Build: latest is `drive_showdown_v5.1.261.html` (single self-contained HTML).
 - Balance sim: `./extract.sh && node harness/tests/bbbalance.js /tmp/g.js`.

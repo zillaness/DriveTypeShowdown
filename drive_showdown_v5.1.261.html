@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.260.html
-  version: 5.1.260
+  file: drive_showdown_v5.1.261.html
+  version: 5.1.261
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -161,9 +161,9 @@ let aimAssist=false; try{aimAssist=localStorage.getItem('frcds_aim')==='1';}catc
 function toggleAimAssist(){aimAssist=!aimAssist;try{localStorage.setItem('frcds_aim',aimAssist?'1':'0');}catch(e){}sfx('click');}
 let absHeading=false; try{absHeading=localStorage.getItem('frcds_abshead')==='1';}catch(e){} // v5.1.177 ABSOLUTE HEADING (snap-to-angle): the aim stick's ANGLE sets the chassis's target facing (rotate toward it), vs the default rate-of-rotation (stick = turn SPEED). Twin-stick: left stick translates, right stick faces.
 function toggleAbsHeading(){absHeading=!absHeading;try{localStorage.setItem('frcds_abshead',absHeading?'1':'0');}catch(e){}sfx('click');}
-function driveFieldCentric(d){ // v5.1.230 is this drive a FIELD-CENTRIC frame? fieldSwerve / holo+holoCentric → true; botSwerve / holo+!holoCentric → false; else null (tank/arcade/steer = no coupling)
+function driveFieldCentric(d){ // v5.1.230 is this drive a FIELD-CENTRIC frame? fieldSwerve / holo+holoCentric → true; botSwerve / holo+!holoCentric → false; else null (arcade/steer = no coupling)
   if(!d)return null;
-  if(d.kind==='main')return d.idx===3?true:(d.idx===2?false:null); // DRIVES: 3 = field-centric swerve, 2 = bot-centric swerve
+  if(d.kind==='main')return d.idx===3?true:(d.idx===2||d.idx===0?false:null); // DRIVES: 3=field-centric swerve→ON; 2=bot-centric, 0=TANK→OFF (v5.1.261 tank+absHeading is broken — force it off); 1=arcade→no coupling
   if(d.kind==='holo')return !!holoCentric;
   return null;
 }
@@ -6031,7 +6031,17 @@ let tour=null;
 let career=null;                 // null when not in a campaign; an object while playing one
 let careerSave=(()=>{try{const c=JSON.parse(localStorage.getItem('frcds_career_v1')||'null');return (c&&typeof c==='object')?c:null;}catch(e){return null;}})();
 function careerStore(){try{localStorage.setItem('frcds_career_v1',JSON.stringify(career));}catch(e){}}
-function careerNew(){return{node:'difficulty',diff:'veteran',stage:null,active:false,skill:1,taught:[],cleared:[],choices:{},flags:{lastResult:null},unlocks:{drives:[],bbWeapons:[],bbArmor:[],bbPerks:[],paints:[]},bonuses:{speed:0,weapon:0,hp:0},log:[],_then:null,_quiz:null,_rematchLeft:0,ver:1};}
+function careerNew(){return{node:'difficulty',diff:'veteran',input:'auto',stage:null,active:false,skill:1,taught:[],cleared:[],choices:{},flags:{lastResult:null},unlocks:{drives:[],bbWeapons:[],bbArmor:[],bbPerks:[],paints:[]},bonuses:{speed:0,weapon:0,hp:0},log:[],_then:null,_quiz:null,_rematchLeft:0,ver:1};}
+// CONTROL SCHEME (Sam: "default controller if plugged in… maybe ask at the beginning"). career.input ∈
+// {auto,gp,kb,touch}; careerHumanBind resolves side 0's device (a LIVE gamepad check, since browsers only
+// expose a pad after a button press — an explicit pick binds the controller anyway).
+function careerLiveGamepad(){try{const g=navigator.getGamepads?navigator.getGamepads():[];for(let i=0;i<g.length;i++)if(g[i]&&g[i].connected)return i;}catch(e){}return gpConnected?0:-1;}
+function careerHumanBind(){
+  const pref=(career&&career.input)||'auto';
+  if(pref==='gp'){const i=careerLiveGamepad();return {type:'gp',gp:Math.max(0,i)};}    // explicit controller
+  if(pref==='kb'||pref==='touch')return {type:'kb'};                                    // kb bind also drives the touch joysticks
+  const i=careerLiveGamepad();return i>=0?{type:'gp',gp:i}:{type:'kb'};                  // auto: pad if present, else keyboard
+}
 // DIFFICULTY LANE (Sam): the lane you pick up front is named after — and starts you at — the engine's 4 CPU
 // tiers (ROOKIE/VETERAN/WINNER/CHAMPION). It sets (a) your STARTING tier/skill, (b) the rematch budget, and
 // (c) the quiz grade-band. The adaptive rating then nudges your tier up/down from that lane baseline.
@@ -6153,10 +6163,18 @@ const CAREER_BEATS={
     "This sets your RE-MATCHES: when a fight goes badly, how many retries before the loss becomes part of your story.",
     "(You always keep moving forward either way — losing just writes a different story.)"],
     choices:[
-      {label:"ROOKIE — easiest bots · unlimited rematches · basics quiz", goto:'intro', effect:{setDiff:'rookie'}},
-      {label:"VETERAN — even fights · 5 rematches · +algebra quiz", goto:'intro', effect:{setDiff:'veteran'}},
-      {label:"WINNER — strong bots · 2 rematches · harder quiz", goto:'intro', effect:{setDiff:'winner'}},
-      {label:"CHAMPION — toughest bots · NO rematches · hardest quiz", goto:'intro', effect:{setDiff:'champion'}},
+      {label:"ROOKIE — easiest bots · unlimited rematches · basics quiz", goto:'controls', effect:{setDiff:'rookie'}},
+      {label:"VETERAN — even fights · 5 rematches · +algebra quiz", goto:'controls', effect:{setDiff:'veteran'}},
+      {label:"WINNER — strong bots · 2 rematches · harder quiz", goto:'controls', effect:{setDiff:'winner'}},
+      {label:"CHAMPION — toughest bots · NO rematches · hardest quiz", goto:'controls', effect:{setDiff:'champion'}},
+    ]},
+  controls:{kind:'story',title:'HOW ARE YOU PLAYING?',lines:[
+    "Last setup question — what are you driving with? (Restart anytime to change it.)",
+    ({c})=> careerLiveGamepad()>=0 ? "🎮 I see a controller plugged in — recommended." : "No controller detected — keyboard it is (plug a controller in and pick it to use one).",
+    "(Career runs in landscape twin-stick — touch is a Single-Player thing.)"],
+    choices:[
+      {label:"🎮 Controller", goto:'intro', effect:{setInput:'gp'}},
+      {label:"⌨️ Keyboard (+ mouse aim)", goto:'intro', effect:{setInput:'kb'}},
     ]},
   intro:{kind:'story',title:'FIRST DRIVE',lines:[
     "Someone shoves a controller into your hands and points at a squat little robot.",
@@ -6280,6 +6298,7 @@ function careerWhen(c){ // tiny declarative predicate against `career`
 function careerVisibleChoices(b){return (b&&b.choices?b.choices:[]).filter(ch=>careerWhen(ch.when));}
 function careerApplyEffect(eff){
   if(!eff)return;
+  if(eff.setInput)career.input=eff.setInput;
   if(eff.setDiff&&CAREER_LANE_TIER[eff.setDiff]!=null){career.diff=eff.setDiff;career.skill=CAREER_LANE_TIER[eff.setDiff];} // the lane seeds your starting CPU tier
 
   if(eff.setFlag)for(const k in eff.setFlag)career.flags[k]=eff.setFlag[k];
@@ -6367,7 +6386,7 @@ function startCareerMatch(stageId){
   m2.set={...M2_SET_DEFAULTS};
   careerStageSetup(st);
   p2cEnsureDrives();
-  const human=(gpConnected?{type:'gp',gp:0}:{type:'kb'}); // side 0 = the player (gamepad if present, else keyboard + touch joysticks)
+  const human=careerHumanBind(); // side 0 = the player's chosen device (controller / keyboard / touch)
   m2.claim=[human,{type:'cpu',tier:careerTier()}];
   m2.name=['YOU',(st.tag||'RIVAL').toUpperCase()];
   m2.sens=[1,1];m2._gpPrev=[];
@@ -6375,6 +6394,7 @@ function startCareerMatch(stageId){
   if(st.drive){careerSetDrive(0,st.drive);careerSetDrive(1,st.drive);} // DRIVE-LOCK the lesson on side 0; mirror it on the CPU
   else{p2cSetDrive(0,0,0);p2cSetDrive(1,0,0);}                          // capstone: a sane default (player brings their favorite later)
   if(st.absHeading!=null)absHeading=st.absHeading;                      // C6 stage pre-sets absolute heading to demo it
+  if(m2.drive[0]&&m2.drive[0].kind==='main'&&m2.drive[0].idx===0)absHeading=false; // v5.1.261 NEVER absolute-heading on a TANK drive (it's broken together)
   careerApplyBonuses(st);                                               // knowledge → a real, modest in-match edge (quiz bonuses)
   careerStore();
   switch(st.mode){
@@ -9145,36 +9165,44 @@ function drawCpuSettings(){
 
 // ── v5.1.92 SPLASH front door: pick SINGLE PLAYER (portrait/phone) or MULTIPLAYER (landscape/desktop) ──
 // Rendered on the legacy (portrait) layout — the central hub that both paths return to.
-function splashRects(){return{
-  career:{x:30,y:158,w:CW-60,h:80},  // v5.1.252 CAREER tutorial — the new front door (headline banner)
-  sp :{x:30,y:246,w:CW-60,h:150}, // SINGLE PLAYER path card
-  mp :{x:30,y:406,w:CW-60,h:150}, // MULTIPLAYER path card
-  set:{x:30,y:566,w:CW-60,h:40},  // global SETTINGS
+function splashRects(){return{   // v5.1.261 three matching cards (Sam: same style/size, START aligned, similar 2-line descriptions); CAREER leads by color + position
+  career:{x:30,y:172,w:CW-60,h:112}, // CAREER / STORY MODE — first, gold
+  sp :{x:30,y:298,w:CW-60,h:112},    // SINGLE PLAYER
+  mp :{x:30,y:424,w:CW-60,h:112},    // MULTIPLAYER
+  set:{x:30,y:550,w:CW-60,h:40},     // global SETTINGS
 };}
-function drawCareerBanner(r){
-  ctx.fillStyle='rgba(18,40,30,0.62)';rr(r.x,r.y,r.w,r.h,14);ctx.fill();
-  ctx.strokeStyle='#ffd740';ctx.lineWidth=2.5;rr(r.x,r.y,r.w,r.h,14);ctx.stroke();
-  ctx.textAlign='left';
-  ctx.font='34px serif';ctx.fillText('🎓',r.x+18,r.y+50);
-  const tx=r.x+62, avail=r.w-78;                          // content area: clear of the icon (left) + the right padding
-  let ts=18; ctx.font='bold '+ts+'px Courier New';        // title — shrink to fit so it never overruns the card
-  while(ts>12&&ctx.measureText('CAREER — LEARN TO DRIVE').width>avail){ts--;ctx.font='bold '+ts+'px Courier New';}
-  ctx.fillStyle='#ffd740';ctx.fillText('CAREER — LEARN TO DRIVE',tx,r.y+34);
-  ctx.font='10px Courier New';ctx.fillStyle='#9fb39f';    // short tagline (was overrunning the right edge)
-  let tag='A story-driven robotics tutorial';
-  while(tag.length>8&&ctx.measureText(tag).width>avail)tag=tag.slice(0,-1);
-  ctx.fillText(tag,tx,r.y+54);
-  ctx.font='bold 11px Courier New';ctx.fillStyle='#ffd740';ctx.textAlign='right';ctx.fillText('▶ START  ✦ NEW',r.x+r.w-16,r.y+r.h-12);
+// an icon on a light backing disc — visible regardless of how the platform renders the emoji (PC vs Mac)
+function drawSplashIcon(cx,cy,icon,col,sz){
+  ctx.save();
+  ctx.beginPath();ctx.arc(cx,cy,sz,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.14)';ctx.fill();
+  ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke();
+  ctx.font=Math.round(sz*1.25)+'px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#ffffff';ctx.fillText(icon,cx,cy+1);
+  ctx.textBaseline='alphabetic';ctx.restore();
 }
-function drawSplashCard(r,icon,title,lines,col,bg){
-  ctx.fillStyle=bg;rr(r.x,r.y,r.w,r.h,14);ctx.fill();
-  ctx.strokeStyle=col;ctx.lineWidth=2;rr(r.x,r.y,r.w,r.h,14);ctx.stroke();
-  ctx.textAlign='center';
-  ctx.font='38px serif';ctx.fillText(icon,CW/2,r.y+54);
-  ctx.font='bold 20px Courier New';ctx.fillStyle=col;ctx.fillText(title,CW/2,r.y+88);
-  ctx.font='10px Courier New';ctx.fillStyle='#7a7a98';
-  lines.forEach((ln,i)=>ctx.fillText(ln,CW/2,r.y+108+i*14));
-  ctx.font='bold 11px Courier New';ctx.fillStyle=col;ctx.fillText('▶ START',CW/2,r.y+r.h-12);
+function drawCareerBanner(r){
+  ctx.fillStyle='rgba(20,44,30,0.72)';rr(r.x,r.y,r.w,r.h,16);ctx.fill();
+  ctx.strokeStyle='#ffd740';ctx.lineWidth=3;rr(r.x,r.y,r.w,r.h,16);ctx.stroke();
+  ctx.fillStyle='#ffd740';rr(r.x+r.w-72,r.y+12,60,22,11);ctx.fill();           // ✦ NEW badge
+  ctx.font='bold 11px Courier New';ctx.fillStyle='#14240e';ctx.textAlign='center';ctx.fillText('✦ NEW',r.x+r.w-42,r.y+27);
+  drawSplashIcon(r.x+46,r.y+54,'🎓','#ffd740',22);
+  ctx.textAlign='left';const tx=r.x+84;
+  ctx.font='bold 24px Courier New';ctx.fillStyle='#ffd740';ctx.fillText('CAREER',tx,r.y+46);
+  ctx.font='bold 12px Courier New';ctx.fillStyle='#e8d488';ctx.fillText('STORY MODE · LEARN TO DRIVE',tx,r.y+66);
+  ctx.font='10px Courier New';ctx.fillStyle='#9fbf9f';
+  ['Master every robot drive through a branching story —','quizzes, a graduation tournament, multiple endings.'].forEach((ln,i)=>ctx.fillText(ln,r.x+22,r.y+96+i*15));
+  ctx.font='bold 14px Courier New';ctx.fillStyle='#ffd740';ctx.textAlign='center';ctx.fillText('▶  START YOUR CAREER',CW/2,r.y+r.h-16);
+}
+function drawSplashCardC(r,icon,title,lines,col,bg){   // matching path card: icon + title (top) · 2 description lines · aligned START
+  ctx.fillStyle=bg;rr(r.x,r.y,r.w,r.h,12);ctx.fill();
+  ctx.strokeStyle=col;ctx.lineWidth=1.5;rr(r.x,r.y,r.w,r.h,12);ctx.stroke();
+  drawSplashIcon(r.x+38,r.y+38,icon,col,20);                       // icon top-left, on a backing disc (cross-platform visible)
+  ctx.textAlign='left';
+  ctx.font='bold 17px Courier New';ctx.fillStyle=col;ctx.fillText(title,r.x+70,r.y+44);
+  ctx.font='10px Courier New';ctx.fillStyle='#9090a8';
+  [].concat(lines).forEach((ln,i)=>{let s=ln,avail=r.w-44;while(s.length>6&&ctx.measureText(s).width>avail)s=s.slice(0,-1);ctx.fillText(s,r.x+22,r.y+70+i*15);});
+  ctx.font='bold 12px Courier New';ctx.fillStyle=col;ctx.textAlign='right';ctx.fillText('▶ START',r.x+r.w-16,r.y+r.h-12);  // same spot on every card
 }
 function drawSplash(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
@@ -9183,9 +9211,9 @@ function drawSplash(){
   ctx.font='bold 30px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('DRIVE TYPE',CW/2,98);ctx.fillText('SHOWDOWN',CW/2,130);
   ctx.font='11px Courier New';ctx.fillStyle='#55556a';ctx.fillText('Team 2204 Rambots',CW/2,154);
   const R=splashRects();
-  drawCareerBanner(R.career);
-  drawSplashCard(R.sp,'🕹','SINGLE PLAYER',['Drive-type challenge — master every','robot drive. Portrait · phone-friendly.'],'#44ffaa','rgba(18,44,30,0.55)');
-  drawSplashCard(R.mp,'👥','MULTIPLAYER',['Head-to-head 1v1–3v3: ball · tank ·','race · RoboRumble. Landscape · desktop.'],'#ee66bb','rgba(40,16,40,0.6)');
+  drawSplashCardC(R.career,'🎓','CAREER',['Story-driven tutorial — master every','robot drive. Quizzes + a tournament.'],'#ffd740','rgba(22,42,28,0.7)');
+  drawSplashCardC(R.sp,'🕹','SINGLE PLAYER',['Drive-type challenge — master every','robot drive. Portrait · phone-friendly.'],'#44ffaa','rgba(18,44,30,0.55)');
+  drawSplashCardC(R.mp,'👥','MULTIPLAYER',['Head-to-head 1v1–3v3: ball · tank ·','race · RoboRumble. Landscape · desktop.'],'#ee66bb','rgba(40,16,40,0.6)');
   const s=R.set;ctx.fillStyle='rgba(20,20,44,0.82)';rr(s.x,s.y,s.w,s.h,10);ctx.fill();
   ctx.strokeStyle='#334466';ctx.lineWidth=1.5;rr(s.x,s.y,s.w,s.h,10);ctx.stroke();
   ctx.font='bold 14px Courier New';ctx.fillStyle='#8899cc';ctx.textAlign='center';ctx.fillText('⚙  SETTINGS',CW/2,s.y+29);
@@ -10048,6 +10076,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.261 (2026-06-20): CAREER polish from a live Sam playtest — tank+abs-heading bugfix · controller-vs-keyboard pick · splash redesign. (1) BUGFIX (Sam: "tank + absolute heading is broken together"): `driveFieldCentric` now reports TANK as not-field-centric (returns false), so picking a tank drive FORCES absolute heading OFF (arcade stays uncoupled — "could be okay"); a belt-and-suspenders guard in startCareerMatch also clears it for a tank drive. (2) CONTROL SCHEME (Sam: "default controller if plugged in… maybe ask at the beginning"): a new `controls` beat after the lane pick asks Controller vs Keyboard; `career.input` + `careerHumanBind` resolve side 0's device via a LIVE gamepad check (browsers only expose a pad after a button press). TOUCH is intentionally NOT offered in career — it's a Single-Player-only thing (the career runs in the landscape twin-stick engine); the touch ENGINE is untouched (kept for SP + a future mobile release). (3) SPLASH REDESIGN (Sam): three MATCHING cards (CAREER gold · SINGLE PLAYER · MULTIPLAYER) — same style/size, the ▶ START aligned in the same spot, the richer 2-line descriptions restored, the "✦ NEW" tag removed, and each icon drawn on a light backing disc so it's visible regardless of PC/Mac emoji rendering (fixes the "barely visible joystick"). smoke83 → 91 asserts (controls beat, careerHumanBind, the difficulty→controls→intro flow); smoke57 updated for the tank-abs-heading change. Verified via a headless-Chromium screenshot pass. Full battery green.
   v5.1.260 (2026-06-20): CAREER / STORY MODE — the FINALE: a lane-prestige bracket (Sam's FRC ladder) + a permit-quiz topic. The capstone is now lane-differentiated (CAREER_FINALE): ROOKIE = the quick single-rumble Graduation Scrimmage (no bracket); VETERAN = a 3-round HIGH-SCHOOL **ball** tournament (different MODE); WINNER = a 3-round REGIONAL RoboRumble tournament; CHAMPION = the 3-round WORLD Championship. A single-elim gauntlet: careerFinaleStart seeds career.finale, careerMatchEnd advances the rounds (win → next / champion; loss → eliminated, still graduates), and the lane-framed pre:capstone beat routes via goto:'finale'. ENDINGS reworked around the result: 🌎 WORLD CHAMPION / 🏆 REGIONAL CHAMPION / 🏫 HIGH-SCHOOL CHAMPION / 🎓 GRADUATE / 💪 DEEP RUN; the recap narrates the run ("ran the table at the Regional Championship — 3 rounds, no slip-ups"). Also added a PERMIT-TEST quiz topic (14 rules-of-the-road questions in career/quiz_bank.js, re-inlined) for the upcoming driver's-license mini-game. smoke83 → 86 asserts (per-lane finale mode/rounds, the 3-0 run, a round-1 KO → deep run, ending titles, the full walk to the recap via the bracket). Full battery green.
   v5.1.259 (2026-06-20): CAREER / STORY MODE — Phase ⑥ (achievements · coach-skip · bonus tuning) + a splash card-bound fix. (1) ACHIEVEMENTS: 3 new ACH_DEFS — First Driver (graduate the tutorial), Honor Roll (ace a quiz — every answer right), Untouchable (graduate on the CHAMPION lane) — fired idempotently from careerRecapStart / careerQuizFinish. (2) COACH SELF-SKIP: on a replay, an already-learned coaching card swaps "Got it — let's drive" for "⏩ Skip — you know this one" (careerGoto tracks `_coachKnown` before marking taught). (3) BONUS TUNING: magnitudes are now explicit tunable constants (CAREER_BONUS = +25% control speed · up to +2 tank lives), and the hub shows your earned "Knowledge edge" (careerBonusSummary). Also wired the dormant LICENSE perks (a licensed driver — §11.1 future mini-game — gets +1 life + a SPARE-PART 'sparetire' perk in the rumble). (4) SPLASH FIX (Sam: "the text breaks the bounds of the career mode card"): the CAREER banner tagline overran the card edge — now a short tagline + a measureText shrink-to-fit guard on the title; SINGLE/MULTIPLAYER cards restored to full height. Verified by a headless-Chromium screenshot pass (no page errors). smoke83 → 82 asserts; smoke42 ACH count → 18. Full battery green.
   v5.1.258 (2026-06-20): CAREER / STORY MODE — difficulty lanes renamed to the engine's 4 CPU tiers + a latent tier-index bugfix (Sam: "should be rookie, veteran, winner, champion"). The lanes now match the game's real difficulty vocabulary (CPU_TIERS = ROOKIE/VETERAN/WINNER/CHAMPION) — and the LANE both names AND SEEDS your starting tier: CAREER_LANE_TIER {rookie:0,veteran:1,winner:2,champion:3} sets `career.skill`, the adaptive rating nudges from there, and rematch budgets are rookie ∞ / veteran 5 / winner 2 / champion 0. BUGFIX: the engine has 4 CPU tiers (indices 0..3 — a deliberate 5→4 rework), but `careerTier()`/the skill clamp were capping at 4 (an out-of-range index that would feed `m2.claim[1].tier=4` → undefined tier params); both now clamp to `careerMaxTier()` (= CPU_TIERS.length-1 = 3). The hub's rating readout also used wrong names (AMATEUR/PRO) — now reads the real `CPU_TIERS[i].name`. Quiz grade-band is now 4-way (rookie core · veteran +algebra · winner harder/4 · champion hardest/4). smoke83 → 73 asserts. Full battery green.

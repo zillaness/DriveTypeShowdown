@@ -1270,10 +1270,11 @@ src+=`
   {const svAH=absHeading,svHC=holoCentric,svD=m2.drive;m2.drive=[null,null,null,null,null,null];
    absHeading=false;p2cSetDrive(0,0,3);ok('FIELD-CENTRIC swerve auto-ENABLES absolute heading',absHeading===true);
    p2cSetDrive(0,0,2);ok('BOT-CENTRIC swerve auto-DISABLES absolute heading',absHeading===false);
-   absHeading=true;p2cSetDrive(0,0,0);ok('a non-swerve drive (tank) leaves absolute heading unchanged (override preserved)',absHeading===true);
+   absHeading=true;p2cSetDrive(0,0,0);ok('TANK drive FORCES absolute heading OFF (v5.1.261 — broken together)',absHeading===false);
+   absHeading=true;p2cSetDrive(0,0,1);ok('ARCADE drive leaves absolute heading unchanged (no coupling, override preserved)',absHeading===true);
    holoCentric=false;absHeadingCouple(holoCentric);ok('switching the holo frame to BOT-CENTRIC turns absHeading off',absHeading===false);
    holoCentric=true;absHeadingCouple(holoCentric);ok('switching the holo frame to FIELD-CENTRIC turns absHeading on',absHeading===true);
-   ok('driveFieldCentric: fieldSwerve=true, botSwerve=false, tank=null',driveFieldCentric({kind:'main',idx:3})===true&&driveFieldCentric({kind:'main',idx:2})===false&&driveFieldCentric({kind:'main',idx:0})===null);
+   ok('driveFieldCentric: fieldSwerve=true, botSwerve=false, tank=false (forced off), arcade=null',driveFieldCentric({kind:'main',idx:3})===true&&driveFieldCentric({kind:'main',idx:2})===false&&driveFieldCentric({kind:'main',idx:0})===false&&driveFieldCentric({kind:'main',idx:1})===null);
    absHeading=svAH;holoCentric=svHC;m2.drive=svD;}
   // v5.1.231 egg unlocks now feed the ACHIEVEMENTS screen (were on an orphan bb_egg_* key)
   {ok('both egg achievements exist in ACH_DEFS',ACH_DEFS.some(a=>a.id==='autobots')&&ACH_DEFS.some(a=>a.id==='unoriginalsin'));

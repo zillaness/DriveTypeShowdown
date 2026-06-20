@@ -22,11 +22,20 @@ src+=`
   T('careerEnter → p2career hub', phase==='p2career');
   let B=careerHubBtns(); careerHubClick(B.go.x+10,B.go.y+10);
   T('hub START → p2cbeat at the difficulty pick', phase==='p2cbeat'&&!!career&&career.node==='difficulty');
-  // difficulty beat (4 lanes: rookie/veteran/winner/champion) sets diff + seeds the starting tier + → intro
+  // difficulty beat (4 lanes: rookie/veteran/winner/champion) sets diff + seeds the starting tier + → controls
   career=careerNew(); phase='p2cbeat'; pick(3);
-  T('difficulty CHAMPION (choice 3) → diff + seeds skill 3 + → intro', career.diff==='champion'&&career.skill===3&&career.node==='intro');
-  career=careerNew(); pick(0); T('difficulty ROOKIE (choice 0) → seeds skill 0', career.diff==='rookie'&&career.skill===0);
+  T('difficulty CHAMPION (choice 3) → diff + seeds skill 3 + → controls', career.diff==='champion'&&career.skill===3&&career.node==='controls');
+  career=careerNew(); pick(0); T('difficulty ROOKIE (choice 0) → seeds skill 0', career.diff==='rookie'&&career.skill===0&&career.node==='controls');
   career=careerNew(); pick(2); T('difficulty WINNER (choice 2) → seeds skill 2', career.diff==='winner'&&career.skill===2);
+  // controls beat → picks the input scheme → intro
+  career=careerNew(); career.node='controls'; phase='p2cbeat'; pick(1);
+  T('controls KEYBOARD (choice 1) → input kb + → intro', career.input==='kb'&&career.node==='intro');
+  career=careerNew(); career.node='controls'; phase='p2cbeat'; pick(0);
+  T('controls CONTROLLER (choice 0) → input gp', career.input==='gp'&&career.node==='intro');
+  // careerHumanBind resolves the device (harness has no gamepad → keyboard for auto)
+  career.input='gp'; T('careerHumanBind gp → controller', careerHumanBind().type==='gp');
+  career.input='kb'; T('careerHumanBind kb → keyboard', careerHumanBind().type==='kb');
+  career.input='auto'; T('careerHumanBind auto (no pad) → keyboard', careerHumanBind().type==='kb');
   texts.length=0; let drew=true; try{drawCareerBeat();}catch(e){drew=false;console.log('  draw err:',e.message);}
   T('intro beat renders (no throw, emits text)', drew&&texts.length>0);
   let dh=true; try{drawCareerHub();}catch(e){dh=false;console.log('  hub err:',e.message);}
