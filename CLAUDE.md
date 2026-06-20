@@ -44,7 +44,7 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
 ## 📍 Project context lives here
 
 - **`MIGRATION.md`** — read first: full project state, current focus, constraints.
-- **`HANDOFF_2026-06-20.md`** — LATEST thread handoff (tip v5.1.269): Career mode COMPLETE, the CREDITS screen, ball-mode/FFA bug fixes, flame nerf + RoboRumble kill-race scoring + the live backlog. **Start here when resuming.**
+- **`HANDOFF_2026-06-20.md`** — LATEST thread handoff (tip v5.1.270): Career mode COMPLETE, the CREDITS screen, ball-mode/FFA bug fixes, flame nerf + RoboRumble kill-race scoring, **FFA render-crash + invisible-HUD + duplicate-bind fixes (v5.1.270)** + the live backlog. **Start here when resuming.**
 - **`HANDOFF_2026-06-19.md`** — prior handoff (tip v5.1.245/251): map editor (done) + the Tournament v2 locked design.
 - **`OVERNIGHT_PLAN.md`** — the F1–F5 backlog + the 🏆 Tournament v2 LOCKED DESIGN block.
 - **`HANDOFF_2026-06-16.md`** — the in-depth narrative (weapons / perks / easter eggs / cheats vision).
@@ -60,5 +60,5 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
   career logic is in one block after `let tour=null;`; the inlined question bank is `CAREER_QUIZ`; tests in
   `harness/tests/smoke83.js` — 107 asserts.)
 - PRDs: `frcds_roborumble_v2_prd_v1.0.md`, `frcds_online_prd_v1.1.md`, `frcds_tournament_v2_prd_v1.0.md`.
-- Build: latest is `drive_showdown_v5.1.269.html` (single self-contained HTML).
+- Build: latest is `drive_showdown_v5.1.270.html` (single self-contained HTML).
 - Balance sim: `./extract.sh && node harness/tests/bbbalance.js /tmp/g.js`.

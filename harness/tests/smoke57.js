@@ -1372,6 +1372,31 @@ src+=`
    bb2={result:null,ffa:true,bots:[{side:0,dead:false,lives:Infinity,hp:99,kills:1,ctl:{name:'A'}},{side:1,dead:true,lives:Infinity,hp:0,kills:4,ctl:{name:'B'}},{side:2,dead:false,lives:Infinity,hp:50,kills:2,ctl:{name:'C'}}]};
    ok('FFA inf-lives timed: most KILLS wins (side 1, even momentarily dead)',bbTimeUpResult()===1);
    bb2=svbb;m2.mode=svm;}
+  // v5.1.270 FFA HUD layout — every faction gets a visible status panel (the row=[0,0]/side===0 layout left sides 2-5 at NaN y, i.e. INVISIBLE — only 2 of 6 showed)
+  {const svbb=bb2;bb2={ffa:true,bots:[]};for(let i=0;i<6;i++)bb2.bots.push({side:i});
+   const sl=[];for(let i=0;i<6;i++)sl.push(bbHudSlot(i));
+   ok('FFA HUD: all 6 panels have FINITE x/y (was NaN for sides 2-5)',sl.every(s=>isFinite(s.x)&&isFinite(s.y)));
+   const lefts=sl.filter(s=>s.x===10),rights=sl.filter(s=>s.x!==10);
+   ok('FFA HUD: 3 panels in the LEFT column, 3 in the RIGHT',lefts.length===3&&rights.length===3);
+   ok('FFA HUD: LEFT-column y values are all distinct (no overlap)',new Set(lefts.map(s=>s.y)).size===3);
+   ok('FFA HUD: RIGHT-column y values are all distinct (no overlap)',new Set(rights.map(s=>s.y)).size===3);
+   bb2={ffa:false,bots:[{side:0},{side:0},{side:1}]};
+   ok('2-side HUD regression: side 0 stacks LEFT (y 16,58), side 1 goes RIGHT',bbHudSlot(0).x===10&&bbHudSlot(0).y===16&&bbHudSlot(1).x===10&&bbHudSlot(1).y===58&&bbHudSlot(2).x!==10&&bbHudSlot(2).y===16);
+   bb2=svbb;}
+  // v5.1.270 FFA INTEGRATION — a real 6-player free-for-all (1 human + empty seats CPU-filled) must START and RENDER without crashing.
+  // Was: tankGridApply left the synthetic-fill binds' m2.drive = null, and p2DriveCtx did m2.drive[p].kind → drawBB() threw on the first frame.
+  {const sv={mode:m2.mode,tfmt:m2.set.tfmt,bbmode:m2.set.bbmode,bestOf:m2.set.bestOf,map:m2.set.map,bblives:m2.set.bblives,tseats:m2.tseats,claim:m2.claim,drive:m2.drive.slice(),sens:m2.sens.slice(),bb:bb2,ph:phase,pb:playerBind.slice()};
+   applyLayout('land2p');phase='p2claim';tour=null;m2.mode='battlebots';m2.set.tfmt='ffa';m2.set.bbmode='ko';m2.set.bestOf=1;m2.set.map=0;m2.set.bblives=1;
+   m2.drive=[null,null];m2.sens=[1,1]; // a FRESH 2-slot drive array — the bug surfaces because FFA fills binds 2-5 whose drive is null/undefined
+   m2.tseats=[{type:'human',dev:{type:'kb'},tier:1,drive:{kind:'main',idx:3,name:'FCS',c:'#0ff'},sens:1,name:'ME'},null,null,null,null,null];
+   m2.claim=[{type:'kb'},null];playerBind[0]={type:'kb'};m2._gpPrev=[];
+   startP2BB();
+   ok('FFA starts with the full 6-bot field',phase==='p2bb'&&!!bb2&&bb2.bots.length===6);
+   ok('FFA every filled bind has a (non-null) drive — null was the p2DriveCtx render crash',bb2.bots.every(b=>!!m2.drive[b.ctl.bind]));
+   ok('FFA binds are all DISTINCT (no two bots sharing one drive/input)',new Set(bb2.bots.map(b=>b.ctl.bind)).size===6);
+   ok('FFA seat 0 is the HUMAN, the other 5 are CPUs',bb2.bots[0].ctl.type==='human'&&bb2.bots.slice(1).every(b=>b.ctl.type==='cpu'));
+   ok('FFA RENDER: drawBB() runs without throwing (the null-drive crash site)',(()=>{try{updateBB(3.1);for(let i=0;i<30;i++)updateBB(1/30);drawBB();return true;}catch(e){console.log('   drawBB threw: '+e.message);return false;}})());
+   bb2=sv.bb;phase=sv.ph;m2.mode=sv.mode;m2.set.tfmt=sv.tfmt;m2.set.bbmode=sv.bbmode;m2.set.bestOf=sv.bestOf;m2.set.map=sv.map;m2.set.bblives=sv.bblives;m2.tseats=sv.tseats;m2.claim=sv.claim;m2.drive=sv.drive;m2.sens=sv.sens;playerBind=sv.pb;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
