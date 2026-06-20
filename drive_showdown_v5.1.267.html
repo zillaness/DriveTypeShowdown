@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.266.html
-  version: 5.1.266
+  file: drive_showdown_v5.1.267.html
+  version: 5.1.267
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -9369,29 +9369,43 @@ function drawCredits(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
   for(let y=0;y<CH;y+=3){ctx.fillStyle='rgba(0,0,0,0.12)';ctx.fillRect(0,y,CW,1);}
   ctx.textAlign='center';
-  ctx.font='bold 24px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('CREDITS',CW/2,84);
-  ctx.font='bold 14px Courier New';ctx.fillStyle='#8899cc';ctx.fillText('DRIVE TYPE SHOWDOWN',CW/2,120);
-  ctx.font='11px Courier New';ctx.fillStyle='#55556a';ctx.fillText('by Sam Cao · Team 2204 Rambots',CW/2,142);
-  // PROJECTS AND MODS card — the vector wordmark logo
-  const cx=CW/2, cy=Math.min(CH*0.42,300), cw=Math.min(CW-60,420);
-  ctx.fillStyle='rgba(18,32,52,0.85)';rr(cx-cw/2,cy-72,cw,148,16);ctx.fill();
-  ctx.strokeStyle='#34507a';ctx.lineWidth=1.5;rr(cx-cw/2,cy-72,cw,148,16);ctx.stroke();
-  drawPMLogo(cx,cy-2,Math.min(34,cw*0.085),'#eaf2ff');
-  ctx.font='10px Courier New';ctx.fillStyle='#7f97b8';ctx.textAlign='center';ctx.fillText('projects · mods · builds',cx,cy+62);
-  // link buttons
-  const links=[
-    {url:'https://www.youtube.com/@projectsandmods', text:'YouTube — @projectsandmods'},
-    {url:'https://projectsandmods.com/',             text:'projectsandmods.com'},
-  ];
-  const BW=Math.min(CW-80,360),BH=44,bx=cx-BW/2; let by=cy+98;
-  for(const lk of links){
-    lk.hx=bx;lk.hy=by;lk.hw=BW;lk.hh=BH;
-    ctx.fillStyle='rgba(28,50,82,0.6)';rr(bx,by,BW,BH,10);ctx.fill();
-    ctx.strokeStyle='#9fb8d6';ctx.lineWidth=1.5;rr(bx,by,BW,BH,10);ctx.stroke();
-    drawPMGear(bx+28,by+BH/2,13,'#eaf2ff');
-    ctx.font='bold 13px Courier New';ctx.fillStyle='#d3e3f7';ctx.textAlign='left';ctx.fillText(lk.text,bx+52,by+BH/2+5);
-    by+=BH+14;
-  }
+  ctx.font='bold 22px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('CREDITS',CW/2,62);
+  ctx.font='bold 13px Courier New';ctx.fillStyle='#8899cc';ctx.fillText('DRIVE TYPE SHOWDOWN',CW/2,88);
+  ctx.font='10px Courier New';ctx.fillStyle='#55556a';ctx.fillText('by Sam Cao · Team 2204 Rambots',CW/2,106);
+  const links=[];
+  const cw=Math.min(CW-40,440), cx=CW/2, x0=cx-cw/2;
+  const bw=(cw-30)/2, bh=34, bx=x0+10;
+  const linkBtn=(x,y,iconFn,label,col,bg,fg,url)=>{ // a half-width link button: brand icon + label, opens url
+    links.push({url,hx:x,hy:y,hw:bw,hh:bh});
+    ctx.fillStyle=bg;rr(x,y,bw,bh,8);ctx.fill();
+    ctx.strokeStyle=col;ctx.lineWidth=1.5;rr(x,y,bw,bh,8);ctx.stroke();
+    iconFn(x+19,y+bh/2);
+    ctx.font='bold 11px Courier New';ctx.fillStyle=fg;ctx.textAlign='left';ctx.fillText(label,x+36,y+bh/2+4);
+  };
+  const rambotsEmblem=(ix,iy,r)=>{ctx.beginPath();ctx.arc(ix,iy,r,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+    const LS=r*1.45,lh=LS*(1967/1919);try{ctx.drawImage(_logoMain,ix-LS/2,iy-lh/2,LS,lh);}catch(e){}};
+
+  // ── TEAM 2204 RAMBOTS panel ──
+  let py=128, ph=168;
+  ctx.fillStyle='rgba(40,16,16,0.7)';rr(x0,py,cw,ph,16);ctx.fill();
+  ctx.strokeStyle='#cc4444';ctx.lineWidth=1.5;rr(x0,py,cw,ph,16);ctx.stroke();
+  rambotsEmblem(cx,py+42,32);
+  ctx.font='bold 16px Courier New';ctx.fillStyle='#ff9999';ctx.textAlign='center';ctx.fillText('TEAM 2204 RAMBOTS',cx,py+96);
+  ctx.font='9px Courier New';ctx.fillStyle='#bb7777';ctx.fillText('FIRST Robotics Competition',cx,py+112);
+  {const by=py+ph-bh-12;
+   linkBtn(bx,        by,(ix,iy)=>rambotsEmblem(ix,iy,11),'rambots.org','#cc4444','rgba(180,40,40,0.30)','#ffbbbb','https://rambots.org/');
+   linkBtn(bx+bw+10,  by,(ix,iy)=>{try{ctx.drawImage(_logoIG,ix-11,iy-11,22,22);}catch(e){}},'@frc2204','#cc4444','rgba(180,40,40,0.30)','#ffbbbb','https://instagram.com/frc2204/');}
+
+  // ── PROJECTS AND MODS panel ──
+  py+=ph+16; ph=168;
+  ctx.fillStyle='rgba(18,32,52,0.85)';rr(x0,py,cw,ph,16);ctx.fill();
+  ctx.strokeStyle='#34507a';ctx.lineWidth=1.5;rr(x0,py,cw,ph,16);ctx.stroke();
+  drawPMLogo(cx,py+48,Math.min(27,cw*0.066),'#eaf2ff');
+  ctx.font='9px Courier New';ctx.fillStyle='#7f97b8';ctx.textAlign='center';ctx.fillText('projects · mods · builds',cx,py+100);
+  {const by=py+ph-bh-12;
+   linkBtn(bx,        by,(ix,iy)=>drawPMGear(ix,iy,11,'#eaf2ff'),'@projectsandmods','#9fb8d6','rgba(28,50,82,0.6)','#d3e3f7','https://www.youtube.com/@projectsandmods');
+   linkBtn(bx+bw+10,  by,(ix,iy)=>drawPMGear(ix,iy,11,'#eaf2ff'),'projectsandmods.com','#9fb8d6','rgba(28,50,82,0.6)','#d3e3f7','https://projectsandmods.com/');}
+
   drawCredits._links=links;
   // back button
   const bk={x:14,y:14,w:84,h:30};drawCredits._back=bk;
@@ -10250,6 +10264,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.267 (2026-06-20): CREDITS — BOTH TEAMS (Sam: "projects and mods AND rambots"). The credits screen is now two brand panels: TEAM 2204 RAMBOTS (red — the gearhead _logoMain emblem + "FIRST Robotics Competition" + rambots.org / @frc2204 with the real Instagram glyph) above PROJECTS AND MODS (navy — the drawPMLogo wordmark + @projectsandmods / projectsandmods.com). Each panel has two half-width link buttons (window.open) via a shared linkBtn helper. ← BACK unchanged. Full battery ALL GREEN.
   v5.1.266 (2026-06-20): CREDITS LOGO — replaced the plain gear+wordmark on the credits card with drawPMLogo, a vector recreation of the PROJECTS AND MODS brand mark: a toothed ring behind a bold condensed "PROJECTS", with "AND" lower-left and "MODS" to the right, on a slight upward slant (white artwork on the navy card). Drawn in-canvas from a condensed-bold font stack (Arial Narrow / Helvetica Neue / Impact / Roboto Condensed) — no external asset, matching the single-file ethos. For a pixel-exact logo, commit the source PNG/SVG and inline it as a base64 data-URI like _logoMain/_logoIG, then call drawImage in place of drawPMLogo. Full battery ALL GREEN.
   v5.1.265 (2026-06-20): CREDITS SCREEN — a discoverable credits page (Sam chose "both": the cheat-menu links AND a real screen). A new ✦ CREDITS button shares the splash's bottom row with ⚙ SETTINGS (splashRects splits into two halves); also reachable by the `C` key and gamepad (splash focus idx 4). phase 'credits' → drawCredits: the game credit (DRIVE TYPE SHOWDOWN · by Sam Cao · Team 2204 Rambots) + a PROJECTS AND MODS card (the drawPMGear vector mark + wordmark) + the YouTube (@projectsandmods) and website (projectsandmods.com) link buttons (window.open), with a ← BACK button (Esc / pad-B also exit). Touch + mouse + gamepad all route to it. The logo is the vector gear for now — drop in the real PNG/SVG (base64 data-URI) to replace drawPMGear when it lands. Full battery ALL GREEN. Single file, no assets.
   v5.1.264 (2026-06-20): CREDITS — Projects and Mods links in the cheat menu (Sam). The cheat menu's link area (already the de-facto credits home — rambots.org + @frc2204) becomes a 2×2 GRID: the left column is the team, the right column is PROJECTS AND MODS (navy/white) — a YouTube button (youtube.com/@projectsandmods) and a website button (projectsandmods.com), each carrying a clean vector GEAR mark (drawPMGear — the PM logo is gear-based, drawn in-canvas so the single-file build needs no embedded image asset; an evenodd ring shows the hub through the gear). Same vertical footprint as the old 2-button stack, so the compacted menu doesn't overflow; both links open in a new tab via the existing window.open idiom. (If the exact PNG is committed to the repo it can be inlined as a base64 data-URI to replace the vector mark.) Full battery ALL GREEN. Single file, no assets.
