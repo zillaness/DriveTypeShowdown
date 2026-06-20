@@ -526,7 +526,15 @@ to "everything available." Keep free-play fully open unless Sam wants it gated (
 
 | Reward type | Existing system it feeds | Where defined / consumed |
 |---|---|---|
-| **Drive types** | `DRIVES` (line 87), `HOLO_DRIVES` (98), `STEER_DRIVES` (113), grouped in `DGROUPS` (6690) | The drive picker. Career *teaches* drives in curriculum order; finishing the stage that taught a drive can also mark it "mastered" in the ledger (a nice trophy even though free-play already has them). |
+| **Drive types** | `DRIVES` (line 87), `HOLO_DRIVES` (98), `STEER_DRIVES` (113), grouped in `DGROUPS` (6690) | **Unlocked two ways, early (Sam):** (1) **answer questions about the drives' DIFFERENCES** (tank vs arcade vs bot- vs field-centric, holonomic, heading) to unlock them, and (2) **complete hands-on TASKS** that prove you can drive them. Order builds to a climax — **FIELD-CENTRIC SWERVE unlocks LAST**, after you've earned the others (it's the brain-bender). |
+
+**Early game = QUESTIONS + TASKS (Sam).** Onboarding pairs *understanding* with *doing*: a quick question about a
+drive's difference, then a **hands-on task** in that drive to demonstrate. Tasks are mini-objectives, not
+win-a-match — e.g. the early TANK and ARCADE stages are **task-based** (navigate the course, hit the gates), and a
+delightful one Sam floated: **parallel-park a STEER drive** (`carSteer`) to learn car-style steering. **Drive
+unlock/teach order (climax = field-centric):** tank → arcade → *(steer detour: parallel park)* → bot-centric →
+holonomic → relative-vs-absolute heading → **field-centric swerve (LAST)**. *(Update §2's curriculum table to this
+ordering — field-centric moves from the middle to the final concept.)*
 | **RoboRumble weapons** | `BB_WEAPONS` (4039), armory chips `BB_ARMORY_W` (4118) | Capstone + late rewards; unlocked weapons appear in the armory rail. The CANNON precedent (hidden-until-unlocked) is the mechanism to copy. |
 | **RoboRumble armor / perks** | `BB_ARMOR` (4054) / `BB_PERKS` (4150), chips `BB_ARMORY_A` (4119) / `BB_PERKS_PICK` (4162) | Same — armory/perk chips. |
 | **Paint / cosmetics** | `PAINT_JOBS` (4473), the 🎨 paint picker | Cosmetic-only rewards (a "campaign livery" for finishing a stage/the story). |
@@ -544,13 +552,26 @@ The richest unlock hook (Sam): **what you learn/do in the story decides which Ro
 in the capstone. Training, classes, and hobbies map to weapons — and because **earlier choices limit later ones**
 (time, budget, interests), you can't learn everything, so your endgame arsenal *is* your build path.
 
-**The workshop.** At a story beat (the "shop class / build season" moment) you enter a WORKSHOP hub and spend a
-**limited** pool — learn as many tools as your earlier choices allow (a budget of picks, or each tool costs
-shop-time/points that prior decisions set). Each tool learned adds its weapon to `career.unlocks.bbWeapons`; the
-**capstone** RoboRumble seeds `m2.bbLoadout` from what you earned and the armory rail shows only your unlocked
-weapons (the CANNON *hidden-until-unlocked* precedent is the exact mechanism).
+**How you unlock a weapon: ANSWER ITS QUESTION (Sam — it's a real learn-robotics quiz).** Each tool/weapon has a
+short **knowledge question** (e.g. *"A jet engine makes thrust mainly by…"* → JET; a kerf/teeth question → BUZZSAW).
+Answer correctly → you've "learned the tool" → its weapon is added to `career.unlocks.bbWeapons`. The **story
+experiences are how you LEARN the answers**: take the aviation / RC-plane path earlier and the jet-engine question is
+a gimme; do the welding scene and the blowtorch→flamethrower question lands. **You can theoretically earn
+EVERYTHING** on an ideal run (know — or learn — every answer). **Looking it up / googling is WELCOME** — the whole
+point is to actually teach robotics + engineering, not to gotcha. **Wrong answers don't block progress** (you still
+advance, §4.0) — you just **miss that unlock/bonus**. So the campaign doubles as a real STEM tutorial: the more you
+learn (in-story or IRL), the bigger your arsenal — and the bonuses — you carry into the rumble.
 
-**Tool / hobby → weapon map** (✓ = Sam's; the rest proposed, trivial to retheme):
+**Bonuses, not just unlocks.** A correct answer can also grant a small **performance bonus** (the §4.0 modifier
+layer): *"you clearly know your pneumatics"* → a piston-tuning buff; a wrong answer → you lose that edge. Knowledge =
+power, literally.
+
+**The workshop screen** is the "shop class / build season" beat where the relevant questions are posed — a quiz hub
+that reads which story paths you took (to set difficulty / offer a hint) and writes unlocks + bonuses. The
+**capstone** seeds `m2.bbLoadout` from what you earned; the armory rail shows only your unlocked weapons (the CANNON
+*hidden-until-unlocked* precedent is the exact mechanism).
+
+**Topic / story-source → weapon** (✓ = Sam's; each weapon's *question* is themed to this topic):
 
 | Story source | → Weapon (`BB_WEAPONS`) |
 |---|---|
@@ -574,6 +595,60 @@ promise cashed out, and it feeds the recap ("…you graduated a DRILL-and-PINCER
 
 Armor & perks can extend the same idea later (a **materials** class → HARDPLATE; a **fitness/driving** focus →
 LIGHT; a **medic/pit-crew** arc → the PIT STOP perk) — weapons are the headline; armor/perks are a stretch.
+
+### 6.2 The question bank — REAL, learnable robotics (Sam: "if you're paying attention you should learn real things")
+
+The quiz is **genuinely educational**: pay attention to the story and you actually learn; the questions check that
+and reward it. Topics span real FRC / robotics / engineering — propulsion, cutting & kerf, pneumatics, **power &
+batteries**, materials, and the drive kinematics from §2. Examples Sam called out:
+- *"Sealed lead-acid (AGM) vs lithium-ion battery — what's the real difference?"* (energy density, weight, voltage
+  sag under load, charging/safety) — taught in a "wiring the robot / pit electronics" beat.
+- *"Cells in SERIES vs PARALLEL — what does each do?"* (series adds **voltage**, parallel adds **capacity/current**).
+  Answer right → you build a **better power source** → a **speed boost or damage boost** carried into the match (a
+  §4.0 modifier). This is the template for *power knowledge → performance bonus*: more voltage ≈ more speed, more
+  parallel current ≈ more sustained punch.
+- *"A jet engine produces thrust mainly by…"* → unlocks JET.
+- A holonomic / field-centric / absolute-vs-relative-heading question → confirms the §2 driving lessons landed.
+
+**Data:** a table `CAREER_QUIZ` — id → `{reward (bbWeapon/armor/perk/bonus/none), topic, prompt, options[], answer,
+taughtBy (the story beat/path that teaches it), hint, explain}`. **Show the `explain` text either way** — right or
+wrong, you leave knowing the real answer (that's the "learn real things" payoff). Authoring is pure content; it's all
+real and googleable. Right → unlock/bonus; wrong → you still advance, just without that reward. Example row:
+
+```js
+{ id:'batt_chem', topic:'power', reward:{ bonus:'powerTuned' },
+  prompt:"Vs a sealed lead-acid (AGM) pack, a same-weight Li-ion pack mainly gives you…",
+  options:["more energy for the weight + steadier voltage under load","more weight but cheaper",
+           "no real difference","only a physically bigger pack"],
+  answer:0, taughtBy:'beat:pit_electronics',
+  explain:"Li-ion ≈ 3–4× the energy density of lead-acid and holds voltage better under load → a lighter, "+
+          "longer-running bot. AGM is cheap and robust but heavy and sags under high current." }
+```
+
+### 6.3 You have a NAME (Sam)
+
+At the **start** of career mode, prompt for the player's **name** (reuse the existing `nameEntry` system — the
+on-screen text box used for best-times/grid names) and store it as `career.name`. The story **refers to you by
+name** throughout: beat `lines` already support `({c})=>string` functions (§4.1), so any line can read
+`c.name` — e.g. ``({c})=>`"Nice driving, ${c.name}. Now try it field-centric."` ``. A default ("ROOKIE"/"DRIVER")
+covers a skipped prompt. This is the cheap touch that makes the recap (§4.4) read as truly *your* story.
+
+### 6.4 Grant money — the budget (Sam: optional WRITING exercises fund your robot)
+
+Real FRC flavor: a **grant-money** budget (`career.money`) funds your build. You earn it through **optional WRITING
+exercises** — a mock **grant-application essay/paragraph** prompt (write a short answer: why fund your team / your
+robotics journey). **You can SKIP it** — but skipping the writing exercises means **less grant money**, so you can
+afford fewer / lower-tier parts. This is the economy behind "couldn't afford the nicest motors" (§4.0): **money
+gates the *equip/upgrade* side, the §6.2 quiz gates the *knowledge/unlock* side.** Knowledge unlocks the OPTION;
+grant money lets you actually field the better-tier version (a stronger power source → the speed/damage bonus, a
+premium weapon tier, more ally support).
+
+**Grading the essay** stays low-friction and encouraging — it's writing *practice*, not a pass/fail gate. Award
+money for **effort/length + hitting a couple of keywords** (safety, budget, outreach, sustainability…); skipping =
+$0 from that exercise (you still progress). Store `career.money`; spend it in the workshop alongside the quiz
+unlocks, and feed it to the recap ("…wrote every grant and rolled in on premium motors" vs "…skipped the essays,
+ran it lean"). **Open Q for Sam:** auto-grade by keywords/length, or pure participation ("you wrote something →
+grant awarded")?
 
 ---
 
