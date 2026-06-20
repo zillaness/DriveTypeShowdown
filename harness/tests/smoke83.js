@@ -153,8 +153,25 @@ src+=`
   T('full walk taught C1..C6', ['C1','C2','C3','C4','C5','C6'].every(c=>career.taught.includes(c)));
   T('full walk cleared all 7 stages', ['tank_hook','arcade_course','strafe_intro','field_centric','holo_shooter','heading_advanced','capstone_rumble'].every(s=>career.cleared.includes(s)));
   T('full walk raised skill above the start', career.skill>0.5);
-  // finale Finish → hub
-  pick(0); T('finale Finish → hub', phase==='p2career');
+  // finale → personalized RECAP (Phase ⑦)
+  pick(0);
+  T('finale → recap screen with an ending + narrated lines', phase==='p2crecap'&&!!career.flags.ending&&Array.isArray(career._recap)&&career._recap.length>=3);
+  let rdrew=true; try{drawCareerRecap();}catch(e){rdrew=false;console.log('  recap draw err:',e.message);}
+  T('recap renders', rdrew);
+  // ending logic variety
+  career.diff='champion';career.skill=3.5;career.flags={lastResult:'dominated',chem:'safe',quizScore:3};
+  T('ending: flawless (champion, high skill, safe chem, won)', careerEnding()==='flawless');
+  career.diff='pro';career.flags={lastResult:'won',chem:'safe',quizScore:3};
+  T('ending: scholar (safe chem + good quiz)', careerEnding()==='scholar');
+  career.flags={lastResult:'won',chem:'volatile',rematches:2};
+  T('ending: phoenix (won after rematches)', careerEnding()==='phoenix');
+  career.flags={lastResult:'lost',chem:'volatile'};
+  T('ending: grinder (lost the capstone)', careerEnding()==='grinder');
+  career.flags={lastResult:'won',chem:'volatile'};
+  T('ending: driver (default win)', careerEnding()==='driver');
+  // recap nav: NEW JOURNEY resets to the difficulty pick
+  careerRecapStart(); let RB=careerRecapBtns(); careerRecapClick(RB.again.x+5,RB.again.y+5);
+  T('recap NEW JOURNEY → fresh career at the difficulty pick', career.node==='difficulty'&&career.cleared.length===0&&phase==='p2cbeat');
 
   // splash CAREER tile → hub
   applyLayout('legacy'); phase='splash';

@@ -431,6 +431,9 @@ One save slot is the default (single `frcds_career_v1`); slots = wrap in an arra
 
 ### 4.4 The personalized end-of-journey RECAP (the finale payoff)
 
+**✅ BUILT (v5.1.256):** `careerRecap()` + the `p2crecap` screen + 5 endings (`careerEnding`: flawless / scholar /
+phoenix / grinder / driver) selected from flags+skill+chem+rematches+result; NEW JOURNEY / BACK TO HUB.
+
 The campaign ends on a generated **"your journey" summary** — the emotional payoff and the natural place to show
 what you *learned*. It reads the saved history and narrates **your** specific run:
 - **What it stitches:** `career.choices` (the forks you took), `career.log` (a small append-only list — each stage's
