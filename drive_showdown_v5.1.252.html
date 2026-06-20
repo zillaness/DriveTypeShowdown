@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.251.html
-  version: 5.1.251
+  file: drive_showdown_v5.1.252.html
+  version: 5.1.252
   author: Sam Cao
   created: 2026-06-11
-  last_updated: 2026-06-19
+  last_updated: 2026-06-20
   description: Single-file HTML5 canvas game demonstrating all robot drive types (tank, arcade, swerve, holonomic, steering) with CPU defenders, an H2H sticky-plow scoring cycle with steal, a unified Mario-Kart setup screen (drive + controller + rename per spot), a scalable ball count, gamepad/touch support, high scores, and easter eggs. Built for Team 2204 Rambots.
   ai_update: Update last_updated and version. Rename file to match. Append changelog comment at bottom. Patch with targeted edits only; never rewrite the full file. Run a JS syntax check after every change.
 -->
@@ -312,7 +312,7 @@ let cpuSettingsReturn=null; // phase to return to when leaving cpuSettings (set 
 let pupSettingsReturn=null; // phase to return to when leaving p2pupSettings
 let settingsReturn='menu'; // 'menu' or a game-phase string (when opened from the pause menu)
 let settingsGpIdx=0;
-let splashGpIdx=0; // v5.1.229 SPLASH gamepad cursor: 0=SINGLE PLAYER, 1=MULTIPLAYER, 2=SETTINGS
+let splashGpIdx=0; // v5.1.229 SPLASH gamepad cursor (v5.1.252): 0=CAREER, 1=SINGLE PLAYER, 2=MULTIPLAYER, 3=SETTINGS
 let pauseGpIdx=0; // cursor index in the pause overlay (0=RESUME 1=SETTINGS 2=QUIT)
 const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
 let konamiIdx=0,_gpKonamiIdx=0,_gpKonPrev={},konamiActive=false,frisbeeMode=false;
@@ -691,6 +691,7 @@ window.addEventListener('keydown',e=>{
   if(phase==='splash'){
     if(e.key==='1'){sfx('click');applyLayout('legacy');phase='menu';}
     else if(e.key==='2'){sfx('click');p2Enter();}
+    else if(e.key==='3'){sfx('click');careerEnter();} // v5.1.252 CAREER tutorial
     else if(e.key==='Enter'){sfx('click');if(window.innerHeight>window.innerWidth){applyLayout('legacy');phase='menu';}else p2Enter();} // Enter → the orientation-recommended path
     e.preventDefault();return;
   }
@@ -974,6 +975,7 @@ function click(mx,my){
   }
   if(phase==='splash'){
     const R=splashRects();
+    if(inR(mx,my,R.career)){sfx('click');careerEnter();return;}                         // CAREER → the story-driven tutorial
     if(inR(mx,my,R.sp)){sfx('click');applyLayout('legacy');phase='menu';return;}      // SINGLE PLAYER → the portrait drive-challenge menu
     if(inR(mx,my,R.mp)){sfx('click');p2Enter();return;}                                // MULTIPLAYER → landscape head-to-head
     if(inR(mx,my,R.set)){sfx('click');settingsReturn='splash';settingsGpIdx=0;phase='settings';return;}
@@ -1547,9 +1549,9 @@ function updateGamepad(){
   if(phase==='splash'){ // v5.1.229 full gamepad nav: stick/D-pad moves a visible cursor over SP / MP / SETTINGS, A selects (was A=MP / Y=SP shortcuts only — no way to reach SETTINGS or pick by cursor)
     const now=performance.now(),rep=now-gpNavLast>180;
     const D=just(13)||(gpAxis.ly>0.55&&rep)||just(15)||(gpAxis.lx>0.55&&rep),U=just(12)||(gpAxis.ly<-0.55&&rep)||just(14)||(gpAxis.lx<-0.55&&rep);
-    if(D){splashGpIdx=Math.min(2,splashGpIdx+1);gpNavLast=now;sfx('click');}
+    if(D){splashGpIdx=Math.min(3,splashGpIdx+1);gpNavLast=now;sfx('click');}
     if(U){splashGpIdx=Math.max(0,splashGpIdx-1);gpNavLast=now;sfx('click');}
-    if(just(0)){sfx('click');if(splashGpIdx===1)p2Enter();else if(splashGpIdx===2){settingsReturn='splash';settingsGpIdx=0;phase='settings';}else{applyLayout('legacy');phase='menu';}} // A = open the focused card
+    if(just(0)){sfx('click');if(splashGpIdx===0)careerEnter();else if(splashGpIdx===2)p2Enter();else if(splashGpIdx===3){settingsReturn='splash';settingsGpIdx=0;phase='settings';}else{applyLayout('legacy');phase='menu';}} // A = open the focused card (0=CAREER 1=SINGLE 2=MULTI 3=SETTINGS)
     else if(just(3)){sfx('click');applyLayout('legacy');phase='menu';} // Y = quick Single Player
   }
   // Menu navigation — 2D grid: up/down move rows, left/right move columns
@@ -5995,6 +5997,249 @@ function p2Exit(){tour=null;tf2=null;bb2=null;r2=null;tfObs=null;b2Teardown();re
 // Seeding: RANDOM shuffle, or QUALIFIER solo time-trial runs on the race course
 // (qualifier runs never write SP records — the 2P race module doesn't touch best[]).
 let tour=null;
+// ═══ PHASE 12: CAREER / STORY MODE (the FUN TUTORIAL) ═══ v5.1.252
+// A choose-your-own-adventure meta-shell over the existing modes whose job is ONBOARDING:
+// teach every drive-control concept (tank→arcade→strafe→bot/field-centric→holonomic→heading) through
+// a light, branching story. Architecturally a near-clone of the tournament (`tour*`): persistent state,
+// between-match beat screens, a result-router. Null `career` ⇒ free-play behaves exactly as before.
+// See CAREER_PLAN.md. Phase ① = shell + HUB + CYOA beat screen (matches stubbed; wired in later phases).
+let career=null;                 // null when not in a campaign; an object while playing one
+let careerSave=(()=>{try{const c=JSON.parse(localStorage.getItem('frcds_career_v1')||'null');return (c&&typeof c==='object')?c:null;}catch(e){return null;}})();
+function careerStore(){try{localStorage.setItem('frcds_career_v1',JSON.stringify(career));}catch(e){}}
+function careerNew(){return{node:'intro',stage:null,active:false,skill:0.5,taught:[],cleared:[],choices:{},flags:{lastResult:null},unlocks:{drives:[],bbWeapons:[],bbArmor:[],bbPerks:[],paints:[]},log:[],_then:null,ver:1};}
+function careerMigrate(s){const n=careerNew();if(!s||typeof s!=='object')return n;for(const k in n){if(s[k]!==undefined)n[k]=s[k];}n.flags={...n.flags,...(s.flags||{})};n.unlocks={...n.unlocks,...(s.unlocks||{})};return n;}
+
+// ── THE CURRICULUM: each stage launches a mode + teaches one drive concept (CAREER_PLAN §2.3) ──
+const CAREER_STAGES={
+  tank_hook:       {mode:'tankfight', drive:'tank',        concept:'C1', name:'FIRST DRIVE',     tag:'tank drive'},
+  arcade_course:   {mode:'race',      drive:'arcade',      concept:'C2', name:'NEED FOR SPEED',  tag:'arcade drive'},
+  strafe_intro:    {mode:'race',      drive:'botSwerve',   concept:'C3', name:'SIDEWAYS',        tag:'strafing'},
+  field_centric:   {mode:'normal',    drive:'fieldSwerve', concept:'C4', name:'WHICH WAY IS UP', tag:'field-centric'},
+  holo_shooter:    {mode:'shooter',   drive:'mecanum',     concept:'C5', name:'LINE IT UP',      tag:'holonomic'},
+  heading_advanced:{mode:'tankfight', drive:'fieldSwerve', concept:'C6', name:'POINT & SHOOT',   tag:'absolute heading', absHeading:true},
+  capstone_rumble: {mode:'battlebots',drive:null,          concept:null, name:'GRADUATION DAY',  tag:'RoboRumble'},
+  steer_detour:    {mode:'race',      drive:'carSteer',    concept:'C7', name:'DRIVE LIKE A CAR',tag:'car steering'},
+};
+const CAREER_STAGE_ORDER=['tank_hook','arcade_course','strafe_intro','field_centric','holo_shooter','heading_advanced','capstone_rumble'];
+
+// ── THE BEAT GRAPH: a map of beat-id → beat. `lines` may be strings or ({c})=>string. ──
+const CAREER_BEATS={
+  intro:{kind:'story',title:'FIRST DRIVE',lines:[
+    "Someone shoves a controller into your hands and points at a squat little robot.",
+    "\"It's a tank. Left stick runs the LEFT track, right stick runs the RIGHT track.",
+    "Both up = forward. One up, one down = spin. That's the whole manual. Go win.\"",
+    "There's another bot across the field. It does not look friendly."],
+    choices:[
+      {label:"Let's GO — drive the tank",      goto:'stage:tank_hook'},
+      {label:"Wait, how do tracks even work?", goto:'coach:C1', then:'stage:tank_hook'},
+    ]},
+  'coach:C1':{kind:'coach',concept:'C1',title:'TANK DRIVE',lines:[
+    "Two tracks, one stick each. No steering wheel — you turn by running the tracks at different speeds.",
+    "Both sticks UP → drive straight forward. Both DOWN → reverse.",
+    "Left up + right down → spin in place. Push one a little harder → a wide curve.",
+    "It feels clumsy for about ten seconds. Then it feels like flying."],},
+  'coach:C2':{kind:'coach',concept:'C2',title:'ARCADE DRIVE',lines:[
+    "Tank made you think in two tracks. Arcade thinks for you.",
+    "ONE stick now: push the direction you want — forward/back is throttle, left/right is steer.",
+    "Point-and-go. It's how most video-game cars drive. Great for blasting through a course fast."],},
+  'coach:C3':{kind:'coach',concept:'C3',title:'STRAFING',lines:[
+    "Here's the trick that breaks people's brains the first time: moving SIDEWAYS without turning.",
+    "A swerve bot can slide straight left or right while still facing forward.",
+    "Need to line up next to a wall? Don't turn — just strafe over. Keep your front where it was."],},
+  'coach:C4':{kind:'coach',concept:'C4',title:'BOT-CENTRIC vs FIELD-CENTRIC',lines:[
+    "Bot-centric: \"forward\" is wherever your robot is POINTING. Spin around and 'up' on the stick flips.",
+    "Field-centric: \"forward\" is always UP-FIELD — even when the bot is spun backwards.",
+    "You're about to get shoved around chasing a ball. Field-centric keeps 'up' = up the whole time.",
+    "Try it. If you hate it, flip back. (Most drivers never go back.)"],},
+  'coach:C5':{kind:'coach',concept:'C5',title:'HOLONOMIC DRIVES',lines:[
+    "Holonomic = move any direction AND rotate at the same time. Mecanum, X-drive, kiwi — same idea.",
+    "Left stick translates (any direction). Right stick spins.",
+    "For a shooter that means: strafe sideways to line up the shot while keeping your aim locked."],},
+  'coach:C6':{kind:'coach',concept:'C6',title:'HEADING: TURN-SPEED vs POINT-TO-FACE',lines:[
+    "Your turn stick can mean two different things.",
+    "RELATIVE (default): how far you push = how FAST you spin. Like steering with a throttle.",
+    "ABSOLUTE: the DIRECTION you push = the direction the bot snaps to face. Point north, it faces north.",
+    "Field-centric quietly switched you to Absolute earlier. We've turned it ON for this fight — twin-stick energy."],},
+  'coach:C7':{kind:'coach',concept:'C7',title:'CAR / FRONT STEER',lines:[
+    "A curveball: drive like an actual car. Front wheels steer; you must be MOVING to turn.",
+    "No spinning in place, no strafing. Throttle + steer, just like a go-kart.",
+    "It's twitchy and weird after swerve — which is exactly why it's worth feeling once."],},
+  // ── POST-MATCH branch beats — read flags.lastResult, fork the path ──
+  'after:tank_hook':{kind:'story',title:'...okay, that was AWESOME',lines:[
+    ({c})=>c.flags.lastResult==='lost'||c.flags.lastResult==='blown_out'
+      ? "You got wrecked. And you were GRINNING the whole time. Yeah — you're a driver now."
+      : "You won your first duel. Welcome to robotics. It only gets weirder from here.",
+    "Where to next?"],
+    choices:[
+      {label:"Teach me to go FAST (a course)", goto:'coach:C2', then:'stage:arcade_course'},
+      {label:"Take it slow — I want to UNDERSTAND the bot", goto:'coach:C2', then:'stage:arcade_course', effect:{setFlag:{methodical:true}}},
+      {label:"Hot shot, huh? Try driving like a CAR", goto:'coach:C7', then:'stage:steer_detour', when:{flag:'lastResult',eq:'dominated'}},
+    ]},
+  'after:arcade_course':{kind:'story',title:'FASTER THAN YOU THINK',lines:[
+    "Point-and-go clicked. You're carrying speed through corners now instead of fighting the bot.",
+    "Ready for the move that makes swerve drivers look like magic?"],
+    choices:[{label:"Show me — can robots move SIDEWAYS?", goto:'coach:C3', then:'stage:strafe_intro'}]},
+  'after:strafe_intro':{kind:'story',title:'THE WALL TRICK',lines:[
+    "You strafed instead of turning. Lined up clean without ever pointing away from where you were going.",
+    "Now the big one — the lesson that changes how you see the whole field."],
+    choices:[{label:"Which way is UP?", goto:'coach:C4', then:'stage:field_centric'}]},
+  'after:field_centric':{kind:'story',title:'UP IS ALWAYS UP',lines:[
+    ({c})=>c.flags.lastResult==='lost'||c.flags.lastResult==='blown_out'
+      ? "You got spun around chasing that ball — but 'up' stayed up the whole time. THAT is field-centric."
+      : "You barely noticed you were facing backwards. The stick still meant 'up-field'. That's the magic.",
+    "Let's put it to work — lining up shots."],
+    choices:[{label:"On to the shooter", goto:'coach:C5', then:'stage:holo_shooter'}]},
+  'after:holo_shooter':{kind:'story',title:'DIALED IN',lines:[
+    "Strafe to line up, hold your aim, fire. Holonomic makes a shooter feel like a turret on skates.",
+    "One concept left before graduation: the two meanings of your aim stick."],
+    choices:[{label:"Point & shoot", goto:'coach:C6', then:'stage:heading_advanced'}]},
+  'after:heading_advanced':{kind:'story',title:'YOU SPEAK ROBOT NOW',lines:[
+    "Relative for fast spins, absolute to snap-face a target. You're switching between them without thinking.",
+    "There's only one thing left to do with everything you've learned. Bring it ALL to a real fight."],
+    choices:[{label:"Graduation: RoboRumble", goto:'stage:capstone_rumble'}]},
+  'after:steer_detour':{kind:'story',title:'OKAY, BACK TO REAL DRIVING',lines:[
+    "Cars are fun. Cars are also why you'll appreciate swerve for the rest of your life.",
+    "Let's get back to the good stuff — sideways."],
+    choices:[{label:"Back to the future (strafing)", goto:'coach:C3', then:'stage:strafe_intro'}]},
+  'after:capstone_rumble':{kind:'finale',title:'🏆 DRIVER',lines:[
+    ({c})=>c.flags.lastResult==='lost'||c.flags.lastResult==='blown_out'
+      ? "You didn't take the rumble. But you walked in driving a real robot, every concept in your hands."
+      : "You took the rumble. Tank to absolute heading, you drive like you were born holding a controller.",
+    "You started barely able to keep a tank straight. Look at you now.",
+    "(A full personalized recap + unlocks land in a later build.)"],
+    choices:[{label:"▶ Finish", goto:'hub'}]},
+};
+
+// ── beat helpers ──
+function careerBeat(node){return CAREER_BEATS[node]||null;}
+function careerNextNode(sid){return ('after:'+sid) in CAREER_BEATS ? 'after:'+sid : 'after:capstone_rumble';}
+function careerWhen(c){ // tiny declarative predicate against `career`
+  if(!c)return true;
+  if(c.flag&&career.flags[c.flag]!==c.eq)return false;
+  if(c.minSkill!=null&&career.skill<c.minSkill)return false;
+  if(c.taught&&!career.taught.includes(c.taught))return false;
+  if(c.choseBefore&&!(c.choseBefore in career.choices))return false;
+  return true;
+}
+function careerVisibleChoices(b){return (b&&b.choices?b.choices:[]).filter(ch=>careerWhen(ch.when));}
+function careerApplyEffect(eff){
+  if(!eff)return;
+  if(eff.setFlag)for(const k in eff.setFlag)career.flags[k]=eff.setFlag[k];
+  if(eff.unlock)for(const k in eff.unlock){const arr=career.unlocks[k]||(career.unlocks[k]=[]);for(const v of [].concat(eff.unlock[k]))if(!arr.includes(v))arr.push(v);}
+}
+// Route a node ref: 'stage:<id>' runs a stage, 'hub' returns to the hub, else a beat id (optionally chaining `then`).
+function careerGoto(ref,thenRef){
+  if(ref==='hub'){phase='p2career';careerStore();return;}
+  if(ref&&ref.indexOf('stage:')===0){careerStartStage(ref.slice(6),thenRef);return;}
+  career._then=thenRef||null;
+  career.node=ref;
+  const b=careerBeat(ref);
+  if(b&&b.kind==='coach'&&b.concept&&!career.taught.includes(b.concept))career.taught.push(b.concept);
+  careerStore();phase='p2cbeat';
+}
+function careerContinue(){const t=career._then;career._then=null;if(t)careerGoto(t);else{phase='p2career';careerStore();}}
+// PHASE ① STUB: no match engine wired yet — mark the stage cleared and advance to its post beat.
+// Phase ② replaces this body with startCareerMatch(); Phase ③ routes the real result here via careerMatchEnd().
+function careerStartStage(sid,thenRef){
+  career.stage=sid;
+  const stg=CAREER_STAGES[sid];
+  if(stg&&stg.concept&&!career.taught.includes(stg.concept))career.taught.push(stg.concept); // playing a stage IS learning its concept (the hub readout reflects what you've driven, not just opt-in coach cards)
+  if(!career.cleared.includes(sid))career.cleared.push(sid);
+  if(!career.flags.lastResult)career.flags.lastResult='won'; // placeholder until real matches set it
+  career.log.push({stage:sid,result:career.flags.lastResult,stub:true});
+  career.stage=null;careerStore();
+  careerGoto(careerNextNode(sid));
+}
+
+// ── the HUB (phase 'p2career') ──
+function careerEnter(){applyLayout('land2p');career=null;phase='p2career';} // career loads on CONTINUE/START from the hub
+function careerHubBtns(){const have=!!(career||careerSave);return{
+  go:{x:CW/2-200,y:430,w:400,h:54,primary:true,label:have?'▶ CONTINUE':'▶ START NEW JOURNEY'},
+  fresh:have?{x:CW/2-200,y:496,w:400,h:40,label:'↺ NEW JOURNEY (restart)'}:null,
+};}
+function drawCareerHub(){
+  p2Chrome('CAREER — LEARN TO DRIVE','a story-driven tutorial · every stage teaches a real robot drive');
+  const c=career||careerSave;
+  // progress panel
+  const px=CW/2-260,pw=520;
+  ctx.fillStyle='rgba(20,24,44,0.7)';rr(px,108,pw,150,12);ctx.fill();
+  ctx.strokeStyle='#3a4f8b';ctx.lineWidth=1.5;rr(px,108,pw,150,12);ctx.stroke();
+  ctx.textAlign='left';
+  if(c){
+    const cleared=c.cleared?c.cleared.length:0,total=CAREER_STAGE_ORDER.length;
+    const taught=(c.taught||[]).slice().sort();
+    ctx.font='bold 14px Courier New';ctx.fillStyle='#9fb4ff';ctx.fillText('YOUR JOURNEY SO FAR',px+22,134);
+    ctx.font='13px Courier New';ctx.fillStyle='#c7c7e6';
+    ctx.fillText('Stages cleared:  '+cleared+' / '+total,px+22,164);
+    ctx.fillText('Concepts learned:  '+(taught.length?taught.join('  '):'— none yet —'),px+22,190);
+    const sk=Math.max(0,Math.min(4,c.skill||0)),tierNm=['ROOKIE','AMATEUR','PRO','VETERAN','CHAMPION'][Math.round(sk)];
+    ctx.fillText('Driver rating:  '+sk.toFixed(1)+'  ('+tierNm+')',px+22,216);
+    ctx.font='11px Courier New';ctx.fillStyle='#7a86b8';
+    ctx.fillText('Picks up right where you left off.',px+22,242);
+  }else{
+    ctx.font='bold 15px Courier New';ctx.fillStyle='#9fb4ff';ctx.textAlign='center';ctx.fillText('NEW DRIVER',CW/2,150);
+    ctx.font='12px Courier New';ctx.fillStyle='#b9b9d6';
+    ['Seven short stages take you from "what is a tank drive?" to a full',
+     'RoboRumble graduation — learning every robot drive along the way.',
+     'You don\'t have to win to move on. Just keep driving.'].forEach((ln,i)=>ctx.fillText(ln,CW/2,182+i*22));
+  }
+  ctx.textAlign='center';
+  const B=careerHubBtns();
+  btn(B.go.x,B.go.y,B.go.w,B.go.h,B.go.label,'#44ffaa');
+  if(B.fresh)btn(B.fresh.x,B.fresh.y,B.fresh.w,B.fresh.h,B.fresh.label,'#ff8866');
+}
+function careerHubClick(mx,my){
+  const B=careerHubBtns();
+  if(inR(mx,my,B.go)){sfx('click');
+    if(!career)career=careerSave?careerMigrate(careerSave):careerNew();
+    if(!career.node)career.node='intro';
+    careerStore();phase='p2cbeat';return;}
+  if(B.fresh&&inR(mx,my,B.fresh)){sfx('click');career=careerNew();careerStore();phase='p2cbeat';return;}
+}
+
+// ── the CYOA BEAT screen (phase 'p2cbeat'), shared by story / coach / finale ──
+function careerWrap(text,maxW){ // greedy word-wrap to maxW px (ctx font must be set by caller)
+  const words=String(text).split(' '),lines=[];let cur='';
+  for(const w of words){const t=cur?cur+' '+w:w;if(ctx.measureText(t).width>maxW&&cur){lines.push(cur);cur=w;}else cur=t;}
+  if(cur)lines.push(cur);return lines;
+}
+function careerBeatRects(n){const bw=Math.min(560,CW-80),bh=46,gap=12,totH=n*bh+(n-1)*gap,y0=CH-44-totH;
+  const r=[];for(let i=0;i<n;i++)r.push({x:CW/2-bw/2,y:y0+i*(bh+gap),w:bw,h:bh});return r;}
+function careerBeatButtons(b){ // returns [{label, act}] — choices, or a synthesized continue for coach/finale
+  const chs=careerVisibleChoices(b);
+  if(chs.length)return chs.map((ch,i)=>({label:ch.label,ch,i}));
+  if(b&&(b.kind==='coach'))return[{label:'▶ Got it — let\'s drive',cont:true}];
+  if(b&&(b.kind==='finale'))return[{label:'▶ Finish',fin:true}];
+  return[{label:'▶ Continue',cont:true}];
+}
+function drawCareerBeat(){
+  const b=careerBeat(career.node);
+  if(!b){p2Chrome('CAREER','(beat not found: '+career.node+')');return;}
+  const sub=b.kind==='coach'?('LESSON '+(b.concept||'')+' · try it after'):b.kind==='finale'?'your journey':'choose your path';
+  p2Chrome(b.title||'CAREER',sub);
+  let y=128;
+  if(b.kind==='coach'){ // concept badge
+    ctx.fillStyle='rgba(40,30,80,0.8)';rr(CW/2-60,104,120,24,12);ctx.fill();
+    ctx.strokeStyle='#9b7bff';ctx.lineWidth=1.5;rr(CW/2-60,104,120,24,12);ctx.stroke();
+    ctx.font='bold 12px Courier New';ctx.fillStyle='#c4b5ff';ctx.textAlign='center';ctx.fillText('📘 LESSON '+(b.concept||''),CW/2,120);
+    y=150;
+  }
+  ctx.textAlign='center';ctx.font='15px Courier New';ctx.fillStyle='#cdcdec';
+  const maxW=Math.min(620,CW-120);
+  for(const raw of (b.lines||[])){const s=typeof raw==='function'?raw({c:career}):raw;
+    for(const ln of careerWrap(s,maxW)){ctx.fillText(ln,CW/2,y);y+=24;}
+    y+=6;}
+  const items=careerBeatButtons(b),R=careerBeatRects(items.length);
+  for(let i=0;i<items.length;i++)btn(R[i].x,R[i].y,R[i].w,R[i].h,items[i].label,b.kind==='coach'?'#9b7bff':'#44ffaa');
+}
+function careerBeatClick(mx,my){
+  const b=careerBeat(career.node);if(!b)return;
+  const items=careerBeatButtons(b),R=careerBeatRects(items.length);
+  for(let i=0;i<items.length;i++){if(inR(mx,my,R[i])){sfx('click');const it=items[i];
+    if(it.cont){careerContinue();return;}
+    if(it.fin){phase='p2career';careerStore();return;}
+    const ch=it.ch;career.choices[career.node]=it.i;careerApplyEffect(ch.effect);careerGoto(ch.goto,ch.then);return;}}
+}
 function p2TourBtnRect(){return{x:CW/2-260,y:544,w:520,h:44};}
 function p2RecBtnRect(){return{x:CW/2-130,y:622,w:260,h:34};}
 function drawH2HRec(){
@@ -6452,6 +6697,8 @@ function p2Back(){
   else if(phase==='p2tdraft'){tour.draft=null;tour.alli=null;phase='p2tnames';} // v5.1.239 Esc cancels the draft → back to registration
   else if(phase==='p2tqual'){tourAfterSeed();} // skip remaining qualifiers: unseeded sort last
   else if(phase==='p2tbracket'){phase='p2modes';}
+  else if(phase==='p2career'){applyLayout('legacy');phase='splash';} // career hub → back to splash
+  else if(phase==='p2cbeat'){phase='p2career';}                      // a beat → back to the hub
   else if(tour&&tour.qual&&(phase==='p2race'||phase==='p2tank'||phase==='p2ball'||phase==='p2bb')){tourQualDone(Infinity,'SKIP');} // v5.1.244 Esc skips a qualifier run (any mode) → seeds last
   else if(phase==='p2race'&&tour&&tour.cur){r2=null;applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if((phase==='p2tank'||phase==='p2ball')&&tour&&tour.cur){r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
@@ -6597,6 +6844,8 @@ function p2Click(mx,my){
       tour={names:[],drv:[],policy:'open',seedMode:'rand',format:'double',allianceMode:false,mode:'normal',buf:'',seeds:[],M:[],qi:0};
       phase='p2tnames';return;}
     if(inR(mx,my,p2RecBtnRect())){sfx('click');phase='p2recs';return;}
+  }else if(phase==='p2career'){careerHubClick(mx,my);return;
+  }else if(phase==='p2cbeat'){careerBeatClick(mx,my);return;
   }else if(phase==='p2tnames'||phase==='p2tqual'||phase==='p2tbracket'||phase==='p2tdraft'){
     tourClick(mx,my);return;
   }else if(phase==='p2drive'){
@@ -6913,6 +7162,8 @@ function p2Draw(){
   if(phase==='p2tdraft'){drawTourDraft();return;} // v5.1.239 captain draft
   if(phase==='p2tqual'){drawTourQual();return;}
   if(phase==='p2tbracket'){drawTourBracket();return;}
+  if(phase==='p2career'){drawCareerHub();return;}
+  if(phase==='p2cbeat'){drawCareerBeat();return;}
   if(phase==='p2race'){drawP2Race();return;}
   if(phase==='p2tank'){drawP2Tank();return;}
   if(phase==='p2bb'){drawBB();return;}
@@ -8433,10 +8684,20 @@ function drawCpuSettings(){
 // ── v5.1.92 SPLASH front door: pick SINGLE PLAYER (portrait/phone) or MULTIPLAYER (landscape/desktop) ──
 // Rendered on the legacy (portrait) layout — the central hub that both paths return to.
 function splashRects(){return{
-  sp :{x:30,y:196,w:CW-60,h:150}, // SINGLE PLAYER path card
-  mp :{x:30,y:362,w:CW-60,h:150}, // MULTIPLAYER path card
-  set:{x:30,y:538,w:CW-60,h:46},  // global SETTINGS
+  career:{x:30,y:162,w:CW-60,h:84},  // v5.1.252 CAREER tutorial — the new front door (headline banner)
+  sp :{x:30,y:256,w:CW-60,h:140}, // SINGLE PLAYER path card
+  mp :{x:30,y:406,w:CW-60,h:140}, // MULTIPLAYER path card
+  set:{x:30,y:556,w:CW-60,h:42},  // global SETTINGS
 };}
+function drawCareerBanner(r){
+  ctx.fillStyle='rgba(18,40,30,0.62)';rr(r.x,r.y,r.w,r.h,14);ctx.fill();
+  ctx.strokeStyle='#ffd740';ctx.lineWidth=2.5;rr(r.x,r.y,r.w,r.h,14);ctx.stroke();
+  ctx.textAlign='left';
+  ctx.font='34px serif';ctx.fillText('🎓',r.x+18,r.y+50);
+  ctx.font='bold 18px Courier New';ctx.fillStyle='#ffd740';ctx.fillText('CAREER — LEARN TO DRIVE',r.x+62,r.y+34);
+  ctx.font='10px Courier New';ctx.fillStyle='#9fb39f';ctx.fillText('Story-driven tutorial · master every robot drive',r.x+62,r.y+54);
+  ctx.font='bold 11px Courier New';ctx.fillStyle='#1c2a1c';ctx.fillStyle='#ffd740';ctx.textAlign='right';ctx.fillText('▶ START  ✦ NEW',r.x+r.w-16,r.y+r.h-12);
+}
 function drawSplashCard(r,icon,title,lines,col,bg){
   ctx.fillStyle=bg;rr(r.x,r.y,r.w,r.h,14);ctx.fill();
   ctx.strokeStyle=col;ctx.lineWidth=2;rr(r.x,r.y,r.w,r.h,14);ctx.stroke();
@@ -8454,6 +8715,7 @@ function drawSplash(){
   ctx.font='bold 30px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('DRIVE TYPE',CW/2,98);ctx.fillText('SHOWDOWN',CW/2,130);
   ctx.font='11px Courier New';ctx.fillStyle='#55556a';ctx.fillText('Team 2204 Rambots',CW/2,154);
   const R=splashRects();
+  drawCareerBanner(R.career);
   drawSplashCard(R.sp,'🕹','SINGLE PLAYER',['Drive-type challenge — master every','robot drive. Portrait · phone-friendly.'],'#44ffaa','rgba(18,44,30,0.55)');
   drawSplashCard(R.mp,'👥','MULTIPLAYER',['Head-to-head 1v1–3v3: ball · tank ·','race · RoboRumble. Landscape · desktop.'],'#ee66bb','rgba(40,16,40,0.6)');
   const s=R.set;ctx.fillStyle='rgba(20,20,44,0.82)';rr(s.x,s.y,s.w,s.h,10);ctx.fill();
@@ -8463,9 +8725,9 @@ function drawSplash(){
   const portrait=window.innerHeight>window.innerWidth;
   ctx.font='10px Courier New';ctx.fillStyle=portrait?'#44ffaa':'#ee66bb';
   ctx.fillText(portrait?'📱 Portrait — Single Player fits your screen':'🖥 Landscape — Multiplayer is built for this',CW/2,612);
-  if(gpConnected){const F=[R.sp,R.mp,R.set][splashGpIdx];if(F){ctx.save();ctx.strokeStyle='#ffd740';ctx.lineWidth=3;ctx.setLineDash([7,5]);rr(F.x-4,F.y-4,F.w+8,F.h+8,14);ctx.stroke();ctx.setLineDash([]);ctx.restore();}} // v5.1.229 gamepad focus cursor
+  if(gpConnected){const F=[R.career,R.sp,R.mp,R.set][splashGpIdx];if(F){ctx.save();ctx.strokeStyle='#ffd740';ctx.lineWidth=3;ctx.setLineDash([7,5]);rr(F.x-4,F.y-4,F.w+8,F.h+8,14);ctx.stroke();ctx.setLineDash([]);ctx.restore();}} // v5.1.229 gamepad focus cursor (v5.1.252 +CAREER at idx 0)
   ctx.fillStyle='#33334a';ctx.font='9px Courier New';
-  ctx.fillText(gpConnected?'tap a path · 🎮 stick/D-pad: move · A: select · Y: Single Player':'tap a path · keys: 1 = Single · 2 = Multiplayer',CW/2,632);
+  ctx.fillText(gpConnected?'tap a path · 🎮 stick/D-pad: move · A: select · Y: Single Player':'tap a path · keys: 1 = Single · 2 = Multiplayer · 3 = Career',CW/2,632);
   drawMuteBtn();
 }
 function drawMenu(){
@@ -9318,6 +9580,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.252 (2026-06-20): CAREER / STORY MODE — Phase ① (the FUN TUTORIAL shell). A new choose-your-own-adventure meta-shell over the existing modes whose job is ONBOARDING: teach every drive concept (tank→arcade→strafe→bot/field-centric→holonomic→heading) through a light branching story (CAREER_PLAN.md). This ship = the SHELL: a CAREER tile on the splash (3rd front-door, gamepad idx 0 + key '3'), a HUB (`p2career`, NEW/CONTINUE + a "journey so far" readout of stages cleared / concepts learned / driver rating), and the CYOA BEAT screen (`p2cbeat`) — a shared renderer for story / coach (lesson) / finale beats with 1–3 choice buttons, `when`-gated choices, dynamic `({c})=>` copy, `effect` (setFlag/unlock), and `then`-chaining (coach→stage). State: `career` global + `frcds_career_v1` persistence (careerNew/Store/Migrate), the full 7-stage curriculum data table (CAREER_STAGES) and beat graph (CAREER_BEATS). MATCHES ARE STUBBED this phase — a stage marks itself cleared + its concept learned and routes to the post-match fork (real matches land in Phase ②/③: startCareerMatch + careerMatchEnd off the existing line-4009 result read). Null `career` ⇒ free-play byte-identical. New suite smoke83 (21 asserts: new shape, store round-trip, hub→intro, beat render, choice routing, when-gating, coach `then`, a full curriculum walk to the finale, ESC + splash tile). Full battery green.
   v5.1.251 (2026-06-19): 6-player FFA — actual MULTI-HUMAN setup (F4 cont.). FFA now routes through the 6-seat GRID (`tankGridMode` includes RoboRumble FFA), so up to 6 humans/CPUs can join — each seat is its OWN faction, labelled BOT 1–6 in its faction color (`FFA_COLS`), and the grid header reads "6-PLAYER FREE-FOR-ALL." startP2BB's FFA branch builds factions straight from the grid seats; `tankGridCanStart` is relaxed for FFA (≥1 ready seat — CPUs fill the rest to 6). Full battery green.
   v5.1.250 (2026-06-19): 6-PLAYER FREE-FOR-ALL (F4, engine + reachable). New TEAM FORMAT = FFA in RoboRumble settings: your bot + CPU fill to 6, every bot its OWN faction (unique side), ring-spawned, distinct colors (FFA_COLS). Win detection generalized to N factions: `bbCheckResult` now counts DISTINCT live sides → last one standing wins (2-side & FFA both reduce to this, regression-tested); `bbTimeUpResult` FFA = most surviving HP. The win banner shows the winning BOT's name + color (`bbFFAWinner`); CPU AI already targets nearest non-same-side, so it fights everyone for free. Helpers: `bbIsFFA`, `BB_FFA_N`, `FFA_COLS`, `bbFFASpawn`. smoke57 +6. Full battery green. (Next FFA steps — multi-human FFA setup screen, an FFA scoreboard/kill-feed, AI tuning — want Sam's playtest.)
   v5.1.249 (2026-06-19): your 1v1 RoboRumble LOADOUT now PERSISTS across sessions. It used to reset to default every time you entered the multiplayer menu (`p2Enter` wiped `m2.bbLoadout`), so weapon/armor/perk/paint/accent never stuck. Now `saveBBLoadout`/`loadBBLoadout` (localStorage `frcds_bbload_v1`) persist it: every equip / cycler / autobuild / swap saves, and `p2Enter` restores your last setup. Grid (3v3) seats are left out (transient per-match). smoke57 +2. Full battery green.

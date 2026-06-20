@@ -47,7 +47,10 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
 - **`HANDOFF_2026-06-19.md`** — LATEST thread handoff (tip v5.1.251): map editor (done), Tournament v2 locked design + the agreed next build. **Start here when resuming.**
 - **`OVERNIGHT_PLAN.md`** — the F1–F5 backlog + the 🏆 Tournament v2 LOCKED DESIGN block.
 - **`HANDOFF_2026-06-16.md`** — the in-depth narrative (weapons / perks / easter eggs / cheats vision).
-- **`CAREER_PLAN.md`** — buildable spec for the CAREER / STORY MODE (middle school → graduate, threading the existing modes into a progression meta-shell modeled on `tour*`). Plan only; nothing built yet.
+- **`CAREER_PLAN.md`** — buildable spec for the CAREER / STORY MODE (v2.0 reframe: the FUN TUTORIAL — a CYOA
+  meta-shell over the existing modes, modeled on `tour*`, teaching every drive concept). **Now being built:**
+  Phase ① (shell + HUB + CYOA beat screen) shipped in v5.1.252; later phases wire real matches. Audience/level
+  + the lecture-sourced question bank (`career/quiz_bank.js`) are locked in the plan.
 - PRDs: `frcds_roborumble_v2_prd_v1.0.md`, `frcds_online_prd_v1.1.md`, `frcds_tournament_v2_prd_v1.0.md`.
-- Build: latest is `drive_showdown_v5.1.251.html` (single self-contained HTML).
+- Build: latest is `drive_showdown_v5.1.252.html` (single self-contained HTML).
 - Balance sim: `./extract.sh && node harness/tests/bbbalance.js /tmp/g.js`.
