@@ -529,6 +529,11 @@ Unlocks are **additive widenings of systems that already exist**, gated by readi
 Nothing about free-play breaks if career is never played — the arrays start empty and gates fall through
 to "everything available." Keep free-play fully open unless Sam wants it gated (§7).
 
+> **REWARD HIERARCHY (Sam): KNOWLEDGE is the most rewarding.** The biggest payoffs come from getting the
+> **quiz/learning questions RIGHT** — that's the educational heart of the mode. **Grant money** (essays, §6.4) and
+> **effort / in-game learning-time** are secondary, supporting layers. Tune the numbers so a knowledgeable run
+> out-rewards a well-funded-but-uninformed one: *learning the material pays off most.*
+
 | Reward type | Existing system it feeds | Where defined / consumed |
 |---|---|---|
 | **Drive types** | `DRIVES` (line 87), `HOLO_DRIVES` (98), `STEER_DRIVES` (113), grouped in `DGROUPS` (6690) | **Unlocked two ways, early (Sam):** (1) **answer questions about the drives' DIFFERENCES** (tank vs arcade vs bot- vs field-centric, holonomic, heading) to unlock them, and (2) **complete hands-on TASKS** that prove you can drive them. Order builds to a climax — **FIELD-CENTRIC SWERVE unlocks LAST**, after you've earned the others (it's the brain-bender). |
@@ -660,12 +665,11 @@ gates the *equip/upgrade* side, the §6.2 quiz gates the *knowledge/unlock* side
 grant money lets you actually field the better-tier version (a stronger power source → the speed/damage bonus, a
 premium weapon tier, more ally support).
 
-**Grading the essay** stays low-friction and encouraging — it's writing *practice*, not a pass/fail gate. Award
-money for **effort/length + hitting a couple of keywords** (safety, budget, outreach, sustainability…); skipping =
-$0 from that exercise (you still progress). Store `career.money`; spend it in the workshop alongside the quiz
-unlocks, and feed it to the recap ("…wrote every grant and rolled in on premium motors" vs "…skipped the essays,
-ran it lean"). **Open Q for Sam:** auto-grade by keywords/length, or pure participation ("you wrote something →
-grant awarded")?
+**Grading the essay (Sam — RESOLVED): mostly LENGTH, with a few bonus keywords.** It's writing *practice*, not a
+pass/fail gate. Money scales with **length** (write a real paragraph → real money, with a sensible cap), plus a
+**small bonus for hitting a few keywords** (safety, budget, outreach, sustainability…). Skipping = $0 from that
+exercise (you still progress). Store `career.money`; spend it in the workshop alongside the quiz unlocks, and feed
+it to the recap ("…wrote every grant and rolled in on premium motors" vs "…skipped the essays, ran it lean").
 
 ---
 
