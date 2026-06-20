@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.257.html
-  version: 5.1.257
+  file: drive_showdown_v5.1.258.html
+  version: 5.1.258
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -6028,12 +6028,15 @@ let tour=null;
 let career=null;                 // null when not in a campaign; an object while playing one
 let careerSave=(()=>{try{const c=JSON.parse(localStorage.getItem('frcds_career_v1')||'null');return (c&&typeof c==='object')?c:null;}catch(e){return null;}})();
 function careerStore(){try{localStorage.setItem('frcds_career_v1',JSON.stringify(career));}catch(e){}}
-function careerNew(){return{node:'difficulty',diff:'pro',stage:null,active:false,skill:0.5,taught:[],cleared:[],choices:{},flags:{lastResult:null},unlocks:{drives:[],bbWeapons:[],bbArmor:[],bbPerks:[],paints:[]},bonuses:{speed:0,weapon:0,hp:0},log:[],_then:null,_quiz:null,_rematchLeft:0,ver:1};}
-// REMATCHES (Sam): the difficulty you pick up front sets how many retries a lost fight gets before the loss
-// becomes canon. Rookie = unlimited, Pro = 3, Champion = 0 (and Champion also faces a tougher CPU tier).
-const CAREER_REMATCH={rookie:99,pro:3,champion:0};
-const CAREER_DIFF_OFF={rookie:-1,pro:0,champion:1};
-function careerRematchBudget(){return CAREER_REMATCH[career.diff]!=null?CAREER_REMATCH[career.diff]:3;}
+function careerNew(){return{node:'difficulty',diff:'veteran',stage:null,active:false,skill:1,taught:[],cleared:[],choices:{},flags:{lastResult:null},unlocks:{drives:[],bbWeapons:[],bbArmor:[],bbPerks:[],paints:[]},bonuses:{speed:0,weapon:0,hp:0},log:[],_then:null,_quiz:null,_rematchLeft:0,ver:1};}
+// DIFFICULTY LANE (Sam): the lane you pick up front is named after — and starts you at — the engine's 4 CPU
+// tiers (ROOKIE/VETERAN/WINNER/CHAMPION). It sets (a) your STARTING tier/skill, (b) the rematch budget, and
+// (c) the quiz grade-band. The adaptive rating then nudges your tier up/down from that lane baseline.
+const CAREER_LANES=['rookie','veteran','winner','champion'];          // == CPU_TIERS names, lowercased
+const CAREER_LANE_TIER={rookie:0,veteran:1,winner:2,champion:3};      // the lane's starting CPU tier index (skill seed)
+const CAREER_REMATCH={rookie:99,veteran:5,winner:2,champion:0};       // retries on a loss before it becomes canon
+function careerRematchBudget(){return CAREER_REMATCH[career.diff]!=null?CAREER_REMATCH[career.diff]:5;}
+function careerMaxTier(){return (typeof CPU_TIERS!=='undefined'?CPU_TIERS.length:4)-1;} // 3 — valid CPU tier indices are 0..3
 function careerMigrate(s){const n=careerNew();if(!s||typeof s!=='object')return n;for(const k in n){if(s[k]!==undefined)n[k]=s[k];}n.flags={...n.flags,...(s.flags||{})};n.unlocks={...n.unlocks,...(s.unlocks||{})};n.bonuses={...n.bonuses,...(s.bonuses||{})};return n;}
 
 // ── THE CURRICULUM: each stage launches a mode + teaches one drive concept (CAREER_PLAN §2.3) ──
@@ -6122,9 +6125,10 @@ const CAREER_BEATS={
     "This sets your RE-MATCHES: when a fight goes badly, how many retries before the loss becomes part of your story.",
     "(You always keep moving forward either way — losing just writes a different story.)"],
     choices:[
-      {label:"ROOKIE — take your time · unlimited rematches", goto:'intro', effect:{setDiff:'rookie'}},
-      {label:"PRO — 3 rematches per fight", goto:'intro', effect:{setDiff:'pro'}},
-      {label:"CHAMPION — no rematches, tougher bots, every result is canon", goto:'intro', effect:{setDiff:'champion'}},
+      {label:"ROOKIE — easiest bots · unlimited rematches · basics quiz", goto:'intro', effect:{setDiff:'rookie'}},
+      {label:"VETERAN — even fights · 5 rematches · +algebra quiz", goto:'intro', effect:{setDiff:'veteran'}},
+      {label:"WINNER — strong bots · 2 rematches · harder quiz", goto:'intro', effect:{setDiff:'winner'}},
+      {label:"CHAMPION — toughest bots · NO rematches · hardest quiz", goto:'intro', effect:{setDiff:'champion'}},
     ]},
   intro:{kind:'story',title:'FIRST DRIVE',lines:[
     "Someone shoves a controller into your hands and points at a squat little robot.",
@@ -6243,7 +6247,8 @@ function careerWhen(c){ // tiny declarative predicate against `career`
 function careerVisibleChoices(b){return (b&&b.choices?b.choices:[]).filter(ch=>careerWhen(ch.when));}
 function careerApplyEffect(eff){
   if(!eff)return;
-  if(eff.setDiff&&CAREER_REMATCH[eff.setDiff]!=null)career.diff=eff.setDiff;
+  if(eff.setDiff&&CAREER_LANE_TIER[eff.setDiff]!=null){career.diff=eff.setDiff;career.skill=CAREER_LANE_TIER[eff.setDiff];} // the lane seeds your starting CPU tier
+
   if(eff.setFlag)for(const k in eff.setFlag)career.flags[k]=eff.setFlag[k];
   if(eff.unlock)for(const k in eff.unlock){const arr=career.unlocks[k]||(career.unlocks[k]=[]);for(const v of [].concat(eff.unlock[k]))if(!arr.includes(v))arr.push(v);}
 }
@@ -6264,7 +6269,7 @@ function careerStartStage(sid,thenRef){career._rematchLeft=careerRematchBudget()
 function careerRematch(){if(career&&career.stage)startCareerMatch(career.stage);} // re-run the SAME stage (budget already decremented by the caller; not reset)
 
 // ── PHASE ②: launch a real career match (drive-lock + adaptive tier), then the existing mode engine runs ──
-function careerTier(){return clamp(Math.round(career.skill)+(CAREER_DIFF_OFF[career.diff]||0),0,4);} // skill 0..4 (+ difficulty offset: champion tougher, rookie easier) → CPU tier 0..4
+function careerTier(){return clamp(Math.round(career.skill),0,careerMaxTier());} // adaptive skill → a VALID CPU tier index (0..3). The lane seeds the starting skill; performance nudges it.
 function careerSetDrive(pl,id){ // resolve a drive id → m2.drive[pl] via the catalog groups (p2cSetDrive also couples absHeading)
   const groups=[DRIVES,HOLO_DRIVES,STEER_DRIVES];
   for(let g=0;g<3;g++){const i=groups[g].findIndex(d=>d.id===id);if(i>=0){p2cSetDrive(pl,g,i);return true;}}
@@ -6344,7 +6349,7 @@ function careerMatchEnd(side){
   const isDraw=(typeof side!=='number'),won=(side===0);
   // 1) performance → adaptive skill + story flag (§3)
   const perf=isDraw?0.5:won?(0.75+0.25*careerDominance()):(0.25*careerCloseness());
-  career.skill=clamp(career.skill+(perf-0.5)*1.2,0,4);
+  career.skill=clamp(career.skill+(perf-0.5)*1.2,0,careerMaxTier());
   career.flags.lastResult=isDraw?'won':won?(perf>0.9?'dominated':'won'):(perf<0.1?'blown_out':'lost');
   // 2) mark the stage cleared — WIN OR LOSS (progression is by completion, not winning)
   const st=career.stage;
@@ -6379,10 +6384,10 @@ function drawCareerHub(){
     ctx.font='13px Courier New';ctx.fillStyle='#c7c7e6';
     ctx.fillText('Stages cleared:  '+cleared+' / '+total,px+22,164);
     ctx.fillText('Concepts learned:  '+(taught.length?taught.join('  '):'— none yet —'),px+22,190);
-    const sk=Math.max(0,Math.min(4,c.skill||0)),tierNm=['ROOKIE','AMATEUR','PRO','VETERAN','CHAMPION'][Math.round(sk)];
+    const mx=(typeof CPU_TIERS!=='undefined'?CPU_TIERS.length-1:3),sk=Math.max(0,Math.min(mx,c.skill||0)),tierNm=(typeof CPU_TIERS!=='undefined'?(CPU_TIERS[Math.round(sk)]||{}).name:'')||['ROOKIE','VETERAN','WINNER','CHAMPION'][Math.round(sk)];
     ctx.fillText('Driver rating:  '+sk.toFixed(1)+'  ('+tierNm+')',px+22,216);
     ctx.font='11px Courier New';ctx.fillStyle='#7a86b8';
-    const diffLab={rookie:'ROOKIE · unlimited rematches · 4–5th-grade quizzes',pro:'PRO · 3 rematches · middle-school quizzes',champion:'CHAMPION · no rematches · tougher bots & quizzes'}[c.diff]||c.diff;
+    const diffLab={rookie:'ROOKIE · unlimited rematches · basics',veteran:'VETERAN · 5 rematches · +algebra',winner:'WINNER · 2 rematches · harder',champion:'CHAMPION · no rematches · hardest'}[c.diff]||c.diff;
     ctx.fillText('Lane:  '+diffLab,px+22,242);
   }else{
     ctx.font='bold 15px Courier New';ctx.fillStyle='#9fb4ff';ctx.textAlign='center';ctx.fillText('NEW DRIVER',CW/2,150);
@@ -6454,12 +6459,14 @@ function careerBeatClick(mx,my){
 // explanation always shows). Options are SHUFFLED per question (the bank stores the answer at index 0 for
 // authoring; never present it that way).
 function careerShuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;}
-// QUESTIONS SCALE WITH DIFFICULTY (Sam): rookie = 4th–5th-grade level (definitional 'core' only, no algebra);
-// pro = middle-school (core + some algebra); champion = HS-freshman (more, harder, guarantees algebra/headline).
-function careerQuizPlan(){const d=(career&&career.diff)||'pro';
+// QUESTIONS SCALE WITH THE LANE (Sam): rookie = 4–5th-grade (definitional 'core' only); veteran = middle-school
+// (core + some algebra); winner = HS (harder, more); champion = HS hardest (most, guarantees algebra/headline).
+function careerQuizPlan(){const d=(career&&career.diff)||'veteran';
   if(d==='rookie')  return {n:3,levels:['core'],                      hardMin:0};
-  if(d==='champion')return {n:4,levels:['core','algebra','headline'], hardMin:2};
-  return                   {n:3,levels:['core','algebra','headline'], hardMin:1};}
+  if(d==='veteran') return {n:3,levels:['core','algebra'],            hardMin:1};
+  if(d==='winner')  return {n:4,levels:['core','algebra','headline'], hardMin:2};
+  if(d==='champion')return {n:4,levels:['core','algebra','headline'], hardMin:3};
+  return                   {n:3,levels:['core','algebra'],            hardMin:1};}
 function careerQuizBuild(q){const ord=careerShuffle(q.o.map((_,i)=>i));return {id:q.id,prompt:q.q,opts:ord.map(i=>q.o[i]),ans:ord.indexOf(q.a),explain:q.x,topic:q.t,level:q.lv};}
 function careerQuizPick(topic,plan){
   plan=plan||careerQuizPlan();
@@ -6501,7 +6508,7 @@ function careerEnding(){
   return 'driver';
 }
 function careerRecap(){
-  const f=career.flags, L=[], lane={rookie:'Rookie',pro:'Pro',champion:'Champion'}[career.diff]||career.diff, sk=career.skill;
+  const f=career.flags, L=[], lane={rookie:'Rookie',veteran:'Veteran',winner:'Winner',champion:'Champion'}[career.diff]||career.diff, sk=career.skill;
   L.push("You ran the "+lane+" lane.");
   L.push(sk>=3?"You started barely able to keep a tank straight — and finished reading the field like a second language."
         :sk>=1.5?"You started shaky, then steadily found your hands. By the end you were driving with intent."
@@ -6538,7 +6545,7 @@ function drawCareerRecap(){
   // a little stat ribbon
   y+=6; ctx.font='11px Courier New';ctx.fillStyle='#7a86b8';
   const sk=Math.max(0,Math.min(4,career.skill||0));
-  ctx.fillText('final rating '+sk.toFixed(1)+'  ·  '+(career.cleared||[]).length+' stages  ·  '+((career.flags.quizScore!=null)?('power quiz '+career.flags.quizScore+'/'+(career.flags.quizTotal||3)):'')+'  ·  '+( {rookie:'Rookie',pro:'Pro',champion:'Champion'}[career.diff]||'' )+' lane',CW/2,y);
+  ctx.fillText('final rating '+sk.toFixed(1)+'  ·  '+(career.cleared||[]).length+' stages  ·  '+((career.flags.quizScore!=null)?('power quiz '+career.flags.quizScore+'/'+(career.flags.quizTotal||3)):'')+'  ·  '+( {rookie:'Rookie',veteran:'Veteran',winner:'Winner',champion:'Champion'}[career.diff]||'' )+' lane',CW/2,y);
   const B=careerRecapBtns();
   btn(B.again.x,B.again.y,B.again.w,B.again.h,B.again.label,'#ff8866');
   btn(B.hub.x,B.hub.y,B.hub.w,B.hub.h,B.hub.label,'#44ffaa');
@@ -9955,6 +9962,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.258 (2026-06-20): CAREER / STORY MODE — difficulty lanes renamed to the engine's 4 CPU tiers + a latent tier-index bugfix (Sam: "should be rookie, veteran, winner, champion"). The lanes now match the game's real difficulty vocabulary (CPU_TIERS = ROOKIE/VETERAN/WINNER/CHAMPION) — and the LANE both names AND SEEDS your starting tier: CAREER_LANE_TIER {rookie:0,veteran:1,winner:2,champion:3} sets `career.skill`, the adaptive rating nudges from there, and rematch budgets are rookie ∞ / veteran 5 / winner 2 / champion 0. BUGFIX: the engine has 4 CPU tiers (indices 0..3 — a deliberate 5→4 rework), but `careerTier()`/the skill clamp were capping at 4 (an out-of-range index that would feed `m2.claim[1].tier=4` → undefined tier params); both now clamp to `careerMaxTier()` (= CPU_TIERS.length-1 = 3). The hub's rating readout also used wrong names (AMATEUR/PRO) — now reads the real `CPU_TIERS[i].name`. Quiz grade-band is now 4-way (rookie core · veteran +algebra · winner harder/4 · champion hardest/4). smoke83 → 73 asserts. Full battery green.
   v5.1.257 (2026-06-20): CAREER / STORY MODE — quizzes ACROSS the curriculum (Sam: "all educational"). Two more quiz beats join the headline POWER CHECK so knowledge is tested throughout, each rewarding a different build stat: 🔧 SHOP CHECK (tools/shop-safety → +HP/durability) before the field-centric stage, and 🖨️ FAB CHECK (3D-printing & CAD → +speed) before the holonomic shooter. Reached coach → quiz → stage (via the existing `then`-chain) so the lesson is fresh; bonuses accrue into career.bonuses and apply in careerApplyBonuses (hp→tank lives, speed→control, weapon→capstone loadout). smoke83 → 70 asserts (the curriculum walk now confirms it hits tools+fab+power quizzes and accrues hp+speed+weapon bonuses). Full battery green.
   v5.1.256 (2026-06-20): CAREER / STORY MODE — Phase ⑦: multiple ENDINGS + the personalized RECAP (the payoff). After the capstone, the finale routes to a `p2crecap` screen that stitches YOUR run into a narrated summary — lane, skill arc (started 0.5, where you ended), drives mastered, your battery-chemistry choice (LiFePO4 vs the LiPo that burned), how many fights you ran back, and the capstone result — and picks one of 5 ENDINGS (`careerEnding`): FLAWLESS (champion + high skill + safe chem + won), THE ENGINEER/scholar (safe chem + good quiz), PHOENIX (won after rematches), THE GRINDER (lost the rumble but finished), DRIVER (default). `careerRecap` builds the lines from `career.log`/`flags`/`taught`/`skill`/`diff`; the screen shows a stat ribbon + NEW JOURNEY (fresh start at the difficulty pick) / BACK TO HUB. Same gametypes for everyone, but lane + choices + chemistry + how-you-did + ending make two runs genuinely different stories (CAREER_PLAN §4.4). smoke83 → 68 asserts (recap renders, all 5 endings selected from their conditions, NEW JOURNEY resets). Full battery green.
   v5.1.255 (2026-06-20): CAREER / STORY MODE — DIFFICULTY LANE: rematches + tier offset + grade-scaled quizzes (Sam). The campaign now opens on a `difficulty` beat (CHOOSE YOUR LANE) — `career.diff ∈ {rookie,pro,champion}` — which sets three things. (1) REMATCHES: lose a fight and you can RUN IT BACK before the loss becomes canon, budgeted by lane (rookie ∞ / pro 3 / champion 0). The post-match nav shows `⟳ REMATCH (n)` + `▶ TAKE THE L →`; out of retries (or champion) it's a single `▶ CONTINUE STORY`. `careerRematchBudget`, `career._rematchLeft` (set fresh per stage in careerStartStage, decremented on rematch), `careerRematch` re-runs the same stage; you ALWAYS progress — rematches just delay when the loss enters your story. (2) CPU TIER: `careerTier` adds a lane offset (rookie −1 / pro 0 / champion +1) on top of round(skill), so champion also faces tougher bots. (3) QUIZ GRADE-BAND (Sam: "rookie gets 4th–5th-grade questions"): `careerQuizPlan` scales the bank by lane via each question's `level` tag — rookie = `core` only (no algebra, 3 Qs); pro = core+algebra (3); champion = core/algebra/headline with ≥2 harder (4). Same bank, grade-appropriate slice; explanations always show so every tier learns. Hub readout shows your lane; quiz header tags each question's level. smoke83 → 61 asserts (difficulty beat, per-lane rematch budgets, the full lose→rematch→exhaust→advance loop, tier offsets, rookie-core vs champion-harder question selection). Full battery green.

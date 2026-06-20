@@ -229,8 +229,11 @@ tip" fork. **This is how losing branches the story instead of ending it.**
 
 ### 3.4 The DIFFICULTY LANE + REMATCHES (Sam, 2026-06-20). ✅ BUILT (v5.1.255)
 
-On top of the adaptive rating, the player picks a **lane up front** (a `difficulty` beat, the first node) that
-sets three things — `career.diff ∈ {rookie, pro, champion}`:
+On top of the adaptive rating, the player picks a **lane up front** (a `difficulty` beat, the first node). The
+lanes are **named after — and seed you at — the engine's 4 CPU tiers** (`CPU_TIERS` = ROOKIE/VETERAN/WINNER/
+CHAMPION; note the engine was reworked 5→4, so valid tier indices are **0..3** — `careerTier`/`skill` clamp to
+`careerMaxTier()`). `career.diff ∈ {rookie, veteran, winner, champion}` sets three things (and the lane's
+`CAREER_LANE_TIER` seeds your starting `skill`/tier; the adaptive rating nudges from there):
 - **Rematches on a loss.** When a fight goes badly you can **run it back** before the loss becomes canon —
   budget by lane: **Rookie = unlimited, Pro = 3, Champion = 0.** The post-match nav shows `⟳ REMATCH (n)` next to
   `▶ TAKE THE L →`; out of retries (or Champion) it's a single `▶ CONTINUE STORY`. (`careerRematchBudget`,
