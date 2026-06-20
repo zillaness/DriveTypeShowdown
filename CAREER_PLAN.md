@@ -888,6 +888,49 @@ progression. New/carried-forward:
 
 ---
 
+## 11. BIG-IDEAS BACKLOG (Sam's live ideation, 2026-06-20) — captured, not yet built
+
+These are larger features Sam floated while the core mode came together. Recorded here so they're not lost;
+each is its own build. **Status: DESIGN / backlog** (the core mode through v5.1.258 is shipped & playable).
+
+### 11.1 🚗 DRIVER'S LICENSE mini-game (teen audience)
+*"Since teens may play this — have a driver's license test mini-game."*
+- **Permit test** — a quiz on real **rules-of-the-road** (stop signs, right-of-way, speed, following distance,
+  seatbelts, signals…). New `CAREER_QUIZ` topic `permit` (author ~12–15 age-appropriate questions; the quiz
+  runtime already exists). Scaled by lane like the others.
+- **Driving test** — a **front-steer (`carSteer`) course** with a **PARALLEL PARK** objective: navigate a
+  carSteer bot and **stop inside a marked box** (between two parked "cars") within bounds + low speed + roughly
+  square. This is the one piece that needs *new gameplay* (a parking-zone pass check on top of `startP2Race`).
+- **The reward — earning your license is an ADVANTAGE:** *"the ability to drive gives them an advantage — like
+  they can go to more practices, but parts, etc."* → a meta/economy edge. Candidate effects (tie to existing
+  systems): **+rematches** ("get to more practices"), a **free build part** (a perk/weapon for the capstone), or
+  **grant-money/parts**. Store `career.flags.license=true`; apply in `careerApplyBonuses` / the finale draft.
+
+### 11.2 🏆 TOURNAMENT FINALE + a RELATIONSHIP / FAVOR economy
+*"Maybe the whole thing ends in a big double-elimination tournament. And the allies and friends you've made
+along the way limit who you can recruit — or things you've answered correctly/incorrectly. Maybe you lent
+someone a spare part during a previous competition; they'll then be willing to be your ally — or lend you a
+spare part when you need it."*
+- **The campaign climaxes in the EXISTING TOURNAMENT** (`tour*`: double-elimination + the v2 **captain draft /
+  3v3 alliances**). The career finale seeds you into a `tour` as a captain and runs it to a champion.
+- **A relationship ledger built through the story:** `career.allies` / `career.favors`. Story beats add
+  **favor choices** — e.g. *"lend a rival your spare part"* (a short-term cost) → that person becomes a
+  **recruitable ally** (or **lends you a part**) later. Quiz performance also gates relationships ("things you've
+  answered correctly or incorrectly").
+- **Recruitment gating at the draft:** who you can pick for your alliance (and which **spare parts** you can
+  borrow for your loadout) is filtered by `career.allies`/`career.favors` earned across the run. Leverages the
+  existing `tour.alli` draft + `bbLoadout` — mostly **data + a gate**, since the tournament engine already exists.
+- *Note:* this would likely **replace or follow** the single `capstone_rumble` as the true finale, then flow into
+  the recap (§4.4) which already narrates allies/choices.
+
+### 11.3 Smaller asks in flight (Sam, same session)
+- **Achievements** (graduation / honor-roll / untouchable) via `achUnlock` — Phase ⑥.
+- **Coach self-skip on replay** (a SKIP button when the concept's already in `career.taught`) — Phase ⑥.
+- **Tune the quiz BONUS magnitudes** (how build-defining knowledge rewards should be) — Phase ⑥.
+- **Live browser playtest + screenshots** of the flow.
+
+---
+
 ### Appendix: key code anchors (drive_showdown_v5.1.251.html)
 
 | What | Line | Use in career |

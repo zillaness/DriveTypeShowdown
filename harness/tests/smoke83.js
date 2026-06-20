@@ -177,10 +177,40 @@ src+=`
   careerRecapStart(); let RB=careerRecapBtns(); careerRecapClick(RB.again.x+5,RB.again.y+5);
   T('recap NEW JOURNEY → fresh career at the difficulty pick', career.node==='difficulty'&&career.cleared.length===0&&phase==='p2cbeat');
 
+  // ───────────────────────── ⑥ ACHIEVEMENTS · COACH-SKIP · BONUS TUNING ─────────────────────────
+  // achievement: a PERFECT quiz fires Honor Roll
+  for(const k in achUnlocked)delete achUnlocked[k];
+  freshAt('after:heading_advanced'); pick(0); answerQuiz(true);
+  T('perfect quiz → Honor Roll achievement', !!achUnlocked.honorroll);
+  // achievements: graduating fires First Driver; champion lane also fires Untouchable
+  for(const k in achUnlocked)delete achUnlocked[k];
+  career=careerNew(); careerApplyEffect({setDiff:'champion'}); career.flags={lastResult:'won',chem:'safe'}; careerRecapStart();
+  T('graduation → First Driver + (champion) Untouchable', !!achUnlocked.firstdriver&&!!achUnlocked.untouchable);
+  for(const k in achUnlocked)delete achUnlocked[k];
+  career=careerNew(); careerApplyEffect({setDiff:'veteran'}); career.flags={lastResult:'won'}; careerRecapStart();
+  T('non-champion graduation → First Driver only', !!achUnlocked.firstdriver&&!achUnlocked.untouchable);
+  // coach self-skip on replay: first visit teaches, second offers SKIP
+  career=careerNew(); careerGoto('coach:C4');
+  T('first coach visit → "Got it" (not skip)', /Got it/.test(careerBeatButtons(careerBeat('coach:C4'))[0].label));
+  careerGoto('coach:C4');
+  T('replay coach visit → SKIP label', /Skip/i.test(careerBeatButtons(careerBeat('coach:C4'))[0].label));
+  // bonus tuning: summary string + license perks
+  career=careerNew(); career.bonuses={speed:1,hp:1,weapon:0.5}; career.flags={license:true};
+  T('careerBonusSummary reflects earned edge + license', /speed/.test(careerBonusSummary())&&/HP/.test(careerBonusSummary())&&/license/.test(careerBonusSummary()));
+  // a licensed driver gets +1 tank life and a SPARE-PART perk in the capstone
+  career=careerNew(); career.flags={license:true}; m2.set={...M2_SET_DEFAULTS}; m2.set.lives=3; m2.sens=[1,1]; m2.bbLoadout=[null,null];
+  careerApplyBonuses({mode:'tankfight'});
+  T('license → +1 tank life', m2.set.lives===4);
+  careerApplyBonuses({mode:'battlebots'});
+  T('license → spare-part perk in the rumble', m2.bbLoadout[0].perk==='sparetire');
+
   // splash CAREER tile → hub
   applyLayout('legacy'); phase='splash';
   const SR=splashRects(); click(SR.career.x+10,SR.career.y+10);
   T('splash CAREER tile → p2career', phase==='p2career');
+  // the splash banner draws without throwing (text now fit-guarded to the card)
+  let bdrew=true; try{drawCareerBanner(SR.career);}catch(e){bdrew=false;}
+  T('career banner renders (fit-guarded)', bdrew);
 
   console.log('smoke83: '+P+' pass, '+F+' fail');
 })();
