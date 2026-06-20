@@ -538,6 +538,43 @@ the campaign's earned weapons so the finale feels like "use the kit you built."
 Because progression is by completion (not winning), unlocks are tied to **finishing** a stage, not winning
 it — losing still earns the trophy/livery and still teaches the concept.
 
+### 6.1 Tools & training → your RoboRumble ARSENAL (the workshop skill-tree)
+
+The richest unlock hook (Sam): **what you learn/do in the story decides which RoboRumble WEAPONS you can field**
+in the capstone. Training, classes, and hobbies map to weapons — and because **earlier choices limit later ones**
+(time, budget, interests), you can't learn everything, so your endgame arsenal *is* your build path.
+
+**The workshop.** At a story beat (the "shop class / build season" moment) you enter a WORKSHOP hub and spend a
+**limited** pool — learn as many tools as your earlier choices allow (a budget of picks, or each tool costs
+shop-time/points that prior decisions set). Each tool learned adds its weapon to `career.unlocks.bbWeapons`; the
+**capstone** RoboRumble seeds `m2.bbLoadout` from what you earned and the armory rail shows only your unlocked
+weapons (the CANNON *hidden-until-unlocked* precedent is the exact mechanism).
+
+**Tool / hobby → weapon map** (✓ = Sam's; the rest proposed, trivial to retheme):
+
+| Story source | → Weapon (`BB_WEAPONS`) |
+|---|---|
+| ✓ power **drill** training | DRILL |
+| ✓ **blowtorch** / welding torch | FLAMETHROWER |
+| ✓ **circular saw** training | BUZZSAW |
+| ✓ **flight interest / RC-plane** hobby | JET ENGINE |
+| angle-grinder / flywheel / machining | SPINNER |
+| pneumatics / air-ram class | PISTON |
+| pneumatic flipper / linear actuator | PUSHER (`flipper`) |
+| heavy fab / sheet-metal / plow build | DOZER (`wedge`) |
+| gripper / claw / end-effector club | PINCER |
+| welding + pit-crew / "support" path | REPAIR TORCH |
+| chemistry / pyro / a reckless streak | KAMIKAZE |
+| marksmanship / launcher hobby | CANNON (special) |
+
+**Earlier-limits-later** examples: an "academics-heavy semester" → fewer shop picks; "part-time job at the machine
+shop" → +picks but a fatigue modifier (§4.0); pick up **RC planes** at the hobby beat → JET unlocked but you skipped
+the welding scene → no FLAMETHROWER that run. This is the "different choices, different build, **same gametypes**"
+promise cashed out, and it feeds the recap ("…you graduated a DRILL-and-PINCER grappler").
+
+Armor & perks can extend the same idea later (a **materials** class → HARDPLATE; a **fitness/driving** focus →
+LIGHT; a **medic/pit-crew** arc → the PIT STOP perk) — weapons are the headline; armor/perks are a stretch.
+
 ---
 
 ## 7. Phased build plan
