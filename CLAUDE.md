@@ -53,9 +53,10 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
   win/loss routing (with rematches) → finale. Shipped: v5.1.252 shell/HUB/CYOA · v5.1.253 real matches + adaptive
   difficulty · v5.1.254 the QUIZ (inlined `career/quiz_bank.js`) + the battery-chemistry→FLAMETHROWER hook ·
   v5.1.255 difficulty LANE (rematches + CPU-tier offset + grade-scaled questions) · v5.1.256 multiple ENDINGS +
-  personalized RECAP. Remaining: ⑥ unlocks/achievement/coach-skip, more quiz beats across the curriculum, mobile
-  touch polish for career matches. (All career logic is in one block after `let tour=null;`; the inlined question
-  bank is `CAREER_QUIZ`; tests in `harness/tests/smoke83.js`.)
+  personalized RECAP · v5.1.257 quizzes across the curriculum (SHOP/FAB/POWER checks). Remaining: ⑥ unlocks/
+  achievement/coach-skip, mobile-touch polish for career matches, and a live browser playtest. (All career logic
+  is in one block after `let tour=null;`; the inlined question bank is `CAREER_QUIZ`; tests in
+  `harness/tests/smoke83.js` — 70 asserts.)
 - PRDs: `frcds_roborumble_v2_prd_v1.0.md`, `frcds_online_prd_v1.1.md`, `frcds_tournament_v2_prd_v1.0.md`.
 - Build: latest is `drive_showdown_v5.1.257.html` (single self-contained HTML).
 - Balance sim: `./extract.sh && node harness/tests/bbbalance.js /tmp/g.js`.
