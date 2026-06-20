@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.253.html
-  version: 5.1.253
+  file: drive_showdown_v5.1.254.html
+  version: 5.1.254
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -6019,8 +6019,8 @@ let tour=null;
 let career=null;                 // null when not in a campaign; an object while playing one
 let careerSave=(()=>{try{const c=JSON.parse(localStorage.getItem('frcds_career_v1')||'null');return (c&&typeof c==='object')?c:null;}catch(e){return null;}})();
 function careerStore(){try{localStorage.setItem('frcds_career_v1',JSON.stringify(career));}catch(e){}}
-function careerNew(){return{node:'intro',stage:null,active:false,skill:0.5,taught:[],cleared:[],choices:{},flags:{lastResult:null},unlocks:{drives:[],bbWeapons:[],bbArmor:[],bbPerks:[],paints:[]},log:[],_then:null,ver:1};}
-function careerMigrate(s){const n=careerNew();if(!s||typeof s!=='object')return n;for(const k in n){if(s[k]!==undefined)n[k]=s[k];}n.flags={...n.flags,...(s.flags||{})};n.unlocks={...n.unlocks,...(s.unlocks||{})};return n;}
+function careerNew(){return{node:'intro',stage:null,active:false,skill:0.5,taught:[],cleared:[],choices:{},flags:{lastResult:null},unlocks:{drives:[],bbWeapons:[],bbArmor:[],bbPerks:[],paints:[]},bonuses:{speed:0,weapon:0,hp:0},log:[],_then:null,_quiz:null,ver:1};}
+function careerMigrate(s){const n=careerNew();if(!s||typeof s!=='object')return n;for(const k in n){if(s[k]!==undefined)n[k]=s[k];}n.flags={...n.flags,...(s.flags||{})};n.unlocks={...n.unlocks,...(s.unlocks||{})};n.bonuses={...n.bonuses,...(s.bonuses||{})};return n;}
 
 // ── THE CURRICULUM: each stage launches a mode + teaches one drive concept (CAREER_PLAN §2.3) ──
 const CAREER_STAGES={
@@ -6034,6 +6034,72 @@ const CAREER_STAGES={
   steer_detour:    {mode:'race',      drive:'carSteer',    concept:'C7', name:'DRIVE LIKE A CAR',tag:'car steering'},
 };
 const CAREER_STAGE_ORDER=['tank_hook','arcade_course','strafe_intro','field_centric','holo_shooter','heading_advanced','capstone_rumble'];
+// ── THE QUESTION BANK (inlined from career/quiz_bank.js — Sam's FRC lectures; regenerate that file → reinline). KNOWLEDGE is the most rewarding (CAREER_PLAN §6). ──
+const CAREER_QUIZ={topics:{"power":{label:"Batteries & Power",reward:"speed"},"electricity":{label:"Electricity Basics",reward:"speed"},"design":{label:"Engineering Design"},"materials":{label:"Materials"},"tools":{label:"Tools & Shop Safety",reward:"hp"},"fasteners":{label:"Fasteners"},"fab":{label:"3D Printing & CAD"}},
+  Q:[
+    {id:"pw01",t:"power",lv:"core",q:"A battery cell’s VOLTAGE is like what, in the water analogy?",o:["Water pressure (the push)","The size of the tank","The length of the hose","The temperature of the water"],a:0,x:"Voltage is the push — how hard the cell shoves electricity through the circuit, just like water pressure in a hose."},
+    {id:"pw02",t:"power",lv:"core",q:"A cell’s CAPACITY is measured in mAh. What does it tell you?",o:["How much energy it holds (how long it runs)","How hard it pushes","How heavy it is","How fast it charges"],a:0,x:"Capacity is the size of the tank. More mAh means the battery runs longer before it’s empty."},
+    {id:"pw03",t:"power",lv:"core",q:"The famous \"18650\" cell gets its name from…",o:["Its size: 18 mm wide, 65 mm long","The year it was invented","Its voltage","The company that made it"],a:0,x:"18650 = 18 mm diameter × 65 mm long, with a \"0\" for round. A 21700 is 21 mm × 70 mm — same naming trick."},
+    {id:"pw04",t:"power",lv:"core",q:"When you wire cells in SERIES (end to end), what adds up?",o:["The voltage","The capacity (mAh)","The weight only","Nothing changes"],a:0,x:"Series stacks the push: each cell adds its voltage. The capacity (mAh) stays the same."},
+    {id:"pw05",t:"power",lv:"core",q:"When you wire cells in PARALLEL (side by side), what adds up?",o:["The capacity (mAh) — it runs longer","The voltage","The voltage AND the capacity","Neither"],a:0,x:"Parallel is like extra tanks side by side: same pressure (voltage), but way more water (capacity)."},
+    {id:"pw06",t:"power",lv:"algebra",q:"A power-tool pack has 5 cells in series, each 3.6 V. Total voltage?",o:["18 V","3.6 V","25 V","9 V"],a:0,x:"Series adds: 5 × 3.6 V = 18 V. That’s exactly how an \"18 V\" tool battery is built (a 5S pack)."},
+    {id:"pw07",t:"power",lv:"algebra",q:"The VEX V5 battery is \"4S\" of 3.2 V LiFePO4 cells. Its nominal voltage?",o:["12.8 V","3.2 V","7.2 V","16 V"],a:0,x:"4 × 3.2 V = 12.8 V. VEX uses LiFePO4 cells (3.2 V each), not normal Li-ion (3.6 V)."},
+    {id:"pw08",t:"power",lv:"algebra",q:"Three 1,100 mAh cells are wired in PARALLEL. Total capacity?",o:["3,300 mAh","1,100 mAh","366 mAh","11,000 mAh"],a:0,x:"Parallel adds capacity: 3 × 1,100 = 3,300 mAh. The voltage stays 3.6 V."},
+    {id:"pw09",t:"power",lv:"core",q:"A pack labelled \"5S2P\" means…",o:["5 cells in series, then 2 of those strings in parallel (10 cells)","5 parallel, 2 series","5.2 volts","5 amps, 2 packs"],a:0,x:"NSnP notation: 5S = 5 in series (the voltage), 2P = 2 strings in parallel (the capacity). 5 × 2 = 10 cells total."},
+    {id:"pw10",t:"power",lv:"headline",q:"Which battery chemistry is the SAFEST — very hard to catch fire — and is what the VEX V5 uses?",o:["LiFePO4 (lithium iron phosphate)","LCO (lithium cobalt, in phones)","NMC (in most EVs)","Lead-acid"],a:0,x:"LiFePO4 (LFP) is the safest lithium chemistry — nearly impossible to ignite — so it’s ideal around a gym full of students. Knowing your chemistry powers a higher-performance build.",r:"weapon"},
+    {id:"pw11",t:"power",lv:"core",q:"Why do FIRST (FRC) robots use a sealed lead-acid (AGM) battery instead of lithium?",o:["It’s student-safe — no fire risk — and handles huge surge current","It’s lighter","It holds far more energy","It charges faster"],a:0,x:"AGM is heavy and low-energy, but it’s very forgiving: no fire/spill risk, survives charging mistakes, and shrugs off 100+ amp motor stalls. Safety first.",r:"hp"},
+    {id:"pw12",t:"power",lv:"core",q:"A \"18 V\" tool battery and a \"20 V Max\" tool battery are…",o:["The same pack, just labelled at different points (nominal vs peak)","Totally different sizes","20 V is always stronger","18 V has more cells"],a:0,x:"Marketing, not engineering: 5 cells read 5×3.6 = 18 V nominal, or 5×4.2 ≈ 20 V freshly charged. Same battery."},
+    {id:"pw13",t:"power",lv:"core",q:"What does a Battery Management System (BMS) do in a lithium pack?",o:["Watches each cell, balances them when charging, and cuts off if unsafe","Makes the battery bigger","Adds voltage","Cools the motor"],a:0,x:"A pack is only as good as its weakest cell. The BMS keeps every cell even and shuts down before an over-charge or over-discharge becomes a fire."},
+    {id:"el01",t:"electricity",lv:"core",q:"In a metal wire, what actually carries the electric charge?",o:["Electrons","Protons","Neutrons","Atoms"],a:0,x:"Metals have lots of free electrons, and those moving electrons are the current."},
+    {id:"el02",t:"electricity",lv:"core",q:"Which of these is the best INSULATOR (blocks current)?",o:["Rubber","Copper","Silver","Aluminum"],a:0,x:"Rubber, plastic, and glass have no free charge carriers, so they block current. Copper, silver and aluminum are conductors."},
+    {id:"el03",t:"electricity",lv:"algebra",q:"Ohm’s Law is V = I × R. A current of 3 A flows through 4 Ω. What is the voltage?",o:["12 V","7 V","1.3 V","0.75 V"],a:0,x:"V = I × R = 3 × 4 = 12 V. Ohm’s Law links voltage, current, and resistance."},
+    {id:"el04",t:"electricity",lv:"algebra",q:"Using V = I × R, if 12 V is across 4 Ω, what is the current I?",o:["3 A","48 A","16 A","0.33 A"],a:0,x:"Rearrange to I = V ÷ R = 12 ÷ 4 = 3 A. Higher resistance means less current for the same voltage."},
+    {id:"el05",t:"electricity",lv:"algebra",q:"Power = Voltage × Current. A motor at 12 V pulls 50 A. How much power?",o:["600 W","62 W","0.24 W","24 W"],a:0,x:"P = V × I = 12 × 50 = 600 W. More power means a stronger, faster bot — that’s real watts on the field.",r:"weapon"},
+    {id:"el06",t:"electricity",lv:"core",q:"Wall power in the US is AC. What does AC do that DC does not?",o:["It reverses direction (about 60 times a second)","It is always a higher voltage","It flows only one way","It never heats wires"],a:0,x:"AC (alternating current) flips back and forth ~60×/sec; DC (a battery) flows one steady direction."},
+    {id:"el07",t:"electricity",lv:"core",q:"In the water analogy, CURRENT is like…",o:["The flow rate (how much water moves past)","The pressure","The pipe material","The tank size"],a:0,x:"Voltage = pressure, current = flow rate, resistance = a narrow pipe. A great way to picture a circuit."},
+    {id:"el08",t:"electricity",lv:"core",q:"What does a fuse or circuit breaker protect against?",o:["Too much current overheating the wire (fire risk)","Low voltage","A dead battery","Slow motors"],a:0,x:"Too much current through a too-small wire makes heat. A fuse/breaker trips first. (FRC: 120 A main, 20 A branches.)"},
+    {id:"dz01",t:"design",lv:"core",q:"What is the FIRST step of the engineering design process?",o:["Define the problem","Build the final robot","Order parts","Paint it"],a:0,x:"You can’t solve what you haven’t defined. Step 1 is a clear problem statement; skipping it is the #1 cause of building the wrong thing."},
+    {id:"dz02",t:"design",lv:"core",q:"A test fails, so the team goes back to brainstorm. What does that mean?",o:["The process is working — the test gave data to improve","The team failed and wasted time","Engineering isn’t for them","They should give up"],a:0,x:"Loops are features, not bugs. NASA, SpaceX, and Boeing all iterate — the only difference is how fast."},
+    {id:"dz03",t:"design",lv:"core",q:"A prototype is best thought of as…",o:["A question: \"does this concept work?\"","The finished product","A waste of material","A decoration"],a:0,x:"Your prototype asks a question. Start simple — cardboard and wood — and prove the concept before adding complexity."},
+    {id:"dz04",t:"design",lv:"core",q:"Which kind of requirement makes your design FAIL if you miss it?",o:["A \"Must Have\" (like fitting in the size box)","A \"Nice to Have\"","A stretch goal","A paint color"],a:0,x:"\"Must Haves\" are hard limits (size, weight, rules). \"Nice to Haves\" just make a good design better."},
+    {id:"dz05",t:"design",lv:"core",q:"Catching a flaw at the BRAINSTORM stage vs. at the TEST stage is…",o:["Cheaper — it’s only ideas, not parts and time","More expensive","Exactly the same cost","Impossible"],a:0,x:"Brainstorm loops cost a day of sketching; test loops cost parts and time. Catching failures early saves both."},
+    {id:"dz06",t:"design",lv:"core",q:"Why is the last step — \"Communicate Results\" — so important?",o:["It feeds the next iteration; shared knowledge isn’t wasted","It earns extra points","It’s just paperwork","It ends the project for good"],a:0,x:"Document what you built AND what you learned. Engineering knowledge that dies in one shop is wasted engineering."},
+    {id:"mt01",t:"materials",lv:"core",q:"Which plastic is the BEST low-friction sliding surface for robot parts?",o:["HDPE","PLA","Acrylic","MDF"],a:0,x:"HDPE is the #1 stock sliding plastic — game pieces glide instead of dragging. PLA and acrylic grab and hang up."},
+    {id:"mt02",t:"materials",lv:"core",q:"PLA (the common 3D-print plastic) gets soft at a surprisingly LOW temperature — about…",o:["60°C","300°C","1,400°C","150°C"],a:0,x:"PLA softens near 60°C, so it can sag right next to a hot motor. Pick a tougher material near heat."},
+    {id:"mt03",t:"materials",lv:"core",q:"Which is LIGHTER for the same size piece?",o:["Aluminum (~2.7 g/cm³)","Steel (~7.8 g/cm³)","They weigh the same","Iron"],a:0,x:"Aluminum is about a third the density of steel — a big reason robots are built from it."},
+    {id:"mt04",t:"materials",lv:"core",q:"A material that is \"ductile\" will…",o:["Bend a lot before it breaks","Shatter with no warning","Melt instantly","Float"],a:0,x:"Ductile = bends/deforms first (mild steel, polycarbonate, HDPE). Brittle = snaps suddenly (acrylic, PLA, MDF)."},
+    {id:"mt05",t:"materials",lv:"core",q:"Why is acrylic a risky choice for a part that takes impacts?",o:["It’s brittle — it shatters suddenly","It’s too heavy","It melts at room temperature","It rusts"],a:0,x:"Acrylic, CFRP sheet, MDF and PLA all snap with no warning. For impacts you want a ductile material like polycarbonate."},
+    {id:"tl01",t:"tools",lv:"core",q:"You must drive 40 long deck screws and your wrist is sore from the twist. Best tool?",o:["Impact driver","Cordless drill","Hand screwdriver","Hacksaw"],a:0,x:"An impact driver delivers high-torque rotational \"hammer\" blows with almost no kickback on your wrist — built for big fasteners."},
+    {id:"tl02",t:"tools",lv:"core",q:"The numbered \"clutch\" ring on a cordless drill sets the…",o:["Torque (where it slips, so you don’t overdrive screws)","Top RPM","Battery level","Drill bit size"],a:0,x:"The clutch caps torque to stop stripping screws. Speed is set by the trigger and the high/low gear."},
+    {id:"tl03",t:"tools",lv:"core",q:"You need a hole that is perfectly perpendicular (90°) through an aluminum plate. Best tool?",o:["Drill press","Handheld cordless drill","Jigsaw","Angle grinder"],a:0,x:"A drill press guides the bit straight down on its column — a handheld drill can’t guarantee 90° by eye."},
+    {id:"tl04",t:"tools",lv:"headline",q:"When is it NEVER okay to wear gloves?",o:["On spinning machines (drill press, lathe, grinder)","While carrying sheet metal","While soldering nearby","While painting"],a:0,x:"A glove can catch the spinning chuck and drag your whole hand in before you can react. Clamp the work instead — this rule keeps you whole.",r:"hp"},
+    {id:"tl05",t:"tools",lv:"core",q:"\"Kickback\" on a table saw is when…",o:["The wood pinches the blade and is thrown back at you","The blade gets dull","The motor overheats","The saw runs out of power"],a:0,x:"A riving knife (keeps the cut open) and anti-kickback pawls (one-way fingers) are the two devices that stop it."},
+    {id:"tl06",t:"tools",lv:"core",q:"Which pliers grip and turn a rounded-off or stripped bolt?",o:["Locking pliers (Vise-Grip)","Needle-nose pliers","Wire strippers","Flush cutters"],a:0,x:"Locking pliers clamp tight and stay clamped — a last resort for damaged fasteners. (Never use plain pliers on a good bolt head.)"},
+    {id:"tl07",t:"tools",lv:"core",q:"A file removes metal on which stroke?",o:["The forward (push) stroke only","Both push and pull","The pull stroke only","Neither — it grinds"],a:0,x:"Files cut only on the push. Dragging the teeth backward under pressure just dulls them — lift on the return."},
+    {id:"tl08",t:"tools",lv:"core",q:"Why must you never leave a laser cutter running unattended?",o:["Materials can catch fire fast","It wastes electricity","It gets bored","The laser runs out"],a:0,x:"A laser cut can ignite the material in seconds, faster than any auto-suppressor. Also keep the fume fan ON — the smoke is toxic.",r:"hp"},
+    {id:"tl09",t:"tools",lv:"core",q:"You must tell a 6 mm standoff from an 8 mm one — the difference matters. Best tool?",o:["Calipers (measure to ±0.001\")","Tape measure","Your eye","A ruler"],a:0,x:"Calipers read tiny differences a tape measure can’t — down to a thousandth of an inch."},
+    {id:"tl10",t:"tools",lv:"core",q:"A #2 Phillips bit keeps slipping and chewing up the screw. Most likely cause?",o:["Wrong bit (Pozidriv vs Phillips) or wrong size","The screw is upside down","The drill is too new","Low battery"],a:0,x:"Pozidriv looks like Phillips but has extra ribs — mixing them, or using the wrong size, causes \"cam-out\" (slipping)."},
+    {id:"tl11",t:"tools",lv:"core",q:"You need to cut a curved notch in plywood for a motor mount. Best tool?",o:["Jigsaw","Miter saw","Table saw","Circular saw"],a:0,x:"A jigsaw’s narrow blade follows curves; the straight-cut saws can only go in a straight line."},
+    {id:"fs01",t:"fasteners",lv:"core",q:"What is the difference between a BOLT and a SCREW?",o:["A bolt uses a nut; a screw threads into the material itself","They’re the same thing","A bolt is always bigger","A screw never has threads"],a:0,x:"A bolt clamps parts between its head and a nut. A screw cuts/engages threads right in the part (wood, plastic, a tapped hole)."},
+    {id:"fs02",t:"fasteners",lv:"core",q:"In \"M5 × 0.8\", what is the 0.8?",o:["The thread pitch — 0.8 mm between threads","The length","The strength grade","The number of threads"],a:0,x:"M5 = 5 mm diameter; ×0.8 = the pitch (distance between threads) in mm. M5×0.8 and M6×1.0 are the most common FRC bolts."},
+    {id:"fs03",t:"fasteners",lv:"core",q:"The SAE callout \"¼-20\" means…",o:["¼ inch diameter, 20 threads per inch","20 bolts of ¼ inch","¼ inch long, size 20","20 mm, quarter pitch"],a:0,x:"First number = diameter (¼\"), second = threads per inch (20). ¼-20 is the most common SAE size in FRC."},
+    {id:"fs04",t:"fasteners",lv:"core",q:"A \"stud\" is a fastener that…",o:["Is threaded on both ends with no head","Has a giant head","Can’t use a nut","Is only for wood"],a:0,x:"A stud threads permanently into one part; a nut goes on the other end — handy where there’s no room for a bolt head."},
+    {id:"fs05",t:"fasteners",lv:"core",q:"Why did standardized threads (Whitworth, 1841) change the world?",o:["A nut from one shop would finally fit a bolt from another — interchangeable parts","They were prettier","They were cheaper to paint","They glowed in the dark"],a:0,x:"Before standards, every bolt was custom. Standard threads → interchangeable parts → assembly lines → mass production. Your robot is downstream of that."},
+    {id:"fs06",t:"fasteners",lv:"core",q:"Coarse threads vs. fine threads: coarse threads are…",o:["Stronger, faster to assemble, and more tolerant of damage","Always weaker","Only for tiny screws","The same as fine"],a:0,x:"Coarse (UNC / metric coarse) is the rugged default. Fine threads resist vibration better but strip more easily."},
+    {id:"fb01",t:"fab",lv:"core",q:"What does an FDM/FFF 3D printer do?",o:["Melts plastic filament and builds the object layer by layer","Carves a block down to shape","Pours liquid metal into a mold","Glues paper together"],a:0,x:"FDM (Fused Deposition Modeling) = FFF (Fused Filament Fabrication): the same \"melt filament, stack layers\" process. It’s additive — you add material."},
+    {id:"fb02",t:"fab",lv:"core",q:"What is the standard 3D-printer nozzle size on most machines?",o:["0.4 mm","4 mm","0.04 mm","1.8 mm"],a:0,x:"0.4 mm is the universal default. Smaller = finer detail but slower; bigger = faster but coarser."},
+    {id:"fb03",t:"fab",lv:"core",q:"Which plastic is the easiest for a beginner to 3D print?",o:["PLA","ABS","Nylon","TPU"],a:0,x:"PLA prints cool (~190–220°C), barely warps, and needs no enclosure. ABS and nylon are fussier."},
+    {id:"fb04",t:"fab",lv:"core",q:"\"Infill\" in a 3D print is…",o:["The internal fill pattern — more infill = stronger and heavier","The outer shell","The support material","The glue on the bed"],a:0,x:"Infill is the honeycomb inside. Low infill = light and weak; high infill = strong and heavy. More walls help too."},
+    {id:"fb05",t:"fab",lv:"core",q:"A 3D-printed part is WEAKEST in which direction?",o:["Along Z — pulling the layers apart","Side to side","It’s equally strong everywhere","Diagonally only"],a:0,x:"Layers are only thermally fused, so prints split between layers (Z). Orient the part so loads run across the flat layers, not pull them apart."},
+    {id:"fb06",t:"fab",lv:"core",q:"Resin (SLA) printing hardens liquid plastic using…",o:["UV light","Heat from a nozzle","A spinning blade","Glue"],a:0,x:"SLA cures (hardens) liquid resin layer by layer with UV light. It gives finer detail than FDM. Always wear nitrile gloves — uncured resin irritates skin."},
+    {id:"fb07",t:"fab",lv:"core",q:"What does \"CAD\" stand for?",o:["Computer-Aided Design","Cardboard Assembly Drawing","Cutting And Drilling","Curved Angle Design"],a:0,x:"CAD = Computer-Aided Design: software that builds exact, mathematically defined models you can send to a printer or CNC machine."},
+    {id:"fb08",t:"fab",lv:"core",q:"In CAD, the operation that pushes a flat 2D sketch out into a solid is…",o:["Extrude","Fillet","Mirror","Sketch"],a:0,x:"Extrude is the workhorse: a rectangle becomes a box, a circle becomes a cylinder. (Revolve spins a profile to make round parts.)"},
+    {id:"fb09",t:"fab",lv:"core",q:"\"Parametric\" CAD modeling means…",o:["Change one number and the whole model updates","You can never change it","It only works in 2D","It draws by hand"],a:0,x:"You set rules and named values (parameters). Change the frame length once and everything that depends on it updates automatically."},
+    {id:"fb10",t:"fab",lv:"core",q:"Which file format do you usually export to 3D-print a part?",o:["STL","MP3","DOCX","JPG"],a:0,x:"STL is the universal 3D-printing mesh. (STEP is the exact format for CNC; DXF is for 2D laser cutting.)"},
+    {id:"fb11",t:"fab",lv:"core",q:"In CAD, what does a \"fillet\" do to an edge?",o:["Rounds it off (also makes it stronger)","Cuts a hole","Deletes it","Paints it"],a:0,x:"A fillet rounds an edge; a chamfer cuts a flat angled bevel. Rounded corners also relieve stress, so the part is stronger."}
+  ],
+  F:[{tool:"Drill press",tip:"Never wear gloves — a glove can catch the spinning chuck and pull your hand in. Clamp the work instead."},{tool:"Angle grinder",tip:"Always keep the guard on and wear a face shield — it throws sparks and can kick back hard."},{tool:"Impact driver",tip:"No clutch! Great for big screws, but it can snap small ones if you’re not careful."},{tool:"Cordless drill",tip:"The numbered ring sets TORQUE, not speed — lower numbers stop you from over-driving screws."},{tool:"Table saw",tip:"The riving knife and anti-kickback pawls are there to stop the wood being thrown back at you."},{tool:"Laser cutter",tip:"Never leave it running alone, and keep the fume fan ON — burning plastic smoke is toxic."},{tool:"Soldering iron",tip:"Use the lowest temperature that makes a clean joint (about 315–370°C). Hotter is not better."},{tool:"Calipers",tip:"Measure to a thousandth of an inch — they can tell a 6 mm part from an 8 mm one."},{tool:"File",tip:"Cuts only on the push stroke. Lift it on the way back so you don’t dull the teeth."},{tool:"Deburring tool",tip:"Its little rotating blade shaves off the sharp burr a drill leaves around a hole."},{tool:"Heat gun",tip:"Blows 200–600°C air to shrink heat-shrink tubing — no open flame near the electronics."},{tool:"Hacksaw",tip:"A fine 18–24 TPI blade cuts metal and pipe; install it with the teeth pointing forward."},{tool:"3D printer",tip:"Parts are weakest between layers (Z). Orient yours so the load doesn’t pull the layers apart."},{tool:"Bench vise",tip:"Clamp small parts in the vise — never hold a tiny piece by hand near a moving blade."},{tool:"VEX V5 battery",tip:"It’s a 4S1P LiFePO4 pack: 4 × 3.2 V = 12.8 V. LiFePO4 is the safest lithium chemistry."}]};
+
 
 // ── THE BEAT GRAPH: a map of beat-id → beat. `lines` may be strings or ({c})=>string. ──
 const CAREER_BEATS={
@@ -6108,8 +6174,19 @@ const CAREER_BEATS={
     choices:[{label:"Point & shoot", goto:'coach:C6', then:'stage:heading_advanced'}]},
   'after:heading_advanced':{kind:'story',title:'YOU SPEAK ROBOT NOW',lines:[
     "Relative for fast spins, absolute to snap-face a target. You're switching between them without thinking.",
-    "There's only one thing left to do with everything you've learned. Bring it ALL to a real fight."],
-    choices:[{label:"Graduation: RoboRumble", goto:'stage:capstone_rumble'}]},
+    "There's only one thing left to do with everything you've learned. Bring it ALL to a real fight.",
+    "But first — a pit check. What you KNOW about your robot becomes what it can DO."],
+    choices:[{label:"Pre-flight check, then graduate", goto:'quiz:power'}]},
+  // ── a QUIZ beat: real robotics knowledge (Sam's lectures). Correct answers tune your capstone build. ──
+  'quiz:power':{kind:'quiz',topic:'power',n:3,title:'⚡ POWER CHECK',reward:'weapon',
+    intro:"Three quick ones about the battery & power that drive your bot. Nail your chemistry and you roll a safe, heat-shielded pack with a better weapon. Botch it and you'll be running a volatile LiPo — and LiPos do NOT like fire. Either way, you learn.",
+    next:'pre:capstone'},
+  'pre:capstone':{kind:'story',title:'PIT LANE',lines:[
+    ({c})=> c.flags.chem==='volatile'
+      ? "Your power answers were shaky, so you're stuck with a cheap LiPo pack. Light and punchy — but it HATES heat. Your rival noticed, and bolted a FLAMETHROWER onto their bot. This could get toasty."
+      : "You spec'd a LiFePO4 pack — heavy, but it laughs at heat and abuse. You bolted on a heat shield. Let them bring fire.",
+    "Last fight. Everything you've learned, all at once."],
+    choices:[{label:"Roll out — RoboRumble", goto:'stage:capstone_rumble'}]},
   'after:steer_detour':{kind:'story',title:'OKAY, BACK TO REAL DRIVING',lines:[
     "Cars are fun. Cars are also why you'll appreciate swerve for the rest of your life.",
     "Let's get back to the good stuff — sideways."],
@@ -6148,6 +6225,7 @@ function careerGoto(ref,thenRef){
   career.node=ref;
   const b=careerBeat(ref);
   if(b&&b.kind==='coach'&&b.concept&&!career.taught.includes(b.concept))career.taught.push(b.concept);
+  if(b&&b.kind==='quiz'){careerStore();careerQuizStart(b);return;} // a quiz beat opens the quiz screen instead
   careerStore();phase='p2cbeat';
 }
 function careerContinue(){const t=career._then;career._then=null;if(t)careerGoto(t);else{phase='p2career';careerStore();}}
@@ -6167,6 +6245,23 @@ function careerStageSetup(st){ // a clean, beginner-friendly 1v1 per mode (no ex
   else if(st.mode==='normal'||st.mode==='shooter'){m2.set.format='timed';m2.set.timeSec=75;m2.set.layout='mirrored';m2.set.contact='full';}
   else if(st.mode==='battlebots'){m2.set.bbmode='ko';m2.set.bblives=1;m2.set.bbtime=0;m2.set.tfmt='1v1';}
 }
+// KNOWLEDGE → a real, modest in-match edge (quiz bonuses). Leak-safe: m2.sens/bbLoadout are reset on every
+// career launch and on p2Enter, so these never bleed into free-play.
+function careerApplyBonuses(st){
+  const bn=career.bonuses||{};
+  if(bn.speed>0) m2.sens[0]=clamp(m2.sens[0]*(1+0.2*clamp(bn.speed,0,1)),0.5,2);          // speed-feel edge
+  if(bn.hp>0 && st.mode==='tankfight') m2.set.lives=(m2.set.lives|0)+Math.round(clamp(bn.hp,0,1)); // a tank-life
+  // ── CAPSTONE: battery-CHEMISTRY consequence (Sam's idea — LiPo fires). Your power-quiz score picks your pack:
+  //    knew it (LiFePO4, 'safe')   → a HEAT SHIELD: flame just bounces off, plus a better weapon (knowledge bonus).
+  //    guessed (LiPo, 'volatile')  → no fire protection AND your rival rolls in with a FLAMETHROWER. You'll burn. ──
+  if(st.mode==='battlebots'){
+    const chem=career.flags.chem; const wb=bn.weapon||0;
+    const pWeapon=wb>=0.66?'spinner':wb>=0.33?'buzzsaw':'wedge';
+    m2.bbLoadout=Array.isArray(m2.bbLoadout)?m2.bbLoadout:[null,null];
+    m2.bbLoadout[0]={weapon:pWeapon, armor:(chem==='safe'?'heatshield':'balanced'), perk:'none'};
+    m2.bbLoadout[1]={weapon:(chem==='volatile'?'flame':'wedge'), armor:'balanced', perk:'none'};
+  }
+}
 function startCareerMatch(stageId){
   const st=CAREER_STAGES[stageId];if(!st)return;
   career.stage=stageId;career.active=true;
@@ -6184,6 +6279,7 @@ function startCareerMatch(stageId){
   if(st.drive){careerSetDrive(0,st.drive);careerSetDrive(1,st.drive);} // DRIVE-LOCK the lesson on side 0; mirror it on the CPU
   else{p2cSetDrive(0,0,0);p2cSetDrive(1,0,0);}                          // capstone: a sane default (player brings their favorite later)
   if(st.absHeading!=null)absHeading=st.absHeading;                      // C6 stage pre-sets absolute heading to demo it
+  careerApplyBonuses(st);                                               // knowledge → a real, modest in-match edge (quiz bonuses)
   careerStore();
   switch(st.mode){
     case 'race':       startP2Race(); break;
@@ -6272,7 +6368,7 @@ function careerHubClick(mx,my){
   if(inR(mx,my,B.go)){sfx('click');
     if(!career)career=careerSave?careerMigrate(careerSave):careerNew();
     if(!career.node)career.node='intro';
-    careerStore();phase='p2cbeat';return;}
+    careerStore();careerGoto(career.node);return;} // route by node kind (restarts a quiz, renders a beat)
   if(B.fresh&&inR(mx,my,B.fresh)){sfx('click');career=careerNew();careerStore();phase='p2cbeat';return;}
 }
 
@@ -6318,6 +6414,85 @@ function careerBeatClick(mx,my){
     if(it.cont){careerContinue();return;}
     if(it.fin){phase='p2career';careerStore();return;}
     const ch=it.ch;career.choices[career.node]=it.i;careerApplyEffect(ch.effect);careerGoto(ch.goto,ch.then);return;}}
+}
+
+// ── THE QUIZ screen (phase 'p2cquiz') — real robotics knowledge from Sam's lectures (CAREER_QUIZ). ──
+// KNOWLEDGE IS THE MOST REWARDING: a correct answer grants a build bonus; a wrong one still teaches (the
+// explanation always shows). Options are SHUFFLED per question (the bank stores the answer at index 0 for
+// authoring; never present it that way).
+function careerShuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function careerQuizPick(topic,n){
+  const pool=CAREER_QUIZ.Q.filter(q=>!topic||q.t===topic);
+  return careerShuffle(pool).slice(0,Math.min(n||3,pool.length)).map(q=>{
+    const ord=careerShuffle(q.o.map((_,i)=>i));            // shuffle option order
+    return {id:q.id,prompt:q.q,opts:ord.map(i=>q.o[i]),ans:ord.indexOf(q.a),explain:q.x,topic:q.t};
+  });
+}
+function careerQuizStart(beat){
+  const tp=CAREER_QUIZ.topics[beat.topic];
+  career._quiz={qs:careerQuizPick(beat.topic,beat.n),i:0,correct:0,picked:null,
+    reward:beat.reward||(tp&&tp.reward)||null,next:beat.next||'hub',
+    title:beat.title||'POP QUIZ',intro:beat.intro||'',topicLabel:(tp&&tp.label)||beat.topic};
+  careerStore();phase='p2cquiz';
+}
+function careerQuizOptRects(n){const bw=Math.min(640,CW-80),bh=42,gap=9,y0=260;
+  const r=[];for(let i=0;i<n;i++)r.push({x:CW/2-bw/2,y:y0+i*(bh+gap),w:bw,h:bh});return r;}
+function careerQuizContRect(){return{x:CW/2-130,y:CH-64,w:260,h:44};}
+function drawCareerQuiz(){
+  const Q=career._quiz;if(!Q){phase='p2career';return;}
+  const q=Q.qs[Q.i];
+  p2Chrome(Q.title,'question '+(Q.i+1)+' of '+Q.qs.length+'  ·  '+Q.topicLabel+'  ·  score '+Q.correct);
+  ctx.textAlign='center';
+  let y=110;
+  if(Q.i===0&&Q.intro){ctx.font='12px Courier New';ctx.fillStyle='#8a93c8';for(const ln of careerWrap(Q.intro,Math.min(660,CW-120))){ctx.fillText(ln,CW/2,y);y+=18;}y+=6;}
+  ctx.font='bold 16px Courier New';ctx.fillStyle='#e6e6ff';
+  for(const ln of careerWrap(q.prompt,Math.min(680,CW-100))){ctx.fillText(ln,CW/2,y);y+=23;}
+  const R=careerQuizOptRects(q.opts.length),L='ABCD';
+  for(let i=0;i<q.opts.length;i++){
+    let col='#40c4ff';
+    if(Q.picked!=null){col=(i===q.ans)?'#44ffaa':(i===Q.picked?'#ff6b6b':'#555577');}
+    ctx.fillStyle=col+'22';rr(R[i].x,R[i].y,R[i].w,R[i].h,7);ctx.fill();
+    ctx.strokeStyle=col;ctx.lineWidth=(Q.picked!=null&&i===q.ans)?2.5:1.5;rr(R[i].x,R[i].y,R[i].w,R[i].h,7);ctx.stroke();
+    ctx.textAlign='left';ctx.font='bold 13px Courier New';ctx.fillStyle=col;ctx.fillText(L[i],R[i].x+14,R[i].y+R[i].h/2+5);
+    ctx.font='13px Courier New';ctx.fillStyle=(Q.picked!=null&&i!==q.ans&&i!==Q.picked)?'#888':'#e0e0f4';
+    let opt=q.opts[i];while(opt.length>3&&ctx.measureText(opt).width>R[i].w-58)opt=opt.slice(0,-2);
+    ctx.fillText(opt+(opt!==q.opts[i]?'…':''),R[i].x+36,R[i].y+R[i].h/2+5);
+    ctx.textAlign='center';
+  }
+  if(Q.picked!=null){
+    const right=(Q.picked===q.ans);
+    const ey=R[R.length-1].y+R[R.length-1].h+18;
+    ctx.font='bold 13px Courier New';ctx.fillStyle=right?'#44ffaa':'#ff8866';
+    ctx.fillText(right?'✓ Correct!':'✗ Not quite — here\'s why:',CW/2,ey);
+    ctx.font='12px Courier New';ctx.fillStyle='#b9b9d6';let yy=ey+22;
+    for(const ln of careerWrap(q.explain,Math.min(680,CW-100))){ctx.fillText(ln,CW/2,yy);yy+=17;}
+    const last=(Q.i>=Q.qs.length-1);
+    btn(careerQuizContRect().x,careerQuizContRect().y,260,44,last?'▶ FINISH CHECK':'▶ NEXT QUESTION','#44ffaa');
+  }
+}
+function careerQuizClick(mx,my){
+  const Q=career._quiz;if(!Q)return;const q=Q.qs[Q.i];
+  if(Q.picked==null){
+    const R=careerQuizOptRects(q.opts.length);
+    for(let i=0;i<q.opts.length;i++)if(inR(mx,my,R[i])){Q.picked=i;if(i===q.ans){Q.correct++;sfx('goal');}else sfx('thump');careerStore();return;}
+    return;
+  }
+  if(inR(mx,my,careerQuizContRect())){sfx('click');
+    Q.i++;
+    if(Q.i>=Q.qs.length){careerQuizFinish();return;}
+    Q.picked=null;careerStore();}
+}
+function careerQuizFinish(){
+  const Q=career._quiz;
+  const frac=Q.qs.length?Q.correct/Q.qs.length:0;
+  career.flags.quizScore=Q.correct;career.flags.quizTotal=Q.qs.length;
+  if(Q.reward&&frac>0&&career.bonuses)career.bonuses[Q.reward]=clamp((career.bonuses[Q.reward]||0)+frac,0,1); // knowledge → a real build bonus, scaled by how much you got right
+  // Sam's flamethrower idea: the POWER quiz decides your battery CHEMISTRY. Know it (≥⅔) → a safe LiFePO4 pack
+  // (heat-shielded); guess wrong → a volatile LiPo your rival will happily set on fire. Consequence teaches the lesson.
+  if(Q.qs.some(x=>x.topic==='power')) career.flags.chem = frac>=0.6?'safe':'volatile';
+  career.log.push({quiz:Q.title,correct:Q.correct,of:Q.qs.length,reward:Q.reward});
+  const next=Q.next;career._quiz=null;careerStore();
+  careerGoto(next||'hub');
 }
 function p2TourBtnRect(){return{x:CW/2-260,y:544,w:520,h:44};}
 function p2RecBtnRect(){return{x:CW/2-130,y:622,w:260,h:34};}
@@ -6778,6 +6953,7 @@ function p2Back(){
   else if(phase==='p2tbracket'){phase='p2modes';}
   else if(phase==='p2career'){applyLayout('legacy');phase='splash';} // career hub → back to splash
   else if(phase==='p2cbeat'){phase='p2career';}                      // a beat → back to the hub
+  else if(phase==='p2cquiz'){career._quiz=null;phase='p2career';}    // quiz → abandon to the hub (CONTINUE restarts it)
   else if(tour&&tour.qual&&(phase==='p2race'||phase==='p2tank'||phase==='p2ball'||phase==='p2bb')){tourQualDone(Infinity,'SKIP');} // v5.1.244 Esc skips a qualifier run (any mode) → seeds last
   else if(phase==='p2race'&&tour&&tour.cur){r2=null;applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if((phase==='p2tank'||phase==='p2ball')&&tour&&tour.cur){r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
@@ -6926,6 +7102,7 @@ function p2Click(mx,my){
     if(inR(mx,my,p2RecBtnRect())){sfx('click');phase='p2recs';return;}
   }else if(phase==='p2career'){careerHubClick(mx,my);return;
   }else if(phase==='p2cbeat'){careerBeatClick(mx,my);return;
+  }else if(phase==='p2cquiz'){careerQuizClick(mx,my);return;
   }else if(phase==='p2tnames'||phase==='p2tqual'||phase==='p2tbracket'||phase==='p2tdraft'){
     tourClick(mx,my);return;
   }else if(phase==='p2drive'){
@@ -7244,6 +7421,7 @@ function p2Draw(){
   if(phase==='p2tbracket'){drawTourBracket();return;}
   if(phase==='p2career'){drawCareerHub();return;}
   if(phase==='p2cbeat'){drawCareerBeat();return;}
+  if(phase==='p2cquiz'){drawCareerQuiz();return;}
   if(phase==='p2race'){drawP2Race();return;}
   if(phase==='p2tank'){drawP2Tank();return;}
   if(phase==='p2bb'){drawBB();return;}
@@ -9660,6 +9838,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.254 (2026-06-20): CAREER / STORY MODE — the QUIZ (educational core) + the battery-CHEMISTRY → FLAMETHROWER mechanic. The whole point of career mode is teaching real robotics, and KNOWLEDGE IS THE MOST REWARDING. Sam's 11 FRC lecture/quiz sheets were distilled into `career/quiz_bank.js` (60 Qs / 15 factoids, late-elementary→HS-freshman level, light algebra) and INLINED here as `CAREER_QUIZ` (single-file build). New beat kind `'quiz'` + screen (`p2cquiz`, drawCareerQuiz/careerQuizClick): a question with SHUFFLED options (the bank stores the answer at index 0 for authoring — never shown that way), instant right/wrong feedback, and the lecture's EXPLANATION always shown (wrong still teaches). Score → `career.bonuses` (a real, modest in-match edge applied in `careerApplyBonuses`, leak-safe). Wired a headline `⚡ POWER CHECK` (3 power questions) just before the capstone. THE HOOK (Sam's idea): the power-quiz score picks your battery CHEMISTRY — ace it (LiFePO4, `flags.chem='safe'`) → a HEAT-SHIELDED capstone bot (flame bounces off) + a better weapon; flunk it (volatile LiPo, `'volatile'`) → no fire protection AND your RoboRumble rival rolls in with a FLAMETHROWER (uses the existing `flame`/thermal weapon + `heatshield` armor; seeded into `m2.bbLoadout`). A `pre:capstone` pit-lane beat narrates the stakes. The wrong answer literally sets you on fire — the lesson lands. smoke83 → 46 asserts (quiz launch/render, shuffle, ace vs flunk → chem + bonus, the rival actually fields the flamethrower, the safe player gets the heat shield). Full battery green.
   v5.1.253 (2026-06-20): CAREER / STORY MODE — Phases ②③④ (the tutorial is now PLAYABLE end-to-end). Stage gotos launch REAL matches: `startCareerMatch(stageId)` configures m2 (mode + a beginner-friendly 1v1 via `careerStageSetup`), DRIVE-LOCKS the lesson on side 0 (`careerSetDrive` resolves a drive id across the catalog groups; the CPU mirrors it), claims side 1 as a CPU at the ADAPTIVE tier (`careerTier` maps skill 0..4 → CPU tier 0..4), binds side 0 to the player (gamepad if present else keyboard+touch), and calls the existing `startP2Race/Ball/Tank/BB`. The keystone — `careerMatchEnd(side)` — reads the result the SAME way the bracket does (the line-4009 `r2?…:tf2?…:bb2?…:b2.result` expression, now mirrored in `drawP2Nav`/`p2NavClick` behind `career.active`) and advances on WIN *or* LOSS (or draw): it updates the adaptive `skill` from a performance score, sets `flags.lastResult` (`dominated`/`won`/`lost`/`blown_out`), marks the stage cleared, logs it, tears the match down, and routes to the `after:<stage>` fork. Phase ④ margins: `careerDominance`/`careerCloseness` read tank lives (`tf2SideLives`) + ball goals so a blowout vs a nail-biter move the rating differently — and a FLAWLESS tank win reaches `dominated`, which unlocks the "drive like a car" detour fork for real. ESC out of a career match returns to the story (no result recorded). Because every stage's mode launches, this also de-risks Phase ⑤ (the full curriculum is data-walkable to the finale). smoke83 → 36 asserts (adds match launch, drive-lock, tier map, win/loss routing, nav wiring, real-margin dominated/blown_out/lost, a full win-the-curriculum walk). Null `career` ⇒ free-play byte-identical. Full battery green.
   v5.1.252 (2026-06-20): CAREER / STORY MODE — Phase ① (the FUN TUTORIAL shell). A new choose-your-own-adventure meta-shell over the existing modes whose job is ONBOARDING: teach every drive concept (tank→arcade→strafe→bot/field-centric→holonomic→heading) through a light branching story (CAREER_PLAN.md). This ship = the SHELL: a CAREER tile on the splash (3rd front-door, gamepad idx 0 + key '3'), a HUB (`p2career`, NEW/CONTINUE + a "journey so far" readout of stages cleared / concepts learned / driver rating), and the CYOA BEAT screen (`p2cbeat`) — a shared renderer for story / coach (lesson) / finale beats with 1–3 choice buttons, `when`-gated choices, dynamic `({c})=>` copy, `effect` (setFlag/unlock), and `then`-chaining (coach→stage). State: `career` global + `frcds_career_v1` persistence (careerNew/Store/Migrate), the full 7-stage curriculum data table (CAREER_STAGES) and beat graph (CAREER_BEATS). MATCHES ARE STUBBED this phase — a stage marks itself cleared + its concept learned and routes to the post-match fork (real matches land in Phase ②/③: startCareerMatch + careerMatchEnd off the existing line-4009 result read). Null `career` ⇒ free-play byte-identical. New suite smoke83 (21 asserts: new shape, store round-trip, hub→intro, beat render, choice routing, when-gating, coach `then`, a full curriculum walk to the finale, ESC + splash tile). Full battery green.
   v5.1.251 (2026-06-19): 6-player FFA — actual MULTI-HUMAN setup (F4 cont.). FFA now routes through the 6-seat GRID (`tankGridMode` includes RoboRumble FFA), so up to 6 humans/CPUs can join — each seat is its OWN faction, labelled BOT 1–6 in its faction color (`FFA_COLS`), and the grid header reads "6-PLAYER FREE-FOR-ALL." startP2BB's FFA branch builds factions straight from the grid seats; `tankGridCanStart` is relaxed for FFA (≥1 ready seat — CPUs fill the rest to 6). Full battery green.

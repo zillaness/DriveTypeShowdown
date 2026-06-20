@@ -268,6 +268,13 @@ narrative decision with real mechanical weight. **The core rule (Sam): it's ALL 
 - **Power-chemistry knowledge** → a **speed / weapon-damage** bonus (answer the Li-ion vs SLA + cells-in-series/
   parallel questions right → "the better battery chemistry powered a higher-performance weapon"). The headline of
   *correct answers = real in-match bonuses*.
+- **🔥 Battery CHEMISTRY → fire weakness (Sam, 2026-06-20). ✅ BUILT (v5.1.254).** The inverse, and the most
+  *teaching* consequence: your **POWER quiz score picks your battery pack.** Ace it (≥⅔, you know LiFePO4 is the
+  safe chemistry) → a **heat-shielded** capstone bot (flame just bounces off) **+** the weapon bonus. Botch it (a
+  volatile **LiPo**) → **no fire protection AND your RoboRumble rival rolls in with a FLAMETHROWER** — you'll burn.
+  Uses the existing `flame` weapon (thermal) + `heatshield` armor. Implemented as: `careerQuizFinish` sets
+  `flags.chem='safe'|'volatile'`; `careerApplyBonuses` seeds the capstone `m2.bbLoadout` accordingly; a `pre:capstone`
+  pit-lane beat narrates the stakes. *The wrong answer literally sets you on fire — the lesson lands.*
 
 **Model:** store active modifiers in `career.mods` (a small list of `{id, label, effect}`), persisted with the save.
 Apply them in **`startCareerMatch()`** (the launch hook, §5.2) by tweaking the about-to-start match *before* calling

@@ -83,13 +83,38 @@ src+=`
   career.cleared=[]; p2Back();
   T('ESC from a career match → p2cbeat, not cleared, inactive', phase==='p2cbeat'&&career.active===false&&career.cleared.length===0);
 
-  // ───────────────────────── FULL CURRICULUM WALK (win every match) ─────────────────────────
+  // ───────────────────────── QUIZ + CHEMISTRY/FLAMETHROWER (Sam's idea) ─────────────────────────
+  const answerQuiz=(correct)=>{let g=0;while(phase==='p2cquiz'&&g++<40){const Q=career._quiz,q=Q.qs[Q.i];
+    if(Q.picked==null){const R=careerQuizOptRects(q.opts.length);const k=correct?q.ans:((q.ans+1)%q.opts.length);careerQuizClick(R[k].x+5,R[k].y+5);}
+    else careerQuizClick(careerQuizContRect().x+5,careerQuizContRect().y+5);}};
+  freshAt('after:heading_advanced'); pick(0);
+  T('quiz beat opens the QUIZ screen with 3 power questions', phase==='p2cquiz'&&!!career._quiz&&career._quiz.qs.length===3&&career._quiz.qs.every(x=>x.topic==='power'));
+  let qdrew=true; try{drawCareerQuiz();}catch(e){qdrew=false;console.log('  quiz draw err:',e.message);}
+  T('quiz renders', qdrew);
+  answerQuiz(true);
+  T('ACE the power quiz → chem safe + weapon bonus + → pre:capstone', career.flags.chem==='safe'&&career.bonuses.weapon>0&&career.node==='pre:capstone'&&phase==='p2cbeat');
+  texts.length=0; drawCareerBeat();
+  T('pit-lane (safe) copy mentions a heat shield', texts.some(t=>/heat shield|LiFePO4/i.test(t)));
+  pick(0);
+  T('capstone launches (battlebots, bb2 live)', phase==='p2bb'&&!!bb2);
+  T('SAFE chemistry → player heat shield, rival not on fire', m2.bbLoadout[0].armor==='heatshield'&&m2.bbLoadout[1].weapon!=='flame');
+  // now FLUNK it
+  freshAt('after:heading_advanced'); pick(0); answerQuiz(false);
+  T('FLUNK the power quiz → chem volatile, no weapon bonus', career.flags.chem==='volatile'&&career.bonuses.weapon===0);
+  texts.length=0; drawCareerBeat();
+  T('pit-lane (volatile) copy warns of the FLAMETHROWER', texts.some(t=>/FLAMETHROWER|LiPo/i.test(t)));
+  pick(0);
+  T('VOLATILE chemistry → rival brings the FLAMETHROWER, player has no heat shield', m2.bbLoadout[1].weapon==='flame'&&m2.bbLoadout[0].armor!=='heatshield');
+  T('the rival BOT actually fields the flamethrower', (()=>{const c=bb2.bots.find(b=>b.side===1);return !!c&&!!c.ld&&c.ld.weapon==='flame';})());
+
+  // ───────────────────────── FULL CURRICULUM WALK (win every match, ace every quiz) ─────────────────────────
   freshAt('intro'); let guard=0;
-  while(career.node!=='after:capstone_rumble'&&guard++<120){
+  while(career.node!=='after:capstone_rumble'&&guard++<160){
     if(phase==='p2cbeat')pick(0);
+    else if(phase==='p2cquiz'){const Q=career._quiz,q=Q.qs[Q.i];if(Q.picked==null){const R=careerQuizOptRects(q.opts.length);careerQuizClick(R[q.ans].x+5,R[q.ans].y+5);}else careerQuizClick(careerQuizContRect().x+5,careerQuizContRect().y+5);}
     else { liveResult(0); careerMatchEnd(0); } // a match is live → win it
   }
-  T('full walk reaches the finale', career.node==='after:capstone_rumble'&&guard<120);
+  T('full walk reaches the finale', career.node==="after:capstone_rumble"&&guard<160);
   T('full walk taught C1..C6', ['C1','C2','C3','C4','C5','C6'].every(c=>career.taught.includes(c)));
   T('full walk cleared all 7 stages', ['tank_hook','arcade_course','strafe_intro','field_centric','holo_shooter','heading_advanced','capstone_rumble'].every(s=>career.cleared.includes(s)));
   T('full walk raised skill above the start', career.skill>0.5);

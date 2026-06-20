@@ -54,5 +54,5 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
   win/loss routing → finale). Remaining: ⑥ unlocks/achievement/coach-skip, ⑦ modifiers/endings/recap, + the
   QUIZ integration (embed `career/quiz_bank.js` as quiz beats — the educational core). Audience/level locked.
 - PRDs: `frcds_roborumble_v2_prd_v1.0.md`, `frcds_online_prd_v1.1.md`, `frcds_tournament_v2_prd_v1.0.md`.
-- Build: latest is `drive_showdown_v5.1.253.html` (single self-contained HTML).
+- Build: latest is `drive_showdown_v5.1.254.html` (single self-contained HTML).
 - Balance sim: `./extract.sh && node harness/tests/bbbalance.js /tmp/g.js`.
