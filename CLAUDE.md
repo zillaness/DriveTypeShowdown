@@ -48,11 +48,13 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
 - **`OVERNIGHT_PLAN.md`** — the F1–F5 backlog + the 🏆 Tournament v2 LOCKED DESIGN block.
 - **`HANDOFF_2026-06-16.md`** — the in-depth narrative (weapons / perks / easter eggs / cheats vision).
 - **`CAREER_PLAN.md`** — buildable spec for the CAREER / STORY MODE (v2.0 reframe: the FUN TUTORIAL — a CYOA
-  meta-shell over the existing modes, modeled on `tour*`, teaching every drive concept). **Now being built:**
-  Phases ①–④ shipped (v5.1.252 shell/HUB/CYOA; v5.1.253 real matches + adaptive difficulty) — the tutorial is
-  PLAYABLE end-to-end (splash CAREER tile → hub → story/coach beats → drive-locked matches in all 5 modes →
-  win/loss routing → finale). Remaining: ⑥ unlocks/achievement/coach-skip, ⑦ modifiers/endings/recap, + the
-  QUIZ integration (embed `career/quiz_bank.js` as quiz beats — the educational core). Audience/level locked.
+  meta-shell over the existing modes, modeled on `tour*`, teaching every drive concept). **PLAYABLE end-to-end:**
+  splash CAREER tile → difficulty lane → hub → story/coach/**quiz** beats → drive-locked matches (all 5 modes) →
+  win/loss routing (with rematches) → finale. Shipped: v5.1.252 shell/HUB/CYOA · v5.1.253 real matches + adaptive
+  difficulty · v5.1.254 the QUIZ (inlined `career/quiz_bank.js`) + the battery-chemistry→FLAMETHROWER hook ·
+  v5.1.255 difficulty LANE (rematches + CPU-tier offset + grade-scaled questions). Remaining: ⑥ unlocks/achievement/
+  coach-skip, ⑦ multiple endings + personalized recap, more quiz beats across the curriculum. (All career logic
+  is in one block after `let tour=null;`; tests in `harness/tests/smoke83.js`.)
 - PRDs: `frcds_roborumble_v2_prd_v1.0.md`, `frcds_online_prd_v1.1.md`, `frcds_tournament_v2_prd_v1.0.md`.
-- Build: latest is `drive_showdown_v5.1.254.html` (single self-contained HTML).
+- Build: latest is `drive_showdown_v5.1.255.html` (single self-contained HTML).
 - Balance sim: `./extract.sh && node harness/tests/bbbalance.js /tmp/g.js`.

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.254.html
-  version: 5.1.254
+  file: drive_showdown_v5.1.255.html
+  version: 5.1.255
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -3976,11 +3976,18 @@ function p2SeriesReport(winner){
   if(p2Series.w[winner]>=p2Series.need)p2Series.done=winner;
 }
 function drawP2Nav(cy){
-  if(career&&career.active){ // v5.1.252 CAREER: one button — win OR loss continues the story
+  if(career&&career.active){ // v5.1.252 CAREER: continue on win OR loss; v5.1.255 a loss can REMATCH (difficulty-gated)
     const w=r2?r2.result:tf2?tf2.result:bb2?bb2.result:b2?b2.result:null;
+    const lost=(typeof w==='number')&&w!==0, canRe=lost&&(career._rematchLeft|0)>0, unlim=careerRematchBudget()>=99;
     ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillStyle='#8888aa';
-    ctx.fillText(w===0?'you won — nice driving':(typeof w==='number'?'you lost — but you learned the bot':'the dust settles'),CW/2,cy-14);
-    btn(CW/2-110,cy,220,40,'▶ CONTINUE STORY','#44ffaa');
+    let msg=w===0?'you won — nice driving':(typeof w==='number'?'you lost':'the dust settles');
+    if(canRe)msg+=' — run it back? ('+(unlim?'∞':career._rematchLeft)+' left)';
+    else if(lost)msg+=' — it\'s part of your story now';
+    ctx.fillText(msg,CW/2,cy-14);
+    const R=careerNavRects(canRe,cy);
+    if(canRe){btn(R.re.x,R.re.y,R.re.w,R.re.h,'⟳ REMATCH'+(unlim?'':' ('+career._rematchLeft+')'),'#ffd740');
+      btn(R.go.x,R.go.y,R.go.w,R.go.h,'▶ TAKE THE L →','#44ffaa');}
+    else btn(R.go.x,R.go.y,R.go.w,R.go.h,'▶ CONTINUE STORY','#44ffaa');
     return;
   }
   if(tour&&(tour.cur||tour.qual)){
@@ -4010,10 +4017,12 @@ function drawP2Nav(cy){
   ctx.fillText('[Esc] back to controllers',CW/2,cy+104);
 }
 function p2NavClick(mx,my,cy,rematch){
-  if(career&&career.active){ // v5.1.252 CAREER: read the result the same way, advance on WIN or LOSS (or draw)
-    if(inR(mx,my,{x:CW/2-110,y:cy,w:220,h:40})){
-      const w=r2?r2.result:tf2?tf2.result:bb2?bb2.result:b2.result;
-      careerMatchEnd(w);}
+  if(career&&career.active){ // v5.1.252 CAREER: advance on WIN/LOSS/draw; v5.1.255 a loss may REMATCH first
+    const w=r2?r2.result:tf2?tf2.result:bb2?bb2.result:b2.result;
+    const lost=(typeof w==='number')&&w!==0, canRe=lost&&(career._rematchLeft|0)>0;
+    const R=careerNavRects(canRe,cy);
+    if(canRe&&inR(mx,my,R.re)){career._rematchLeft--;careerStore();careerRematch();return true;} // run the same fight back
+    if(inR(mx,my,R.go)){careerMatchEnd(w);return true;}                                          // accept the result, advance
     return true;
   }
   if(tour&&(tour.cur||tour.qual)){
@@ -6019,7 +6028,12 @@ let tour=null;
 let career=null;                 // null when not in a campaign; an object while playing one
 let careerSave=(()=>{try{const c=JSON.parse(localStorage.getItem('frcds_career_v1')||'null');return (c&&typeof c==='object')?c:null;}catch(e){return null;}})();
 function careerStore(){try{localStorage.setItem('frcds_career_v1',JSON.stringify(career));}catch(e){}}
-function careerNew(){return{node:'intro',stage:null,active:false,skill:0.5,taught:[],cleared:[],choices:{},flags:{lastResult:null},unlocks:{drives:[],bbWeapons:[],bbArmor:[],bbPerks:[],paints:[]},bonuses:{speed:0,weapon:0,hp:0},log:[],_then:null,_quiz:null,ver:1};}
+function careerNew(){return{node:'difficulty',diff:'pro',stage:null,active:false,skill:0.5,taught:[],cleared:[],choices:{},flags:{lastResult:null},unlocks:{drives:[],bbWeapons:[],bbArmor:[],bbPerks:[],paints:[]},bonuses:{speed:0,weapon:0,hp:0},log:[],_then:null,_quiz:null,_rematchLeft:0,ver:1};}
+// REMATCHES (Sam): the difficulty you pick up front sets how many retries a lost fight gets before the loss
+// becomes canon. Rookie = unlimited, Pro = 3, Champion = 0 (and Champion also faces a tougher CPU tier).
+const CAREER_REMATCH={rookie:99,pro:3,champion:0};
+const CAREER_DIFF_OFF={rookie:-1,pro:0,champion:1};
+function careerRematchBudget(){return CAREER_REMATCH[career.diff]!=null?CAREER_REMATCH[career.diff]:3;}
 function careerMigrate(s){const n=careerNew();if(!s||typeof s!=='object')return n;for(const k in n){if(s[k]!==undefined)n[k]=s[k];}n.flags={...n.flags,...(s.flags||{})};n.unlocks={...n.unlocks,...(s.unlocks||{})};n.bonuses={...n.bonuses,...(s.bonuses||{})};return n;}
 
 // ── THE CURRICULUM: each stage launches a mode + teaches one drive concept (CAREER_PLAN §2.3) ──
@@ -6103,6 +6117,15 @@ const CAREER_QUIZ={topics:{"power":{label:"Batteries & Power",reward:"speed"},"e
 
 // ── THE BEAT GRAPH: a map of beat-id → beat. `lines` may be strings or ({c})=>string. ──
 const CAREER_BEATS={
+  difficulty:{kind:'story',title:'CHOOSE YOUR LANE',lines:[
+    "Before you grab a controller — how do you want to learn?",
+    "This sets your RE-MATCHES: when a fight goes badly, how many retries before the loss becomes part of your story.",
+    "(You always keep moving forward either way — losing just writes a different story.)"],
+    choices:[
+      {label:"ROOKIE — take your time · unlimited rematches", goto:'intro', effect:{setDiff:'rookie'}},
+      {label:"PRO — 3 rematches per fight", goto:'intro', effect:{setDiff:'pro'}},
+      {label:"CHAMPION — no rematches, tougher bots, every result is canon", goto:'intro', effect:{setDiff:'champion'}},
+    ]},
   intro:{kind:'story',title:'FIRST DRIVE',lines:[
     "Someone shoves a controller into your hands and points at a squat little robot.",
     "\"It's a tank. Left stick runs the LEFT track, right stick runs the RIGHT track.",
@@ -6214,6 +6237,7 @@ function careerWhen(c){ // tiny declarative predicate against `career`
 function careerVisibleChoices(b){return (b&&b.choices?b.choices:[]).filter(ch=>careerWhen(ch.when));}
 function careerApplyEffect(eff){
   if(!eff)return;
+  if(eff.setDiff&&CAREER_REMATCH[eff.setDiff]!=null)career.diff=eff.setDiff;
   if(eff.setFlag)for(const k in eff.setFlag)career.flags[k]=eff.setFlag[k];
   if(eff.unlock)for(const k in eff.unlock){const arr=career.unlocks[k]||(career.unlocks[k]=[]);for(const v of [].concat(eff.unlock[k]))if(!arr.includes(v))arr.push(v);}
 }
@@ -6229,10 +6253,11 @@ function careerGoto(ref,thenRef){
   careerStore();phase='p2cbeat';
 }
 function careerContinue(){const t=career._then;career._then=null;if(t)careerGoto(t);else{phase='p2career';careerStore();}}
-function careerStartStage(sid,thenRef){startCareerMatch(sid);} // a 'stage:<id>' goto launches the real match (Phase ②)
+function careerStartStage(sid,thenRef){career._rematchLeft=careerRematchBudget();startCareerMatch(sid);} // a FRESH attempt: grant the difficulty's rematch budget, then launch
+function careerRematch(){if(career&&career.stage)startCareerMatch(career.stage);} // re-run the SAME stage (budget already decremented by the caller; not reset)
 
 // ── PHASE ②: launch a real career match (drive-lock + adaptive tier), then the existing mode engine runs ──
-function careerTier(){return clamp(Math.round(career.skill),0,4);} // skill 0..4 → CPU tier index 0..4 (§3.2)
+function careerTier(){return clamp(Math.round(career.skill)+(CAREER_DIFF_OFF[career.diff]||0),0,4);} // skill 0..4 (+ difficulty offset: champion tougher, rookie easier) → CPU tier 0..4
 function careerSetDrive(pl,id){ // resolve a drive id → m2.drive[pl] via the catalog groups (p2cSetDrive also couples absHeading)
   const groups=[DRIVES,HOLO_DRIVES,STEER_DRIVES];
   for(let g=0;g<3;g++){const i=groups[g].findIndex(d=>d.id===id);if(i>=0){p2cSetDrive(pl,g,i);return true;}}
@@ -6350,7 +6375,8 @@ function drawCareerHub(){
     const sk=Math.max(0,Math.min(4,c.skill||0)),tierNm=['ROOKIE','AMATEUR','PRO','VETERAN','CHAMPION'][Math.round(sk)];
     ctx.fillText('Driver rating:  '+sk.toFixed(1)+'  ('+tierNm+')',px+22,216);
     ctx.font='11px Courier New';ctx.fillStyle='#7a86b8';
-    ctx.fillText('Picks up right where you left off.',px+22,242);
+    const diffLab={rookie:'ROOKIE · unlimited rematches · 4–5th-grade quizzes',pro:'PRO · 3 rematches · middle-school quizzes',champion:'CHAMPION · no rematches · tougher bots & quizzes'}[c.diff]||c.diff;
+    ctx.fillText('Lane:  '+diffLab,px+22,242);
   }else{
     ctx.font='bold 15px Courier New';ctx.fillStyle='#9fb4ff';ctx.textAlign='center';ctx.fillText('NEW DRIVER',CW/2,150);
     ctx.font='12px Courier New';ctx.fillStyle='#b9b9d6';
@@ -6421,27 +6447,41 @@ function careerBeatClick(mx,my){
 // explanation always shows). Options are SHUFFLED per question (the bank stores the answer at index 0 for
 // authoring; never present it that way).
 function careerShuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;}
-function careerQuizPick(topic,n){
-  const pool=CAREER_QUIZ.Q.filter(q=>!topic||q.t===topic);
-  return careerShuffle(pool).slice(0,Math.min(n||3,pool.length)).map(q=>{
-    const ord=careerShuffle(q.o.map((_,i)=>i));            // shuffle option order
-    return {id:q.id,prompt:q.q,opts:ord.map(i=>q.o[i]),ans:ord.indexOf(q.a),explain:q.x,topic:q.t};
-  });
+// QUESTIONS SCALE WITH DIFFICULTY (Sam): rookie = 4th–5th-grade level (definitional 'core' only, no algebra);
+// pro = middle-school (core + some algebra); champion = HS-freshman (more, harder, guarantees algebra/headline).
+function careerQuizPlan(){const d=(career&&career.diff)||'pro';
+  if(d==='rookie')  return {n:3,levels:['core'],                      hardMin:0};
+  if(d==='champion')return {n:4,levels:['core','algebra','headline'], hardMin:2};
+  return                   {n:3,levels:['core','algebra','headline'], hardMin:1};}
+function careerQuizBuild(q){const ord=careerShuffle(q.o.map((_,i)=>i));return {id:q.id,prompt:q.q,opts:ord.map(i=>q.o[i]),ans:ord.indexOf(q.a),explain:q.x,topic:q.t,level:q.lv};}
+function careerQuizPick(topic,plan){
+  plan=plan||careerQuizPlan();
+  const pool=CAREER_QUIZ.Q.filter(q=>(!topic||q.t===topic)&&plan.levels.includes(q.lv));
+  const hard=careerShuffle(pool.filter(q=>q.lv==='algebra'||q.lv==='headline'));
+  const sel=[];
+  for(let i=0;i<Math.min(plan.hardMin,hard.length);i++)sel.push(hard[i]); // guarantee the harder ones for higher tiers
+  for(const q of careerShuffle(pool)){if(sel.length>=plan.n)break;if(!sel.includes(q))sel.push(q);}
+  return careerShuffle(sel).slice(0,Math.min(plan.n,pool.length)).map(careerQuizBuild);
 }
 function careerQuizStart(beat){
   const tp=CAREER_QUIZ.topics[beat.topic];
-  career._quiz={qs:careerQuizPick(beat.topic,beat.n),i:0,correct:0,picked:null,
+  career._quiz={qs:careerQuizPick(beat.topic,careerQuizPlan()),i:0,correct:0,picked:null,
     reward:beat.reward||(tp&&tp.reward)||null,next:beat.next||'hub',
     title:beat.title||'POP QUIZ',intro:beat.intro||'',topicLabel:(tp&&tp.label)||beat.topic};
   careerStore();phase='p2cquiz';
 }
+// shared post-match nav rects (career): a loss with rematches left shows two buttons, else one continue
+function careerNavRects(canRe,cy){return canRe
+  ? {re:{x:CW/2-228,y:cy,w:216,h:40}, go:{x:CW/2+12,y:cy,w:216,h:40}}
+  : {go:{x:CW/2-110,y:cy,w:220,h:40}};}
 function careerQuizOptRects(n){const bw=Math.min(640,CW-80),bh=42,gap=9,y0=260;
   const r=[];for(let i=0;i<n;i++)r.push({x:CW/2-bw/2,y:y0+i*(bh+gap),w:bw,h:bh});return r;}
 function careerQuizContRect(){return{x:CW/2-130,y:CH-64,w:260,h:44};}
 function drawCareerQuiz(){
   const Q=career._quiz;if(!Q){phase='p2career';return;}
   const q=Q.qs[Q.i];
-  p2Chrome(Q.title,'question '+(Q.i+1)+' of '+Q.qs.length+'  ·  '+Q.topicLabel+'  ·  score '+Q.correct);
+  const lvTag={core:'basics',algebra:'a little math',headline:'key idea'}[q.level]||'';
+  p2Chrome(Q.title,'question '+(Q.i+1)+' of '+Q.qs.length+'  ·  '+Q.topicLabel+(lvTag?'  ·  '+lvTag:'')+'  ·  score '+Q.correct);
   ctx.textAlign='center';
   let y=110;
   if(Q.i===0&&Q.intro){ctx.font='12px Courier New';ctx.fillStyle='#8a93c8';for(const ln of careerWrap(Q.intro,Math.min(660,CW-120))){ctx.fillText(ln,CW/2,y);y+=18;}y+=6;}
@@ -9838,6 +9878,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.255 (2026-06-20): CAREER / STORY MODE — DIFFICULTY LANE: rematches + tier offset + grade-scaled quizzes (Sam). The campaign now opens on a `difficulty` beat (CHOOSE YOUR LANE) — `career.diff ∈ {rookie,pro,champion}` — which sets three things. (1) REMATCHES: lose a fight and you can RUN IT BACK before the loss becomes canon, budgeted by lane (rookie ∞ / pro 3 / champion 0). The post-match nav shows `⟳ REMATCH (n)` + `▶ TAKE THE L →`; out of retries (or champion) it's a single `▶ CONTINUE STORY`. `careerRematchBudget`, `career._rematchLeft` (set fresh per stage in careerStartStage, decremented on rematch), `careerRematch` re-runs the same stage; you ALWAYS progress — rematches just delay when the loss enters your story. (2) CPU TIER: `careerTier` adds a lane offset (rookie −1 / pro 0 / champion +1) on top of round(skill), so champion also faces tougher bots. (3) QUIZ GRADE-BAND (Sam: "rookie gets 4th–5th-grade questions"): `careerQuizPlan` scales the bank by lane via each question's `level` tag — rookie = `core` only (no algebra, 3 Qs); pro = core+algebra (3); champion = core/algebra/headline with ≥2 harder (4). Same bank, grade-appropriate slice; explanations always show so every tier learns. Hub readout shows your lane; quiz header tags each question's level. smoke83 → 61 asserts (difficulty beat, per-lane rematch budgets, the full lose→rematch→exhaust→advance loop, tier offsets, rookie-core vs champion-harder question selection). Full battery green.
   v5.1.254 (2026-06-20): CAREER / STORY MODE — the QUIZ (educational core) + the battery-CHEMISTRY → FLAMETHROWER mechanic. The whole point of career mode is teaching real robotics, and KNOWLEDGE IS THE MOST REWARDING. Sam's 11 FRC lecture/quiz sheets were distilled into `career/quiz_bank.js` (60 Qs / 15 factoids, late-elementary→HS-freshman level, light algebra) and INLINED here as `CAREER_QUIZ` (single-file build). New beat kind `'quiz'` + screen (`p2cquiz`, drawCareerQuiz/careerQuizClick): a question with SHUFFLED options (the bank stores the answer at index 0 for authoring — never shown that way), instant right/wrong feedback, and the lecture's EXPLANATION always shown (wrong still teaches). Score → `career.bonuses` (a real, modest in-match edge applied in `careerApplyBonuses`, leak-safe). Wired a headline `⚡ POWER CHECK` (3 power questions) just before the capstone. THE HOOK (Sam's idea): the power-quiz score picks your battery CHEMISTRY — ace it (LiFePO4, `flags.chem='safe'`) → a HEAT-SHIELDED capstone bot (flame bounces off) + a better weapon; flunk it (volatile LiPo, `'volatile'`) → no fire protection AND your RoboRumble rival rolls in with a FLAMETHROWER (uses the existing `flame`/thermal weapon + `heatshield` armor; seeded into `m2.bbLoadout`). A `pre:capstone` pit-lane beat narrates the stakes. The wrong answer literally sets you on fire — the lesson lands. smoke83 → 46 asserts (quiz launch/render, shuffle, ace vs flunk → chem + bonus, the rival actually fields the flamethrower, the safe player gets the heat shield). Full battery green.
   v5.1.253 (2026-06-20): CAREER / STORY MODE — Phases ②③④ (the tutorial is now PLAYABLE end-to-end). Stage gotos launch REAL matches: `startCareerMatch(stageId)` configures m2 (mode + a beginner-friendly 1v1 via `careerStageSetup`), DRIVE-LOCKS the lesson on side 0 (`careerSetDrive` resolves a drive id across the catalog groups; the CPU mirrors it), claims side 1 as a CPU at the ADAPTIVE tier (`careerTier` maps skill 0..4 → CPU tier 0..4), binds side 0 to the player (gamepad if present else keyboard+touch), and calls the existing `startP2Race/Ball/Tank/BB`. The keystone — `careerMatchEnd(side)` — reads the result the SAME way the bracket does (the line-4009 `r2?…:tf2?…:bb2?…:b2.result` expression, now mirrored in `drawP2Nav`/`p2NavClick` behind `career.active`) and advances on WIN *or* LOSS (or draw): it updates the adaptive `skill` from a performance score, sets `flags.lastResult` (`dominated`/`won`/`lost`/`blown_out`), marks the stage cleared, logs it, tears the match down, and routes to the `after:<stage>` fork. Phase ④ margins: `careerDominance`/`careerCloseness` read tank lives (`tf2SideLives`) + ball goals so a blowout vs a nail-biter move the rating differently — and a FLAWLESS tank win reaches `dominated`, which unlocks the "drive like a car" detour fork for real. ESC out of a career match returns to the story (no result recorded). Because every stage's mode launches, this also de-risks Phase ⑤ (the full curriculum is data-walkable to the finale). smoke83 → 36 asserts (adds match launch, drive-lock, tier map, win/loss routing, nav wiring, real-margin dominated/blown_out/lost, a full win-the-curriculum walk). Null `career` ⇒ free-play byte-identical. Full battery green.
   v5.1.252 (2026-06-20): CAREER / STORY MODE — Phase ① (the FUN TUTORIAL shell). A new choose-your-own-adventure meta-shell over the existing modes whose job is ONBOARDING: teach every drive concept (tank→arcade→strafe→bot/field-centric→holonomic→heading) through a light branching story (CAREER_PLAN.md). This ship = the SHELL: a CAREER tile on the splash (3rd front-door, gamepad idx 0 + key '3'), a HUB (`p2career`, NEW/CONTINUE + a "journey so far" readout of stages cleared / concepts learned / driver rating), and the CYOA BEAT screen (`p2cbeat`) — a shared renderer for story / coach (lesson) / finale beats with 1–3 choice buttons, `when`-gated choices, dynamic `({c})=>` copy, `effect` (setFlag/unlock), and `then`-chaining (coach→stage). State: `career` global + `frcds_career_v1` persistence (careerNew/Store/Migrate), the full 7-stage curriculum data table (CAREER_STAGES) and beat graph (CAREER_BEATS). MATCHES ARE STUBBED this phase — a stage marks itself cleared + its concept learned and routes to the post-match fork (real matches land in Phase ②/③: startCareerMatch + careerMatchEnd off the existing line-4009 result read). Null `career` ⇒ free-play byte-identical. New suite smoke83 (21 asserts: new shape, store round-trip, hub→intro, beat render, choice routing, when-gating, coach `then`, a full curriculum walk to the finale, ESC + splash tile). Full battery green.

@@ -227,6 +227,22 @@ The same `perf` (or a coarse `result ∈ {win,loss,draw}`) sets a flag the next 
 dominant run gets a cocky narrator and a tougher fork offered, a blowout gets a "shake it off, here's a
 tip" fork. **This is how losing branches the story instead of ending it.**
 
+### 3.4 The DIFFICULTY LANE + REMATCHES (Sam, 2026-06-20). ✅ BUILT (v5.1.255)
+
+On top of the adaptive rating, the player picks a **lane up front** (a `difficulty` beat, the first node) that
+sets three things — `career.diff ∈ {rookie, pro, champion}`:
+- **Rematches on a loss.** When a fight goes badly you can **run it back** before the loss becomes canon —
+  budget by lane: **Rookie = unlimited, Pro = 3, Champion = 0.** The post-match nav shows `⟳ REMATCH (n)` next to
+  `▶ TAKE THE L →`; out of retries (or Champion) it's a single `▶ CONTINUE STORY`. (`careerRematchBudget`,
+  `career._rematchLeft` set fresh per stage in `careerStartStage`, decremented on rematch; `careerRematch`
+  re-launches the same stage.) **You always progress — rematches just delay when the loss enters the story.**
+- **CPU tier offset.** `careerTier` adds a lane offset (rookie −1, pro 0, champion +1) on top of the adaptive
+  round(skill), so Champion also *fights harder bots*.
+- **Quiz grade-band (Sam: "rookie gets 4th–5th-grade questions").** `careerQuizPlan` scales the question bank by
+  lane via each question's `level` tag: **Rookie = `core` only (definitional, no algebra), 3 Qs; Pro = core +
+  algebra, 3 Qs; Champion = core/algebra/headline with ≥2 of the harder ones, 4 Qs.** Same bank, grade-appropriate
+  slice. Explanations always show, so every tier still learns.
+
 ---
 
 ## 4. Branching / CYOA data model
