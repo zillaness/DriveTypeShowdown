@@ -1361,6 +1361,16 @@ src+=`
    ok('FFA timed: most surviving HP wins',bbTimeUpResult()===1);
    bb2={result:null,ffa:false,bots:[{side:0,dead:true,lives:0,hp:0},{side:1,dead:false,lives:1,hp:50}]};
    bbCheckResult();ok('2-side regression: one side out → the other wins',bb2.result===1);
+   // v5.1.269 INFINITE-LIVES TIMED DEATHMATCH → most KILLS wins (leftover HP is meaningless when nobody's eliminated)
+   bb2={result:null,ffa:false,bots:[{side:0,dead:false,lives:Infinity,hp:10,kills:3},{side:1,dead:false,lives:Infinity,hp:99,kills:5}]};
+   ok('inf-lives timed: MOST KILLS wins despite LESS HP (side 1)',bbTimeUpResult()===1);
+   ok('bbInfLives detects infinite respawns',bbInfLives()===true);
+   ok('bbSideKills sums per-side kills',bbSideKills(0)===3&&bbSideKills(1)===5);
+   bb2.bots[0].kills=6;ok('inf-lives timed: flips to the new kill leader (side 0)',bbTimeUpResult()===0);
+   bb2={result:null,ffa:false,bots:[{side:0,dead:false,lives:5,hp:80,kills:1},{side:1,dead:false,lives:5,hp:30,kills:9}]};
+   ok('FINITE-lives timed still decides by surviving HP (side 0), not kills',bbTimeUpResult()===0);
+   bb2={result:null,ffa:true,bots:[{side:0,dead:false,lives:Infinity,hp:99,kills:1,ctl:{name:'A'}},{side:1,dead:true,lives:Infinity,hp:0,kills:4,ctl:{name:'B'}},{side:2,dead:false,lives:Infinity,hp:50,kills:2,ctl:{name:'C'}}]};
+   ok('FFA inf-lives timed: most KILLS wins (side 1, even momentarily dead)',bbTimeUpResult()===1);
    bb2=svbb;m2.mode=svm;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
