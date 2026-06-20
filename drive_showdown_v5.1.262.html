@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.261.html
-  version: 5.1.261
+  file: drive_showdown_v5.1.262.html
+  version: 5.1.262
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -6031,7 +6031,18 @@ let tour=null;
 let career=null;                 // null when not in a campaign; an object while playing one
 let careerSave=(()=>{try{const c=JSON.parse(localStorage.getItem('frcds_career_v1')||'null');return (c&&typeof c==='object')?c:null;}catch(e){return null;}})();
 function careerStore(){try{localStorage.setItem('frcds_career_v1',JSON.stringify(career));}catch(e){}}
-function careerNew(){return{node:'difficulty',diff:'veteran',input:'auto',stage:null,active:false,skill:1,taught:[],cleared:[],choices:{},flags:{lastResult:null},unlocks:{drives:[],bbWeapons:[],bbArmor:[],bbPerks:[],paints:[]},bonuses:{speed:0,weapon:0,hp:0},log:[],_then:null,_quiz:null,_rematchLeft:0,ver:1};}
+function careerNew(){return{node:'difficulty',diff:'veteran',input:'auto',stage:null,active:false,skill:1,taught:[],cleared:[],choices:{},flags:{lastResult:null},unlocks:{drives:[],bbWeapons:[],bbArmor:[],bbPerks:[],paints:[]},bonuses:{speed:0,weapon:0,hp:0},allies:[],favors:0,log:[],_then:null,_quiz:null,_rematchLeft:0,ver:1};}
+// RELATIONSHIP / FAVOR economy (Sam §11.2): the friends you make along the way — by LENDING a spare part, helping
+// a rookie, or acing quizzes — join you. career.allies = [{name, tier, via}]. They lend you a part for the finale
+// (a loadout perk) now; a follow-up wires them onto the FIELD as your 3v3 alliance in the regional/world tourney.
+const CAREER_ALLY_NAMES=['Maya','Theo','Priya','Diego','Wen','Sam','Ada','Kofi','Lena','Ravi'];
+function careerAddAlly(name,tier,via){
+  if(!career.allies)career.allies=[];
+  if(career.allies.some(a=>a.name===name))return false;
+  career.allies.push({name:name,tier:clamp(tier|0,0,careerMaxTier()),via:via||'favor'});
+  return true;
+}
+function careerAllyName(seed){const a=CAREER_ALLY_NAMES,n=career&&career.allies?career.allies.length:0;return a[(n+(seed|0))%a.length];}
 // CONTROL SCHEME (Sam: "default controller if plugged in… maybe ask at the beginning"). career.input ∈
 // {auto,gp,kb,touch}; careerHumanBind resolves side 0's device (a LIVE gamepad check, since browsers only
 // expose a pad after a button press — an explicit pick binds the controller anyway).
@@ -6067,11 +6078,15 @@ const CAREER_STAGES={
 // THE FINALE LADder (Sam): the lane decides the finale's PRESTIGE, MODE and round count (FRC: scrimmage →
 // district/HS → regional → worlds). Rookie = the quickest single rumble; veteran = a HS BALL tournament;
 // winner = a REGIONAL RoboRumble tournament; champion = the WORLD championship.
+// THE FINALE LADDER (Sam, evolving live) — data-driven sequence of rounds per lane. `stages` = the per-round
+// stage id (mode); `invite` = the round index where the BALL bracket gives way to the RoboRumble "invite/tryout".
+// (Current build runs a single-elim gauntlet + 1v1 rumble; the DOUBLE-elim ball bracket + a 3v3 rumble tryout —
+// which would field your recruited ALLIES — are the next focused builds. See CAREER_PLAN §11.2.)
 const CAREER_FINALE={
-  rookie:  {name:'Graduation Scrimmage',  sub:'a friendly send-off',         stage:'capstone_rumble', rounds:1, title:'Graduate',            ending:'graduate'},
-  veteran: {name:'High-School Tournament',sub:'your first real bracket',     stage:'capstone_ball',   rounds:3, title:'High-School Champion', ending:'hschamp'},
-  winner:  {name:'Regional Championship', sub:'the regional bracket',        stage:'capstone_rumble', rounds:3, title:'Regional Champion',    ending:'regional'},
-  champion:{name:'World Championship',    sub:'the world stage — no mercy',  stage:'capstone_rumble', rounds:3, title:'WORLD CHAMPION',       ending:'world'},
+  rookie:  {name:'Rookie Ball Tournament',  sub:'single-elim ball — then an invite',  stages:['capstone_ball','capstone_ball','capstone_rumble'],                title:'Rookie Champion',     ending:'graduate', invite:2},
+  veteran: {name:'High-School Tournament',  sub:'a real bracket — then a tryout',      stages:['capstone_ball','capstone_ball','capstone_ball','capstone_rumble'],title:'High-School Champion',ending:'hschamp',  invite:3},
+  winner:  {name:'Regional Championship',   sub:'the regional RoboRumble bracket',     stages:['capstone_rumble','capstone_rumble','capstone_rumble'],            title:'Regional Champion',   ending:'regional', invite:-1},
+  champion:{name:'World Championship',      sub:'the world stage — no mercy',          stages:['capstone_rumble','capstone_rumble','capstone_rumble'],            title:'WORLD CHAMPION',      ending:'world',    invite:-1},
 };
 function careerFinaleCfg(){return CAREER_FINALE[career.diff]||CAREER_FINALE.rookie;}
 const CAREER_STAGE_ORDER=['tank_hook','arcade_course','strafe_intro','field_centric','holo_shooter','heading_advanced','capstone_rumble'];
@@ -6229,8 +6244,12 @@ const CAREER_BEATS={
     ]},
   'after:arcade_course':{kind:'story',title:'FASTER THAN YOU THINK',lines:[
     "Point-and-go clicked. You're carrying speed through corners now instead of fighting the bot.",
+    "In the pits, a rookie team's drivetrain just died before their match. You've got a spare part.",
     "Ready for the move that makes swerve drivers look like magic?"],
-    choices:[{label:"Show me — can robots move SIDEWAYS?", goto:'coach:C3', then:'stage:strafe_intro'}]},
+    choices:[
+      {label:"Lend them your spare part (they'll remember it)", goto:'coach:C3', then:'stage:strafe_intro', effect:{addAlly:'lent a spare part'}},
+      {label:"Keep it — focus on your own run", goto:'coach:C3', then:'stage:strafe_intro'},
+    ]},
   'after:strafe_intro':{kind:'story',title:'THE WALL TRICK',lines:[
     "You strafed instead of turning. Lined up clean without ever pointing away from where you were going.",
     "Now the big one — the lesson that changes how you see the whole field."],
@@ -6239,8 +6258,12 @@ const CAREER_BEATS={
     ({c})=>c.flags.lastResult==='lost'||c.flags.lastResult==='blown_out'
       ? "You got spun around chasing that ball — but 'up' stayed up the whole time. THAT is field-centric."
       : "You barely noticed you were facing backwards. The stick still meant 'up-field'. That's the magic.",
+    "A nervous team across the pit can't get their auto working. You could walk over and help.",
     "Let's put it to work — lining up shots."],
-    choices:[{label:"On to the shooter", goto:'coach:C5', then:'quiz:fab'}]}, // coach → fab quiz → holo stage
+    choices:[
+      {label:"Help them debug their auto (make a friend)", goto:'coach:C5', then:'quiz:fab', effect:{addAlly:'helped in the pit'}},
+      {label:"On to the shooter", goto:'coach:C5', then:'quiz:fab'},
+    ]}, // coach → fab quiz → holo stage
   'after:holo_shooter':{kind:'story',title:'DIALED IN',lines:[
     "Strafe to line up, hold your aim, fire. Holonomic makes a shooter feel like a turret on skates.",
     "One concept left before graduation: the two meanings of your aim stick."],
@@ -6299,6 +6322,7 @@ function careerVisibleChoices(b){return (b&&b.choices?b.choices:[]).filter(ch=>c
 function careerApplyEffect(eff){
   if(!eff)return;
   if(eff.setInput)career.input=eff.setInput;
+  if(eff.addAlly){career.favors=(career.favors|0)+1;careerAddAlly(careerAllyName(career.favors),Math.round(career.skill),eff.addAlly);} // a favor → a friend who'll back you at the finale
   if(eff.setDiff&&CAREER_LANE_TIER[eff.setDiff]!=null){career.diff=eff.setDiff;career.skill=CAREER_LANE_TIER[eff.setDiff];} // the lane seeds your starting CPU tier
 
   if(eff.setFlag)for(const k in eff.setFlag)career.flags[k]=eff.setFlag[k];
@@ -6325,9 +6349,10 @@ function careerRematch(){if(career&&career.stage)startCareerMatch(career.stage);
 // gauntlet (HS-ball / regional / world). careerMatchEnd advances the rounds; win them all = the lane's title.
 function careerFinaleStart(){
   const cfg=careerFinaleCfg();
-  career.finale={name:cfg.name,sub:cfg.sub,stage:cfg.stage,rounds:cfg.rounds,title:cfg.title,ending:cfg.ending,round:1,won:0,active:true,result:null};
+  const stages=(cfg.stages&&cfg.stages.length)?cfg.stages:['capstone_rumble'];
+  career.finale={name:cfg.name,sub:cfg.sub,stages:stages,rounds:stages.length,invite:(cfg.invite==null?-1:cfg.invite),title:cfg.title,ending:cfg.ending,round:1,won:0,active:true,result:null};
   careerStore();
-  careerStartStage(cfg.stage); // launch round 1 (rematch budget applies per round)
+  careerStartStage(stages[0]); // launch round 1 (rematch budget applies per round)
 }
 function careerFinaleRoundLabel(){const fin=career.finale;if(!fin)return'';if(fin.rounds<=1)return'';
   const left=fin.rounds-fin.round; return left===0?'FINAL':left===1?'SEMIFINAL':left===2?'QUARTERFINAL':('ROUND '+fin.round);}
@@ -6362,7 +6387,8 @@ function careerApplyBonuses(st){
   if(st.mode==='battlebots'){
     const chem=career.flags.chem; const wb=bn.weapon||0;
     const pWeapon=wb>=0.66?'spinner':wb>=0.33?'buzzsaw':'wedge';
-    const pPerk=(career.flags&&career.flags.license)?'sparetire':'none'; // a licensed driver brings a SPARE PART to the rumble
+    const hasAlly=career.allies&&career.allies.length>0;
+    const pPerk=(career.flags&&career.flags.license)?'sparetire':(hasAlly?'pitstop':'none'); // a licensed driver / a friend lends you a SPARE PART for the rumble
     m2.bbLoadout=Array.isArray(m2.bbLoadout)?m2.bbLoadout:[null,null];
     m2.bbLoadout[0]={weapon:pWeapon, armor:(chem==='safe'?'heatshield':'balanced'), perk:pPerk};
     m2.bbLoadout[1]={weapon:(chem==='volatile'?'flame':'wedge'), armor:'balanced', perk:'none'};
@@ -6444,7 +6470,7 @@ function careerMatchEnd(side){
     if(won||isDraw){
       fin.won++;
       if(fin.round>=fin.rounds){fin.result='champion';fin.active=false;careerStore();careerRecapStart();return;} // ran the table
-      fin.round++;career.flags.finaleRound=fin.round;careerStore();careerStartStage(fin.stage);return;          // next round
+      fin.round++;career.flags.finaleRound=fin.round;careerStore();careerStartStage(fin.stages[fin.round-1]);return; // next round (its own mode in the sequence)
     }
     fin.result='eliminated';fin.active=false;careerStore();careerRecapStart();return;                            // knocked out (still graduates)
   }
@@ -6461,7 +6487,7 @@ function careerHubBtns(){const have=!!(career||careerSave);return{
   fresh:have?{x:CW/2-200,y:496,w:400,h:40,label:'↺ NEW JOURNEY (restart)'}:null,
 };}
 function drawCareerHub(){
-  p2Chrome('CAREER — LEARN TO DRIVE','a story-driven tutorial · every stage teaches a real robot drive');
+  p2Chrome('STORY MODE — LEARN TO DRIVE','a story-driven tutorial · every stage teaches a real robot drive');
   const c=career||careerSave;
   // progress panel
   const px=CW/2-260,pw=520;
@@ -6618,6 +6644,19 @@ function careerRecap(){
     : ("You took the "+fin.name+". "+fin.title+"."));
   else if(fin&&fin.result==='eliminated') L.push("You made it to the "+careerFinaleRoundLabelFor(fin)+" of the "+fin.name+" before you got knocked out. A real run.");
   else L.push("And you took the rumble.");
+  // the friends you made along the way (Sam §11.2)
+  if(career.allies&&career.allies.length){
+    const names=career.allies.map(a=>a.name);
+    L.push("The friends you made along the way — "+names.join(', ')+" — had your back when it mattered.");
+  }
+  // the post-tournament INVITE (Sam: "an invite to try out after the tournament")
+  if(fin&&fin.result==='champion'){
+    const inv={world:"Pro scouts are circling — the national team wants you at their tryouts.",
+      regional:"Word travels fast: a championship program just sent you a tryout invite.",
+      hschamp:"You earned it — an invite to a 3v3 RoboRumble tryout with the big leagues.",
+      graduate:"Solid debut. There's an invite waiting: a 1v1 RoboRumble tryout."}[fin.ending]||"Someone wants you to try out for the next level.";
+    L.push(inv);
+  }
   return L;
 }
 function careerFinaleRoundLabelFor(fin){const left=(fin.rounds||1)-(fin.round||1);return left<=0?'final':left===1?'semifinal':left===2?'quarterfinal':('round '+(fin.round||1));}
@@ -6710,7 +6749,7 @@ function careerQuizFinish(){
   // Sam's flamethrower idea: the POWER quiz decides your battery CHEMISTRY. Know it (≥⅔) → a safe LiFePO4 pack
   // (heat-shielded); guess wrong → a volatile LiPo your rival will happily set on fire. Consequence teaches the lesson.
   if(Q.qs.some(x=>x.topic==='power')) career.flags.chem = frac>=0.6?'safe':'volatile';
-  if(Q.correct===Q.qs.length&&Q.qs.length>0){try{achUnlock('honorroll');}catch(e){}} // a perfect quiz → Honor Roll
+  if(Q.correct===Q.qs.length&&Q.qs.length>0){try{achUnlock('honorroll');}catch(e){} careerAddAlly(careerAllyName(7),Math.min(careerMaxTier(),Math.round(career.skill)+1),'a study buddy');} // a perfect quiz → Honor Roll + a study-buddy ally
   career.log.push({quiz:Q.title,correct:Q.correct,of:Q.qs.length,reward:Q.reward});
   const next=Q.next;career._quiz=null;careerStore();
   careerGoto(next||'hub');
@@ -9211,7 +9250,7 @@ function drawSplash(){
   ctx.font='bold 30px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('DRIVE TYPE',CW/2,98);ctx.fillText('SHOWDOWN',CW/2,130);
   ctx.font='11px Courier New';ctx.fillStyle='#55556a';ctx.fillText('Team 2204 Rambots',CW/2,154);
   const R=splashRects();
-  drawSplashCardC(R.career,'🎓','CAREER',['Story-driven tutorial — master every','robot drive. Quizzes + a tournament.'],'#ffd740','rgba(22,42,28,0.7)');
+  drawSplashCardC(R.career,'🎓','STORY MODE',['Story-driven tutorial — master every','robot drive. Quizzes + a tournament.'],'#ffd740','rgba(22,42,28,0.7)');
   drawSplashCardC(R.sp,'🕹','SINGLE PLAYER',['Drive-type challenge — master every','robot drive. Portrait · phone-friendly.'],'#44ffaa','rgba(18,44,30,0.55)');
   drawSplashCardC(R.mp,'👥','MULTIPLAYER',['Head-to-head 1v1–3v3: ball · tank ·','race · RoboRumble. Landscape · desktop.'],'#ee66bb','rgba(40,16,40,0.6)');
   const s=R.set;ctx.fillStyle='rgba(20,20,44,0.82)';rr(s.x,s.y,s.w,s.h,10);ctx.fill();
@@ -9223,7 +9262,7 @@ function drawSplash(){
   ctx.fillText(portrait?'📱 Portrait — Single Player fits your screen':'🖥 Landscape — Multiplayer is built for this',CW/2,612);
   if(gpConnected){const F=[R.career,R.sp,R.mp,R.set][splashGpIdx];if(F){ctx.save();ctx.strokeStyle='#ffd740';ctx.lineWidth=3;ctx.setLineDash([7,5]);rr(F.x-4,F.y-4,F.w+8,F.h+8,14);ctx.stroke();ctx.setLineDash([]);ctx.restore();}} // v5.1.229 gamepad focus cursor (v5.1.252 +CAREER at idx 0)
   ctx.fillStyle='#33334a';ctx.font='9px Courier New';
-  ctx.fillText(gpConnected?'tap a path · 🎮 stick/D-pad: move · A: select · Y: Single Player':'tap a path · keys: 1 = Single · 2 = Multiplayer · 3 = Career',CW/2,632);
+  ctx.fillText(gpConnected?'tap a path · 🎮 stick/D-pad: move · A: select · Y: Single Player':'tap a path · keys: 1 = Single · 2 = Multiplayer · 3 = Story',CW/2,632);
   drawMuteBtn();
 }
 function drawMenu(){
@@ -10076,6 +10115,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.262 (2026-06-20): STORY MODE — the FINALE as a lane SEQUENCE + a relationship/favor economy + the rename. (1) FINALE SEQUENCE (CAREER_FINALE now carries a `stages` array per lane, Sam's FRC prestige ladder): ROOKIE = a single-elim BALL tournament → an invite to a 1v1 RoboRumble round; VETERAN = a high-school BALL bracket → a 3v3 RoboRumble TRYOUT; WINNER = the all-RoboRumble Regional bracket; CHAMPION = the all-RoboRumble World Championship. careerFinaleStart seeds career.finale from the stages list, careerMatchEnd advances stage-by-stage (win all → champion result; any loss → eliminated, still graduates), and each stage launches its own MODE (ball vs rumble) so the lower lanes really play a ball tournament before their rumble capstone. (2) RELATIONSHIP / FAVOR economy (Sam: "the allies and friends you made along the way"): new favor beats (lend a spare part after the arcade course; help debug auto after the field-centric lesson) and a perfect quiz now ADD ALLIES (careerAddAlly / CAREER_ALLY_NAMES, deduped); allies grant a finale loadout perk (a PIT-STOP repair, or a SPARE TIRE if you also earned your license) and are narrated in the recap ("the friends you made along the way had your back"). (3) POST-TOURNAMENT INVITE epilogue (Sam: "an invite to try out after"): the recap closes with a lane-scaled tryout invite (national-team / championship-program / 3v3 RoboRumble / 1v1 RoboRumble). (4) RENAME: CAREER → STORY MODE everywhere player-facing (splash card, hub chrome, the "3 = Story" hint). smoke83 → 100 asserts (stages-array finale per lane, the ball→rumble sequence, relationship/favor add-ally, the invite epilogue, the STORY MODE labels). Full battery green. (Backlog noted for Sam: veteran's double-elim ball bracket + a real 3v3 RoboRumble grid for the tryout; the human FLAMETHROWER is overpowered in RoboRumble.) Single file, no assets.
   v5.1.261 (2026-06-20): CAREER polish from a live Sam playtest — tank+abs-heading bugfix · controller-vs-keyboard pick · splash redesign. (1) BUGFIX (Sam: "tank + absolute heading is broken together"): `driveFieldCentric` now reports TANK as not-field-centric (returns false), so picking a tank drive FORCES absolute heading OFF (arcade stays uncoupled — "could be okay"); a belt-and-suspenders guard in startCareerMatch also clears it for a tank drive. (2) CONTROL SCHEME (Sam: "default controller if plugged in… maybe ask at the beginning"): a new `controls` beat after the lane pick asks Controller vs Keyboard; `career.input` + `careerHumanBind` resolve side 0's device via a LIVE gamepad check (browsers only expose a pad after a button press). TOUCH is intentionally NOT offered in career — it's a Single-Player-only thing (the career runs in the landscape twin-stick engine); the touch ENGINE is untouched (kept for SP + a future mobile release). (3) SPLASH REDESIGN (Sam): three MATCHING cards (CAREER gold · SINGLE PLAYER · MULTIPLAYER) — same style/size, the ▶ START aligned in the same spot, the richer 2-line descriptions restored, the "✦ NEW" tag removed, and each icon drawn on a light backing disc so it's visible regardless of PC/Mac emoji rendering (fixes the "barely visible joystick"). smoke83 → 91 asserts (controls beat, careerHumanBind, the difficulty→controls→intro flow); smoke57 updated for the tank-abs-heading change. Verified via a headless-Chromium screenshot pass. Full battery green.
   v5.1.260 (2026-06-20): CAREER / STORY MODE — the FINALE: a lane-prestige bracket (Sam's FRC ladder) + a permit-quiz topic. The capstone is now lane-differentiated (CAREER_FINALE): ROOKIE = the quick single-rumble Graduation Scrimmage (no bracket); VETERAN = a 3-round HIGH-SCHOOL **ball** tournament (different MODE); WINNER = a 3-round REGIONAL RoboRumble tournament; CHAMPION = the 3-round WORLD Championship. A single-elim gauntlet: careerFinaleStart seeds career.finale, careerMatchEnd advances the rounds (win → next / champion; loss → eliminated, still graduates), and the lane-framed pre:capstone beat routes via goto:'finale'. ENDINGS reworked around the result: 🌎 WORLD CHAMPION / 🏆 REGIONAL CHAMPION / 🏫 HIGH-SCHOOL CHAMPION / 🎓 GRADUATE / 💪 DEEP RUN; the recap narrates the run ("ran the table at the Regional Championship — 3 rounds, no slip-ups"). Also added a PERMIT-TEST quiz topic (14 rules-of-the-road questions in career/quiz_bank.js, re-inlined) for the upcoming driver's-license mini-game. smoke83 → 86 asserts (per-lane finale mode/rounds, the 3-0 run, a round-1 KO → deep run, ending titles, the full walk to the recap via the bracket). Full battery green.
   v5.1.259 (2026-06-20): CAREER / STORY MODE — Phase ⑥ (achievements · coach-skip · bonus tuning) + a splash card-bound fix. (1) ACHIEVEMENTS: 3 new ACH_DEFS — First Driver (graduate the tutorial), Honor Roll (ace a quiz — every answer right), Untouchable (graduate on the CHAMPION lane) — fired idempotently from careerRecapStart / careerQuizFinish. (2) COACH SELF-SKIP: on a replay, an already-learned coaching card swaps "Got it — let's drive" for "⏩ Skip — you know this one" (careerGoto tracks `_coachKnown` before marking taught). (3) BONUS TUNING: magnitudes are now explicit tunable constants (CAREER_BONUS = +25% control speed · up to +2 tank lives), and the hub shows your earned "Knowledge edge" (careerBonusSummary). Also wired the dormant LICENSE perks (a licensed driver — §11.1 future mini-game — gets +1 life + a SPARE-PART 'sparetire' perk in the rumble). (4) SPLASH FIX (Sam: "the text breaks the bounds of the career mode card"): the CAREER banner tagline overran the card edge — now a short tagline + a measureText shrink-to-fit guard on the title; SINGLE/MULTIPLAYER cards restored to full height. Verified by a headless-Chromium screenshot pass (no page errors). smoke83 → 82 asserts; smoke42 ACH count → 18. Full battery green.

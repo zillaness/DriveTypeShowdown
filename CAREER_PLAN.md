@@ -911,28 +911,33 @@ each is its own build. **Status: DESIGN / backlog** (the core mode through v5.1.
 = you're WORLD champion (world stage); winner = a regional… that puts championship at another prestige level…
 I want some differentiation from rookie to winner now."*
 
-**THE PRESTIGE LADDER (the synthesis).** The finale's SCALE + name + champion title scale with the chosen lane —
-mirroring the real FRC event ladder (scrimmage → district → regional → FIRST Championship/worlds):
+**THE PRESTIGE LADDER (final synthesis).** Each lane runs a **data-driven SEQUENCE of rounds** (`CAREER_FINALE[lane].stages`,
+each a stage id/mode), mirroring the real FRC ladder. ✅ The **sequence engine is BUILT (v5.1.262)** — a single-elim
+gauntlet through the stages, win-all = the lane's title; the **double-elim ball bracket** + the **3v3 RoboRumble grid**
+are the two remaining heavier pieces (noted below).
 
-| Lane | Finale | Format | Win title |
+| Lane | Finale sequence (as built) | Then an INVITE to… | Win title |
 |---|---|---|---|
-| **rookie** | **Scrimmage** | 1 match (the capstone rumble, framed as practice) | "Scrimmage Winner" |
-| **veteran** | **District Event** | 1 match | "District Champion" |
-| **winner** | **REGIONAL Championship** | a single-elim **tournament** (multi-round gauntlet) | "Regional Champion" |
-| **champion** | **WORLD Championship** | a single-elim **tournament**, the top prestige | **"WORLD CHAMPION"** |
+| **rookie** | a single-elim **BALL** tournament (2 rounds) | a **1v1** RoboRumble | 🎓 Graduate |
+| **veteran** | a (double-elim ⏳) **BALL** tournament (3 rounds) | a **3v3** RoboRumble tryout ⏳ | 🏫 High-School Champion |
+| **winner** | a **REGIONAL** RoboRumble tournament (3 rounds) | — | 🏆 Regional Champion |
+| **champion** | the **WORLD** RoboRumble tournament (3 rounds) | — | 🌎 WORLD CHAMPION |
 
-- **The top two lanes get a real TOURNAMENT** (Sam: "limit it to winner and champion"); a **single-elim gauntlet**
-  (Sam: "or maybe it's just a single elim tourney?") of ~3 RoboRumble rounds (quarter → semi → final). Rookie/
-  veteran get the single reframed rumble.
-- **Win = the lane's champion title** in the recap/ending; champion-lane win = **WORLD CHAMPION** (the headline
-  prestige). Losing a round still graduates you (a "deep run" ending).
-- **Build approach:** a `CAREER_FINALE` config + a finale controller that loops `startCareerMatch('capstone_rumble')`
-  for the lane's round count, tracking the bracket in `careerMatchEnd`. Reuses the match flow already built. *(A
-  later layer can swap the gauntlet for the full `tour*` bracket + the allies/favors recruitment below.)*
+- **Built:** the round SEQUENCE per lane (`stages` array; `careerFinaleStart` + the `careerMatchEnd` bracket loop launch
+  each round's own mode); win-all → the title + recap; a round loss → eliminated ("deep run") but still graduates; the
+  recap **invite epilogue** (Sam: "an invite to try out after the tournament").
+- **⏳ Pending (the two heavier pieces):** (1) a real **double-elim** ball bracket for veteran (a loss-bracket, vs the
+  current single-elim gauntlet); (2) the **3v3 RoboRumble** "tryout" — needs the 6-seat GRID (`m2.tseats`) since the
+  legacy 1v1 bb path doesn't take `tallies`; this is where your recruited **allies field as your 3v3 team**.
 
-**RELATIONSHIP / FAVOR economy (later layer):** allies/friends + favors (lend a spare part → recruitable ally / a
-borrowed part later) + quiz performance gate who you recruit and what parts you borrow at the bracket draft.
-Leverages `tour.alli` + `bbLoadout`. Captured for a future ship.
+**RELATIONSHIP / FAVOR economy — ✅ FOUNDATION BUILT (v5.1.262).** `career.allies` / `career.favors`: favor beats (lend a
+spare part / help a rookie in the pit → a friend) + acing quizzes (→ a study buddy) recruit allies. They **lend you a
+spare part** (a `pitstop` loadout perk) in the RoboRumble finale and are **named in the recap**. *Pending:* allies on the
+FIELD as your 3v3 alliance (the grid piece above), and a recruit-gate draft.
+
+> ⚖️ **BALANCE backlog (Sam, for later):** the **human FLAMETHROWER is overpowered** in RoboRumble — it read as "hard"
+> only because the CPU often had heatproof/heatshield. Re-tune flame vs. the field (it's a cheat/loadout weapon, so
+> this is a balance pass, not a career change).
 - *Note:* this would likely **replace or follow** the single `capstone_rumble` as the true finale, then flow into
   the recap (§4.4) which already narrates allies/choices.
 

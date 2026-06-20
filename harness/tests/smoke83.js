@@ -102,9 +102,9 @@ src+=`
   const answerQuiz=(correct)=>{let g=0;while(phase==='p2cquiz'&&g++<40){const Q=career._quiz,q=Q.qs[Q.i];
     if(Q.picked==null){const R=careerQuizOptRects(q.opts.length);const k=correct?q.ans:((q.ans+1)%q.opts.length);careerQuizClick(R[k].x+5,R[k].y+5);}
     else careerQuizClick(careerQuizContRect().x+5,careerQuizContRect().y+5);}};
-  const finLane=(d,node)=>{career=careerNew();careerApplyEffect({setDiff:d});career.node=node;phase='p2cbeat';}; // ROOKIE → a RoboRumble scrimmage finale (n=3 quiz) so the chemistry/flamethrower path applies
-  finLane('rookie','after:heading_advanced'); pick(0);
-  T('quiz beat opens the QUIZ screen with 3 power questions', phase==='p2cquiz'&&!!career._quiz&&career._quiz.qs.length===3&&career._quiz.qs.every(x=>x.topic==='power'));
+  const finLane=(d,node)=>{career=careerNew();careerApplyEffect({setDiff:d});career.node=node;phase='p2cbeat';}; // WINNER → an all-RoboRumble finale so the chemistry/flamethrower path applies (battlebots round 1)
+  finLane('winner','after:heading_advanced'); pick(0);
+  T('quiz beat opens the QUIZ screen with power questions', phase==='p2cquiz'&&!!career._quiz&&career._quiz.qs.length>=3&&career._quiz.qs.every(x=>x.topic==='power'));
   let qdrew=true; try{drawCareerQuiz();}catch(e){qdrew=false;console.log('  quiz draw err:',e.message);}
   T('quiz renders', qdrew);
   answerQuiz(true);
@@ -115,7 +115,7 @@ src+=`
   T('capstone launches (battlebots, bb2 live)', phase==='p2bb'&&!!bb2);
   T('SAFE chemistry → player heat shield, rival not on fire', m2.bbLoadout[0].armor==='heatshield'&&m2.bbLoadout[1].weapon!=='flame');
   // now FLUNK it
-  finLane('rookie','after:heading_advanced'); pick(0); answerQuiz(false);
+  finLane('winner','after:heading_advanced'); pick(0); answerQuiz(false);
   T('FLUNK the power quiz → chem volatile, no weapon bonus', career.flags.chem==='volatile'&&career.bonuses.weapon===0);
   texts.length=0; drawCareerBeat();
   T('pit-lane (volatile) copy warns of the FLAMETHROWER', texts.some(t=>/FLAMETHROWER|LiPo/i.test(t)));
@@ -154,10 +154,11 @@ src+=`
   career.diff='champion';
   T('CHAMPION quiz: 4 questions, the hardest mix', (()=>{const q=careerQuizPick('power',careerQuizPlan());return q.length===4&&q.filter(x=>x.level==='algebra'||x.level==='headline').length>=2;})());
 
-  // ───────────────────────── THE FINALE: lane-prestige bracket (Sam) ─────────────────────────
-  // champion lane = a 3-round WORLD RoboRumble tournament
+  // ───────────────────────── THE FINALE: lane-prestige SEQUENCE of rounds (Sam) ─────────────────────────
+  const walkFinale=(res)=>{let g=0;while(career.finale&&career.finale.active&&g++<12){liveResult(res);careerMatchEnd(res);}};
+  // champion lane = a 3-round WORLD RoboRumble tournament (all rumble)
   career=careerNew(); careerApplyEffect({setDiff:'champion'}); careerFinaleStart();
-  T('champion finale → 3-round RoboRumble, round 1 live', !!career.finale&&career.finale.active&&career.finale.rounds===3&&phase==='p2bb');
+  T('champion finale → 3 rumble rounds, round 1 live', !!career.finale&&career.finale.active&&career.finale.rounds===3&&career.finale.stages.every(s=>s==='capstone_rumble')&&phase==='p2bb');
   liveResult(0); careerMatchEnd(0);
   T('win round 1 → advance to round 2 (still in the bracket)', career.finale.active&&career.finale.round===2&&phase==='p2bb');
   liveResult(0); careerMatchEnd(0); liveResult(0); careerMatchEnd(0);
@@ -165,16 +166,19 @@ src+=`
   // champion lane: a round-1 loss (0 rematches) → eliminated → deep-run
   career=careerNew(); careerApplyEffect({setDiff:'champion'}); careerFinaleStart(); liveResult(1); careerMatchEnd(1);
   T('champion round-1 loss → eliminated → recap (deep run)', career.finale.result==='eliminated'&&phase==='p2crecap'&&career.flags.ending==='deeprun');
-  // veteran lane = a HIGH-SCHOOL BALL tournament (different MODE)
-  career=careerNew(); careerApplyEffect({setDiff:'veteran'}); careerFinaleStart();
-  T('veteran finale → BALL mode (b2 live), 3 rounds', phase==='p2ball'&&!!b2&&career.finale.stage==='capstone_ball'&&career.finale.rounds===3);
-  // rookie lane = the quick single rumble, no tournament
+  // rookie lane = a single-elim BALL tournament, then a 1v1 RoboRumble invite (last stage is rumble)
   career=careerNew(); careerApplyEffect({setDiff:'rookie'}); careerFinaleStart();
-  T('rookie finale → single-round RoboRumble (no bracket)', career.finale.rounds===1&&phase==='p2bb');
-  liveResult(0); careerMatchEnd(0);
-  T('rookie win → graduate (1 round) → recap', career.finale.result==='champion'&&phase==='p2crecap'&&career.flags.ending==='graduate');
+  T('rookie finale → starts in BALL mode (a ball tournament)', phase==='p2ball'&&!!b2&&career.finale.stages[0]==='capstone_ball');
+  T('rookie finale ends on a RoboRumble invite round', career.finale.stages[career.finale.stages.length-1]==='capstone_rumble');
+  walkFinale(0);
+  T('rookie wins it all → graduate → recap', career.finale.result==='champion'&&phase==='p2crecap'&&career.flags.ending==='graduate');
+  // veteran lane = a bigger ball tournament → a RoboRumble tryout (more rounds)
+  career=careerNew(); careerApplyEffect({setDiff:'veteran'}); careerFinaleStart();
+  T('veteran finale → BALL first, ends on a rumble, more rounds than rookie', phase==='p2ball'&&career.finale.stages[0]==='capstone_ball'&&career.finale.stages[career.finale.stages.length-1]==='capstone_rumble'&&career.finale.rounds>=4);
+  walkFinale(0);
+  T('veteran wins it all → HIGH-SCHOOL champion → recap', career.finale.result==='champion'&&phase==='p2crecap'&&career.flags.ending==='hschamp');
   // ending titles by lane (finale champion)
-  const setFin=(d,res)=>{const c=CAREER_FINALE[d];career=careerNew();career.diff=d;career.flags={};career.finale={ending:c.ending,result:res,rounds:c.rounds,round:c.rounds,name:c.name,won:c.rounds};};
+  const setFin=(d,res)=>{const c=CAREER_FINALE[d];career=careerNew();career.diff=d;career.flags={};career.finale={ending:c.ending,result:res,rounds:c.stages.length,round:c.stages.length,name:c.name,won:c.stages.length};};
   setFin('winner','champion');  T('winner finale champion → REGIONAL', careerEnding()==='regional');
   setFin('veteran','champion'); T('veteran finale champion → HIGH-SCHOOL', careerEnding()==='hschamp');
   // recap renders for a finale + NEW JOURNEY resets
@@ -182,6 +186,29 @@ src+=`
   T('recap renders for a finale champion', phase==='p2crecap'&&career.flags.ending==='regional'&&(()=>{let ok=true;try{drawCareerRecap();}catch(e){ok=false;console.log('  recap err:',e.message);}return ok;})());
   let RB=careerRecapBtns(); careerRecapClick(RB.again.x+5,RB.again.y+5);
   T('recap NEW JOURNEY → fresh career at the difficulty pick', career.node==='difficulty'&&career.cleared.length===0&&phase==='p2cbeat');
+
+  // ───────────────────────── RELATIONSHIP / FAVOR economy (Sam §11.2) ─────────────────────────
+  // a favor choice on after:arcade_course (lend a spare part) makes a friend
+  freshAt('after:arcade_course'); pick(0);
+  T('lending a spare part → an ally recorded + a favor', career.allies.length===1&&(career.favors|0)===1&&!!career.allies[0].name);
+  // careerAddAlly dedupes by name
+  T('careerAddAlly dedupes', (()=>{const n=career.allies[0].name;const before=career.allies.length;careerAddAlly(n,1,'x');return career.allies.length===before;})());
+  // acing a quiz earns a study-buddy ally
+  career=careerNew(); finLane('rookie','after:heading_advanced'); pick(0); answerQuiz(true);
+  T('a perfect quiz earns a study-buddy ally', career.allies.some(a=>a.via==='a study buddy'));
+  // an ally lends you a SPARE PART (a perk) in the RoboRumble finale
+  career=careerNew(); career.allies=[{name:'Maya',tier:2,via:'lent a part'}]; m2.bbLoadout=[null,null]; m2.set={...M2_SET_DEFAULTS};
+  careerApplyBonuses({mode:'battlebots'});
+  T('an ally → a spare-part perk in the rumble', m2.bbLoadout[0].perk==='pitstop');
+  // the recap narrates your allies + the post-tournament INVITE
+  career=careerNew(); careerApplyEffect({setDiff:'champion'}); career.allies=[{name:'Maya',tier:3,via:'x'},{name:'Theo',tier:3,via:'y'}]; career.finale={ending:'world',result:'champion',rounds:3,round:3,name:'World Championship',won:3}; career.flags={};
+  const RL=careerRecap();
+  T('recap names your allies', RL.some(l=>/Maya/.test(l)&&/Theo/.test(l)));
+  T('recap includes a post-tournament invite (world → national tryouts)', RL.some(l=>/tryout|scout|invite/i.test(l)));
+
+  // STORY MODE label (Sam: "instead of career, its story mode")
+  career=careerNew(); phase='p2career'; texts.length=0; drawCareerHub();
+  T('hub titled STORY MODE', texts.some(t=>/STORY MODE/.test(t)));
 
   // ───────────────────────── FULL CURRICULUM WALK (win every match, ace every quiz) → finale → recap ──────────────
   freshAt('intro'); let guard=0; const quizTopics={};
