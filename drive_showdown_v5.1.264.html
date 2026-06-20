@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.263.html
-  version: 5.1.263
+  file: drive_showdown_v5.1.264.html
+  version: 5.1.264
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -1960,6 +1960,17 @@ function btn(x,y,w,h,label,col){
 
 
 // ═══ KONAMI EASTER EGG SCREEN ═══
+// Projects and Mods — a clean vector GEAR mark (their logo is gear-based), drawn so the single-file build needs
+// no embedded image asset. evenodd fill makes a true ring so the button background shows through the hub.
+function drawPMGear(cx,cy,R,col){
+  const n=9,tip=R,root=R*0.74,hole=R*0.40,pt=(r,a)=>ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(-0.18);
+  ctx.beginPath();ctx.moveTo(root,0);
+  for(let i=0;i<n;i++){const a=(i/n)*2*Math.PI,w=2*Math.PI/n;pt(root,a);pt(tip,a+w*0.16);pt(tip,a+w*0.34);pt(root,a+w*0.50);}
+  ctx.closePath();ctx.moveTo(hole,0);ctx.arc(0,0,hole,0,Math.PI*2);
+  ctx.fillStyle=col;ctx.fill('evenodd');
+  ctx.restore();
+}
 function drawKonami(){
   // Dark overlay
   ctx.fillStyle='rgba(0,0,0,0.94)';ctx.fillRect(0,0,CW,CH);
@@ -2014,18 +2025,23 @@ function drawKonami(){
   const descY=rowY+colMax*rowPitch+(portrait?12:18);
   ctx.font='11px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffcf8f';
   ctx.fillText(CHEATS[cheatIdx].desc,CW/2,descY);
-  // Link buttons with icons — flow below the description so they never overlap the cheat rows / logo
-  const ICON=28, PAD=10, BTN_H=36, BTN_W=200;
+  // Link buttons with icons — flow below the description so they never overlap the cheat rows / logo.
+  // v5.1.263 a 2×2 GRID (Sam: credits / Projects and Mods links in the cheat menu) — same vertical footprint as the
+  // old 2-stack, so the compacted menu can't overflow. Left column = the team; right column = Projects and Mods (navy).
+  const ICON=28, PAD=10, BTN_H=36, GW=176, GAP=12, GX=(CW-(GW*2+GAP))/2, GX2=GX+GW+GAP;
+  const PMc={col:'#9fb8d6',bg:'rgba(28,50,82,0.55)',fg:'#d3e3f7'}; // Projects and Mods navy/white
   const linkDefs=[
-    {url:'https://rambots.org/',       text:'rambots.org',         icon:'rambots', by:descY+26},
-    {url:'https://instagram.com/frc2204/', text:'instagram.com/frc2204', icon:'ig',      by:descY+26+46},
+    {url:'https://rambots.org/',           text:'rambots.org',         icon:'rambots', lx:GX,  by:descY+26},
+    {url:'https://instagram.com/frc2204/', text:'@frc2204',            icon:'ig',      lx:GX,  by:descY+26+46},
+    {url:'https://www.youtube.com/@projectsandmods', text:'@projectsandmods', icon:'pm', lx:GX2, by:descY+26,    ...PMc},
+    {url:'https://projectsandmods.com/',   text:'projectsandmods.com', icon:'pm',      lx:GX2, by:descY+26+46, ...PMc},
   ];
   for(const lk of linkDefs){
-    const lx=(CW-BTN_W)/2, ly=lk.by;
-    lk.hx=lx;lk.hy=ly;lk.hw=BTN_W;lk.hh=BTN_H;
+    const lx=lk.lx, ly=lk.by;
+    lk.hx=lx;lk.hy=ly;lk.hw=GW;lk.hh=BTN_H;
     // Button background
-    ctx.fillStyle='rgba(180,30,30,0.22)';ctx.fillRect(lx,ly,BTN_W,BTN_H);
-    ctx.strokeStyle='#ff4444';ctx.lineWidth=1;ctx.strokeRect(lx,ly,BTN_W,BTN_H);
+    ctx.fillStyle=lk.bg||'rgba(180,30,30,0.22)';ctx.fillRect(lx,ly,GW,BTN_H);
+    ctx.strokeStyle=lk.col||'#ff4444';ctx.lineWidth=1;ctx.strokeRect(lx,ly,GW,BTN_H);
     // Icon (left side of button)
     const iconX=lx+PAD, iconY=ly+(BTN_H-ICON)/2;
     if(lk.icon==='rambots'){
@@ -2037,10 +2053,12 @@ function drawKonami(){
       try{ctx.drawImage(_logoMain,cx-LS/2,cy-lh/2,LS,lh);}catch(e){}}
     }else if(lk.icon==='ig'){
       try{ctx.drawImage(_logoIG,iconX,iconY,ICON,ICON);}catch(e){}
+    }else if(lk.icon==='pm'){
+      drawPMGear(iconX+ICON/2,iconY+ICON/2,ICON/2,'#eaf2ff'); // the Projects and Mods gear mark
     }
     // Label
     ctx.font='bold 11px Courier New';ctx.textAlign='left';
-    ctx.fillStyle='#ff9999';ctx.fillText(lk.text,lx+ICON+PAD*2,ly+BTN_H/2+4);
+    ctx.fillStyle=lk.fg||'#ff9999';ctx.fillText(lk.text,lx+ICON+PAD*2-4,ly+BTN_H/2+4);
   }
   // Footer
   ctx.font='9px Courier New';ctx.fillStyle='#aa2222';ctx.textAlign='center';
@@ -10149,6 +10167,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.264 (2026-06-20): CREDITS — Projects and Mods links in the cheat menu (Sam). The cheat menu's link area (already the de-facto credits home — rambots.org + @frc2204) becomes a 2×2 GRID: the left column is the team, the right column is PROJECTS AND MODS (navy/white) — a YouTube button (youtube.com/@projectsandmods) and a website button (projectsandmods.com), each carrying a clean vector GEAR mark (drawPMGear — the PM logo is gear-based, drawn in-canvas so the single-file build needs no embedded image asset; an evenodd ring shows the hub through the gear). Same vertical footprint as the old 2-button stack, so the compacted menu doesn't overflow; both links open in a new tab via the existing window.open idiom. (If the exact PNG is committed to the repo it can be inlined as a base64 data-URI to replace the vector mark.) Full battery ALL GREEN. Single file, no assets.
   v5.1.263 (2026-06-20): STORY MODE playtest fixes (Sam, live) — universal controls · solo time-trial races · SP swerve-anim bug. (1) CONTROLS (Sam: "let you use either controller OR keyboard at the same time in story mode"): side 0 now binds to the UNIVERSAL 'any' device — keyboard AND every connected pad are all live at once. Upgraded the 'any' bind to read gamepad BUTTONS (new gpBtnAny: fire A/RT, boost LT) and the merged right-stick (turret aim / repair-dish), not just axes; p2FireHeld/p2BoostHeld/tank+RoboRumble turret aim all gained an 'any' path. The control-scheme beat is now an honest "both work, switch anytime" card (was an either/or). Also fixes the wrong-slot bind Sam hit (had to claim "gamepad 2"): updateGamepad tracks the ACTIVE pad slot (gpLastSlot) instead of trusting a phantom slot 0. (2) RACES ARE SOLO TIME-TRIALS (Sam: "on rookie that first match is CRAZY hard… should be a solo time trial, not a head-to-head"): the two race lessons (NEED FOR SPEED / SIDEWAYS) drop the CPU rival and run on the easy SP obstacle course (course 0, no hazards). ROOKIE just has to finish; higher lanes race a PAR clock (CAREER_RACE_PAR — arcade veteran/winner/champion 20/15/10, bot-centric 15/10/5; 5s gaps). The race HUD shows TIME TRIAL + target, the clock reddens past par, and a SOLO result banner (FINISH! / TOO SLOW) replaces the RED-vs-BLUE one. (3) BUGFIX (Sam): the SP OBSTACLE RACE never stored the live input, so the SWERVE MODULES never animated their steering direction — updateObstacleCourse now sets lastRobotInp like the main play loop. smoke83 → 107 asserts. Full battery ALL GREEN. Single file, no assets.
   v5.1.262 (2026-06-20): STORY MODE — the FINALE as a lane SEQUENCE + a relationship/favor economy + the rename. (1) FINALE SEQUENCE (CAREER_FINALE now carries a `stages` array per lane, Sam's FRC prestige ladder): ROOKIE = a single-elim BALL tournament → an invite to a 1v1 RoboRumble round; VETERAN = a high-school BALL bracket → a 3v3 RoboRumble TRYOUT; WINNER = the all-RoboRumble Regional bracket; CHAMPION = the all-RoboRumble World Championship. careerFinaleStart seeds career.finale from the stages list, careerMatchEnd advances stage-by-stage (win all → champion result; any loss → eliminated, still graduates), and each stage launches its own MODE (ball vs rumble) so the lower lanes really play a ball tournament before their rumble capstone. (2) RELATIONSHIP / FAVOR economy (Sam: "the allies and friends you made along the way"): new favor beats (lend a spare part after the arcade course; help debug auto after the field-centric lesson) and a perfect quiz now ADD ALLIES (careerAddAlly / CAREER_ALLY_NAMES, deduped); allies grant a finale loadout perk (a PIT-STOP repair, or a SPARE TIRE if you also earned your license) and are narrated in the recap ("the friends you made along the way had your back"). (3) POST-TOURNAMENT INVITE epilogue (Sam: "an invite to try out after"): the recap closes with a lane-scaled tryout invite (national-team / championship-program / 3v3 RoboRumble / 1v1 RoboRumble). (4) RENAME: CAREER → STORY MODE everywhere player-facing (splash card, hub chrome, the "3 = Story" hint). smoke83 → 100 asserts (stages-array finale per lane, the ball→rumble sequence, relationship/favor add-ally, the invite epilogue, the STORY MODE labels). Full battery green. (Backlog noted for Sam: veteran's double-elim ball bracket + a real 3v3 RoboRumble grid for the tryout; the human FLAMETHROWER is overpowered in RoboRumble.) Single file, no assets.
   v5.1.261 (2026-06-20): CAREER polish from a live Sam playtest — tank+abs-heading bugfix · controller-vs-keyboard pick · splash redesign. (1) BUGFIX (Sam: "tank + absolute heading is broken together"): `driveFieldCentric` now reports TANK as not-field-centric (returns false), so picking a tank drive FORCES absolute heading OFF (arcade stays uncoupled — "could be okay"); a belt-and-suspenders guard in startCareerMatch also clears it for a tank drive. (2) CONTROL SCHEME (Sam: "default controller if plugged in… maybe ask at the beginning"): a new `controls` beat after the lane pick asks Controller vs Keyboard; `career.input` + `careerHumanBind` resolve side 0's device via a LIVE gamepad check (browsers only expose a pad after a button press). TOUCH is intentionally NOT offered in career — it's a Single-Player-only thing (the career runs in the landscape twin-stick engine); the touch ENGINE is untouched (kept for SP + a future mobile release). (3) SPLASH REDESIGN (Sam): three MATCHING cards (CAREER gold · SINGLE PLAYER · MULTIPLAYER) — same style/size, the ▶ START aligned in the same spot, the richer 2-line descriptions restored, the "✦ NEW" tag removed, and each icon drawn on a light backing disc so it's visible regardless of PC/Mac emoji rendering (fixes the "barely visible joystick"). smoke83 → 91 asserts (controls beat, careerHumanBind, the difficulty→controls→intro flow); smoke57 updated for the tank-abs-heading change. Verified via a headless-Chromium screenshot pass. Full battery green.
