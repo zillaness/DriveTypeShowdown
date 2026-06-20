@@ -143,12 +143,14 @@ src+=`
   T('PRO quiz: 3 questions', careerQuizPick('power',careerQuizPlan()).length===3);
 
   // ───────────────────────── FULL CURRICULUM WALK (win every match, ace every quiz) ─────────────────────────
-  freshAt('intro'); let guard=0;
+  freshAt('intro'); let guard=0; const quizTopics={};
   while(career.node!=='after:capstone_rumble'&&guard++<160){
     if(phase==='p2cbeat')pick(0);
-    else if(phase==='p2cquiz'){const Q=career._quiz,q=Q.qs[Q.i];if(Q.picked==null){const R=careerQuizOptRects(q.opts.length);careerQuizClick(R[q.ans].x+5,R[q.ans].y+5);}else careerQuizClick(careerQuizContRect().x+5,careerQuizContRect().y+5);}
+    else if(phase==='p2cquiz'){const Q=career._quiz,q=Q.qs[Q.i];quizTopics[q.topic]=1;if(Q.picked==null){const R=careerQuizOptRects(q.opts.length);careerQuizClick(R[q.ans].x+5,R[q.ans].y+5);}else careerQuizClick(careerQuizContRect().x+5,careerQuizContRect().y+5);}
     else { liveResult(0); careerMatchEnd(0); } // a match is live → win it
   }
+  T('curriculum hits 3 quizzes across topics (tools, fab, power)', quizTopics.tools&&quizTopics.fab&&quizTopics.power);
+  T('acing the quizzes accrued build bonuses (hp+speed+weapon)', career.bonuses.hp>0&&career.bonuses.speed>0&&career.bonuses.weapon>0);
   T('full walk reaches the finale', career.node==="after:capstone_rumble"&&guard<160);
   T('full walk taught C1..C6', ['C1','C2','C3','C4','C5','C6'].every(c=>career.taught.includes(c)));
   T('full walk cleared all 7 stages', ['tank_hook','arcade_course','strafe_intro','field_centric','holo_shooter','heading_advanced','capstone_rumble'].every(s=>career.cleared.includes(s)));
