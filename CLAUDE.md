@@ -44,7 +44,8 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
 ## 📍 Project context lives here
 
 - **`MIGRATION.md`** — read first: full project state, current focus, constraints.
-- **`HANDOFF_2026-06-19.md`** — LATEST thread handoff (tip v5.1.251): map editor (done), Tournament v2 locked design + the agreed next build. **Start here when resuming.**
+- **`HANDOFF_2026-06-20.md`** — LATEST thread handoff (tip v5.1.269): Career mode COMPLETE, the CREDITS screen, ball-mode/FFA bug fixes, flame nerf + RoboRumble kill-race scoring + the live backlog. **Start here when resuming.**
+- **`HANDOFF_2026-06-19.md`** — prior handoff (tip v5.1.245/251): map editor (done) + the Tournament v2 locked design.
 - **`OVERNIGHT_PLAN.md`** — the F1–F5 backlog + the 🏆 Tournament v2 LOCKED DESIGN block.
 - **`HANDOFF_2026-06-16.md`** — the in-depth narrative (weapons / perks / easter eggs / cheats vision).
 - **`CAREER_PLAN.md`** — buildable spec for the CAREER / STORY MODE (v2.0 reframe: the FUN TUTORIAL — a CYOA
@@ -52,11 +53,12 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
   splash CAREER tile → difficulty lane → hub → story/coach/**quiz** beats → drive-locked matches (all 5 modes) →
   win/loss routing (with rematches) → finale. Shipped: v5.1.252 shell/HUB/CYOA · v5.1.253 real matches + adaptive
   difficulty · v5.1.254 the QUIZ (inlined `career/quiz_bank.js`) + the battery-chemistry→FLAMETHROWER hook ·
-  v5.1.255 difficulty LANE (rematches + CPU-tier offset + grade-scaled questions) · v5.1.256 multiple ENDINGS +
-  personalized RECAP · v5.1.257 quizzes across the curriculum (SHOP/FAB/POWER checks). Remaining: ⑥ unlocks/
-  achievement/coach-skip, mobile-touch polish for career matches, and a live browser playtest. (All career logic
-  is in one block after `let tour=null;`; the inlined question bank is `CAREER_QUIZ`; tests in
-  `harness/tests/smoke83.js` — 70 asserts.)
+  v5.1.255 difficulty LANE · v5.1.256 multiple ENDINGS + RECAP · v5.1.257 curriculum quizzes · v5.1.258 lanes=CPU
+  tiers · v5.1.259 Phase ⑥ (achievements/coach-skip/bonus tuning) · v5.1.260 the FINALE bracket · v5.1.261 playtest
+  polish · v5.1.262 finale sequence + favor economy · v5.1.263 universal controls + solo time-trial races. **Career
+  is functionally COMPLETE.** Remaining: mobile-touch polish for career matches + a live browser playtest. (All
+  career logic is in one block after `let tour=null;`; the inlined question bank is `CAREER_QUIZ`; tests in
+  `harness/tests/smoke83.js` — 107 asserts.)
 - PRDs: `frcds_roborumble_v2_prd_v1.0.md`, `frcds_online_prd_v1.1.md`, `frcds_tournament_v2_prd_v1.0.md`.
 - Build: latest is `drive_showdown_v5.1.269.html` (single self-contained HTML).
 - Balance sim: `./extract.sh && node harness/tests/bbbalance.js /tmp/g.js`.

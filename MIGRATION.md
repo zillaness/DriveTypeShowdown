@@ -1,11 +1,26 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first (and `PRD_TABLED_MODES.md` if touching BattleBots / 3v3), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-19, at v5.1.251** (see the CURRENT-STATE block immediately below; the older `⏩ LATEST STATE — v5.1.116` section and everything beneath it is earlier history).
+**To resume: read this file first, then `HANDOFF_2026-06-20.md` (latest thread narrative + live backlog), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-20, at v5.1.269** (see the CURRENT-STATE block immediately below; older blocks are earlier history).
 
 ---
 
-## ⏩ CURRENT STATE — 2026-06-19, **v5.1.251** (READ THIS FIRST — supersedes the v5.1.116 block below)
+## ⏩ CURRENT STATE — 2026-06-20, **v5.1.269** (READ THIS FIRST — supersedes every block below)
+
+**Build / branch:** tip = **`drive_showdown_v5.1.269.html`**, all green on **`dev`** (canonical; see `CLAUDE.md` BRANCH POLICY). `extract.sh` → `/tmp/g.js`; `./extract.sh && ./battery.sh` must print **ALL GREEN** before every commit. Commit as `Claude <noreply@anthropic.com>` is fine. Release ritual: edit → `git mv vN→vN+1` → `sed` the filename into `extract.sh` + `CLAUDE.md` → extract+battery green → commit "vN+1 …" → push `dev` + the session branch (`claude/inspiring-turing-a8yfss` this thread). **After `git mv` you must Read the renamed file before Edit.**
+
+**Shipped since v5.1.251 (this thread, all on `dev`) — full detail in `HANDOFF_2026-06-20.md`:**
+- **CAREER / STORY MODE — COMPLETE (v5.1.252–263):** the CYOA "fun tutorial" over all 5 modes — difficulty lanes, real drive-locked matches, curriculum quizzes (`CAREER_QUIZ`), Phase ⑥ (achievements/coach-skip/bonus tuning), multiple endings + recap, a finale bracket, universal controls + solo time-trial races. Tests in `smoke83.js` (107 asserts). Remaining: mobile-touch polish + a live browser playtest.
+- **CREDITS screen (v5.1.264–267):** splash `✦ CREDITS` button (+ `C` key / gamepad idx 4) → `drawCredits()` two brand panels — TEAM 2204 RAMBOTS (logo + rambots.org / @frc2204) and PROJECTS AND MODS (`drawPMLogo` vector wordmark + @projectsandmods / projectsandmods.com). Also P&M links in the cheat menu. Optional: swap `drawPMLogo` for a pixel-exact inlined logo.
+- **Ball-mode names/eggs FIX (v5.1.268):** ball bots now carry `ctl.name`/`ctl.bind` → typed names show above your bot, 1678/254 eggs fire in the 6-seat grid, and a red seat no longer reads "BLUE". New `p2RawName`/`p2DispName`.
+- **FFA weapons FIX (v5.1.268):** `bbLoadoutForBind()` now honors FFA (was MULTI-only) — the player's chosen weapon was being dropped (weaponless bot; "flame doesn't work in FFA" was the same root).
+- **Flame nerf + RoboRumble KILL-RACE scoring (v5.1.269):** human flame `burnBuild 1.5→1.15`; RoboRumble timed + infinite-lives now decided by **most kills** (`bbKill` credit, `bbSideKills`/`bbInfLives`/`bbTimeUpResult`, ☠ tags + result-screen score). smoke57 = 544 asserts.
+
+**OPEN / BACKLOG (needs Sam in the loop):** TASER BOT (new stun weapon — needs a spec); flame cone/slow revisit if still strong; CPU-brain tuning (kamikaze 0%-in-3v3, tier lapse/react, jet dash-through, repair heal↔buff cycle); Tournament per-match lineup swaps (deferred); STOCK→6-player FFA (~10h refactor, playtest); Career mobile-touch + live playtest; pixel-exact P&M logo. **See `HANDOFF_2026-06-20.md` for the full list + gotchas.**
+
+---
+
+## ⏩ EARLIER STATE — 2026-06-19, **v5.1.251** (superseded by the block above)
 
 **Build / branch:** tip = **`drive_showdown_v5.1.251.html`**, all green on **`dev`** (canonical; see `CLAUDE.md` BRANCH POLICY). `extract.sh` → `/tmp/g.js`; `./extract.sh && ./battery.sh` must print **ALL GREEN** before every commit. Commit as `Claude <noreply@anthropic.com>` is fine (Sam OK'd). Release ritual: edit → `git mv vN→vN+1` → `sed` the filename into `extract.sh` + `MIGRATION.md` → extract+battery green → commit "Release …" → push `dev` + the session branch. **After `git mv` you must Read the renamed file before Edit.**
 
