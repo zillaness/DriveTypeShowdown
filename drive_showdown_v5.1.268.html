@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.267.html
-  version: 5.1.267
+  file: drive_showdown_v5.1.268.html
+  version: 5.1.268
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -2617,7 +2617,8 @@ function b2SpawnDescs(){
       for(let k=0;k<n;k++){const r=lst[k];
         const x=mir?(side===0?B2M_WX+68:FW-B2M_WX-68):clamp((side===0?FW*0.34:FW*0.66)+(k-(n-1)/2)*64,RR+20,FW-RR-20);
         const y=mir?ys[k]:FH-58, h=mir?(side===0?0:Math.PI):-Math.PI/2;
-        descs.push({x,y,h,al:side,bind:r.bind,seat:k,type:r.type,tier:r.tier|0});
+        const nm=(r.type==='cpu')?((side===0?'RED':'BLUE')+(n>1?' '+(k+1):'')):((m2.tseats&&m2.tseats[r.bind]&&m2.tseats[r.bind].name)||('PLAYER '+(k+1))); // v5.1.268 carry the seat's TRUE name (typed name / RED|BLUE+slot) so a same-side grid seat never reads the other color and typed/egg names register
+        descs.push({x,y,h,al:side,bind:r.bind,seat:k,type:r.type,tier:r.tier|0,name:nm});
       }
     }
     return descs;
@@ -2625,7 +2626,7 @@ function b2SpawnDescs(){
   const base=mir
     ?[{x:B2M_WX+68,y:FH/2,h:0},{x:FW-B2M_WX-68,y:FH/2,h:Math.PI}]   // red defends left, blue right
     :[{x:480,y:FH-58,h:-Math.PI/2},{x:720,y:FH-58,h:-Math.PI/2}];
-  return base.map((q,i)=>({x:q.x,y:q.y,h:q.h,al:i,bind:i,seat:0,type:(m2.claim&&m2.claim[i]&&m2.claim[i].type==='cpu')?'cpu':'human',tier:(m2.claim&&m2.claim[i]&&m2.claim[i].tier|0)||0}));
+  return base.map((q,i)=>({x:q.x,y:q.y,h:q.h,al:i,bind:i,seat:0,type:(m2.claim&&m2.claim[i]&&m2.claim[i].type==='cpu')?'cpu':'human',tier:(m2.claim&&m2.claim[i]&&m2.claim[i].tier|0)||0,name:(m2.name&&m2.name[i])||null})); // v5.1.268 legacy 2-card: the claim name (incl. 1678/254 eggs) rides on ctl.name too
 }
 function startP2Ball(){cheatedRun=false;paused=false;
   applyLayout('ball2p');
@@ -2640,7 +2641,7 @@ function startP2Ball(){cheatedRun=false;paused=false;
   balls=starts.map((p,j)=>({x:p.x,y:p.y,vx:0,vy:0,id:j,sc:false,intaken:false,proj:false,lastT:null,golden:false}));
   b2={t:0,cd:3,result:null,score:[0,0],sudden:false,pinT:descs.map(()=>0),toast:null,repd:false,btTouch:false,pups:[],pupTimer:5,
     bots:descs.map((q,i)=>({x:q.x,y:q.y,h:q.h,al:q.al,spot:i,bind:q.bind,seat:q.seat,role:'main', // v5.1.71: descriptors come from b2SpawnDescs (legacy 2-card OR the MULTI grid roster)
-      ctl:{type:q.type==='cpu'?'cpu':'human',tier:q.tier|0},
+      ctl:{type:q.type==='cpu'?'cpu':'human',tier:q.tier|0,bind:q.bind,name:q.name||null}, // v5.1.268 ctl.bind/name like the RoboRumble + tank rosters → correct per-bot name/egg/color
       _inp:{vx:0,vy:0,vr:0},intk:[],shootCd:0,speedT:0}))};
   b2.ballStarts=starts;
   b2.cpus=b2SpawnCpus();
@@ -2860,7 +2861,7 @@ function updateP2Ball(dt){
          }
          let opp=null,od=1e9;for(const o of b2.bots){if(o.al===bo.al)continue;const dd=Math.hypot(o.x-bo.x,o.y-bo.y);if(dd<od){od=dd;opp=o;}} // nearest opposing main (the pinner)
          if(opp){const oi=b2.bots.indexOf(opp);if(oi>=0)b2.pinT[oi]=0;const pdx=opp.x-bo.x,pdy=opp.y-bo.y,pd=Math.hypot(pdx,pdy)||1;opp.x=clamp(opp.x+pdx/pd*52,RR,FW-RR);opp.y=clamp(opp.y+pdy/pd*52,RR,FH-RR);b2Wall(opp,RR);}
-         b2.toast={txt:'PIN PENALTY — free ball to '+p2Name(bo.bind),t:2.4,col:M2_COLS[bo.al]};
+         b2.toast={txt:'PIN PENALTY — free ball to '+p2DispName(bo.bind,bo),t:2.4,col:M2_COLS[bo.al]};
        }
      }
    }}
@@ -3033,10 +3034,10 @@ function achH2HResult(w){ // v3.11 achievements at the H2H match-result edge
 // ── v5.1.91 ball 3v3 polish: per-main HUD roster (the scoreboard was alliance-level only) ──
 function b2MainCol(bo){ // match the on-field tag/ring: a distinct same-side shade at >2 mains, else the egg-or-team color (1v1/2v2 classic)
   if(b2&&b2.bots&&b2.bots.length>2)return teamShade(bo.al,bo.seat||0);
-  const k=eggKind(m2.name&&m2.name[bo.bind]);return k?EGG_COLS[k]:M2_COLS[bo.al];
+  const k=eggKind(p2RawName(bo.bind,bo));return k?EGG_COLS[k]:M2_COLS[bo.al];
 }
 function b2HudRoster(al){ // per-main HUD rows for one side: {name,drive,col,mag,bind} (mag = filled magazine count in shooter, else -1)
-  return b2Mains(al).map(bo=>({name:p2Name(bo.bind),drive:(m2.drive[bo.bind]?m2.drive[bo.bind].name:''),
+  return b2Mains(al).map(bo=>({name:p2DispName(bo.bind,bo),drive:(m2.drive[bo.bind]?m2.drive[bo.bind].name:''),
     col:b2MainCol(bo),mag:m2.mode==='shooter'?Math.min((bo.intk?bo.intk.length:0),4):-1,bind:bo.bind}));
 }
 function drawP2Ball(){
@@ -3103,7 +3104,7 @@ function drawP2Ball(){
     withBot(bo.bind,bo,()=>{drawRobot();});
     ctx.save();ctx.translate(FX+bo.x,FY+bo.y);p2AllianceRing(bo.al,shade);ctx.restore(); // ring on top so it's never buried by the swerve modules
     if(arcadeMode||bo.stunT>0)drawStun(bo);
-    drawP2Tag(bo.bind,bo,null,shade);
+    drawP2Tag(bo.bind,bo,p2DispName(bo.bind,bo),shade);
   }
   // HUD
   ctx.textAlign='center';
@@ -4176,7 +4177,7 @@ function bbResolveLoadout(ld){ // → derived stats; a null/default loadout is f
     deal:w.deal,take:a.take*w.take,zone:a.zone,perk:(ld&&ld.perk)||'none',paint:(ld&&ld.paint)|0,accent:(ld&&ld.accent)|0};  // v5.1.112 PERK passes through; v5.1.247 PAINT + v5.1.248 ACCENT pass through so the custom colors render IN-MATCH
 }
 function bbLoadoutForBind(bind){ // MULTI grid seat loadout, else 1v1 claim loadout, else null (no loadout UI yet → neutral)
-  if(tankGridActive()&&m2.tseats&&m2.tseats[bind]&&m2.tseats[bind].loadout)return m2.tseats[bind].loadout;
+  if((tankGridActive()||bbIsFFA())&&m2.tseats&&m2.tseats[bind]&&m2.tseats[bind].loadout)return m2.tseats[bind].loadout; // v5.1.268 FFA uses the 6-seat grid too — tankGridActive() is MULTI-only, so the player's chosen weapon was dropped (→ a neutral, weaponless bot: "all weapons broken in FFA")
   if(m2.bbLoadout&&m2.bbLoadout[bind])return m2.bbLoadout[bind];
   return null;
 }
@@ -5804,7 +5805,7 @@ function visDefault(){return{wl:0,wr:0,sm:[{d:0,s:0},{d:0,s:0},{d:0,s:0},{d:0,s:
 function withBot(p,bot,fn){
   const sav={robot,holoMode,steerMode,curD,curHD,curSD,lastRobotInp,sens:sensitivity,egg:eggOverride,vis:visSnapshot()};
   sensitivity=m2.sens[p];
-  {const k=eggKind(m2.name&&m2.name[p]);eggOverride=k?EGG_COLS[k]:null;} // name-egg recolors this bot
+  {const k=eggKind(p2RawName(p,bot));eggOverride=k?EGG_COLS[k]:null;} // name-egg recolors this bot (read the bot's own ctl.name so grid seats recolor too)
   const c=p2DriveCtx(p);
   robot=bot;holoMode=c.holoMode;steerMode=c.steerMode;
   if(c.curD!==undefined)curD=c.curD;if(c.curHD!==undefined)curHD=c.curHD;if(c.curSD!==undefined)curSD=c.curSD;
@@ -5819,10 +5820,10 @@ function withBot(p,bot,fn){
   return r;
 }
 function drawP2Tag(p,b,nameOverride,colOverride){
-  const k=eggKind(m2.name&&m2.name[p]);
+  const k=eggKind(p2RawName(p,b));
   ctx.font='bold 10px Courier New';ctx.textAlign='center';
   ctx.fillStyle=colOverride||(k?EGG_COLS[k]:M2_COLS[p]);
-  ctx.fillText('▼ '+(nameOverride||p2Name(p)),FX+b.x,FY+b.y-RR-12);
+  ctx.fillText('▼ '+(nameOverride||p2DispName(p,b)),FX+b.x,FY+b.y-RR-12);
 }
 // bold red/blue (or egg) alliance halo + ring so each main bot's side reads at a glance, even when both pick the same drive. Call within a translate to the bot center.
 function p2AllianceRing(p,colOverride){
@@ -7553,6 +7554,10 @@ function p2cDriveDef(pl){const d=m2.drive[pl]||{kind:'main',idx:3};const g=DGROU
 function p2cGroupIdx(pl){const k=m2.drive[pl]?m2.drive[pl].kind:'main';const i=DGROUPS.findIndex(g=>g.kind===k);return i<0?0:i;}
 function p2cSetDrive(pl,gi,idx){const g=DGROUPS[((gi%3)+3)%3],n=g.list.length,ii=((idx%n)+n)%n,d=g.list[ii];m2.drive[pl]={kind:g.kind,idx:ii,name:d.name,c:d.c};absHeadingCouple(driveFieldCentric(m2.drive[pl]));} // v5.1.230 picking a field/bot-centric drive sets the absHeading default
 function p2Name(pl){const k=eggKind(m2.name&&m2.name[pl]);if(k)return EGG_NAMES[k];return (m2.name&&m2.name[pl])?m2.name[pl]:(pl===0?'RED':'BLUE');}
+// v5.1.268 the bot's TRUE name: a grid/roster seat stores its (typed) name on ctl.name; p2Name(bind) only knew the
+// legacy 2-card slots (so a RED seat at an odd grid bind wrongly read 'BLUE' and typed/egg names never registered).
+function p2RawName(p,bot){return (bot&&bot.ctl&&bot.ctl.name)||(m2.name&&m2.name[p])||'';}
+function p2DispName(p,bot){const raw=p2RawName(p,bot),k=eggKind(raw);return k?EGG_NAMES[k]:(raw||(p===0?'RED':'BLUE'));}
 function p2CpuTag(w,l){const lc=m2.claim&&m2.claim[l],wc=m2.claim&&m2.claim[w];return (lc&&lc.type==='cpu')?('  ·  🤖 beat '+CPU_TIERS[lc.tier|0].name):(wc&&wc.type==='cpu')?('  ·  🤖 vs '+CPU_TIERS[wc.tier|0].name):'';}
 // card layout (CW=1280,CH=720)
 function p2cCol(pl){return pl===0?CW/4:3*CW/4;}
@@ -10264,6 +10269,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.268 (2026-06-20): BALL-MODE NAMES + FFA WEAPONS — two bug fixes Sam reported. (1) BALL-MODE NAMES/EGGS: ball-mode bots were built with ctl:{type,tier} only (no ctl.name/bind), so every name+egg+color lookup read m2.name[bind] — the legacy 2-card slots. A same-side grid seat at an odd bind wrongly read 'BLUE' (red2→blue), typed names never showed above your bot, and the 1678/254 team eggs never fired in the 6-seat grid. FIX: ball bots now carry ctl.bind + ctl.name from the grid seat (m2.tseats[bind].name) / RED|BLUE+slot for CPUs / the claim name for 1v1 (mirrors the v5.1.202 RoboRumble fix). New p2RawName/p2DispName resolve a bot's true name (egg-aware); withBot, drawP2Tag, b2MainCol, b2HudRoster + the pin-penalty toast all route through them. (2) FFA WEAPONS BROKEN FOR THE PLAYER: bbLoadoutForBind() gated the grid-seat loadout on tankGridActive(), which is MULTI-only (tfmt==='multi') — but FFA is tfmt==='ffa', so the player's CHOSEN weapon was dropped and the bot spawned neutral/weaponless (CPUs auto-arm, so only the human looked broken; the flamethrower "not working in FFA" was the same root). FIX: bbLoadoutForBind also honors FFA (tankGridActive()||bbIsFFA()). Full battery ALL GREEN.
   v5.1.267 (2026-06-20): CREDITS — BOTH TEAMS (Sam: "projects and mods AND rambots"). The credits screen is now two brand panels: TEAM 2204 RAMBOTS (red — the gearhead _logoMain emblem + "FIRST Robotics Competition" + rambots.org / @frc2204 with the real Instagram glyph) above PROJECTS AND MODS (navy — the drawPMLogo wordmark + @projectsandmods / projectsandmods.com). Each panel has two half-width link buttons (window.open) via a shared linkBtn helper. ← BACK unchanged. Full battery ALL GREEN.
   v5.1.266 (2026-06-20): CREDITS LOGO — replaced the plain gear+wordmark on the credits card with drawPMLogo, a vector recreation of the PROJECTS AND MODS brand mark: a toothed ring behind a bold condensed "PROJECTS", with "AND" lower-left and "MODS" to the right, on a slight upward slant (white artwork on the navy card). Drawn in-canvas from a condensed-bold font stack (Arial Narrow / Helvetica Neue / Impact / Roboto Condensed) — no external asset, matching the single-file ethos. For a pixel-exact logo, commit the source PNG/SVG and inline it as a base64 data-URI like _logoMain/_logoIG, then call drawImage in place of drawPMLogo. Full battery ALL GREEN.
   v5.1.265 (2026-06-20): CREDITS SCREEN — a discoverable credits page (Sam chose "both": the cheat-menu links AND a real screen). A new ✦ CREDITS button shares the splash's bottom row with ⚙ SETTINGS (splashRects splits into two halves); also reachable by the `C` key and gamepad (splash focus idx 4). phase 'credits' → drawCredits: the game credit (DRIVE TYPE SHOWDOWN · by Sam Cao · Team 2204 Rambots) + a PROJECTS AND MODS card (the drawPMGear vector mark + wordmark) + the YouTube (@projectsandmods) and website (projectsandmods.com) link buttons (window.open), with a ← BACK button (Esc / pad-B also exit). Touch + mouse + gamepad all route to it. The logo is the vector gear for now — drop in the real PNG/SVG (base64 data-URI) to replace drawPMGear when it lands. Full battery ALL GREEN. Single file, no assets.
