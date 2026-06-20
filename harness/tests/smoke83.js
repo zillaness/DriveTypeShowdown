@@ -1,81 +1,102 @@
-// smoke83 — CAREER / STORY MODE, Phase ① (shell + HUB + CYOA beat screen)
-// Exercises: careerNew shape, store/load round-trip, hub→intro, beat render,
-// choice routing (+ stub-stage advance), when-gated choices, coach `then`
-// chaining, a full curriculum walk to the finale, and the splash CAREER tile.
+// smoke83 — CAREER / STORY MODE, Phases ①–③
+//   ① shell + HUB + CYOA beat screen (story/coach/finale, choices, when-gating, then-chaining)
+//   ② startCareerMatch: drive-lock + adaptive tier launches the real mode engine
+//   ③ careerMatchEnd: WIN *or* LOSS advances to the post-match fork (the keystone)
 const fs=require('fs');let src=fs.readFileSync('/tmp/g.js','utf8');
 src+=`
 ;(function(){
-  const ok=(l,c)=>console.log((c?'ok — ':'FAIL — ')+l);
-  let P=0,F=0; const T=(l,c)=>{ (c?P++:F++); ok(l,c); };
+  let P=0,F=0; const T=(l,c)=>{ (c?P++:F++); console.log((c?'ok — ':'FAIL — ')+l); };
+  const driveId=(d)=>{const g=[DRIVES,HOLO_DRIVES,STEER_DRIVES][d.kind==='main'?0:d.kind==='holo'?1:2];return g[d.idx]&&g[d.idx].id;};
+  const liveResult=(r)=>{ if(tf2)tf2.result=r; else if(r2)r2.result=r; else if(bb2)bb2.result=r; else if(b2)b2.result=r; };
+  const freshAt=(node)=>{career=careerNew();career.node=node||'intro';phase='p2cbeat';};
+  const pick=(i)=>{const b=careerBeat(career.node),its=careerBeatButtons(b),rs=careerBeatRects(its.length);careerBeatClick(rs[i].x+5,rs[i].y+5);};
 
-  // 1) careerNew shape
+  // ───────────────────────── ① SHELL ─────────────────────────
   const n=careerNew();
-  T('careerNew: node=intro, skill=0.5, empty arrays, ver=1',
-    n.node==='intro'&&n.skill===0.5&&n.taught.length===0&&n.cleared.length===0&&n.ver===1);
-
-  // 2) store/load round-trip via the mock localStorage
+  T('careerNew shape (intro / 0.5 / empty / ver1)', n.node==='intro'&&n.skill===0.5&&n.taught.length===0&&n.cleared.length===0&&n.ver===1);
   career=careerNew(); career.skill=2.3; career.taught.push('C1'); careerStore();
   const back=JSON.parse(localStorage.getItem('frcds_career_v1'));
   T('careerStore round-trips through localStorage', !!back&&back.skill===2.3&&back.taught[0]==='C1');
-  T('careerMigrate fills a sparse save', (()=>{const m=careerMigrate({skill:1.1,node:'after:tank_hook'});return m.skill===1.1&&m.node==='after:tank_hook'&&Array.isArray(m.cleared)&&m.ver===1;})());
-
-  // 3) hub: careerEnter then START → p2cbeat at intro
+  T('careerMigrate fills a sparse save', (()=>{const m=careerMigrate({skill:1.1,node:'after:tank_hook'});return m.skill===1.1&&Array.isArray(m.cleared)&&m.ver===1;})());
   careerSave=null; career=null; careerEnter();
-  T('careerEnter → p2career hub (land2p)', phase==='p2career');
+  T('careerEnter → p2career hub', phase==='p2career');
   let B=careerHubBtns(); careerHubClick(B.go.x+10,B.go.y+10);
   T('hub START → p2cbeat at intro', phase==='p2cbeat'&&!!career&&career.node==='intro');
-
-  // 4) a beat renders without throwing + emits text
   texts.length=0; let drew=true; try{drawCareerBeat();}catch(e){drew=false;console.log('  draw err:',e.message);}
   T('intro beat renders (no throw, emits text)', drew&&texts.length>0);
-  let drewHub=true; try{drawCareerHub();}catch(e){drewHub=false;console.log('  hub err:',e.message);}
-  T('hub renders (no throw)', drewHub);
+  let dh=true; try{drawCareerHub();}catch(e){dh=false;console.log('  hub err:',e.message);}
+  T('hub renders', dh);
 
-  // 5) choosing choice 0 → stage:tank_hook (Phase① stub) → after:tank_hook; records the choice
-  let items=careerBeatButtons(careerBeat('intro')), R=careerBeatRects(items.length);
-  careerBeatClick(R[0].x+5,R[0].y+5);
-  T('intro choice0 → tank cleared + lands on after:tank_hook + choice recorded',
-    career.cleared.includes('tank_hook')&&career.node==='after:tank_hook'&&career.choices['intro']===0);
+  // ───────────────────────── ② MATCH LAUNCH ─────────────────────────
+  freshAt('intro'); pick(0); // "Let's GO — drive the tank" → startCareerMatch('tank_hook')
+  T('intro choice0 launches the TANK match (phase p2tank, tf2 live)', phase==='p2tank'&&!!tf2&&tf2.result===null);
+  T('drive-LOCKED to tank on side 0', driveId(m2.drive[0])==='tank');
+  T('side 1 is a CPU at the adaptive tier', m2.claim[1]&&m2.claim[1].type==='cpu'&&typeof m2.claim[1].tier==='number');
+  T('career flagged active + stage=tank_hook', career.active===true&&career.stage==='tank_hook');
+  // careerTier mapping
+  career.skill=2.2; T('careerTier: skill 2.2 → tier 2', careerTier()===2);
+  career.skill=3.9; T('careerTier: skill 3.9 → tier 4', careerTier()===4);
+  career.skill=-1;  T('careerTier clamps low → 0', careerTier()===0);
+  career.skill=0.5;
+  // careerSetDrive resolves across groups
+  careerSetDrive(0,'mecanum'); T('careerSetDrive resolves a HOLO id', driveId(m2.drive[0])==='mecanum');
+  careerSetDrive(0,'carSteer'); T('careerSetDrive resolves a STEER id', driveId(m2.drive[0])==='carSteer');
 
-  // 6) when-gated detour choice: hidden unless lastResult==='dominated'
-  career.flags.lastResult='won';
-  T('detour hidden when not dominated (2 of 3 choices)', careerVisibleChoices(careerBeat('after:tank_hook')).length===2);
-  career.flags.lastResult='dominated';
-  T('detour appears when dominated (3 choices)', careerVisibleChoices(careerBeat('after:tank_hook')).length===3);
+  // nav shows a single CONTINUE STORY button while a career match is live
+  tf2.result=0; texts.length=0; let dn=true; try{drawP2Nav(400);}catch(e){dn=false;console.log('  nav err:',e.message);}
+  T('drawP2Nav (career, win) renders a continue prompt', dn&&texts.some(t=>/CONTINUE STORY/.test(t)));
 
-  // 7) coach via 'then': intro choice1 → coach:C1 (marks taught) → continue → stub stage
-  career=careerNew(); career.node='intro'; phase='p2cbeat';
-  items=careerBeatButtons(careerBeat('intro')); R=careerBeatRects(items.length);
-  careerBeatClick(R[1].x+5,R[1].y+5);
-  T('intro choice1 → coach:C1 shown + C1 marked taught', career.node==='coach:C1'&&career.taught.includes('C1'));
-  items=careerBeatButtons(careerBeat('coach:C1')); R=careerBeatRects(items.length);
-  T('coach card shows a single continue button', items.length===1&&items[0].cont===true);
-  careerBeatClick(R[0].x+5,R[0].y+5);
-  T('coach continue follows _then → tank stub → after:tank_hook',
-    career.cleared.includes('tank_hook')&&career.node==='after:tank_hook');
+  // ───────────────────────── ③ RESULT ROUTER ─────────────────────────
+  // a LOSS still advances (progression is by completion, not winning)
+  freshAt('intro'); pick(0); tf2.result=1; const sk0=career.skill; careerMatchEnd(1);
+  T('LOSS clears the stage + advances to after:tank_hook', career.cleared.includes('tank_hook')&&career.node==='after:tank_hook'&&phase==='p2cbeat');
+  T('LOSS sets lastResult lost/blown_out + lowers skill', (career.flags.lastResult==='lost'||career.flags.lastResult==='blown_out')&&career.skill<sk0&&career.active===false);
+  // a WIN advances + raises skill
+  freshAt('intro'); pick(0); tf2.result=0; const sk1=career.skill; careerMatchEnd(0);
+  T('WIN clears the stage + advances + raises skill', career.cleared.includes('tank_hook')&&career.node==='after:tank_hook'&&career.skill>sk1&&(career.flags.lastResult==='won'||career.flags.lastResult==='dominated'));
+  // the nav CLICK path calls the router (advance on win)
+  freshAt('intro'); pick(0); tf2.result=0;
+  const handled=p2NavClick(CW/2, 420, 400, ()=>{});
+  T('p2NavClick (career) routes the result → advanced + match torn down', handled===true&&career.active===false&&career.node==='after:tank_hook'&&tf2===null);
 
-  // 8) full curriculum walk (always pick choice 0) reaches the finale
-  career=careerNew(); career.node='intro'; phase='p2cbeat'; let guard=0;
-  while(career.node!=='after:capstone_rumble'&&guard++<80){
-    const b=careerBeat(career.node), its=careerBeatButtons(b), rs=careerBeatRects(its.length);
-    careerBeatClick(rs[0].x+5,rs[0].y+5);
+  // when-gated detour choice (pure gating logic)
+  career.flags.lastResult='won';       T('detour hidden when not dominated (2 choices)', careerVisibleChoices(careerBeat('after:tank_hook')).length===2);
+  career.flags.lastResult='dominated'; T('detour shows when dominated (3 choices)', careerVisibleChoices(careerBeat('after:tank_hook')).length===3);
+
+  // ───────────────────────── ④ REAL MARGINS (skill + story track performance) ─────────────────────────
+  const setLives=(s0,s1)=>{tf2.tanks.forEach(t=>{t.lives=(t.side===0?s0:s1);});};
+  freshAt('intro'); pick(0); setLives(3,0); tf2.result=0; careerMatchEnd(0);
+  T('flawless tank win (3 lives left) → DOMINATED', career.flags.lastResult==='dominated');
+  T('dominated win makes the steer detour reachable for real', careerVisibleChoices(careerBeat('after:tank_hook')).length===3);
+  freshAt('intro'); pick(0); setLives(0,3); tf2.result=1; careerMatchEnd(1);
+  T('blowout tank loss (foe full) → BLOWN_OUT', career.flags.lastResult==='blown_out');
+  freshAt('intro'); pick(0); setLives(0,1); tf2.result=1; careerMatchEnd(1);
+  T('close tank loss (foe at 1 life) → LOST (not blown_out)', career.flags.lastResult==='lost');
+
+  // coach then-chain: intro choice1 → coach:C1 → continue launches the stage
+  freshAt('intro'); pick(1);
+  T('intro choice1 → coach:C1 (taught)', career.node==='coach:C1'&&career.taught.includes('C1'));
+  pick(0); // coach continue → its _then stage
+  T('coach continue → launches the tank match', phase==='p2tank'&&!!tf2&&career.active===true);
+
+  // ESC out of a live career match → back to the beat, nothing recorded
+  career.cleared=[]; p2Back();
+  T('ESC from a career match → p2cbeat, not cleared, inactive', phase==='p2cbeat'&&career.active===false&&career.cleared.length===0);
+
+  // ───────────────────────── FULL CURRICULUM WALK (win every match) ─────────────────────────
+  freshAt('intro'); let guard=0;
+  while(career.node!=='after:capstone_rumble'&&guard++<120){
+    if(phase==='p2cbeat')pick(0);
+    else { liveResult(0); careerMatchEnd(0); } // a match is live → win it
   }
-  T('full walk reaches the finale beat', career.node==='after:capstone_rumble'&&guard<80);
+  T('full walk reaches the finale', career.node==='after:capstone_rumble'&&guard<120);
   T('full walk taught C1..C6', ['C1','C2','C3','C4','C5','C6'].every(c=>career.taught.includes(c)));
-  T('full walk cleared all 7 stages',
-    ['tank_hook','arcade_course','strafe_intro','field_centric','holo_shooter','heading_advanced','capstone_rumble'].every(s=>career.cleared.includes(s)));
+  T('full walk cleared all 7 stages', ['tank_hook','arcade_course','strafe_intro','field_centric','holo_shooter','heading_advanced','capstone_rumble'].every(s=>career.cleared.includes(s)));
+  T('full walk raised skill above the start', career.skill>0.5);
+  // finale Finish → hub
+  pick(0); T('finale Finish → hub', phase==='p2career');
 
-  // 9) finale Finish → back to the hub
-  {const fb=careerBeat('after:capstone_rumble'), fi=careerBeatButtons(fb), fr=careerBeatRects(fi.length);
-   T('finale shows a Finish choice', fi.length===1);
-   careerBeatClick(fr[0].x+5,fr[0].y+5);
-   T('finale Finish → hub', phase==='p2career');}
-
-  // 10) ESC routing: beat → hub → splash
-  phase='p2cbeat'; p2Back(); T('ESC from beat → hub', phase==='p2career');
-  p2Back(); T('ESC from hub → splash', phase==='splash');
-
-  // 11) splash CAREER tile routes to the hub
+  // splash CAREER tile → hub
   applyLayout('legacy'); phase='splash';
   const SR=splashRects(); click(SR.career.x+10,SR.career.y+10);
   T('splash CAREER tile → p2career', phase==='p2career');

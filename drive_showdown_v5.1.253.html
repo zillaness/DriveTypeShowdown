@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.252.html
-  version: 5.1.252
+  file: drive_showdown_v5.1.253.html
+  version: 5.1.253
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -3976,6 +3976,13 @@ function p2SeriesReport(winner){
   if(p2Series.w[winner]>=p2Series.need)p2Series.done=winner;
 }
 function drawP2Nav(cy){
+  if(career&&career.active){ // v5.1.252 CAREER: one button — win OR loss continues the story
+    const w=r2?r2.result:tf2?tf2.result:bb2?bb2.result:b2?b2.result:null;
+    ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillStyle='#8888aa';
+    ctx.fillText(w===0?'you won — nice driving':(typeof w==='number'?'you lost — but you learned the bot':'the dust settles'),CW/2,cy-14);
+    btn(CW/2-110,cy,220,40,'▶ CONTINUE STORY','#44ffaa');
+    return;
+  }
   if(tour&&(tour.cur||tour.qual)){
     if(tour.qual){btn(CW/2-90,cy,180,40,'✓ RECORD','#44ffaa');return;}
     const [a,b]=tour.curE;
@@ -4003,6 +4010,12 @@ function drawP2Nav(cy){
   ctx.fillText('[Esc] back to controllers',CW/2,cy+104);
 }
 function p2NavClick(mx,my,cy,rematch){
+  if(career&&career.active){ // v5.1.252 CAREER: read the result the same way, advance on WIN or LOSS (or draw)
+    if(inR(mx,my,{x:CW/2-110,y:cy,w:220,h:40})){
+      const w=r2?r2.result:tf2?tf2.result:bb2?bb2.result:b2.result;
+      careerMatchEnd(w);}
+    return true;
+  }
   if(tour&&(tour.cur||tour.qual)){
     if(tour.qual){
       if(inR(mx,my,{x:CW/2-90,y:cy,w:180,h:40}))tourQualDone(tourQualMetric(),tourQualDisplay()); // v5.1.244 record the mode's 1v1 metric
@@ -6138,17 +6151,83 @@ function careerGoto(ref,thenRef){
   careerStore();phase='p2cbeat';
 }
 function careerContinue(){const t=career._then;career._then=null;if(t)careerGoto(t);else{phase='p2career';careerStore();}}
-// PHASE ① STUB: no match engine wired yet — mark the stage cleared and advance to its post beat.
-// Phase ② replaces this body with startCareerMatch(); Phase ③ routes the real result here via careerMatchEnd().
-function careerStartStage(sid,thenRef){
-  career.stage=sid;
-  const stg=CAREER_STAGES[sid];
-  if(stg&&stg.concept&&!career.taught.includes(stg.concept))career.taught.push(stg.concept); // playing a stage IS learning its concept (the hub readout reflects what you've driven, not just opt-in coach cards)
-  if(!career.cleared.includes(sid))career.cleared.push(sid);
-  if(!career.flags.lastResult)career.flags.lastResult='won'; // placeholder until real matches set it
-  career.log.push({stage:sid,result:career.flags.lastResult,stub:true});
-  career.stage=null;careerStore();
-  careerGoto(careerNextNode(sid));
+function careerStartStage(sid,thenRef){startCareerMatch(sid);} // a 'stage:<id>' goto launches the real match (Phase ②)
+
+// ── PHASE ②: launch a real career match (drive-lock + adaptive tier), then the existing mode engine runs ──
+function careerTier(){return clamp(Math.round(career.skill),0,4);} // skill 0..4 → CPU tier index 0..4 (§3.2)
+function careerSetDrive(pl,id){ // resolve a drive id → m2.drive[pl] via the catalog groups (p2cSetDrive also couples absHeading)
+  const groups=[DRIVES,HOLO_DRIVES,STEER_DRIVES];
+  for(let g=0;g<3;g++){const i=groups[g].findIndex(d=>d.id===id);if(i>=0){p2cSetDrive(pl,g,i);return true;}}
+  return false;
+}
+function careerStageSetup(st){ // a clean, beginner-friendly 1v1 per mode (no extra allies; short matches)
+  m2.set.bestOf=1;m2.set.cpus=0;m2.set.tcpus=0;m2.set.tallies=0;m2.set.allyTier=1;
+  if(st.mode==='tankfight'){m2.set.tfmt='1v1';m2.set.tfmode='deathmatch';m2.set.lives=3;m2.set.tTimeSec=90;m2.set.contact='full';}
+  else if(st.mode==='race'){m2.set.layout='mirrored';}
+  else if(st.mode==='normal'||st.mode==='shooter'){m2.set.format='timed';m2.set.timeSec=75;m2.set.layout='mirrored';m2.set.contact='full';}
+  else if(st.mode==='battlebots'){m2.set.bbmode='ko';m2.set.bblives=1;m2.set.bbtime=0;m2.set.tfmt='1v1';}
+}
+function startCareerMatch(stageId){
+  const st=CAREER_STAGES[stageId];if(!st)return;
+  career.stage=stageId;career.active=true;
+  if(st.concept&&!career.taught.includes(st.concept))career.taught.push(st.concept); // playing a stage IS learning its concept
+  tour=null;p2Series=null;                  // career is single matches, never a tournament/series
+  m2.mode=st.mode;
+  m2.set={...M2_SET_DEFAULTS};
+  careerStageSetup(st);
+  p2cEnsureDrives();
+  const human=(gpConnected?{type:'gp',gp:0}:{type:'kb'}); // side 0 = the player (gamepad if present, else keyboard + touch joysticks)
+  m2.claim=[human,{type:'cpu',tier:careerTier()}];
+  m2.name=['YOU',(st.tag||'RIVAL').toUpperCase()];
+  m2.sens=[1,1];m2._gpPrev=[];
+  playerBind[0]=m2.claim[0];playerBind[1]=m2.claim[1];
+  if(st.drive){careerSetDrive(0,st.drive);careerSetDrive(1,st.drive);} // DRIVE-LOCK the lesson on side 0; mirror it on the CPU
+  else{p2cSetDrive(0,0,0);p2cSetDrive(1,0,0);}                          // capstone: a sane default (player brings their favorite later)
+  if(st.absHeading!=null)absHeading=st.absHeading;                      // C6 stage pre-sets absolute heading to demo it
+  careerStore();
+  switch(st.mode){
+    case 'race':       startP2Race(); break;
+    case 'normal':
+    case 'shooter':    startP2Ball(); break;
+    case 'tankfight':  startP2Tank(); break;
+    case 'battlebots': startP2BB();   break;
+    default:           phase='p2cbeat';
+  }
+}
+
+// ── PHASE ③: the match-end router — WIN or LOSS both advance (the keystone). Modeled on tourMatchEnd. ──
+// PHASE ④: read the just-finished match's margin where it's cheap (tank lives, ball goals) so a blowout
+// vs a nail-biter move the skill rating — and a flawless win can reach 'dominated' (unlocks the detour fork).
+function careerDominance(){ // player (side 0) WON — how decisively? 0..1
+  try{
+    if(tf2&&typeof tf2SideLives==='function'){const max=Math.max(1,(m2.set.lives|0)||3);return clamp(tf2SideLives(0)/max,0,1);}
+    if(b2&&b2.score){return clamp((b2.score[0]-b2.score[1])/8,0,1);}
+  }catch(e){}
+  return 0.5; // RoboRumble / race: neutral for now
+}
+function careerCloseness(){ // player LOST — how close was it? 1=nail-biter, 0=blowout
+  try{
+    if(tf2&&typeof tf2SideLives==='function'){const max=Math.max(1,(m2.set.lives|0)||3);return clamp(1-tf2SideLives(1)/max,0,1);} // foe barely survived → close
+    if(b2&&b2.score){return clamp(1-(b2.score[1]-b2.score[0])/8,0,1);}
+  }catch(e){}
+  return 0.5;
+}
+function careerMatchEnd(side){
+  const isDraw=(typeof side!=='number'),won=(side===0);
+  // 1) performance → adaptive skill + story flag (§3)
+  const perf=isDraw?0.5:won?(0.75+0.25*careerDominance()):(0.25*careerCloseness());
+  career.skill=clamp(career.skill+(perf-0.5)*1.2,0,4);
+  career.flags.lastResult=isDraw?'won':won?(perf>0.9?'dominated':'won'):(perf<0.1?'blown_out':'lost');
+  // 2) mark the stage cleared — WIN OR LOSS (progression is by completion, not winning)
+  const st=career.stage;
+  if(st&&!career.cleared.includes(st))career.cleared.push(st);
+  career.log.push({stage:st,result:career.flags.lastResult,skill:+career.skill.toFixed(2)});
+  // 3) tear the match down (same as the tournament) and route to the NEXT beat (which forks on lastResult)
+  career.active=false;career.stage=null;
+  r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');
+  career.node=st?careerNextNode(st):'intro';
+  careerStore();
+  phase='p2cbeat';
 }
 
 // ── the HUB (phase 'p2career') ──
@@ -6702,6 +6781,7 @@ function p2Back(){
   else if(tour&&tour.qual&&(phase==='p2race'||phase==='p2tank'||phase==='p2ball'||phase==='p2bb')){tourQualDone(Infinity,'SKIP');} // v5.1.244 Esc skips a qualifier run (any mode) → seeds last
   else if(phase==='p2race'&&tour&&tour.cur){r2=null;applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
   else if((phase==='p2tank'||phase==='p2ball')&&tour&&tour.cur){r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');tour.cur=null;phase='p2tbracket';}
+  else if(career&&career.active&&(phase==='p2race'||phase==='p2tank'||phase==='p2ball'||phase==='p2bb')){career.active=false;career.stage=null;r2=null;tf2=null;bb2=null;tfObs=null;b2Teardown();applyLayout('land2p');phase='p2cbeat';} // v5.1.252 ESC out of a career match → back to the story beat (no result recorded)
   else if(phase==='p2drive'){if(m2._dp===1)m2._dp=0;else if(tour&&tour.cur){tour.cur=null;phase='p2tbracket';}else phase='p2modes';}
   else if(phase==='p2mapvote'){if(mapVote&&mapVote.onCancel){mapVote.onCancel();}else{mapVote=null;phase='p2bbmap';}} // v5.1.236 Esc cancels the open-pick vote; v5.1.238 a caller's onCancel (tournament) resolves instead
   else if(phase==='p2mapedit'){mapEd=null;phase='p2bbmap';} // v5.1.233 Esc from the editor → back to the gallery
@@ -9580,6 +9660,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.253 (2026-06-20): CAREER / STORY MODE — Phases ②③④ (the tutorial is now PLAYABLE end-to-end). Stage gotos launch REAL matches: `startCareerMatch(stageId)` configures m2 (mode + a beginner-friendly 1v1 via `careerStageSetup`), DRIVE-LOCKS the lesson on side 0 (`careerSetDrive` resolves a drive id across the catalog groups; the CPU mirrors it), claims side 1 as a CPU at the ADAPTIVE tier (`careerTier` maps skill 0..4 → CPU tier 0..4), binds side 0 to the player (gamepad if present else keyboard+touch), and calls the existing `startP2Race/Ball/Tank/BB`. The keystone — `careerMatchEnd(side)` — reads the result the SAME way the bracket does (the line-4009 `r2?…:tf2?…:bb2?…:b2.result` expression, now mirrored in `drawP2Nav`/`p2NavClick` behind `career.active`) and advances on WIN *or* LOSS (or draw): it updates the adaptive `skill` from a performance score, sets `flags.lastResult` (`dominated`/`won`/`lost`/`blown_out`), marks the stage cleared, logs it, tears the match down, and routes to the `after:<stage>` fork. Phase ④ margins: `careerDominance`/`careerCloseness` read tank lives (`tf2SideLives`) + ball goals so a blowout vs a nail-biter move the rating differently — and a FLAWLESS tank win reaches `dominated`, which unlocks the "drive like a car" detour fork for real. ESC out of a career match returns to the story (no result recorded). Because every stage's mode launches, this also de-risks Phase ⑤ (the full curriculum is data-walkable to the finale). smoke83 → 36 asserts (adds match launch, drive-lock, tier map, win/loss routing, nav wiring, real-margin dominated/blown_out/lost, a full win-the-curriculum walk). Null `career` ⇒ free-play byte-identical. Full battery green.
   v5.1.252 (2026-06-20): CAREER / STORY MODE — Phase ① (the FUN TUTORIAL shell). A new choose-your-own-adventure meta-shell over the existing modes whose job is ONBOARDING: teach every drive concept (tank→arcade→strafe→bot/field-centric→holonomic→heading) through a light branching story (CAREER_PLAN.md). This ship = the SHELL: a CAREER tile on the splash (3rd front-door, gamepad idx 0 + key '3'), a HUB (`p2career`, NEW/CONTINUE + a "journey so far" readout of stages cleared / concepts learned / driver rating), and the CYOA BEAT screen (`p2cbeat`) — a shared renderer for story / coach (lesson) / finale beats with 1–3 choice buttons, `when`-gated choices, dynamic `({c})=>` copy, `effect` (setFlag/unlock), and `then`-chaining (coach→stage). State: `career` global + `frcds_career_v1` persistence (careerNew/Store/Migrate), the full 7-stage curriculum data table (CAREER_STAGES) and beat graph (CAREER_BEATS). MATCHES ARE STUBBED this phase — a stage marks itself cleared + its concept learned and routes to the post-match fork (real matches land in Phase ②/③: startCareerMatch + careerMatchEnd off the existing line-4009 result read). Null `career` ⇒ free-play byte-identical. New suite smoke83 (21 asserts: new shape, store round-trip, hub→intro, beat render, choice routing, when-gating, coach `then`, a full curriculum walk to the finale, ESC + splash tile). Full battery green.
   v5.1.251 (2026-06-19): 6-player FFA — actual MULTI-HUMAN setup (F4 cont.). FFA now routes through the 6-seat GRID (`tankGridMode` includes RoboRumble FFA), so up to 6 humans/CPUs can join — each seat is its OWN faction, labelled BOT 1–6 in its faction color (`FFA_COLS`), and the grid header reads "6-PLAYER FREE-FOR-ALL." startP2BB's FFA branch builds factions straight from the grid seats; `tankGridCanStart` is relaxed for FFA (≥1 ready seat — CPUs fill the rest to 6). Full battery green.
   v5.1.250 (2026-06-19): 6-PLAYER FREE-FOR-ALL (F4, engine + reachable). New TEAM FORMAT = FFA in RoboRumble settings: your bot + CPU fill to 6, every bot its OWN faction (unique side), ring-spawned, distinct colors (FFA_COLS). Win detection generalized to N factions: `bbCheckResult` now counts DISTINCT live sides → last one standing wins (2-side & FFA both reduce to this, regression-tested); `bbTimeUpResult` FFA = most surviving HP. The win banner shows the winning BOT's name + color (`bbFFAWinner`); CPU AI already targets nearest non-same-side, so it fights everyone for free. Helpers: `bbIsFFA`, `BB_FFA_N`, `FFA_COLS`, `bbFFASpawn`. smoke57 +6. Full battery green. (Next FFA steps — multi-human FFA setup screen, an FFA scoreboard/kill-feed, AI tuning — want Sam's playtest.)

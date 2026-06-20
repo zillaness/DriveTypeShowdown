@@ -49,8 +49,10 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
 - **`HANDOFF_2026-06-16.md`** — the in-depth narrative (weapons / perks / easter eggs / cheats vision).
 - **`CAREER_PLAN.md`** — buildable spec for the CAREER / STORY MODE (v2.0 reframe: the FUN TUTORIAL — a CYOA
   meta-shell over the existing modes, modeled on `tour*`, teaching every drive concept). **Now being built:**
-  Phase ① (shell + HUB + CYOA beat screen) shipped in v5.1.252; later phases wire real matches. Audience/level
-  + the lecture-sourced question bank (`career/quiz_bank.js`) are locked in the plan.
+  Phases ①–④ shipped (v5.1.252 shell/HUB/CYOA; v5.1.253 real matches + adaptive difficulty) — the tutorial is
+  PLAYABLE end-to-end (splash CAREER tile → hub → story/coach beats → drive-locked matches in all 5 modes →
+  win/loss routing → finale). Remaining: ⑥ unlocks/achievement/coach-skip, ⑦ modifiers/endings/recap, + the
+  QUIZ integration (embed `career/quiz_bank.js` as quiz beats — the educational core). Audience/level locked.
 - PRDs: `frcds_roborumble_v2_prd_v1.0.md`, `frcds_online_prd_v1.1.md`, `frcds_tournament_v2_prd_v1.0.md`.
-- Build: latest is `drive_showdown_v5.1.252.html` (single self-contained HTML).
+- Build: latest is `drive_showdown_v5.1.253.html` (single self-contained HTML).
 - Balance sim: `./extract.sh && node harness/tests/bbbalance.js /tmp/g.js`.
