@@ -42,6 +42,13 @@ Two design rules that flow from "it's a tutorial":
   ("you got knocked out, but you learned something" vs a triumphant path). **Progression is by CHOICE +
   completion, never gated on wins.**
 
+> **🎓 AUDIENCE & LEVEL (locked with Sam, 2026-06-20).** The educational content targets
+> **late-elementary → early-middle-school, up to a high-school freshman.** "Focus on the basics." Only
+> **light algebra / multiplication / division** (e.g. `5 × 3.6 V = 18 V`, `P = V × I`, `I = V ÷ R`). The
+> **VEX series-&-parallel sheet is the reading-level benchmark.** A few easy algebra word-problems are
+> welcome; nothing heavier. The real question bank is **already built** from Sam's uploaded lectures —
+> see **`career/quiz_bank.js`** (§6.2).
+
 **It is a NEW META-SHELL over the existing modes** — architecturally the closest precedent is the
 **tournament** (`tour*`): persistent state, between-match screens, a result-router that advances the
 journey. **Build the career shell by cloning the `tour*` pattern**, not by inventing new infrastructure.
@@ -641,11 +648,20 @@ bonus (§4.0) is measured by this kind of in-game learning engagement, not the c
 amount you get **right on the quizzes is what grants bonuses; wrong answers lose out** (which adds light replay
 value — or you just look it up, which is fine, because you learn either way).
 
-**Content pipeline — Sam's lectures (offered, yes please).** The question bank + per-tool factoids should be sourced
-from **Sam's actual lecture material** (Li-ion vs SLA, cells in series/parallel, drivetrains, etc.). Workflow: Sam
-pastes the text or drops the files → distill into `CAREER_QUIZ` rows (`prompt`/`options`/`answer`/`explain`) + shop
-factoid/safety-tip strings. Keep it authentic and real — that *is* the point. (A correct power-chemistry answer →
-the speed/weapon-damage bonus, per §4.0.)
+**Content pipeline — Sam's lectures → ✅ BUILT: `career/quiz_bank.js` (v0.1.0).** Sam uploaded 11 real lecture/quiz
+sheets (2026-06-20): VEX series/parallel, batteries & power electronics, FRC electricity, the engineering design
+process (pptx), FRC materials, fasteners, FDM/FFF + resin 3D-printing, intro CAD, and two full FRC tool quizzes
+(with answer keys). These are distilled into **`career/quiz_bank.js`** — a self-contained, Node-loadable +
+HTML-embeddable `CAREER_QUIZ` data module:
+- **60 questions** across 7 topics (power 13, electricity 8, design 6, materials 5, tools 11, fasteners 6, 3D/CAD
+  11), each `{id, topic, level, prompt, options[], answer, explain, src}` — `src` traces every fact to its lecture.
+- **6 light-algebra** questions (`5×3.6V=18V`, `P=V×I`, `I=V÷R`, parallel mAh) + **5 reward-tagged headline**
+  questions: power-chemistry/power → `speed`/`weapon`; shop-safety → `hp` (per §4.0).
+- **15 factoids** — the "click a tool in the workshop → safety tip" discovery layer (patience-gated), also lecture-
+  sourced.
+- All authored at the locked audience level (see START HERE). Validates clean: unique ids, in-range answer indices.
+
+The build step is just to `require`/embed the module and render rows as CYOA quiz beats. New lectures → append rows.
 
 ### 6.3 You have a NAME (Sam)
 
