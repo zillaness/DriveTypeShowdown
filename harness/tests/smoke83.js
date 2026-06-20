@@ -27,15 +27,13 @@ src+=`
   T('difficulty CHAMPION (choice 3) → diff + seeds skill 3 + → controls', career.diff==='champion'&&career.skill===3&&career.node==='controls');
   career=careerNew(); pick(0); T('difficulty ROOKIE (choice 0) → seeds skill 0', career.diff==='rookie'&&career.skill===0&&career.node==='controls');
   career=careerNew(); pick(2); T('difficulty WINNER (choice 2) → seeds skill 2', career.diff==='winner'&&career.skill===2);
-  // controls beat → picks the input scheme → intro
-  career=careerNew(); career.node='controls'; phase='p2cbeat'; pick(1);
-  T('controls KEYBOARD (choice 1) → input kb + → intro', career.input==='kb'&&career.node==='intro');
+  // controls beat → single info-acknowledge → intro (v5.1.263: keyboard AND controller are both live, no either/or)
   career=careerNew(); career.node='controls'; phase='p2cbeat'; pick(0);
-  T('controls CONTROLLER (choice 0) → input gp', career.input==='gp'&&career.node==='intro');
-  // careerHumanBind resolves the device (harness has no gamepad → keyboard for auto)
-  career.input='gp'; T('careerHumanBind gp → controller', careerHumanBind().type==='gp');
-  career.input='kb'; T('careerHumanBind kb → keyboard', careerHumanBind().type==='kb');
-  career.input='auto'; T('careerHumanBind auto (no pad) → keyboard', careerHumanBind().type==='kb');
+  T('controls "got it" (choice 0) → intro', career.node==='intro');
+  // careerHumanBind is the UNIVERSAL 'any' device (keyboard + every pad live at once)
+  career.input='gp'; T('careerHumanBind → any (universal)', careerHumanBind().type==='any');
+  career.input='kb'; T('careerHumanBind ignores input pref → still any', careerHumanBind().type==='any');
+  career.input='auto'; T('careerHumanBind auto → any', careerHumanBind().type==='any');
   texts.length=0; let drew=true; try{drawCareerBeat();}catch(e){drew=false;console.log('  draw err:',e.message);}
   T('intro beat renders (no throw, emits text)', drew&&texts.length>0);
   let dh=true; try{drawCareerHub();}catch(e){dh=false;console.log('  hub err:',e.message);}
@@ -52,7 +50,22 @@ src+=`
   career.skill=3.9; T('careerTier: skill 3.9 → clamps to top tier 3 (CHAMPION)', careerTier()===3);
   career.skill=-1;  T('careerTier clamps low → 0', careerTier()===0);
   T('careerMaxTier === CPU_TIERS.length-1 (3)', careerMaxTier()===CPU_TIERS.length-1&&careerMaxTier()===3);
-  career.skill=0.5;
+  // v5.1.263 SOLO time-trial races + per-lane par table (rookie = no clock; arcade anchors winner=15, bot-centric tighter)
+  T('careerRacePar arcade winner=15', (()=>{career.diff='winner';return careerRacePar('arcade_course')===15;})());
+  T('careerRacePar strafe champion=5', (()=>{career.diff='champion';return careerRacePar('strafe_intro')===5;})());
+  T('careerRacePar arcade rookie=0 (just finish)', (()=>{career.diff='rookie';return careerRacePar('arcade_course')===0;})());
+  T('careerRacePar steer_detour=0 (no anchor)', careerRacePar('steer_detour')===0);
+  career=careerNew(); career.diff='winner'; career.skill=2; career.active=true;
+  startCareerMatch('arcade_course');
+  T('arcade_course → SOLO race (p2race · r2.solo · par 15 · SP course 0)', phase==='p2race'&&!!r2&&r2.solo===true&&r2.par===15&&m2.set.course===0);
+  startCareerMatch('strafe_intro');
+  T('strafe_intro winner → SOLO race par 10', phase==='p2race'&&r2.solo===true&&r2.par===10);
+  career.diff='rookie'; startCareerMatch('arcade_course');
+  T('rookie race → par 0 (just finish, no rival)', r2.solo===true&&(r2.par|0)===0);
+  // v5.1.263 the 'any' bind reads gamepad BUTTONS (so STORY MODE has keyboard AND controller both live)
+  T('gpBtnAny reads any pressed pad button', (()=>{gpBtnsAll=[[],[true]];return gpBtnAny(0)===true&&gpBtnAny(3)===false;})());
+  gpBtnsAll=[]; r2=null;
+  freshAt('intro'); pick(0); career.skill=0.5; // relaunch the TANK match so the live-match nav test below has tf2
   // careerSetDrive resolves across groups
   careerSetDrive(0,'mecanum'); T('careerSetDrive resolves a HOLO id', driveId(m2.drive[0])==='mecanum');
   careerSetDrive(0,'carSteer'); T('careerSetDrive resolves a STEER id', driveId(m2.drive[0])==='carSteer');

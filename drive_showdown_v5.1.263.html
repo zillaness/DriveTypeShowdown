@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.262.html
-  version: 5.1.262
+  file: drive_showdown_v5.1.263.html
+  version: 5.1.263
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -130,6 +130,7 @@ const HOLO_BTN={x:10,y:268,w:CW-20,h:24};
 let holoMenuOpenT=0;
 
 let gpConnected=false,gpPrev=[],gpPrevAll=[];
+let gpLastSlot=-1; // v5.1.263 the ACTIVE pad's enumeration index — robust to a phantom pad at slot 0 / a non-zero index (Sam: career bound the wrong slot, had to claim "gamepad 2"). Tracked in updateGamepad; careerHumanBind binds to it.
 let gpNavLast=0;
 let gpMenuIdx=-1,gpMenuRow=0,gpMenuCol=0,gpShowMap=false;
 const carSteerVis={steer:0,throttle:0};
@@ -151,6 +152,7 @@ function bindAxes(bind){
   if(bind.type==='gp')return gpAxesAll[bind.gp]||GP_AXES_ZERO;
   return GP_AXES_ZERO;
 }
+function gpBtnAny(i){for(const b of gpBtnsAll){if(b&&b[i])return true;}return false;} // v5.1.263 is button i pressed on ANY connected pad? — lets the 'any' bind read gamepad BUTTONS (fire/boost), so STORY MODE can use keyboard AND controller at the same time
 function resetBinds(){playerBind=[{type:'any'},{type:'none'}];}
 let phase='splash',paused=false; // v5.1.92: a SPLASH front door splits SINGLE PLAYER (portrait) vs MULTIPLAYER (landscape) from the start
 let mouseX=0,mouseY=0,mouseAim=false,mouseBtnHeld=false; try{mouseAim=localStorage.getItem('frcds_maim')==='1';}catch(e){}
@@ -1388,6 +1390,11 @@ function updateGamepad(){
   }
   if(!gp){gpConnected=false;if(gpPrev.length)gpPrev=[];gpAxis.lx=gpAxis.ly=gpAxis.rx=gpAxis.ry=0;return;}
   gpConnected=true;
+  // v5.1.263 ACTIVE-SLOT tracking: remember the last pad index showing real activity (so a phantom pad at
+  // slot 0 never wins over the controller in your hand at slot 1), and self-heal if that slot disappears.
+  for(let gi=0;gi<gpAxesAll.length;gi++){const aa=gpAxesAll[gi],bb=gpBtnsAll[gi];
+    if((aa&&(aa.lx||aa.ly||aa.rx||aa.ry))||(bb&&bb.some(x=>x)))gpLastSlot=gi;}
+  if(gpLastSlot<0||!gpAxesAll[gpLastSlot]){gpLastSlot=-1;for(let gi=0;gi<gpAxesAll.length;gi++)if(gpAxesAll[gi]){gpLastSlot=gi;break;}}
   // ── v3.7: 'any'-bind axes and ALL button helpers merge across EVERY connected pad,
   // so whichever controller is in hand navigates menus, activates, and launches.
   // Per-axis: strongest signal wins. Per-button: rising edge tracked per pad index. ──
@@ -3415,7 +3422,8 @@ function p2ImpactMag(va,vb){
 function p2FireHeld(p){
   const b=playerBind[p];
   if(b.type==='cpu')return !!(cpuH2H&&cpuH2H[p]&&cpuH2H[p].fire);
-  if(b.type==='kb'||b.type==='any')return kbSpaceHeld||fireBtnPressed;
+  if(b.type==='any')return kbSpaceHeld||fireBtnPressed||gpBtnAny(0)||gpBtnAny(7); // v5.1.263 'any' = keyboard OR any pad (story mode: both live at once)
+  if(b.type==='kb')return kbSpaceHeld||fireBtnPressed;
   if(b.type==='gp'){const bt=gpBtnsAll[b.gp];return !!(bt&&(bt[0]||bt[7]));} // fire = A or RT (RAMMING moved to RB so RT stays free to fire, e.g. with MACHINE GUN)
   if(b.type==='touchL')return p2TFire[0];
   if(b.type==='touchR')return p2TFire[1];
@@ -3426,7 +3434,8 @@ function p2BoostHeld(p){
   if(!arcadeMode)return false;
   const b=playerBind[p];
   if(b.type==='cpu')return !!(cpuH2H&&cpuH2H[p]&&cpuH2H[p].boost);
-  if(b.type==='kb'||b.type==='any')return kbBoostHeld;
+  if(b.type==='any')return kbBoostHeld||gpBtnAny(6); // v5.1.263 'any' = keyboard OR any pad's LT
+  if(b.type==='kb')return kbBoostHeld;
   if(b.type==='gp'){const bt=gpBtnsAll[b.gp];return !!(bt&&bt[6]);}
   return false;
 }
@@ -3596,6 +3605,7 @@ function tankTurretAim(t,bind){ // v5.1.73 ARCADE one-hand bonus: the FREE input
   if(!b||b.type==='cpu')return null;                  // CPUs don't manual-aim
   if(p2cDriveDef(bind).id!=='arcade')return null;     // only the one-stick ARCADE drive frees a hand to aim the turret
   if(b.type==='gp'){const ax=gpAxesAll[b.gp];if(ax&&Math.hypot(ax.rx,ax.ry)>=0.35)return Math.atan2(ax.ry,ax.rx);return null;} // right stick (deadzoned)
+  if(b.type==='any'&&Math.hypot(gpAxis.rx,gpAxis.ry)>=0.35)return Math.atan2(gpAxis.ry,gpAxis.rx); // v5.1.263 'any': a live pad right-stick aims the turret; else fall through to the mouse
   if(b.type==='kb'||b.type==='any')return Math.atan2((mouseY-FY)-t.y,(mouseX-FX)-t.x); // keyboard ARCADE: the mouse ALWAYS aims the turret in tank fight (on by default, independent of the [K] menu toggle)
   return null;                                         // touch drives with its stick — no free hand; turret stays chassis/auto
 }
@@ -4393,7 +4403,8 @@ function startP2BB(){cheatedRun=false;paused=false;
 }
 // RoboRumble RAM/DASH is always available (no RAMMING cheat needed) — LT (gamepad) / Shift (keyboard). Human-only in P1.
 function bbDashHeld(bind){const b=playerBind[bind];if(!b||b.type==='cpu')return false;
-  if(b.type==='kb'||b.type==='any')return kbBoostHeld;
+  if(b.type==='any')return kbBoostHeld||gpBtnAny(6); // v5.1.263 'any' = keyboard OR any pad's LT
+  if(b.type==='kb')return kbBoostHeld;
   if(b.type==='gp'){const bt=gpBtnsAll[b.gp];return !!(bt&&bt[6]);}
   return false;}
 function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while driving to its REAR to ram it
@@ -4539,7 +4550,8 @@ function wheelFault(b){ // dead corners → a persistent handling fault (turn-bi
 function bbWeaponFiring(b){ // is this bot firing its weapon (RT / Space / touch-fire; CPU via brain.fire)
   if(b.ctl.type==='cpu')return !!(b.ctl.brain&&b.ctl.brain.fire);
   const d=playerBind[b.ctl.bind];if(!d)return false;
-  if(d.type==='kb'||d.type==='any')return kbSpaceHeld||fireBtnPressed;
+  if(d.type==='any')return kbSpaceHeld||fireBtnPressed||gpBtnAny(0)||gpBtnAny(7); // v5.1.263 'any' = keyboard OR any pad
+  if(d.type==='kb')return kbSpaceHeld||fireBtnPressed;
   if(d.type==='gp'){const bt=gpBtnsAll[d.gp];return !!(bt&&(bt[0]||bt[7]));}  // fire weapon = RT or A (LT = RAM dash); A added so it works if a pad reports RT only as an axis
   if(d.type==='touchL')return p2TFire[0];if(d.type==='touchR')return p2TFire[1];
   return false;
@@ -4555,12 +4567,14 @@ function bbAimAngle(b){ // v5.1.100 turret aim — the independent aim is an ARC
   if(b.ctl.type==='cpu'){let foe=null,bd=1e9;for(const f of bb2.bots)if(!f.dead&&f.side!==b.side){const d=Math.hypot(f.x-b.x,f.y-b.y);if(d<bd){bd=d;foe=f;}}return foe?Math.atan2(foe.y-b.y,foe.x-b.x):b.h;} // an ARCADE cpu tracks the nearest foe
   const pb=playerBind[b.ctl.bind];if(!pb)return b.h;
   if(pb.type==='gp'){const ax=gpAxesAll[pb.gp];if(ax&&Math.hypot(ax.rx,ax.ry)>=0.35)return bbAimAssistTurret(b,Math.atan2(ax.ry,ax.rx));return b.h;} // ARCADE: the RIGHT STICK aims the turret (deadzoned, +aim assist); else hold forward
+  if(pb.type==='any'&&Math.hypot(gpAxis.rx,gpAxis.ry)>=0.35)return bbAimAssistTurret(b,Math.atan2(gpAxis.ry,gpAxis.rx));      // v5.1.263 'any': a live pad right-stick aims; else the mouse
   if(pb.type==='kb'||pb.type==='any')return bbAimAssistTurret(b,Math.atan2((mouseY-FY)-b.y,(mouseX-FX)-b.x));                  // ARCADE keyboard: the MOUSE aims the turret (+aim assist)
   return b.h;
 }
 function bbRepairAim(b){ // v5.1.198 REPAIR: the RIGHT STICK (gp) / MOUSE (kb) redirects which ally the dish heals; null = no input (CPU or centered) → auto-pick the nearest hurt ally
   if(!b.ctl||b.ctl.type==='cpu')return null;const pb=playerBind[b.ctl.bind];if(!pb)return null;
   if(pb.type==='gp'){const ax=gpAxesAll[pb.gp];if(ax&&Math.hypot(ax.rx,ax.ry)>=0.4)return Math.atan2(ax.ry,ax.rx);return null;}
+  if(pb.type==='any'&&Math.hypot(gpAxis.rx,gpAxis.ry)>=0.4)return Math.atan2(gpAxis.ry,gpAxis.rx); // v5.1.263 'any': a live pad right-stick redirects the heal; else the mouse
   if(pb.type==='kb'||pb.type==='any')return Math.atan2((mouseY-FY)-b.y,(mouseX-FX)-b.x);
   return null;
 }
@@ -5932,7 +5946,7 @@ function updateP2Race(dt){
   }
   // v5.1.16: don't end the instant the first racer finishes — let BOTH complete and compare times.
   // The laggard DNFs only if it takes longer than DOUBLE the first finisher's time, so an idle/stuck bot can't stall the match forever.
-  if(r2.solo){if(fin.length)r2.result=0;}
+  if(r2.solo){if(fin.length){const tt=r2.bots[0].fin;r2.result=((r2.par|0)>0&&tt>r2.par)?1:0;}} // v5.1.263 PAR: with a par set, finishing OVER par is a "loss" (→ rematch); no par (rookie) → finishing always passes. (Tournaments set r2.solo but no r2.par, so they keep the old behavior.)
   else{
     const f0=r2.bots[0].fin,f1=r2.bots[1].fin;
     if((f0!==null||f1!==null)&&r2.firstFin==null)r2.firstFin=(f0!==null?f0:f1); // first crossing starts the DNF clock
@@ -5961,29 +5975,45 @@ function drawP2Race(){
     drawP2Tag(p,b);
     // lane header
     ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle=M2_COLS[p];
-    ctx.fillText((p===0?'RED — ':'BLUE — ')+(m2.drive[p]?m2.drive[p].name:'')+'   ↺'+b.resets+(b.fin!==null?'   🏁'+fmt(b.fin):''),FX+FW/2,FY-22);
+    ctx.fillText((r2.solo?(p2Name(0)+' — '):(p===0?'RED — ':'BLUE — '))+(m2.drive[p]?m2.drive[p].name:'')+'   ↺'+b.resets+(b.fin!==null?'   🏁'+fmt(b.fin):''),FX+FW/2,FY-22);
   }
   FX=savFX;
-  // center column: VS + clock
+  // center column: VS (or TIME TRIAL) + clock
   ctx.textAlign='center';
-  ctx.font='bold 26px Courier New';ctx.fillStyle='#444460';
-  ctx.fillText('VS',CW/2,FY+90);
-  ctx.font='bold 16px Courier New';ctx.fillStyle='#d4d4f4';
+  const _par=(r2.par|0);
+  if(r2.solo){
+    ctx.font='bold 15px Courier New';ctx.fillStyle='#40c4ff';
+    ctx.fillText(_par>0?'TIME TRIAL':'SOLO RUN',CW/2,FY+90);
+  }else{
+    ctx.font='bold 26px Courier New';ctx.fillStyle='#444460';
+    ctx.fillText('VS',CW/2,FY+90);
+  }
+  const _over=_par>0&&r2.t>_par; // v5.1.263 clock turns red once you're past par
+  ctx.font='bold 16px Courier New';ctx.fillStyle=_over?'#ff6666':'#d4d4f4';
   ctx.fillText(fmt(Math.max(0,r2.t)),CW/2,FY+130);
+  if(_par>0){ctx.font='11px Courier New';ctx.fillStyle='#888';ctx.fillText('target '+fmt(_par),CW/2,FY+148);}
   ctx.font='10px Courier New';ctx.fillStyle='#444460';
-  ctx.fillText('[Esc] quit',CW/2,FY+152);
+  ctx.fillText('[Esc] quit',CW/2,FY+(_par>0?166:152));
   drawP2SensToasts();
   if(r2.cd>0){
     ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,CW,CH);
     ctx.font='bold 84px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffd740';
     ctx.fillText(String(Math.ceil(r2.cd)),CW/2,FY+FH/2);
     ctx.font='bold 13px Courier New';ctx.fillStyle='#8888aa';
-    ctx.fillText('RED vs BLUE — first to the finish line',CW/2,FY+FH/2+40);
+    ctx.fillText(r2.solo?((r2.par|0)>0?('TIME TRIAL — beat '+fmt(r2.par)):'SOLO RUN — just reach the finish'):'RED vs BLUE — first to the finish line',CW/2,FY+FH/2+40);
   }
   if(r2.result!==null){
     ctx.fillStyle='rgba(0,0,0,0.74)';ctx.fillRect(0,0,CW,CH);
-    const w=r2.result,l=1-w;
     ctx.textAlign='center';
+    if(r2.solo){ // v5.1.263 SOLO time-trial banner (no RED/BLUE "winner")
+      const tt=r2.bots[0].fin,passed=r2.result===0,par=(r2.par|0);
+      ctx.font='bold 40px Courier New';ctx.fillStyle=passed?'#44ffaa':'#ff8866';
+      ctx.fillText(passed?'FINISH!':'TOO SLOW',CW/2,FY+FH/2-66);
+      ctx.font='bold 14px Courier New';ctx.fillStyle='#d4d4f4';
+      ctx.fillText((tt!==null?'your time '+fmt(tt):'DNF')+(par>0?'   ·   target '+fmt(par):'')+'  ·  ↺'+r2.bots[0].resets,CW/2,FY+FH/2-30);
+      drawP2Nav(FY+FH/2+34);
+    }else{
+    const w=r2.result,l=1-w;
     ctx.font='bold 40px Courier New';ctx.fillStyle=M2_COLS[w];
     ctx.fillText(p2Name(w)+' WINS',CW/2,FY+FH/2-66);
     ctx.font='bold 14px Courier New';ctx.fillStyle='#d4d4f4';
@@ -5991,6 +6021,7 @@ function drawP2Race(){
     ctx.font='11px Courier New';ctx.fillStyle='#666688';
     ctx.fillText(p2Name(l)+' '+m2.drive[l].name+(r2.bots[l].fin!==null?' — '+fmt(r2.bots[l].fin):' — DNF')+'  ·  ↺'+r2.bots[l].resets,CW/2,FY+FH/2-6);
     drawP2Nav(FY+FH/2+34);
+    }
   }
 }
 
@@ -6043,16 +6074,11 @@ function careerAddAlly(name,tier,via){
   return true;
 }
 function careerAllyName(seed){const a=CAREER_ALLY_NAMES,n=career&&career.allies?career.allies.length:0;return a[(n+(seed|0))%a.length];}
-// CONTROL SCHEME (Sam: "default controller if plugged in… maybe ask at the beginning"). career.input ∈
-// {auto,gp,kb,touch}; careerHumanBind resolves side 0's device (a LIVE gamepad check, since browsers only
-// expose a pad after a button press — an explicit pick binds the controller anyway).
-function careerLiveGamepad(){try{const g=navigator.getGamepads?navigator.getGamepads():[];for(let i=0;i<g.length;i++)if(g[i]&&g[i].connected)return i;}catch(e){}return gpConnected?0:-1;}
-function careerHumanBind(){
-  const pref=(career&&career.input)||'auto';
-  if(pref==='gp'){const i=careerLiveGamepad();return {type:'gp',gp:Math.max(0,i)};}    // explicit controller
-  if(pref==='kb'||pref==='touch')return {type:'kb'};                                    // kb bind also drives the touch joysticks
-  const i=careerLiveGamepad();return i>=0?{type:'gp',gp:i}:{type:'kb'};                  // auto: pad if present, else keyboard
-}
+// CONTROL SCHEME (Sam: "it should let you use either controller OR keyboard at the same time in story mode").
+// careerHumanBind binds side 0 to the UNIVERSAL 'any' device: the keyboard + EVERY connected pad are all live at
+// once (axes via gpAxis, buttons via gpBtnAny, turret via the merged right stick). No either/or, no wrong-slot trap.
+function careerLiveGamepad(){return gpConnected?(gpLastSlot>=0?gpLastSlot:0):-1;} // the ACTIVE slot — used only for the "I see a controller" hint now (the bind is 'any')
+function careerHumanBind(){return {type:'any'};} // v5.1.263 keyboard AND controller, both live, anytime
 // DIFFICULTY LANE (Sam): the lane you pick up front is named after — and starts you at — the engine's 4 CPU
 // tiers (ROOKIE/VETERAN/WINNER/CHAMPION). It sets (a) your STARTING tier/skill, (b) the rematch budget, and
 // (c) the quiz grade-band. The adaptive rating then nudges your tier up/down from that lane baseline.
@@ -6089,6 +6115,14 @@ const CAREER_FINALE={
   champion:{name:'World Championship',      sub:'the world stage — no mercy',          stages:['capstone_rumble','capstone_rumble','capstone_rumble'],            title:'WORLD CHAMPION',      ending:'world',    invite:-1},
 };
 function careerFinaleCfg(){return CAREER_FINALE[career.diff]||CAREER_FINALE.rookie;}
+// SOLO TIME-TRIAL pars (Sam): the two race lessons run SOLO (no rival — the head-to-head made rookie "crazy hard").
+// ROOKIE = no clock, just finish. Higher lanes race a PAR time, 5s tighter per lane. NEED FOR SPEED (arcade) anchors
+// winner=15; SIDEWAYS (bot-centric) is the more agile drive so it's tighter (winner=10). Other races (steer detour) = no clock.
+const CAREER_RACE_PAR={
+  arcade_course:{rookie:0,veteran:20,winner:15,champion:10}, // NEED FOR SPEED — arcade drive
+  strafe_intro: {rookie:0,veteran:15,winner:10,champion:5},  // SIDEWAYS — bot-centric swerve (more agile → tighter par)
+};
+function careerRacePar(stageId){const t=CAREER_RACE_PAR[stageId];return t?(t[career.diff]||0):0;} // 0 = no par (rookie / non-anchored race) → finishing passes
 const CAREER_STAGE_ORDER=['tank_hook','arcade_course','strafe_intro','field_centric','holo_shooter','heading_advanced','capstone_rumble'];
 // ── THE QUESTION BANK (inlined from career/quiz_bank.js — Sam's FRC lectures; regenerate that file → reinline). KNOWLEDGE is the most rewarding (CAREER_PLAN §6). ──
 const CAREER_QUIZ={topics:{"power":{label:"Batteries & Power",reward:"speed"},"electricity":{label:"Electricity Basics",reward:"speed"},"design":{label:"Engineering Design"},"materials":{label:"Materials"},"tools":{label:"Tools & Shop Safety",reward:"hp"},"fasteners":{label:"Fasteners"},"fab":{label:"3D Printing & CAD"},"permit":{label:"Permit Test (driving)"}},
@@ -6183,13 +6217,12 @@ const CAREER_BEATS={
       {label:"WINNER — strong bots · 2 rematches · harder quiz", goto:'controls', effect:{setDiff:'winner'}},
       {label:"CHAMPION — toughest bots · NO rematches · hardest quiz", goto:'controls', effect:{setDiff:'champion'}},
     ]},
-  controls:{kind:'story',title:'HOW ARE YOU PLAYING?',lines:[
-    "Last setup question — what are you driving with? (Restart anytime to change it.)",
-    ({c})=> careerLiveGamepad()>=0 ? "🎮 I see a controller plugged in — recommended." : "No controller detected — keyboard it is (plug a controller in and pick it to use one).",
-    "(Career runs in landscape twin-stick — touch is a Single-Player thing.)"],
+  controls:{kind:'story',title:'YOUR CONTROLS',lines:[
+    "Good news: a CONTROLLER and the KEYBOARD + MOUSE are BOTH live at once. Grab whichever — switch anytime, mid-match even.",
+    ({c})=> careerLiveGamepad()>=0 ? "🎮 I see a controller — use it, or the keyboard. Both work." : "No controller detected — keyboard + mouse is ready (plug a pad in anytime and it just works).",
+    "(Story runs in landscape twin-stick — touch is a Single-Player thing.)"],
     choices:[
-      {label:"🎮 Controller", goto:'intro', effect:{setInput:'gp'}},
-      {label:"⌨️ Keyboard (+ mouse aim)", goto:'intro', effect:{setInput:'kb'}},
+      {label:"Got it — let's drive", goto:'intro'},
     ]},
   intro:{kind:'story',title:'FIRST DRIVE',lines:[
     "Someone shoves a controller into your hands and points at a squat little robot.",
@@ -6424,7 +6457,7 @@ function startCareerMatch(stageId){
   careerApplyBonuses(st);                                               // knowledge → a real, modest in-match edge (quiz bonuses)
   careerStore();
   switch(st.mode){
-    case 'race':       startP2Race(); break;
+    case 'race':       m2.set.course=0; startP2Race(); r2.solo=true; r2.par=careerRacePar(stageId); break; // v5.1.263 STORY races are SOLO TIME-TRIALS on the easy SP course (course 0 = OC_OBS, no hazards); rookie just finishes, higher lanes beat a par clock
     case 'normal':
     case 'shooter':    startP2Ball(); break;
     case 'tankfight':  startP2Tank(); break;
@@ -9789,6 +9822,7 @@ function updateObstacleCourse(dt){
   playT+=dt;if(anyCheat())cheatedRun=true;
   ocState.resetFlash=Math.max(0,ocState.resetFlash-dt);
   const inp=getInp();
+  lastRobotInp=inp; // v5.1.263 BUGFIX (Sam): the SP obstacle race never stored the live input, so drawWheels read a stale frame and the SWERVE MODULES never animated their steering direction. (The main SP play loop already does this.)
   robot.h+=inp.vr*dt; {const _m=momModeFor(robot,-1);if(_m)applyMomentum(robot,inp,dt,_m);else{robot.x+=inp.vx*dt;robot.y+=inp.vy*dt;}}
   // Field boundary check (hitting side/top/bottom walls = reset)
   if(robot.x<RR||robot.x>FW-RR||robot.y>FH-RR){ocReset();return;}
@@ -10115,6 +10149,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.263 (2026-06-20): STORY MODE playtest fixes (Sam, live) — universal controls · solo time-trial races · SP swerve-anim bug. (1) CONTROLS (Sam: "let you use either controller OR keyboard at the same time in story mode"): side 0 now binds to the UNIVERSAL 'any' device — keyboard AND every connected pad are all live at once. Upgraded the 'any' bind to read gamepad BUTTONS (new gpBtnAny: fire A/RT, boost LT) and the merged right-stick (turret aim / repair-dish), not just axes; p2FireHeld/p2BoostHeld/tank+RoboRumble turret aim all gained an 'any' path. The control-scheme beat is now an honest "both work, switch anytime" card (was an either/or). Also fixes the wrong-slot bind Sam hit (had to claim "gamepad 2"): updateGamepad tracks the ACTIVE pad slot (gpLastSlot) instead of trusting a phantom slot 0. (2) RACES ARE SOLO TIME-TRIALS (Sam: "on rookie that first match is CRAZY hard… should be a solo time trial, not a head-to-head"): the two race lessons (NEED FOR SPEED / SIDEWAYS) drop the CPU rival and run on the easy SP obstacle course (course 0, no hazards). ROOKIE just has to finish; higher lanes race a PAR clock (CAREER_RACE_PAR — arcade veteran/winner/champion 20/15/10, bot-centric 15/10/5; 5s gaps). The race HUD shows TIME TRIAL + target, the clock reddens past par, and a SOLO result banner (FINISH! / TOO SLOW) replaces the RED-vs-BLUE one. (3) BUGFIX (Sam): the SP OBSTACLE RACE never stored the live input, so the SWERVE MODULES never animated their steering direction — updateObstacleCourse now sets lastRobotInp like the main play loop. smoke83 → 107 asserts. Full battery ALL GREEN. Single file, no assets.
   v5.1.262 (2026-06-20): STORY MODE — the FINALE as a lane SEQUENCE + a relationship/favor economy + the rename. (1) FINALE SEQUENCE (CAREER_FINALE now carries a `stages` array per lane, Sam's FRC prestige ladder): ROOKIE = a single-elim BALL tournament → an invite to a 1v1 RoboRumble round; VETERAN = a high-school BALL bracket → a 3v3 RoboRumble TRYOUT; WINNER = the all-RoboRumble Regional bracket; CHAMPION = the all-RoboRumble World Championship. careerFinaleStart seeds career.finale from the stages list, careerMatchEnd advances stage-by-stage (win all → champion result; any loss → eliminated, still graduates), and each stage launches its own MODE (ball vs rumble) so the lower lanes really play a ball tournament before their rumble capstone. (2) RELATIONSHIP / FAVOR economy (Sam: "the allies and friends you made along the way"): new favor beats (lend a spare part after the arcade course; help debug auto after the field-centric lesson) and a perfect quiz now ADD ALLIES (careerAddAlly / CAREER_ALLY_NAMES, deduped); allies grant a finale loadout perk (a PIT-STOP repair, or a SPARE TIRE if you also earned your license) and are narrated in the recap ("the friends you made along the way had your back"). (3) POST-TOURNAMENT INVITE epilogue (Sam: "an invite to try out after"): the recap closes with a lane-scaled tryout invite (national-team / championship-program / 3v3 RoboRumble / 1v1 RoboRumble). (4) RENAME: CAREER → STORY MODE everywhere player-facing (splash card, hub chrome, the "3 = Story" hint). smoke83 → 100 asserts (stages-array finale per lane, the ball→rumble sequence, relationship/favor add-ally, the invite epilogue, the STORY MODE labels). Full battery green. (Backlog noted for Sam: veteran's double-elim ball bracket + a real 3v3 RoboRumble grid for the tryout; the human FLAMETHROWER is overpowered in RoboRumble.) Single file, no assets.
   v5.1.261 (2026-06-20): CAREER polish from a live Sam playtest — tank+abs-heading bugfix · controller-vs-keyboard pick · splash redesign. (1) BUGFIX (Sam: "tank + absolute heading is broken together"): `driveFieldCentric` now reports TANK as not-field-centric (returns false), so picking a tank drive FORCES absolute heading OFF (arcade stays uncoupled — "could be okay"); a belt-and-suspenders guard in startCareerMatch also clears it for a tank drive. (2) CONTROL SCHEME (Sam: "default controller if plugged in… maybe ask at the beginning"): a new `controls` beat after the lane pick asks Controller vs Keyboard; `career.input` + `careerHumanBind` resolve side 0's device via a LIVE gamepad check (browsers only expose a pad after a button press). TOUCH is intentionally NOT offered in career — it's a Single-Player-only thing (the career runs in the landscape twin-stick engine); the touch ENGINE is untouched (kept for SP + a future mobile release). (3) SPLASH REDESIGN (Sam): three MATCHING cards (CAREER gold · SINGLE PLAYER · MULTIPLAYER) — same style/size, the ▶ START aligned in the same spot, the richer 2-line descriptions restored, the "✦ NEW" tag removed, and each icon drawn on a light backing disc so it's visible regardless of PC/Mac emoji rendering (fixes the "barely visible joystick"). smoke83 → 91 asserts (controls beat, careerHumanBind, the difficulty→controls→intro flow); smoke57 updated for the tank-abs-heading change. Verified via a headless-Chromium screenshot pass. Full battery green.
   v5.1.260 (2026-06-20): CAREER / STORY MODE — the FINALE: a lane-prestige bracket (Sam's FRC ladder) + a permit-quiz topic. The capstone is now lane-differentiated (CAREER_FINALE): ROOKIE = the quick single-rumble Graduation Scrimmage (no bracket); VETERAN = a 3-round HIGH-SCHOOL **ball** tournament (different MODE); WINNER = a 3-round REGIONAL RoboRumble tournament; CHAMPION = the 3-round WORLD Championship. A single-elim gauntlet: careerFinaleStart seeds career.finale, careerMatchEnd advances the rounds (win → next / champion; loss → eliminated, still graduates), and the lane-framed pre:capstone beat routes via goto:'finale'. ENDINGS reworked around the result: 🌎 WORLD CHAMPION / 🏆 REGIONAL CHAMPION / 🏫 HIGH-SCHOOL CHAMPION / 🎓 GRADUATE / 💪 DEEP RUN; the recap narrates the run ("ran the table at the Regional Championship — 3 rounds, no slip-ups"). Also added a PERMIT-TEST quiz topic (14 rules-of-the-road questions in career/quiz_bank.js, re-inlined) for the upcoming driver's-license mini-game. smoke83 → 86 asserts (per-lane finale mode/rounds, the 3-0 run, a round-1 KO → deep run, ending titles, the full walk to the recap via the bracket). Full battery green.
