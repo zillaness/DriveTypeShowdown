@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.264.html
-  version: 5.1.264
+  file: drive_showdown_v5.1.265.html
+  version: 5.1.265
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -463,7 +463,7 @@ C.addEventListener('touchstart',e=>{
       continue;
     }
     if(phase==='settings'){handleSettingsClick(p.x,p.y);continue;}
-  if(phase==='splash'||phase==='holoMenu'||phase==='steerMenu'||phase==='highscores'||phase==='ghosts'||phase==='achievements'){click(p.x,p.y);continue;}
+  if(phase==='splash'||phase==='credits'||phase==='holoMenu'||phase==='steerMenu'||phase==='highscores'||phase==='ghosts'||phase==='achievements'){click(p.x,p.y);continue;}
     if(phase&&phase.indexOf('p2')===0){
       if(phase==='p2claim'){
         if(tankGridMode()){
@@ -697,9 +697,11 @@ window.addEventListener('keydown',e=>{
     if(e.key==='1'){sfx('click');applyLayout('legacy');phase='menu';}
     else if(e.key==='2'){sfx('click');p2Enter();}
     else if(e.key==='3'){sfx('click');careerEnter();} // v5.1.252 CAREER tutorial
+    else if(e.key==='c'||e.key==='C'){sfx('click');phase='credits';} // v5.1.264 CREDITS
     else if(e.key==='Enter'){sfx('click');if(window.innerHeight>window.innerWidth){applyLayout('legacy');phase='menu';}else p2Enter();} // Enter → the orientation-recommended path
     e.preventDefault();return;
   }
+  if(phase==='credits'){if(e.key==='Escape'){phase='splash';sfx('click');}e.preventDefault();return;} // v5.1.264 ESC out of credits → splash
   if(phase==='layoutPreview'){
     if(e.key==='Escape'){applyLayout('legacy');phase='menu';}
     else if(e.key==='l'||e.key==='L'){applyLayout(LAYOUT_ORDER[(LAYOUT_ORDER.indexOf(curLayout)+1)%LAYOUT_ORDER.length]);}
@@ -984,6 +986,12 @@ function click(mx,my){
     if(inR(mx,my,R.sp)){sfx('click');applyLayout('legacy');phase='menu';return;}      // SINGLE PLAYER → the portrait drive-challenge menu
     if(inR(mx,my,R.mp)){sfx('click');p2Enter();return;}                                // MULTIPLAYER → landscape head-to-head
     if(inR(mx,my,R.set)){sfx('click');settingsReturn='splash';settingsGpIdx=0;phase='settings';return;}
+    if(inR(mx,my,R.credits)){sfx('click');phase='credits';return;}                       // v5.1.264 CREDITS
+    return;
+  }
+  if(phase==='credits'){ // v5.1.264 CREDITS screen — back + the Projects and Mods links
+    if(inR(mx,my,drawCredits._back||{x:14,y:14,w:80,h:30})){sfx('click');phase='splash';return;}
+    for(const lk of (drawCredits._links||[]))if(inR(mx,my,{x:lk.hx,y:lk.hy,w:lk.hw,h:lk.hh})){window.open(lk.url,'_blank');return;}
     return;
   }
   if(phase==='settings'){handleSettingsClick(mx,my);return;}
@@ -1559,9 +1567,9 @@ function updateGamepad(){
   if(phase==='splash'){ // v5.1.229 full gamepad nav: stick/D-pad moves a visible cursor over SP / MP / SETTINGS, A selects (was A=MP / Y=SP shortcuts only — no way to reach SETTINGS or pick by cursor)
     const now=performance.now(),rep=now-gpNavLast>180;
     const D=just(13)||(gpAxis.ly>0.55&&rep)||just(15)||(gpAxis.lx>0.55&&rep),U=just(12)||(gpAxis.ly<-0.55&&rep)||just(14)||(gpAxis.lx<-0.55&&rep);
-    if(D){splashGpIdx=Math.min(3,splashGpIdx+1);gpNavLast=now;sfx('click');}
+    if(D){splashGpIdx=Math.min(4,splashGpIdx+1);gpNavLast=now;sfx('click');}
     if(U){splashGpIdx=Math.max(0,splashGpIdx-1);gpNavLast=now;sfx('click');}
-    if(just(0)){sfx('click');if(splashGpIdx===0)careerEnter();else if(splashGpIdx===2)p2Enter();else if(splashGpIdx===3){settingsReturn='splash';settingsGpIdx=0;phase='settings';}else{applyLayout('legacy');phase='menu';}} // A = open the focused card (0=CAREER 1=SINGLE 2=MULTI 3=SETTINGS)
+    if(just(0)){sfx('click');if(splashGpIdx===0)careerEnter();else if(splashGpIdx===2)p2Enter();else if(splashGpIdx===3){settingsReturn='splash';settingsGpIdx=0;phase='settings';}else if(splashGpIdx===4){phase='credits';}else{applyLayout('legacy');phase='menu';}} // A = open the focused card (0=CAREER 1=SINGLE 2=MULTI 3=SETTINGS 4=CREDITS)
     else if(just(3)){sfx('click');applyLayout('legacy');phase='menu';} // Y = quick Single Player
   }
   // Menu navigation — 2D grid: up/down move rows, left/right move columns
@@ -7949,6 +7957,7 @@ function drawInner(){
   if(phase==='settings'){drawSettings();return;}
   if(phase==='cpuSettings'){drawCpuSettings();return;}
   if(phase==='splash'){drawSplash();return;}
+  if(phase==='credits'){drawCredits();return;}
   if(phase==='menu'){drawMenu();if(gpShowMap)drawControllerMap();return;}
   if(phase==='results'){drawResults();return;}
   if(tankFight){drawTankFight();return;}
@@ -9255,11 +9264,12 @@ function drawCpuSettings(){
 
 // ── v5.1.92 SPLASH front door: pick SINGLE PLAYER (portrait/phone) or MULTIPLAYER (landscape/desktop) ──
 // Rendered on the legacy (portrait) layout — the central hub that both paths return to.
-function splashRects(){return{   // v5.1.261 three matching cards (Sam: same style/size, START aligned, similar 2-line descriptions); CAREER leads by color + position
+function splashRects(){const hw=(CW-60-12)/2;return{   // v5.1.261 three matching cards (Sam: same style/size, START aligned, similar 2-line descriptions); CAREER leads by color + position
   career:{x:30,y:172,w:CW-60,h:112}, // CAREER / STORY MODE — first, gold
   sp :{x:30,y:298,w:CW-60,h:112},    // SINGLE PLAYER
   mp :{x:30,y:424,w:CW-60,h:112},    // MULTIPLAYER
-  set:{x:30,y:550,w:CW-60,h:40},     // global SETTINGS
+  set:{x:30,y:550,w:hw,h:40},        // global SETTINGS (left half)
+  credits:{x:30+hw+12,y:550,w:hw,h:40}, // v5.1.264 CREDITS (right half)
 };}
 // an icon on a light backing disc — visible regardless of how the platform renders the emoji (PC vs Mac)
 function drawSplashIcon(cx,cy,icon,col,sz){
@@ -9306,15 +9316,56 @@ function drawSplash(){
   drawSplashCardC(R.mp,'👥','MULTIPLAYER',['Head-to-head 1v1–3v3: ball · tank ·','race · RoboRumble. Landscape · desktop.'],'#ee66bb','rgba(40,16,40,0.6)');
   const s=R.set;ctx.fillStyle='rgba(20,20,44,0.82)';rr(s.x,s.y,s.w,s.h,10);ctx.fill();
   ctx.strokeStyle='#334466';ctx.lineWidth=1.5;rr(s.x,s.y,s.w,s.h,10);ctx.stroke();
-  ctx.font='bold 14px Courier New';ctx.fillStyle='#8899cc';ctx.textAlign='center';ctx.fillText('⚙  SETTINGS',CW/2,s.y+29);
+  ctx.font='bold 13px Courier New';ctx.fillStyle='#8899cc';ctx.textAlign='center';ctx.fillText('⚙ SETTINGS',s.x+s.w/2,s.y+27);
+  const cR=R.credits;ctx.fillStyle='rgba(20,30,46,0.82)';rr(cR.x,cR.y,cR.w,cR.h,10);ctx.fill();   // v5.1.264 CREDITS (Projects and Mods)
+  ctx.strokeStyle='#9fb8d6';ctx.lineWidth=1.5;rr(cR.x,cR.y,cR.w,cR.h,10);ctx.stroke();
+  ctx.font='bold 13px Courier New';ctx.fillStyle='#bcd0ee';ctx.textAlign='center';ctx.fillText('✦ CREDITS',cR.x+cR.w/2,cR.y+27);
   // orientation hint — steer the user to the path that fits their screen (both always available)
   const portrait=window.innerHeight>window.innerWidth;
   ctx.font='10px Courier New';ctx.fillStyle=portrait?'#44ffaa':'#ee66bb';
   ctx.fillText(portrait?'📱 Portrait — Single Player fits your screen':'🖥 Landscape — Multiplayer is built for this',CW/2,612);
-  if(gpConnected){const F=[R.career,R.sp,R.mp,R.set][splashGpIdx];if(F){ctx.save();ctx.strokeStyle='#ffd740';ctx.lineWidth=3;ctx.setLineDash([7,5]);rr(F.x-4,F.y-4,F.w+8,F.h+8,14);ctx.stroke();ctx.setLineDash([]);ctx.restore();}} // v5.1.229 gamepad focus cursor (v5.1.252 +CAREER at idx 0)
+  if(gpConnected){const F=[R.career,R.sp,R.mp,R.set,R.credits][splashGpIdx];if(F){ctx.save();ctx.strokeStyle='#ffd740';ctx.lineWidth=3;ctx.setLineDash([7,5]);rr(F.x-4,F.y-4,F.w+8,F.h+8,14);ctx.stroke();ctx.setLineDash([]);ctx.restore();}} // v5.1.229 gamepad focus cursor (v5.1.252 +CAREER at idx 0; v5.1.264 +CREDITS at idx 4)
   ctx.fillStyle='#33334a';ctx.font='9px Courier New';
-  ctx.fillText(gpConnected?'tap a path · 🎮 stick/D-pad: move · A: select · Y: Single Player':'tap a path · keys: 1 = Single · 2 = Multiplayer · 3 = Story',CW/2,632);
+  ctx.fillText(gpConnected?'tap a path · 🎮 stick/D-pad: move · A: select · Y: Single Player':'tap a path · keys: 1 = Single · 2 = Multiplayer · 3 = Story · C = Credits',CW/2,632);
   drawMuteBtn();
+}
+// v5.1.264 CREDITS screen (Sam: "both" — also a discoverable one, beyond the cheat-menu links). Shows the game
+// credit + the PROJECTS AND MODS logo (a vector gear mark for now — swap drawPMGear for an inlined image when the
+// real PNG/SVG is committed) + the YouTube / website link buttons (open in a new tab via window.open).
+function drawCredits(){
+  ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
+  for(let y=0;y<CH;y+=3){ctx.fillStyle='rgba(0,0,0,0.12)';ctx.fillRect(0,y,CW,1);}
+  ctx.textAlign='center';
+  ctx.font='bold 24px Courier New';ctx.fillStyle='#d4d4f4';ctx.fillText('CREDITS',CW/2,84);
+  ctx.font='bold 14px Courier New';ctx.fillStyle='#8899cc';ctx.fillText('DRIVE TYPE SHOWDOWN',CW/2,120);
+  ctx.font='11px Courier New';ctx.fillStyle='#55556a';ctx.fillText('by Sam Cao · Team 2204 Rambots',CW/2,142);
+  // PROJECTS AND MODS card (logo + wordmark)
+  const cx=CW/2, cy=Math.min(CH*0.42,300), cw=Math.min(CW-60,420);
+  ctx.fillStyle='rgba(18,32,52,0.85)';rr(cx-cw/2,cy-72,cw,148,16);ctx.fill();
+  ctx.strokeStyle='#34507a';ctx.lineWidth=1.5;rr(cx-cw/2,cy-72,cw,148,16);ctx.stroke();
+  drawPMGear(cx,cy-20,30,'#eaf2ff');
+  ctx.font='bold 20px Courier New';ctx.fillStyle='#eaf2ff';ctx.textAlign='center';ctx.fillText('PROJECTS AND MODS',cx,cy+34);
+  ctx.font='10px Courier New';ctx.fillStyle='#7f97b8';ctx.fillText('projects · mods · builds',cx,cy+54);
+  // link buttons
+  const links=[
+    {url:'https://www.youtube.com/@projectsandmods', text:'YouTube — @projectsandmods'},
+    {url:'https://projectsandmods.com/',             text:'projectsandmods.com'},
+  ];
+  const BW=Math.min(CW-80,360),BH=44,bx=cx-BW/2; let by=cy+98;
+  for(const lk of links){
+    lk.hx=bx;lk.hy=by;lk.hw=BW;lk.hh=BH;
+    ctx.fillStyle='rgba(28,50,82,0.6)';rr(bx,by,BW,BH,10);ctx.fill();
+    ctx.strokeStyle='#9fb8d6';ctx.lineWidth=1.5;rr(bx,by,BW,BH,10);ctx.stroke();
+    drawPMGear(bx+28,by+BH/2,13,'#eaf2ff');
+    ctx.font='bold 13px Courier New';ctx.fillStyle='#d3e3f7';ctx.textAlign='left';ctx.fillText(lk.text,bx+52,by+BH/2+5);
+    by+=BH+14;
+  }
+  drawCredits._links=links;
+  // back button
+  const bk={x:14,y:14,w:84,h:30};drawCredits._back=bk;
+  ctx.fillStyle='rgba(40,40,60,0.7)';rr(bk.x,bk.y,bk.w,bk.h,8);ctx.fill();
+  ctx.strokeStyle='#6677aa';ctx.lineWidth=1.5;rr(bk.x,bk.y,bk.w,bk.h,8);ctx.stroke();
+  ctx.font='bold 12px Courier New';ctx.fillStyle='#aabbdd';ctx.textAlign='center';ctx.fillText('← BACK',bk.x+bk.w/2,bk.y+bk.h/2+4);
 }
 function drawMenu(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
@@ -10167,6 +10218,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.265 (2026-06-20): CREDITS SCREEN — a discoverable credits page (Sam chose "both": the cheat-menu links AND a real screen). A new ✦ CREDITS button shares the splash's bottom row with ⚙ SETTINGS (splashRects splits into two halves); also reachable by the `C` key and gamepad (splash focus idx 4). phase 'credits' → drawCredits: the game credit (DRIVE TYPE SHOWDOWN · by Sam Cao · Team 2204 Rambots) + a PROJECTS AND MODS card (the drawPMGear vector mark + wordmark) + the YouTube (@projectsandmods) and website (projectsandmods.com) link buttons (window.open), with a ← BACK button (Esc / pad-B also exit). Touch + mouse + gamepad all route to it. The logo is the vector gear for now — drop in the real PNG/SVG (base64 data-URI) to replace drawPMGear when it lands. Full battery ALL GREEN. Single file, no assets.
   v5.1.264 (2026-06-20): CREDITS — Projects and Mods links in the cheat menu (Sam). The cheat menu's link area (already the de-facto credits home — rambots.org + @frc2204) becomes a 2×2 GRID: the left column is the team, the right column is PROJECTS AND MODS (navy/white) — a YouTube button (youtube.com/@projectsandmods) and a website button (projectsandmods.com), each carrying a clean vector GEAR mark (drawPMGear — the PM logo is gear-based, drawn in-canvas so the single-file build needs no embedded image asset; an evenodd ring shows the hub through the gear). Same vertical footprint as the old 2-button stack, so the compacted menu doesn't overflow; both links open in a new tab via the existing window.open idiom. (If the exact PNG is committed to the repo it can be inlined as a base64 data-URI to replace the vector mark.) Full battery ALL GREEN. Single file, no assets.
   v5.1.263 (2026-06-20): STORY MODE playtest fixes (Sam, live) — universal controls · solo time-trial races · SP swerve-anim bug. (1) CONTROLS (Sam: "let you use either controller OR keyboard at the same time in story mode"): side 0 now binds to the UNIVERSAL 'any' device — keyboard AND every connected pad are all live at once. Upgraded the 'any' bind to read gamepad BUTTONS (new gpBtnAny: fire A/RT, boost LT) and the merged right-stick (turret aim / repair-dish), not just axes; p2FireHeld/p2BoostHeld/tank+RoboRumble turret aim all gained an 'any' path. The control-scheme beat is now an honest "both work, switch anytime" card (was an either/or). Also fixes the wrong-slot bind Sam hit (had to claim "gamepad 2"): updateGamepad tracks the ACTIVE pad slot (gpLastSlot) instead of trusting a phantom slot 0. (2) RACES ARE SOLO TIME-TRIALS (Sam: "on rookie that first match is CRAZY hard… should be a solo time trial, not a head-to-head"): the two race lessons (NEED FOR SPEED / SIDEWAYS) drop the CPU rival and run on the easy SP obstacle course (course 0, no hazards). ROOKIE just has to finish; higher lanes race a PAR clock (CAREER_RACE_PAR — arcade veteran/winner/champion 20/15/10, bot-centric 15/10/5; 5s gaps). The race HUD shows TIME TRIAL + target, the clock reddens past par, and a SOLO result banner (FINISH! / TOO SLOW) replaces the RED-vs-BLUE one. (3) BUGFIX (Sam): the SP OBSTACLE RACE never stored the live input, so the SWERVE MODULES never animated their steering direction — updateObstacleCourse now sets lastRobotInp like the main play loop. smoke83 → 107 asserts. Full battery ALL GREEN. Single file, no assets.
   v5.1.262 (2026-06-20): STORY MODE — the FINALE as a lane SEQUENCE + a relationship/favor economy + the rename. (1) FINALE SEQUENCE (CAREER_FINALE now carries a `stages` array per lane, Sam's FRC prestige ladder): ROOKIE = a single-elim BALL tournament → an invite to a 1v1 RoboRumble round; VETERAN = a high-school BALL bracket → a 3v3 RoboRumble TRYOUT; WINNER = the all-RoboRumble Regional bracket; CHAMPION = the all-RoboRumble World Championship. careerFinaleStart seeds career.finale from the stages list, careerMatchEnd advances stage-by-stage (win all → champion result; any loss → eliminated, still graduates), and each stage launches its own MODE (ball vs rumble) so the lower lanes really play a ball tournament before their rumble capstone. (2) RELATIONSHIP / FAVOR economy (Sam: "the allies and friends you made along the way"): new favor beats (lend a spare part after the arcade course; help debug auto after the field-centric lesson) and a perfect quiz now ADD ALLIES (careerAddAlly / CAREER_ALLY_NAMES, deduped); allies grant a finale loadout perk (a PIT-STOP repair, or a SPARE TIRE if you also earned your license) and are narrated in the recap ("the friends you made along the way had your back"). (3) POST-TOURNAMENT INVITE epilogue (Sam: "an invite to try out after"): the recap closes with a lane-scaled tryout invite (national-team / championship-program / 3v3 RoboRumble / 1v1 RoboRumble). (4) RENAME: CAREER → STORY MODE everywhere player-facing (splash card, hub chrome, the "3 = Story" hint). smoke83 → 100 asserts (stages-array finale per lane, the ball→rumble sequence, relationship/favor add-ally, the invite epilogue, the STORY MODE labels). Full battery green. (Backlog noted for Sam: veteran's double-elim ball bracket + a real 3v3 RoboRumble grid for the tryout; the human FLAMETHROWER is overpowered in RoboRumble.) Single file, no assets.
