@@ -699,9 +699,21 @@ src+=`
    const np=bbBotWith('none','balanced',1,1,true);np.hp=BB.HP;np.burn=0;bb2.bots=[bbBotWith('flame','balanced',0,0,true),np];bbApplyFlame(np,50,0);ok('a NON-flameproof bot DOES take flame damage',np.hp<BB.HP);
    const pg=bbBotWith('none','balanced',0,0,true);pg.ld.perk='partinggift';pg.x=300;pg.y=300;pg.hp=10;
    const en=bbBotWith('none','balanced',1,1,true);en.x=300+RR*2;en.y=300;en.hp=BB.HP;en.inv=0;bb2.bots=[pg,en];bb2.result=null;bb2.blasts=[];bb2.deb=[];
-   const ehp0=en.hp;bbKill(pg,null);ok('PARTING GIFT perk: dying triggers a blast that damages a nearby ENEMY',en.hp<ehp0);
+   const ehp0=en.hp;bb2.partings=[];bbKill(pg,null); // v5.1.287 PARTING GIFT is now a DELAYED, telegraphed charge — no instant blast
+   ok('PARTING GIFT: death drops an armed delayed charge (no instant damage)',(bb2.partings&&bb2.partings.length===1)&&en.hp===ehp0);
+   bbPartingsUpdate(BB_W.partingFuse+0.05);
+   ok('PARTING GIFT: after the fuse it DETONATES + damages a nearby ENEMY',en.hp<ehp0&&bb2.partings.length===0);
    ok('bbArmEquip can set the perk slot',(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','partinggift')&&m2.tseats[0].loadout.perk==='partinggift';})());
-   ok('CPU loadout includes a perk field',!!bbCpuPickLoadout(3).perk);}
+   ok('CPU loadout includes a perk field',!!bbCpuPickLoadout(3).perk);
+   // v5.1.287 the FUSE is the point: a foe that RUNS clear of the (big) blast before it pops is spared; bbDrawPartings renders
+   {const dier=bbBotWith('none','balanced',0,0,true);dier.ld.perk='partinggift';dier.x=300;dier.y=300;
+    const runner=bbBotWith('none','balanced',1,1,true);runner.x=300+RR*2;runner.y=300;runner.hp=BB.HP;runner.inv=0;
+    bb2.bots=[dier,runner];bb2.result=null;bb2.partings=[];bb2.blasts=[];bbKill(dier,null);
+    runner.x=300+RR*BB_W.partingRK+220;runner.y=300; // sprint clear before the fuse ends
+    const rhp=runner.hp;bbPartingsUpdate(BB_W.partingFuse+0.05);
+    ok('PARTING GIFT: a foe that RAN clear before the fuse is spared (time to run)',runner.hp===rhp&&bb2.partings.length===0);
+    let pthrew=false;try{bb2.partings=[{x:200,y:200,side:0,fuse:0.7,max:BB_W.partingFuse,rk:BB_W.partingRK,dmg:BB_W.partingDmg,knock:BB_W.partingKnock}];bbDrawPartings();}catch(e){pthrew=true;}
+    ok('bbDrawPartings renders the armed charge + growing danger ring without throwing',!pthrew);bb2.partings=[];}}
   // ── v5.1.155: NONE removed as a pickable perk + new perks VAMPIRE / SPARE TIRE / PIT STOP ──
   {ok('NO PERK is a pickable perk again (neutral option)',BB_PERKS_PICK.some(p=>p.id==='none')&&BB_PERKS_PICK[0].id==='none');
    ok('CPUs always roll a real (non-NONE) perk',(()=>{for(let i=0;i<200;i++)if(bbCpuPickLoadout(2).perk==='none')return false;return true;})());
@@ -751,8 +763,8 @@ src+=`
     ok('LAST STAND: killing the last enemy mid-window → I survive the chain and WIN',me.dead===false&&bb2.result===0);
     const me2=bbBotWith('none','balanced',0,0,true);me2.ld.perk='laststand';me2.x=300;me2.y=300;me2.hp=1;me2._lastStandT=5;me2._lastStandUsed=true;me2.dead=false;me2.lives=0;
     const pg=bbBotWith('none','balanced',1,1,true);pg.ld.perk='partinggift';pg.x=312;pg.y=300;pg.hp=BB.HP;pg.dead=false;pg.lives=0;
-    bb2.bots=[me2,pg];bb2.result=null;bbKill(pg,0); // the last enemy had PARTING GIFT → its death-bomb still takes me out → DRAW
-    ok('LAST STAND: but a PARTING GIFT death-bomb still takes me out → DRAW',me2.dead===true&&bb2.result==='draw');}}
+    bb2.bots=[me2,pg];bb2.result=null;bb2.partings=[];bbKill(pg,0); // v5.1.287 the parting bomb is now DELAYED + telegraphed (dodgeable) — killing the last enemy ENDS the match before it detonates → you WIN (was an instant mutual-destruction DRAW)
+    ok('LAST STAND + PARTING GIFT: the delayed bomb no longer forces a draw — the last kill WINS',me2.dead===false&&bb2.result===0&&bb2.partings.length===1);bb2.partings=[];}}
   // ── v5.1.181 HEATSHIELD: flamethrower-proof + general damage reduction ──
   {const hs=bbBotWith('none','heatshield',1,1,true);hs.x=300;hs.y=300;hs.h=0;hs.inv=0;hs.hp=BB.HP;hs.burn=0;
    bbApplyFlame(hs,60,0);ok('HEATSHIELD: flamethrower-PROOF (no flame damage or burn)',hs.hp===BB.HP&&(hs.burn||0)===0);
