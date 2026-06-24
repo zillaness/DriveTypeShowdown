@@ -294,6 +294,18 @@ src+=`
    pick(0);
    T('continuing that coach STILL reaches the stage (persisted continuation)', phase==='p2tank'&&career.stage==='tank_hook');
   }
+  // v5.1.278 the coach-beat continuation must survive a RELOAD (careerMigrate) — dropping _thenByNode was a soft-lock loop (coach:C2 skip→hub→continue→coach:C2)
+  {career=careerNew();career.active=true;career.node='intro';careerGoto('coach:C2','stage:arcade_course');
+   const saved=JSON.parse(JSON.stringify(career)); // mirror the localStorage round-trip careerStore/careerMigrate do
+   career=careerMigrate(saved);
+   T('careerMigrate PRESERVES _thenByNode across a reload', !!(career._thenByNode&&career._thenByNode['coach:C2']==='stage:arcade_course'));
+   careerGoto(career.node); careerContinue(); // CONTINUE → coach:C2 → skip
+   T('continue after a RELOAD reaches the stage (no hub soft-lock)', career.stage==='arcade_course'&&phase!=='p2career');}
+  // v5.1.278 even an OLD save with NO _thenByNode recovers via the curriculum-derived fallback
+  {T('careerCoachThen derives the continuation from the curriculum', careerCoachThen('coach:C2')==='stage:arcade_course');
+   career=careerMigrate({node:'coach:C2',active:true,taught:['C1','C2'],diff:'veteran'}); // no _thenByNode
+   careerGoto(career.node); careerContinue();
+   T('OLD save (no _thenByNode) recovers via the fallback (no soft-lock)', career.stage==='arcade_course'&&phase!=='p2career');}
   // v5.1.273 a quiz with zero questions skips instead of crashing
   {career=careerNew();career.node='intro';const skipped=(()=>{try{careerQuizStart({kind:'quiz',topic:'__none__',next:'hub'});return phase==='p2career';}catch(e){return false;}})();
    T('empty-pool quiz skips to next (no crash)', skipped);}
