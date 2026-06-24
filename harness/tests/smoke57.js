@@ -353,7 +353,7 @@ src+=`
   // ── v5.1.94 ARMORY: drag a weapon/armor chip from the rail onto a seat to equip ──
   {applyLayout('land2p');m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;phase='p2claim';tour=null;tankGridSetCpu(0);
    const chips=bbArmoryChips(),wChips=chips.filter(c=>c.kind==='weapon'),aChips=chips.filter(c=>c.kind==='armor');
-   ok('armory rail has every PICKABLE weapon (RAM-only + locked CANNON + experimental MINE/TASER excluded) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none'&&(w.id!=='cannon'||cannonWeapon)&&(w.id!=='mine'||expFeatures)&&(w.id!=='taser'||expFeatures)).length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length); // v5.1.279 MINE + v5.1.280 TASER are experimental-gated like the CANNON
+   ok('armory rail has every PICKABLE weapon (RAM-only + locked CANNON + EXPERIMENTAL gear excluded) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none'&&(w.id!=='cannon'||cannonWeapon)&&(!bbExpWeapon(w.id)||expFeatures)).length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length); // v5.1.295 experimental gear (mine/taser/stunmine) gated via bbExpWeapon
    ok('v5.1.196: armory rail has the PERK group incl. NO PERK',chips.filter(c=>c.kind==='perk').length===BB_PERKS_PICK.length&&chips.some(c=>c.kind==='perk'&&c.id==='none')&&bbArmEquip&&(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','flameproof')&&m2.tseats[0].loadout.perk==='flameproof';})());
    ok('armory chip ids match the real weapon/armor tables',wChips.every(c=>BB_WEAPONS.some(w=>w.id===c.id))&&aChips.every(c=>BB_ARMOR.some(a=>a.id===c.id)));
    ok('armory rail sits inside the canvas, above the seats',chips.every(c=>c.x>=0&&c.x+c.w<=CW&&c.y>=0&&c.y+c.h<=tankCellRect(0).y));
@@ -1490,6 +1490,12 @@ src+=`
    ok('an ARMING mine (arm>0) does not trigger yet',foe.hp===1000&&bb2.mines.length===1&&bb2.mines[0].arm<0.5);
    bb2.mines=[{x:owner.x,y:owner.y,owner:0,side:0,arm:0,life:10}];const ahp=owner.hp;bbMinesUpdate(1/60);
    ok('an ally/owner does NOT trip its own mine',owner.hp===ahp&&bb2.mines.length===1);
+   // v5.1.295 STUN-MINE: a stun:true mine STUNS (drive+fire frozen) + only CHIPS on a trip (not the big MINELAYER blast); owner/allies safe
+   foe.hp=1000;foe.inv=0;foe._stunBB=0;foe._stunImm=0;bb2.mines=[{x:foe.x,y:foe.y,owner:0,side:0,arm:0,life:10,stun:true}];bbMinesUpdate(1/60);
+   ok('a STUN-MINE STUNS the enemy on a trip + only chips (not the big mine blast) + is consumed',(foe._stunBB||0)>0&&foe.hp<1000&&foe.hp>1000-BB_W.mineDmg&&bb2.mines.length===0);
+   owner._stunBB=0;bb2.mines=[{x:owner.x,y:owner.y,owner:0,side:0,arm:0,life:10,stun:true}];bbMinesUpdate(1/60);
+   ok('a STUN-MINE does NOT trip on its owner/ally',(owner._stunBB||0)===0&&bb2.mines.length===1);
+   ok('STUN-MINE is a gated EXPERIMENTAL weapon (catalog + armory + bbExpWeapon)',!!BB_WEAPONS.find(w=>w.id==='stunmine')&&!!BB_ARMORY_W.find(w=>w.id==='stunmine')&&bbExpWeapon('stunmine')===true);
    bb2.bots=_sb;bb2.minis=_sm;}
   // v5.1.280 TASER weapon: a short front-cone ZAP that STUNS a lined-up enemy (drive + fire frozen via _stunBB); low damage, owner/ally safe, anti perma-lock immunity
   ok('TASER in BB_WEAPONS + armory rail',!!BB_WEAPONS.find(w=>w.id==='taser')&&!!BB_ARMORY_W.find(w=>w.id==='taser'));
