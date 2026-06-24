@@ -1412,6 +1412,18 @@ src+=`
   // v5.1.275 name-egg LIVERIES resolve from a RAW name (so the setup card/grid previews can paint them, not just the in-match bot)
   ok('bbLiveryForName resolves Optimus/Bumblebee/Original Sin; plain = null',bbLiveryForName('Optimus Prime')==='optimus'&&bbLiveryForName('bumblebee')==='bumblebee'&&bbLiveryForName('ORIGINAL SIN')==='originalsin'&&bbLiveryForName('Bob')===null);
   ok('bbNameEgg routes through bbLiveryForName (reads the bot name)',bbNameEgg({ctl:{name:'Original Sin',bind:0}})==='originalsin');
+  // v5.1.277 MINELAYER weapon: drops armed proximity mines that detonate on an ENEMY (owner/allies are safe)
+  ok('MINELAYER in BB_WEAPONS + armory rail',!!BB_WEAPONS.find(w=>w.id==='mine')&&!!BB_ARMORY_W.find(w=>w.id==='mine'));
+  ok('mine helpers exist',[bbMines,bbMineDetonate,bbMinesUpdate,bbDrawMines].every(f=>typeof f==='function'));
+  {const mkb=(side,x,y)=>({side:side,x:x,y:y,h:0,hp:1000,mhp:1000,mob:BB.MOB,dead:false,inv:0,ld:{deal:1,take:1,wcls:'kineticStrike',arps:'balanced'},wheels:[],ctl:null}); // controlled bots — prior tests left bb2.bots mutated
+   const owner=mkb(0,100,100),foe=mkb(1,300,300),_sb=bb2.bots,_sm=bb2.minis;bb2.bots=[owner,foe];bb2.minis=[];bb2.blasts=[];
+   bb2.mines=[{x:foe.x,y:foe.y,owner:0,side:0,arm:0,life:10}];const hp0=foe.hp;bbMinesUpdate(1/60);
+   ok('an ARMED mine detonates on an enemy + damages it + is consumed',foe.hp<hp0&&bb2.mines.length===0);
+   foe.hp=1000;bb2.mines=[{x:foe.x,y:foe.y,owner:0,side:0,arm:0.5,life:10}];bbMinesUpdate(1/60);
+   ok('an ARMING mine (arm>0) does not trigger yet',foe.hp===1000&&bb2.mines.length===1&&bb2.mines[0].arm<0.5);
+   bb2.mines=[{x:owner.x,y:owner.y,owner:0,side:0,arm:0,life:10}];const ahp=owner.hp;bbMinesUpdate(1/60);
+   ok('an ally/owner does NOT trip its own mine',owner.hp===ahp&&bb2.mines.length===1);
+   bb2.bots=_sb;bb2.minis=_sm;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

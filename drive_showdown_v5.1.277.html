@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.276.html
-  version: 5.1.276
+  file: drive_showdown_v5.1.277.html
+  version: 5.1.277
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -4176,6 +4176,7 @@ const BB_WEAPONS=[
   {id:'repair', name:'REPAIR TORCH',cls:'control',       weight:0.3, deal:0.20, take:1.00}, // v5.1.154 SUPPORT: welding torch — heals an ALLY (HP + mobility/wheels) in front; only chip damage to enemies (3v3 role)
   {id:'cannon', name:'CANNON',      cls:'kineticStrike', weight:0.5, deal:1.00, take:1.10}, // v5.1.175 the TANK-FIGHT cannon as a PICKABLE weapon — RT fires shells at range; turreted aim (arcade aims it, else fires forward)
   {id:'jet',    name:'JET ENGINE',  cls:'control',       weight:0.5, deal:1.00, take:1.05}, // v5.1.182 RANGED FORWARD pusher: a fast-spin-up thrust cone shoves foes back (stronger up close) + upfront damage + light wall-SLAM. Spammable (no cooldown), fires FORWARD along the chassis
+  {id:'mine',   name:'MINELAYER',   cls:'kineticStrike', weight:0.4, deal:1.00, take:1.05}, // v5.1.277 drops armed PROXIMITY MINES behind the bot — lay a field, lure foes in; mines arm after a delay, then detonate on an enemy (reuses the blast/bbKill chain)
 ];
 const BB_ARMOR=[ // v5.1.156: spd (speed mult), hpMul (HP-pool mult), runflat (never fully immobilized), reactive (reflect on first hit per zone)
   {id:'balanced',  name:'BALANCED',  rps:'balanced',  weight:0.0, take:1.00, zone:{front:1,side:1,rear:1}}, // default neutral
@@ -4241,9 +4242,10 @@ function bbDrawLoadDrag(){ // drop-target halos + the floating loadout chip that
   ctx.fillStyle='rgba(12,12,24,0.94)';rr(x+12,y-12,tw,24,7);ctx.fill();ctx.strokeStyle='#ffd740';ctx.lineWidth=1.5;rr(x+12,y-12,tw,24,7);ctx.stroke();
   ctx.fillStyle='#eaeaff';ctx.textAlign='left';ctx.fillText(txt,x+20,y+4);}
 // ── v5.1.94 ARMORY: a rail of weapon + armor chips you DRAG onto any seat to equip it (vs only the per-seat ◀▶ cyclers) ──
-const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'PUSH',ic:'⏩'},{id:'pincer',lab:'PINCE',ic:'🦀'},{id:'kamikaze',lab:'KAMI',ic:'💣'},{id:'drill',lab:'DRILL',ic:'⛏'},{id:'repair',lab:'REPAIR',ic:'🔧'},{id:'cannon',lab:'CANNON',ic:'💥'},{id:'jet',lab:'JET',ic:'🚀'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE; v5.1.154 REPAIR TORCH; v5.1.175 CANNON; v5.1.182 JET ENGINE
+const BB_ARMORY_W=[{id:'spinner',lab:'SPIN',ic:'🌀'},{id:'piston',lab:'PISTON',ic:'🔨'},{id:'flame',lab:'FLAME',ic:'🔥'},{id:'wedge',lab:'DOZER',ic:'◣'},{id:'buzzsaw',lab:'BUZZ',ic:'🪚'},{id:'flipper',lab:'PUSH',ic:'⏩'},{id:'pincer',lab:'PINCE',ic:'🦀'},{id:'kamikaze',lab:'KAMI',ic:'💣'},{id:'drill',lab:'DRILL',ic:'⛏'},{id:'repair',lab:'REPAIR',ic:'🔧'},{id:'cannon',lab:'CANNON',ic:'💥'},{id:'jet',lab:'JET',ic:'🚀'},{id:'mine',lab:'MINE',ic:'🧨'}]; // v5.1.103: RAM-ONLY ('none') dropped as a PICKABLE; v5.1.154 REPAIR TORCH; v5.1.175 CANNON; v5.1.182 JET ENGINE
 const BB_ARMORY_A=[{id:'balanced',lab:'BAL',ic:'⚖'},{id:'hardplate',lab:'HARD',ic:'🛡'},{id:'heatshield',lab:'HEAT',ic:'♨'},{id:'light',lab:'LIGHT',ic:'🪶'},{id:'runflat',lab:'RUN',ic:'🛞'},{id:'reactive',lab:'REACT',ic:'💥'}]; // v5.1.156 RUNFLAT; v5.1.157 REACTIVE
 const BB_DESC={ // v5.1.246 hover-tip blurbs (ids unique across weapon/armor/perk) — accuracy pass + counter hints
+  mine:'MINELAYER — RT drops armed proximity MINES behind you; they detonate on an enemy (you + allies are safe). Lay a field, then lure foes across it.',
   spinner:'360° spin-up disc — bites all around incl. the front; constant but lower per-hit. Slamming a WALL bleeds spin + self-damages.',
   piston:'front-arc hammer — big armor-piercing strikes on a cooldown',
   flame:'thermal jet — ignores front armor + builds a BLOW-UP meter that detonates a foe. Countered by HEATSHIELD / FLAMEPROOF.',
@@ -4560,6 +4562,7 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
       else if(wp==='repair')br.fire=true;                                                              // v5.1.154 REPAIR TORCH: torch always on (heals an ally in front; chips an enemy)
       else if(wp==='cannon')br.fire=dist<RR+RR*BB_W.cannonRangeK;                                       // v5.1.175 CANNON: fire shells whenever a foe is in range (the turret aims itself)
       else if(wp==='jet')br.fire=dist<RR*2+RR*BB_W.jetRange;                                              // v5.1.182 JET: spin up + blast the forward thrust cone whenever a foe is in reach (the brain faces the foe so the cone catches it)
+      else if(wp==='mine')br.fire=dist<RR*9;                                                               // v5.1.277 MINELAYER: lay mines while a foe is anywhere near (mineCd gates the actual drop rate — the bot keeps laying as it maneuvers)
     }
     if(bbMode()==='pushball'&&bb2.pball){const pb=bb2.pball,bdx=pb.x-me.x,bdy=pb.y-me.y,bdd=Math.hypot(bdx,bdy)||1,goalX=me.side===0?FW-10:10; // v5.1.227 PUSH-BALL CPU now USES its weapon on the ball (not just a body shove): face the ball + fire to drive it goalward
       let bh=Math.atan2(bdy,bdx)-me.h;while(bh>Math.PI)bh-=2*Math.PI;while(bh<-Math.PI)bh+=2*Math.PI;br.inp.vr=clamp(bh*6,-TSP*T.turn,TSP*T.turn); // face the BALL (we're positioned behind it → the push/weapon aims toward the enemy goal)
@@ -4583,7 +4586,8 @@ const BB_W={
   wedgeDmg:0.76, wedgeArc:Math.PI*0.74, wedgePin:0.45, wedgePinT:0.40, wedgeShove:3.4, grabDur:1.2, grabCd:0.8, slamDmg:158, grabDmg:44, dozerCharge:2.6, dashBuff:1.4, pincerArc:Math.PI*0.7, pincerGrabDur:1.6, pincerDrain:38, pincerLunge:1.8, pincerSlam:48, pincerReachK:1.4, pincerGripDR:0.3, heldFightDps:40, // v5.1.166 WEDGE/DOZER buffed (contact 0.40→0.62, slam 85→115, grab 18→28 — it read as weak). Wider arc (±63°) + grab REACH ≈ 2.4×RR so no perfect ram needed. dozerCharge = forward boost while firing RT, dashBuff = LT-dash buff
   blowUp:46, burnCool:4, burnBuild:1.15, burnBuildCpu:0.54, blastRK:3.0, blastLethalHp:24, kamiRK:9.0, kamiDmg:640, partingRK:6.0, partingDmg:480, // v5.1.269 HUMAN flame blow-up NERFED 1.5→1.15 (~3.3s → ~4.3s sustained — Sam: too good); CPU stays slow (burnBuildCpu, sim-balanced). burnCool 4 = the ring UNFILLS SLOWLY on contact break. KAMIKAZE 9×RR; PARTING GIFT inner boom
   wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:2.15, drillRampT:1.05, drillStick:90, drillMin:305, drillMax:510, drillCharge:1.5, drillBoreDmg:18, drillBoreKnock:6, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, repairArc:Math.PI*0.55, repairReachK:11.0, repairHps:110, repairMobps:80, repairWheelps:30, repairDmg:8, repairDmgBuff:1.3, repairBuffT:1.6, repairSpinRamp:0.6, repairBuffRK:12.0, repairLifeDps:28, repairLifeHeal:40, repairRampT:1.4, repairRampMin:0.3, repairMoveMul:0.5, vampHeal:130, medicReachK:2.6, medicHp:90, medicHps:42, medicMobps:90, medicWheelps:26, medicSpd:1.05, reactDmg:120, // v5.1.166 DRILL buffed (ramp 1.7→1.4, dps 45→80 / 175→250 — it read as weak); MEDIC now has its own HP (90, destructible) + heals tires less (55→26); v5.1.161 PIT STOP medic; raw HP damage PENETRATES the front; REACTIVE reflect 120
-  miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, miniHp:55, miniDps:80, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:9.0, airDmg:480, airTele:1.2, airWave:3, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14, swordCutT:0.85, iaiWind:0.24, iaiBlinkK:4.0, tankPortCd:0.55, tankPortSpd:400, tankPortDmg:42, tankPortLife:2.0, cannonCd:0.77, cannonMgCd:0.12, cannonSpd:512, cannonDmg:137, cannonLife:1.9, cannonRangeK:7.0, cannonKnock:11, cannonBlastR:75 // v5.1.215 cannonMgCd = full-auto reload under MACHINE GUN; v5.1.172 TANK INVASION cheat shells; v5.1.175 CANNON weapon; v5.1.189 cannonBlastR = EXPLOSIVE-round AoE radius (like the tank explosive powerup)
+  miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, miniHp:55, miniDps:80, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:9.0, airDmg:480, airTele:1.2, airWave:3, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14, swordCutT:0.85, iaiWind:0.24, iaiBlinkK:4.0, tankPortCd:0.55, tankPortSpd:400, tankPortDmg:42, tankPortLife:2.0, cannonCd:0.77, cannonMgCd:0.12, cannonSpd:512, cannonDmg:137, cannonLife:1.9, cannonRangeK:7.0, cannonKnock:11, cannonBlastR:75, // v5.1.215 cannonMgCd = full-auto reload under MACHINE GUN; v5.1.172 TANK INVASION cheat shells; v5.1.175 CANNON weapon; v5.1.189 cannonBlastR = EXPLOSIVE-round AoE radius (like the tank explosive powerup)
+  mineCd:1.4, mineArm:0.7, mineTrigK:1.4, mineBlastRK:2.6, mineDmg:150, mineKnock:9, mineLife:14, mineMax:4 // v5.1.277 MINELAYER: drop cooldown · arm delay · proximity trigger (×RR) · blast radius (×RR) · peak dmg (distance falloff) · blast knockback · seconds before a mine fizzles · max live mines per bot
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
   const id=(typeof p2cDriveDef!=='undefined')?p2cDriveDef(bind).id:'tank';
@@ -4852,6 +4856,10 @@ function bbWeaponFire(dt){ // PISTON strikes (discrete, front arc, cooldown) + F
     if(w==='cannon'){a.cannonCd=(a.cannonCd||0)-dt; // v5.1.175 CANNON weapon: RT fires a shell along the turret aim on a reload cooldown (bbApplyHit applies the loadout/armor factors)
       if(a.firing&&a.cannonCd<=0){const _mg=(machineGun===2||(machineGun===1&&a.ctl&&a.ctl.type!=='cpu')); // v5.1.215 MACHINE GUN → full-auto cannon (RoboRumble human check, not mgOn which keys off m2.claim)
         a.cannonCd=_mg?BB_W.cannonMgCd:BB_W.cannonCd;a._tpFx=0.12;bbFireShell(a,ai,(a.weaponAng!=null?a.weaponAng:a.h),BB_W.cannonSpd,BB_W.cannonLife,BB_W.cannonDmg,BB_W.cannonKnock,explosiveShells?BB_W.cannonBlastR:0);}} // v5.1.215 EXPLOSIVE only with the cheat (plain = direct-hit)
+    if(w==='mine'){a.mineCd=(a.mineCd||0)-dt; // v5.1.277 MINELAYER: drop an armed proximity mine BEHIND the nose on a cooldown, capped per owner
+      if(a.firing&&a.mineCd<=0){a.mineCd=BB_W.mineCd;const _mn=bbMines(),_own=_mn.filter(m=>!m.dead&&m.owner===ai);if(_own.length>=BB_W.mineMax)_own[0].dead=true; // over the cap → the oldest mine disarms (so the arena can't fill up)
+        const dx=clamp(a.x-Math.cos(a.h)*(RR+7),8,FW-8),dy=clamp(a.y-Math.sin(a.h)*(RR+7),8,FH-8); // drop behind, clamped inside the arena
+        _mn.push({x:dx,y:dy,owner:ai,side:a.side,arm:BB_W.mineArm,life:BB_W.mineLife});a._tpFx=0.1;sfx('thump');if(a.ctl)p2Rumble(a.ctl.bind,0.45,'thump');}}
   }
 }
 function bbGrabRelease(a){if(a.grab)a.grab.held=null;a.grab=null;a.grabT=0;a.grabCd=BB_W.grabCd;}
@@ -5323,6 +5331,20 @@ function bbShellsUpdate(dt){ // v5.1.175 move + collide ALL shells (cannon weapo
   }
   bb2.shells=bb2.shells.filter(s=>!s.dead);
 }
+function bbMines(){if(!bb2.mines)bb2.mines=[];return bb2.mines;} // v5.1.277 MINELAYER mine list (lazy; bb2 is recreated each match, so mines reset)
+function bbMineDetonate(mn){const R=RR*BB_W.mineBlastRK;if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:mn.x,y:mn.y,t:0.4,r:R});sfx('explosion'); // v5.1.277 AoE blast: armor-ignoring (frontPierce 1), distance falloff — like an explosive shell
+  for(const c of bb2.bots){if(c.dead||(c.side===mn.side&&!friendlyFire))continue;const d=Math.hypot(c.x-mn.x,c.y-mn.y);if(d<=R+RR){bbApplyHit(c,bbHitLoc(c,mn.x,mn.y),BB_W.mineDmg*Math.max(0.4,1-d/(R+RR)),mn.owner,mn.x,mn.y,1);const m=d||1;c.x+=(c.x-mn.x)/m*BB_W.mineKnock;c.y+=(c.y-mn.y)/m*BB_W.mineKnock;obsCheck(c,RR);if(c.ctl)p2Rumble(c.ctl.bind,0.9,'heavy');if(c.hp<=0&&!c.dead)bbKill(c,mn.owner);}} // FF off → spares the owner's alliance
+  for(const mb of (bb2.minis||[])){if(mb.dead||(mb.side===mn.side&&!friendlyFire))continue;if(Math.hypot(mb.x-mn.x,mb.y-mn.y)<=R){mb.hp-=BB_W.mineDmg*0.5;mb.hurtFx=0.12;if(mb.hp<=0){mb.dead=true;bb2.blasts.push({x:mb.x,y:mb.y,t:0.3,r:RR*0.5*2.6});}}} // a blast also kills enemy drones
+  mn.dead=true;
+}
+function bbMinesUpdate(dt){if(!bb2||!bb2.mines||!bb2.mines.length)return; // v5.1.277 arm delay → ENEMY-proximity trigger → detonate; fizzle at end of life
+  for(const mn of bb2.mines){if(mn.dead)continue;
+    if(mn.arm>0){mn.arm-=dt;continue;} // arming: can't trigger yet (lets the layer drive clear of its own drop)
+    mn.life-=dt;if(mn.life<=0){mn.dead=true;if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:mn.x,y:mn.y,t:0.22,r:RR*0.6});continue;} // expired → a small dud puff (no damage)
+    for(const c of bb2.bots){if(c.dead||c.side===mn.side)continue;if(Math.hypot(c.x-mn.x,c.y-mn.y)<=RR+RR*BB_W.mineTrigK){bbMineDetonate(mn);break;}} // only an ENEMY trips it (owner + allies walk over safely)
+  }
+  bb2.mines=bb2.mines.filter(mn=>!mn.dead);
+}
 // v5.1.212 bbTankPortUpdate REMOVED — TANK INVASION no longer auto-fires every bot; it just unlocks the pickable CANNON in the cycler (see bbCycleField)
 function updateBB(dt){
   if(!bb2)return;
@@ -5422,6 +5444,7 @@ function updateBB(dt){
   bbModeUpdate(dt); // v5.1.121 P9: game-mode win conditions (sumo ring-out, etc.)
   bbSwordUpdate(dt); // v5.1.119 P7: ANIME SWORD periodic slash (cheat)
   bbShellsUpdate(dt); // v5.1.175: move/collide all shells (CANNON weapon + tank-invasion cheat)
+  bbMinesUpdate(dt); // v5.1.277 MINELAYER: arm / proximity-trigger / detonate dropped mines
   bbAirstrikeUpdate(dt); // v5.1.119 P7: AIRSTRIKE arena bombs (cheat)
   if(bb2.hazCd>0)bb2.hazCd=Math.max(0,bb2.hazCd-dt); // v5.1.148 HAZARD MASTER strike cooldown
   // STALEMATE COUNT-OUT: only when NOTHING is happening — an immobilized bot taps out ONLY if its side has no mobile
@@ -5442,6 +5465,17 @@ function bbDrawWheels(b){ // P2.4 corner-wheel status — dead corners get a red
   ctx.restore();
 }
 let _wpnPreview=false; // v5.1.201 set while drawing a weapon on a static CARD preview → weapon branches skip their big field-AoE/aura visuals (huge buff/cone rings) and just draw the hardware
+function bbDrawMines(){if(!bb2||!bb2.mines)return; // v5.1.277 floor-level land mines — drawn UNDER the bots so they sit on the arena floor
+  const T=(bb2.t||0);
+  for(const mn of bb2.mines){if(mn.dead)continue;const armed=mn.arm<=0;
+    ctx.save();ctx.translate(FX+mn.x,FY+mn.y);
+    ctx.fillStyle='rgba(0,0,0,0.30)';ctx.beginPath();ctx.arc(0,2,RR*0.44,0,Math.PI*2);ctx.fill(); // ground shadow
+    ctx.strokeStyle='#3a3f4a';ctx.lineWidth=2.4;for(let i=0;i<6;i++){const a=i/6*Math.PI*2;ctx.beginPath();ctx.moveTo(Math.cos(a)*RR*0.32,Math.sin(a)*RR*0.32);ctx.lineTo(Math.cos(a)*RR*0.5,Math.sin(a)*RR*0.5);ctx.stroke();} // detonator prongs
+    ctx.fillStyle='#23262e';ctx.strokeStyle='#454b57';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,RR*0.36,0,Math.PI*2);ctx.fill();ctx.stroke(); // casing
+    const blink=armed?(((T*6)|0)&1):(((T*2)|0)&1),lc=armed?'#ff3b30':'#ffb02e'; // armed = fast RED blink; arming = slow amber
+    ctx.fillStyle=blink?lc:'#1a1d24';if(blink){ctx.shadowColor=lc;ctx.shadowBlur=8;}ctx.beginPath();ctx.arc(0,0,RR*0.14,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0; // status light
+    ctx.restore();}
+}
 function bbDrawWeapon(b){ // P2.2 basic weapon cosmetics (the picker UI + polished look land in P2.5)
   const w=b.ld?b.ld.weapon:'none';if(w==='none')return;
   ctx.save();ctx.translate(FX+b.x,FY+b.y);
@@ -5552,6 +5586,9 @@ function bbDrawWeapon(b){ // P2.2 basic weapon cosmetics (the picker UI + polish
     ctx.beginPath();ctx.moveTo(front,-half);ctx.quadraticCurveTo(front+RR*0.5,0,front,half);ctx.lineTo(front-RR*0.34,half);ctx.quadraticCurveTo(front+RR*0.05,0,front-RR*0.34,-half);ctx.closePath();ctx.fill();
     ctx.strokeStyle='#20202c';ctx.lineWidth=1.6;ctx.stroke();
     ctx.strokeStyle='#20202c';ctx.lineWidth=1;for(let i=-2;i<=2;i++){const yy=i*half*0.4;ctx.beginPath();ctx.moveTo(front-RR*0.28,yy);ctx.lineTo(front+RR*0.03,yy);ctx.stroke();} // blade ribs
+  }else if(w==='mine'){ctx.rotate(b.h); // v5.1.277 MINELAYER: a rear dispenser hatch + a yellow hazard stripe that flashes while laying
+    ctx.fillStyle='#2a2e38';ctx.strokeStyle='#4a505e';ctx.lineWidth=2;rr(-RR*1.0,-RR*0.46,RR*0.52,RR*0.92,3);ctx.fill();ctx.stroke(); // rear hopper box
+    const lay=b.firing&&(((bb2&&bb2.t||0)*6|0)&1);ctx.fillStyle=lay?'#ffd24d':'#c9a227';ctx.fillRect(-RR*0.92,-RR*0.30,RR*0.13,RR*0.60); // hazard stripe (flashes while laying)
   }
   ctx.restore();
 }
@@ -5635,6 +5672,7 @@ function drawBB(){
     for(let s=0;s<2;s++){const gx=s===0?0:FW-BB_PB_GOALD,col=M2_COLS[s===0?1:0];ctx.fillStyle=col+'22';ctx.fillRect(FX+gx,FY+FH/2-BB_PB_GOALH/2,BB_PB_GOALD,BB_PB_GOALH);ctx.strokeStyle=col+'aa';ctx.lineWidth=2;ctx.strokeRect(FX+gx,FY+FH/2-BB_PB_GOALH/2,BB_PB_GOALD,BB_PB_GOALH);} // each end goal tinted by who SCORES there
     bbDrawSoccerBall(FX+pb.x,FY+pb.y,BB_PB_R,pb.roll||0); // v5.1.226 a real rolling soccer ball
     const sc=bb2.pscore||[0,0];ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle='#d4d4f4';ctx.fillText('⚽ '+sc[0]+' — '+sc[1]+'  (first to '+bbPbTarget()+')',CW/2,FY+58);ctx.restore();}
+  bbDrawMines(); // v5.1.277 land mines on the floor (under the bots)
   for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
     const blink=b.inv>0&&Math.floor(b.inv*12)%2===0;ctx.globalAlpha=blink?0.45:1;
     _noScoop=true;_bbLivery=bbNameEgg(b);_bbPaint=_bbLivery?null:bbPaintFor(b.ld);withBot(b.ctl.bind,b,()=>{drawRobot();});_bbLivery=null;_bbPaint=null;_noScoop=false; // RoboRumble: a weapon replaces the ball plow; v5.1.221 name-egg LIVERY / v5.1.232 custom PAINT (body) + v5.1.248 ACCENT repaint the chassis + wheels
@@ -10314,6 +10352,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.277 (2026-06-24): MINELAYER weapon — a LAND-MINE-dropping RoboRumble bot (Sam idea). New pickable weapon (catalog + armory rail + ◀▶ cycler + hover-tip): RT drops armed PROXIMITY MINES behind the bot on a cooldown (mineCd 1.4s), capped per owner (mineMax 4 — the oldest disarms over the cap). A mine ARMS after a delay (mineArm 0.7s — so the layer drives clear), then DETONATES when an ENEMY comes within mineTrigK×RR (owner + allies walk over safely). The blast is armor-ignoring with distance falloff (mineDmg 150 peak, mineBlastRK 2.6×RR, knockback) and reuses bbApplyHit/bbKill — it also kills enemy drones; expired mines fizzle (dud puff). Mines draw on the FLOOR under the bots (spiked casing + red ARMED / amber ARMING blink); the bot shows a rear dispenser hatch + a hazard stripe that flashes while laying. CPU brain lays mines while a foe is near. NOT in the random CPU auto-roll yet (kept out so CPU-vs-CPU balance is untouched until Sam tunes the feel) — pick it in the armory to use it. Verified end-to-end headless (drop → arm → enemy trips → 48 dmg through a blast, ally-safe). smoke57 +7 → 565. Full battery ALL GREEN.
   v5.1.276 (2026-06-24): REAL PROJECTS & MODS LOGO + proper link icons on the credits screen (Sam-provided asset). (1) Inlined Sam’s navy SVG (gear + PROJECTS banner + AND/MODS) as _logoPM (base64 data-URI, like _logoMain/_logoIG), CROPPED to its artwork bbox (x111-830, y232-636) so it fills the panel instead of rendering tiny inside the SVG’s navy padding; the hand-built drawPMLogo vector stays as a load-time fallback. Dropped the now-redundant text caption. (2) The two P&M links no longer both use a gear: @projectsandmods gets a real YOUTUBE play badge (drawYouTube), projectsandmods.com gets a GLOBE/website icon (drawGlobe). Full battery ALL GREEN.
   v5.1.275 (2026-06-24): EGG LIVERIES IN SETUP PREVIEWS + RACE HUD NAMES (Sam picks from the idea bank). (1) The bot-name EGG LIVERIES (Optimus Prime = red/blue · Bumblebee = black/yellow · Original Sin = black+silver, 4 black wheels) now paint the CLAIM-CARD + 6-seat GRID previews — they were in-match only. New `bbLiveryForName(name)` resolves a livery from a raw name string; `bbNameEgg` routes through it; `p2cDrawDrivePreview` sets `_bbLivery` from the seat/claim name (battlebots only; livery wins over custom paint, matching the match) and clears it after. Verified by a headless render: a grid with Optimus/Bumblebee/Original-Sin seats shows each livery; a plain name stays default. (2) The H2H OBSTACLE-RACE in-match HUD now shows each racer's NAME (`p2Name`) instead of a hardcoded RED/BLUE (it still falls back to RED/BLUE when unnamed; the solo/career path already used the name). NOTE: tank-fight HUD names were already correct (`tankLabel` → `ctl.name`). smoke57 +2 → 560. Also: consolidated the scattered tabled ideas into one IDEA BANK index in HANDOFF_2026-06-20. Full battery ALL GREEN.
   v5.1.274 (2026-06-20): ROBORUMBLE RESULT-SCREEN ESC (consistency). p2Back handled ESC out of a finished match for race/tank/ball (standalone → setup, tournament → bracket) but `p2bb` was missing from both branches, so pressing Esc on a RoboRumble result screen did nothing (every other mode backed out; the result's nav buttons still worked, so not a hard lock — just an inconsistency). FIX: added p2bb to the tournament-match branch (→ back to the bracket) and the standalone-match branch (→ p2QuitMatch → setup). Live matches are unaffected (the keydown handler still pauses on Esc while a match is live). Found by a tournament/bracket soft-lock fuzzer (500 brackets, N=4–13, single+double elim — all resolve to a champion, no other issues) + a whole-UI monkey fuzzer (0 crashes). smoke57 +2 → 558. Full battery ALL GREEN.
