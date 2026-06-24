@@ -732,7 +732,17 @@ src+=`
     kbBoostHeld=_kb;}
    {startBB(0,2);bb2.cd=0;bb2.result=null;const d=bb2.bots[0];d.mob=0;d.lives=Infinity;d.ctl.type='human';d._disabledT=BB_W.giveUpAvail+1;d._giveUp=BB_W.giveUpHold*0.5;if(bb2.bots[1])bb2.bots[1].lives=Infinity;
     let gthrew=false;try{drawBB();}catch(e){gthrew=true;console.log('   giveup drawBB err:',e.message);}
-    ok('drawBB renders the GIVE-UP hold ring without throwing',!gthrew);}}
+    ok('drawBB renders the GIVE-UP hold ring without throwing',!gthrew);}
+   // v5.1.291 EXPERIMENTAL pincer escape: the captive's fight-back + a time decay drain the clamp's GRIP → it pops; OFF = current behaviour (clamp holds)
+   {const sv=expFeatures;
+    const mkClamp=()=>{const a=bbBotWith('pincer','balanced',0,0,true);a.x=300;a.y=300;a.h=0;a.firing=true;a.inv=0;a.hp=BB.HP;
+      const cc=bbBotWith('none','balanced',1,1,true);cc.hp=BB.HP;cc.inv=0;cc.firing=true;cc.h=Math.PI;cc.mob=BB.MOB; // glued to a's front, FACING back at the captor to fight
+      a.grab=cc;cc.held=a;a.grabT=99;a._grabGrip=null;bb2.bots=[a,cc];bb2.result=null;return a;};
+    expFeatures=true;{const a=mkClamp();let released=false;for(let f=0;f<300&&!released;f++){bbGrabUpdate(1/60);if(!a.grab)released=true;}
+      ok('EXPERIMENTAL pincer escape: fighting back BREAKS the clamp (grip popped) + sets grabCd',released&&(a.grabCd||0)>0);}
+    expFeatures=false;{const a=mkClamp();let held=true;for(let f=0;f<150;f++){bbGrabUpdate(1/60);if(!a.grab){held=false;break;}}
+      ok('with EXPERIMENTAL FEATURES off, the clamp does NOT break from damage (mainline unchanged)',held===true);}
+    expFeatures=sv;}}
   // ── v5.1.155: NONE removed as a pickable perk + new perks VAMPIRE / SPARE TIRE / PIT STOP ──
   {ok('NO PERK is a pickable perk again (neutral option)',BB_PERKS_PICK.some(p=>p.id==='none')&&BB_PERKS_PICK[0].id==='none');
    ok('CPUs always roll a real (non-NONE) perk',(()=>{for(let i=0;i<200;i++)if(bbCpuPickLoadout(2).perk==='none')return false;return true;})());
