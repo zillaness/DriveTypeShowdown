@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.274.html
-  version: 5.1.274
+  file: drive_showdown_v5.1.275.html
+  version: 5.1.275
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -4579,7 +4579,8 @@ function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot
 }
 // ── v5.1.115 P6 BOT-NAME EASTER EGGS — Optimus/Bumblebee (paint + steering HEAL), Original Sin (tank+blade → invuln wheels) ──
 function bbBotName(b){return ((b&&b.ctl&&b.ctl.name)||(b&&b.ctl&&m2.name&&m2.name[b.ctl.bind])||'').toString();}
-function bbNameEgg(b){const n=bbBotName(b).toUpperCase().replace(/[^A-Z]/g,'');return n==='OPTIMUSPRIME'?'optimus':n==='BUMBLEBEE'?'bumblebee':n==='ORIGINALSIN'?'originalsin':null;}
+function bbLiveryForName(nm){const n=String(nm||'').toUpperCase().replace(/[^A-Z]/g,'');return n==='OPTIMUSPRIME'?'optimus':n==='BUMBLEBEE'?'bumblebee':n==='ORIGINALSIN'?'originalsin':null;} // v5.1.275 name → egg LIVERY kind from a RAW name string (so the setup previews can show the livery, not just the in-match bot)
+function bbNameEgg(b){return bbLiveryForName(bbBotName(b));}
 const BB_EGG_PAINT={optimus:['#1e4dff','#ff2e2e'],bumblebee:['#1a1a1a','#ffd21a'],originalsin:['#7a2eff','#2effd2']};
 let _bbLivery=null; // v5.1.221 active name-egg FULL LIVERY kind (set around the RoboRumble drawRobot call) → drawRobot/drawWheels repaint the chassis + wheels
 const BB_LIVERY={ // v5.1.221 full paint jobs for the bot-name eggs (replace the old two-tone ring)
@@ -6060,7 +6061,7 @@ function drawP2Race(){
     drawP2Tag(p,b);
     // lane header
     ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle=M2_COLS[p];
-    ctx.fillText((r2.solo?(p2Name(0)+' — '):(p===0?'RED — ':'BLUE — '))+(m2.drive[p]?m2.drive[p].name:'')+'   ↺'+b.resets+(b.fin!==null?'   🏁'+fmt(b.fin):''),FX+FW/2,FY-22);
+    ctx.fillText(p2Name(r2.solo?0:p)+' — '+(m2.drive[p]?m2.drive[p].name:'')+'   ↺'+b.resets+(b.fin!==null?'   🏁'+fmt(b.fin):''),FX+FW/2,FY-22); // v5.1.275 H2H race HUD shows each racer's NAME (was hardcoded RED/BLUE; p2Name still defaults to RED/BLUE when unnamed)
   }
   FX=savFX;
   // center column: VS (or TIME TRIAL) + clock
@@ -7702,14 +7703,14 @@ function p2cDrawDrivePreview(pl,cx,cy,scale){
   holoMode=c.holoMode;steerMode=c.steerMode;
   if(c.curD!==undefined)curD=c.curD;if(c.curHD!==undefined)curHD=c.curHD;if(c.curSD!==undefined)curSD=c.curSD;
   {const k=eggKind(m2.name&&m2.name[pl]);eggOverride=k?EGG_COLS[k]:null;} // preview shows the name-egg color
-  if(m2.mode==='battlebots'){const _pl=(m2.tseats&&m2.tseats[pl])?bbSeatLoadout(pl):bbClaimLd(pl);_bbPaint=bbPaintFor(_pl);} // v5.1.232/248 the setup preview shows the chosen BODY + ACCENT
+  if(m2.mode==='battlebots'){const _nm=(m2.tseats&&m2.tseats[pl]&&m2.tseats[pl].name)||(m2.name&&m2.name[pl]);_bbLivery=bbLiveryForName(_nm);const _pl=(m2.tseats&&m2.tseats[pl])?bbSeatLoadout(pl):bbClaimLd(pl);_bbPaint=_bbLivery?null:bbPaintFor(_pl);} // v5.1.232/248 BODY+ACCENT paint; v5.1.275 a name-egg LIVERY (Optimus/Bumblebee/Original Sin) now shows in the setup preview too (livery wins over custom paint, matching the match)
   robot={x:0,y:0,h:0};
   lastRobotInp={vx:SPD*0.55,vy:0,vr:0}; // gentle forward so the wheels orient forward
   ctx.save();
   ctx.translate(cx,cy);ctx.scale(scale,scale);ctx.translate(-FX,-FY); // drawRobot re-adds (FX,FY); net center lands on (cx,cy)
   drawRobot();
   ctx.restore();
-  _bbPaint=null;robot=sav.robot;holoMode=sav.holoMode;steerMode=sav.steerMode;curD=sav.curD;curHD=sav.curHD;curSD=sav.curSD;lastRobotInp=sav.lastRobotInp;eggOverride=sav.egg;visLoad(sav.vis);_drivePreview=false;_noScoop=false;
+  _bbPaint=null;_bbLivery=null;robot=sav.robot;holoMode=sav.holoMode;steerMode=sav.steerMode;curD=sav.curD;curHD=sav.curHD;curSD=sav.curSD;lastRobotInp=sav.lastRobotInp;eggOverride=sav.egg;visLoad(sav.vis);_drivePreview=false;_noScoop=false;
 }
 function p2DrawBotIcon(cx,cy,r,col){
   ctx.save();
@@ -10297,6 +10298,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.275 (2026-06-24): EGG LIVERIES IN SETUP PREVIEWS + RACE HUD NAMES (Sam picks from the idea bank). (1) The bot-name EGG LIVERIES (Optimus Prime = red/blue · Bumblebee = black/yellow · Original Sin = black+silver, 4 black wheels) now paint the CLAIM-CARD + 6-seat GRID previews — they were in-match only. New `bbLiveryForName(name)` resolves a livery from a raw name string; `bbNameEgg` routes through it; `p2cDrawDrivePreview` sets `_bbLivery` from the seat/claim name (battlebots only; livery wins over custom paint, matching the match) and clears it after. Verified by a headless render: a grid with Optimus/Bumblebee/Original-Sin seats shows each livery; a plain name stays default. (2) The H2H OBSTACLE-RACE in-match HUD now shows each racer's NAME (`p2Name`) instead of a hardcoded RED/BLUE (it still falls back to RED/BLUE when unnamed; the solo/career path already used the name). NOTE: tank-fight HUD names were already correct (`tankLabel` → `ctl.name`). smoke57 +2 → 560. Also: consolidated the scattered tabled ideas into one IDEA BANK index in HANDOFF_2026-06-20. Full battery ALL GREEN.
   v5.1.274 (2026-06-20): ROBORUMBLE RESULT-SCREEN ESC (consistency). p2Back handled ESC out of a finished match for race/tank/ball (standalone → setup, tournament → bracket) but `p2bb` was missing from both branches, so pressing Esc on a RoboRumble result screen did nothing (every other mode backed out; the result's nav buttons still worked, so not a hard lock — just an inconsistency). FIX: added p2bb to the tournament-match branch (→ back to the bracket) and the standalone-match branch (→ p2QuitMatch → setup). Live matches are unaffected (the keydown handler still pauses on Esc while a match is live). Found by a tournament/bracket soft-lock fuzzer (500 brackets, N=4–13, single+double elim — all resolve to a champion, no other issues) + a whole-UI monkey fuzzer (0 crashes). smoke57 +2 → 558. Full battery ALL GREEN.
   v5.1.273 (2026-06-20): STORY-MODE SOFT-LOCK FIX (Sam: "a lot of soft locks and game-breaking bugs in story mode"). ROOT CAUSE: nearly every career stage is reached through a coach lesson via `goto:'coach:CX', then:'stage:YY'`. The `then` was stored only in the transient `career._then`; `career.node` rested on the coach beat while the match ran. So if you ESC'd OUT of the match (or ESC'd the coach beat → hub → CONTINUE), `_then` was already consumed → the coach's "Got it" fell through to the hub, and hub→CONTINUE re-entered the same coach with no `then` → a coach↔hub LOOP. The stage was unreachable; only a progress-wiping "NEW JOURNEY" escaped. FIX: careerGoto now PERSISTS each beat's continuation keyed by node (`career._thenByNode[ref]=thenRef`), and careerContinue falls back to it — so a coach beat always recovers its stage even after `_then` is lost. Reproduced, then verified with 900 randomized playthroughs that inject ESC at matches/beats: 0 soft-locks. Also hardened (defense-in-depth): startCareerMatch on a bad stage id bails to the hub instead of silently freezing; a quiz with no questions for the lane skips instead of crashing drawCareerQuiz; a finale beat's Finish goes to the RECAP, not the hub. smoke83 +7 asserts → 114. Full battery ALL GREEN.
   v5.1.272 (2026-06-20): PAUSE-MENU + SETTINGS POLISH (Sam feedback). (1) TURN RATE moved out of the pause menu into the SETTINGS screen as a DRAG-AND-DROP slider (mouse + touch drag the knob, pad ◀▶ nudges by 0.25, A resets to 1.00×). The old pause-menu stepper had the value text overlapping the ◀ arrow ("◀.00×"); the stepper is gone, so the overlap is too. Settings rows are now a shared settingsRows() descriptor list (toggles + the slider + the CPU-AI link) read by draw + click + gp-nav. (2) NEW pause-menu item "🎮 MATCH SETTINGS" (2P) jumps back to the MATCH SETTINGS screen — the one before robot setup — via pauseTo('p2settings'); Sam wanted to reach it mid-match. smoke54 +4 asserts → 84 (TURN RATE is now a Settings slider; it clamps to 3.00×; pause carries MATCH SETTINGS in 2P, not SP) + the pause-nav assert updated. Full battery ALL GREEN.

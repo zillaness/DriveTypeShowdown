@@ -1409,6 +1409,9 @@ src+=`
    bb2={bots:[{lives:Infinity,kills:3}]};ok('deathmatch (inf lives) HUD panel carries a ☠ kill tally',bbHudKillTag(bb2.bots[0])==='☠3');
    bb2={bots:[{lives:2,kills:3}]};ok('finite-lives HUD panel has NO kill tally (shows ♥ respawns instead)',bbHudKillTag(bb2.bots[0])==='');
    bb2=svbb;}
+  // v5.1.275 name-egg LIVERIES resolve from a RAW name (so the setup card/grid previews can paint them, not just the in-match bot)
+  ok('bbLiveryForName resolves Optimus/Bumblebee/Original Sin; plain = null',bbLiveryForName('Optimus Prime')==='optimus'&&bbLiveryForName('bumblebee')==='bumblebee'&&bbLiveryForName('ORIGINAL SIN')==='originalsin'&&bbLiveryForName('Bob')===null);
+  ok('bbNameEgg routes through bbLiveryForName (reads the bot name)',bbNameEgg({ctl:{name:'Original Sin',bind:0}})==='originalsin');
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
