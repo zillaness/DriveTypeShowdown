@@ -1,8 +1,15 @@
 # Combat ideas — spec & log (2026-06-24)
 
-Three RoboRumble combat features Sam raised in playtest. **SPEC ONLY — do NOT
-implement yet** (Sam's instruction). Captured here with current-behavior refs +
-a buildable design + tuning + tests so any thread can pick one up cleanly.
+Four RoboRumble combat features Sam raised in playtest.
+
+> **STATUS UPDATE (after Sam's decisions):** #1 GIVE-UP, #2 PARTING-GIFT BUFF, and
+> #4 RESPAWN DELAY are **BUILT** — give-up v5.1.288, parting-gift v5.1.287, respawn
+> v5.1.286 (see those changelog entries for the final tuning). #3 PINCER ESCAPE is
+> still **spec-only** (the recommendation below stands: damage-to-break grip + a soft
+> clamp cap). The original spec text is kept below as the design record.
+
+Captured here with current-behavior refs + a buildable design + tuning + tests so
+any thread can pick one up cleanly.
 
 Code refs are against `drive_showdown_v5.1.282.html` (extract with `./extract.sh`).
 
