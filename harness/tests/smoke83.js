@@ -319,6 +319,15 @@ src+=`
   {career=careerNew();career.node='intro';const skipped=(()=>{try{careerQuizStart({kind:'quiz',topic:'__none__',next:'hub'});return phase==='p2career';}catch(e){return false;}})();
    T('empty-pool quiz skips to next (no crash)', skipped);}
 
+  // ─────────────── v5.1.281 PHANTOM-BUTTON REGRESSION: a CAREER result screen's gamepad cursor must sit ONLY on the real career buttons ───────────────
+  // Was: p2GpItems fell through to the NORMAL nav (REMATCH + SETUP/SETTINGS/MODE/MENU), so with a pad connected the dashed gp-cursor drew over those non-existent buttons (career draws just CONTINUE).
+  {applyLayout('land2p');career=careerNew();career.active=true;r2=null;tf2=null;b2=null;bb2={result:0};phase='p2bb';
+   const R=careerNavRects(false,FY+FH/2+34),items=p2GpItems();
+   T('career WIN result: gp items = just CONTINUE (1 rect, no phantom nav)', items.length===1&&items[0].x===R.go.x&&items[0].w===R.go.w);
+   career._rematchLeft=2;bb2={result:1}; // a LOSS with rematches left → REMATCH + TAKE-THE-L (2 rects)
+   T('career LOSS+rematch result: gp items = REMATCH + CONTINUE (2 rects, no phantom nav)', p2GpItems().length===2);
+   bb2=null;career=null;phase='splash';}
+
   console.log('smoke83: '+P+' pass, '+F+' fail');
 })();
 `;

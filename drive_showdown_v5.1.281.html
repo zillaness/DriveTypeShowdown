@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.280.html
-  version: 5.1.280
+  file: drive_showdown_v5.1.281.html
+  version: 5.1.281
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-24
@@ -1975,11 +1975,11 @@ function rr(x,y,w,h,r){
   ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
   ctx.closePath();
 }
-function btn(x,y,w,h,label,col){
+function btn(x,y,w,h,label,col,fs){ // v5.1.281 optional fs: shrink the label font for a long label on a narrow button (e.g. "MATCH SETTINGS")
   ctx.fillStyle=col+'28';ctx.strokeStyle=col;ctx.lineWidth=2;
   rr(x,y,w,h,6);ctx.fill();rr(x,y,w,h,6);ctx.stroke();
-  ctx.fillStyle=col;ctx.font='bold 15px Courier New';ctx.textAlign='center';
-  ctx.fillText(label,x+w/2,y+h/2+6);
+  ctx.fillStyle=col;ctx.font='bold '+(fs||15)+'px Courier New';ctx.textAlign='center';
+  ctx.fillText(label,x+w/2,y+h/2+(fs?Math.round(fs*0.36):6));
 }
 
 
@@ -3619,6 +3619,11 @@ function p2LiveMatch(){
 }
 function p2GpItems(){
   const it=[];
+  if(career&&career.active&&(phase==='p2race'||phase==='p2tank'||phase==='p2ball'||phase==='p2bb')){ // v5.1.281 CAREER result screen: ONLY the REMATCH/CONTINUE rects. Was falling through to the normal nav (REMATCH + SETUP/SETTINGS/MODE/MENU), so with a pad connected the dashed gp-cursor drew over those NON-EXISTENT buttons (career draws just CONTINUE) AND pressing A missed the real career button.
+    const cy=FY+FH/2+34,w=r2?r2.result:tf2?tf2.result:bb2?bb2.result:b2?b2.result:null;
+    const lost=(typeof w==='number')&&w!==0,canRe=lost&&(career._rematchLeft|0)>0,R=careerNavRects(canRe,cy);
+    if(canRe)it.push(R.re);it.push(R.go);return it;
+  }
   if(phase==='p2modes'){for(let i=0;i<M2_MODES.length;i++)it.push(p2ModeRect(i));it.push(p2TourBtnRect());it.push(p2RecBtnRect());}
   else if(phase==='p2drive'){for(const d of p2DriveList())it.push(p2DriveRect(d));}
   else if(phase==='p2settings'){const rows=p2SettingsRows();for(let i=0;i<rows.length;i++)it.push(p2SetRowRect(i));if(p2ShowCpuCfg())it.push(p2CpuCfgBtnRect());if(p2ShowPupCfg())it.push(p2PupCfgBtnRect());it.push(p2StartBtnRect());it.push(p2ResetBtnRect());}
@@ -3628,7 +3633,7 @@ function p2GpItems(){
   else if(phase==='p2tbracket'){
     if(tour&&tour.champ!==null){it.push({x:CW/2-230,y:CH-86,w:220,h:40});it.push({x:CW/2+10,y:CH-86,w:220,h:40});}
     else if(tour&&tourNext())it.push({x:CW/2-110,y:CH-86,w:220,h:40});
-  }else if(phase==='p2race'||phase==='p2tank'||phase==='p2ball'){
+  }else if(phase==='p2race'||phase==='p2tank'||phase==='p2ball'||phase==='p2bb'){ // v5.1.281 +p2bb so a standalone RoboRumble result screen is gamepad-navigable too
     const cy=FY+FH/2+34;
     if(tour&&(tour.cur||tour.qual)){it.push(tour.qual?{x:CW/2-90,y:cy,w:180,h:40}:{x:CW/2-100,y:cy,w:200,h:40});}
     else{
@@ -4115,8 +4120,8 @@ function drawP2Nav(cy){
     }
   }
   btn(CW/2-80,cy,160,40,(p2Series&&p2Series.done===null)?'▶ NEXT ROUND':'⟳ REMATCH','#44ffaa');
-  const navB=[['🔧 SETUP','#40c4ff'],['⚙ SETTINGS','#ffd740'],['🏁 MODE','#ee66bb'],['✕ MENU','#ff6b6b']];
-  for(let i=0;i<4;i++)btn(CW/2-258+i*132,cy+52,120,32,navB[i][0],navB[i][1]);
+  const navB=[['🔧 SETUP','#40c4ff'],['🎮 MATCH SETTINGS','#ffd740'],['🏁 MODE','#ee66bb'],['✕ MENU','#ff6b6b']]; // v5.1.281 "⚙ SETTINGS" → "🎮 MATCH SETTINGS" (it always opened p2settings = MATCH SETTINGS; the old label read like the app Settings) — matches the pause-menu item
+  for(let i=0;i<4;i++)btn(CW/2-258+i*132,cy+52,120,32,navB[i][0],navB[i][1],11); // 11px so the longer "MATCH SETTINGS" fits the 120px button
   ctx.font='10px Courier New';ctx.fillStyle='#444460';ctx.textAlign='center';
   ctx.fillText('[Esc] back to controllers',CW/2,cy+104);
 }
@@ -10386,6 +10391,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.281 (2026-06-24): STORY-MODE phantom post-match buttons + post-match "MATCH SETTINGS" label (Sam feedback). (1) PHANTOM BUTTONS: on a CAREER match result screen WITH A CONTROLLER CONNECTED, a dashed gamepad-nav cursor drew over non-existent buttons. ROOT: p2GpItems() didn't special-case career on the match-result phases (p2race/p2tank/p2ball — and p2bb was missing entirely), so it returned the NORMAL nav rects (REMATCH + SETUP/SETTINGS/MODE/MENU) even though career draws just CONTINUE — and pressing A clicked an empty position, missing the real career button. FIX: p2GpItems() now returns ONLY the careerNavRects (REMATCH if rematches remain + CONTINUE/TAKE-THE-L) on a career result, and +p2bb so a standalone RoboRumble result is gamepad-navigable too. (2) The post-match "⚙ SETTINGS" button is RELABELED "🎮 MATCH SETTINGS" (it always opened the MATCH SETTINGS screen / p2settings — lives, map, game mode — but the old label read like the app Settings; now it matches the pause-menu item). btn() gained an optional font-size arg so the longer label fits the 120px button. smoke83 +2 → 123 (career WIN = 1 gp item, LOSS+rematch = 2; no phantom nav). Full battery ALL GREEN.
   v5.1.280 (2026-06-24): TASER weapon — an EXPERIMENTAL stun bot (Sam idea / backlog: "contact-stun or short cone zap"), the 2nd resident of the v5.1.279 EXPERIMENTAL BOTS gate after the MINELAYER. New pickable weapon (catalog + armory rail + ◀▶ cycler + hover-tip, all gated behind `expBots` exactly like the MINELAYER/CANNON): RT fires a short FRONT-CONE ZAP (reach RR+RR×taserRangeK 3.2, cone ±taserArc) on a cooldown (taserCd 2.6s); the nearest lined-up enemy is STUNNED — bbWeaponPre forces b.firing off (its weapon spins down/cuts out) and the drive loop zeroes its input (the new per-bot `_stunBB` timer), so it can neither move nor fire for taserStun (1.1s). The zap also deals a small CHIP (taserDmg 20 pre-loadout → ~11 realized; control class = neutral RPS) + light knockback + sheds the foe's spinner spin. COUNTERS so it can't perma-lock: (a) the cooldown gap exceeds the stun, and (b) a recovered foe gets a post-stun IMMUNITY grace (taserImm 0.8s) during which the scan SKIPS it — so even multiple tasers in 3v3 leave a guaranteed mobility window; plus it's short-range/front-cone (flank or out-range it). Visuals: twin forward electrode prongs that glow + crackle once recharged, a jagged world-space lightning bolt to the zapped foe (or a whiff to max range) on fire, and a crackling electric ring + ⚡ tag on a stunned bot. Like the MINELAYER it's NOT in the CPU auto-roll or either balance sim (CPU loadout whitelist unchanged), so mainline play + balance are untouched. CPU brain zaps a lined-up foe in cone range. Verified headless (cone stun + chip, behind-cone miss, immunity skip, ally-safe, stunned-can't-fire, expiry→immunity, drawBB no-throw). smoke57 +10 → 575, smoke54 +2 → 92. Full battery ALL GREEN.
   v5.1.279 (2026-06-24): THREE fixes. (1) STORY-MODE FINALE soft-lock (Sam: beat rookie story, LOST the final match, stuck in a loop). careerMatchEnd routed a finished finale straight to the recap but never advanced career.node off the pre-finale “Take the field” beat (goto:’finale’) — so hub CONTINUE re-launched the finale: lose-final → continue → finale → lose → … FIX: careerRecapStart() now sets career.node=’recap’, so the recap is the journey’s terminal resume point (CONTINUE re-shows the recap; NEW JOURNEY still resets via careerNew). (2) EXPERIMENTAL BOTS cheat gate (Sam: keep new/dev bots & weapons OUT of the shippable build + balance). New cheat-menu toggle `expBots`; the MINELAYER is now hidden from the armory rail + weapon cycler unless it’s on (exactly like UNLOCK CANNON) — it was never in the CPU auto-roll or balance sim anyway, so mainline play + balance are untouched. This is the home for future taser/minesweeper/stun-mines/smart-mine experiments. (3) Portrait cheat-menu now reabsorbs the extra row (pitch 21→20, rowH 18→17, start a touch higher) so rows+links still fit one column. smoke83 +3 → 121, smoke54 +3 → 90, smoke57 armory test updated. Full battery ALL GREEN.
   v5.1.278 (2026-06-24): STORY-MODE soft-lock fix — coach-beat continuation lost on RELOAD (Sam: continue → lesson C2 → only “skip, you know this one” → soft-lock loop). ROOT: careerStore() saves the whole career (incl. the v5.1.273 _thenByNode continuation map), but careerMigrate() only copies keys present in the careerNew() template — and _thenByNode wasn’t one — so on CONTINUE the coach beat’s continuation was DROPPED; skip then dead-ended to the hub while career.node stayed coach:C2 → continue→C2→skip→hub→continue→C2 forever. FIX: (1) added _thenByNode to the careerNew template so migrate preserves it; (2) new careerCoachThen(node) DERIVES a coach beat’s continuation from the curriculum (the choice that routes to it carries its `then`) as a careerContinue fallback, so even OLD saves with no _thenByNode recover. Reproduced headlessly (LOOP:true → false) for both a fresh save and a no-_thenByNode old save. smoke83 +4 → 118. Full battery ALL GREEN.
