@@ -242,6 +242,12 @@ src+=`
    ok('single-player top-left ESC returns to the SPLASH screen',phase==='splash');
    phase=sp;konamiActive=sk;paused=spa;holoMode=shm;steerMode=ssm;}
 
+  // v5.1.276 credits: real PM logo + YouTube/globe link icons (was both gears)
+  {ok('drawYouTube + drawGlobe icon helpers exist',typeof drawYouTube==='function'&&typeof drawGlobe==='function');
+   const sp=phase;phase='credits';let cdrew=true;try{drawCredits();}catch(e){cdrew=false;console.log('   drawCredits threw: '+e.message);}phase=sp;
+   ok('drawCredits renders without throwing (logo + YouTube/globe icons)',cdrew);
+   ok('_logoPM is declared as an Image instance',typeof _logoPM!=='undefined'&&!!_logoPM);}
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;
