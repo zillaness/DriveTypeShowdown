@@ -1496,6 +1496,19 @@ src+=`
    owner._stunBB=0;bb2.mines=[{x:owner.x,y:owner.y,owner:0,side:0,arm:0,life:10,stun:true}];bbMinesUpdate(1/60);
    ok('a STUN-MINE does NOT trip on its owner/ally',(owner._stunBB||0)===0&&bb2.mines.length===1);
    ok('STUN-MINE is a gated EXPERIMENTAL weapon (catalog + armory + bbExpWeapon)',!!BB_WEAPONS.find(w=>w.id==='stunmine')&&!!BB_ARMORY_W.find(w=>w.id==='stunmine')&&bbExpWeapon('stunmine')===true);
+   // v5.1.297 TIMED MINE: a timed:true mine detonates on a FUSE (no proximity trip) reusing the MINELAYER damage blast; owner/allies spared
+   ok('TIMED MINE is a gated EXPERIMENTAL weapon (catalog + armory + bbExpWeapon)',!!BB_WEAPONS.find(w=>w.id==='timemine')&&!!BB_ARMORY_W.find(w=>w.id==='timemine')&&bbExpWeapon('timemine')===true);
+   {const fd=RR*3; // beyond the proximity trigger (RR*2.4) but inside the blast (RR*3.6); placed due WEST = the east-facing foe's REAR, so the blast lands as HP damage
+    foe.hp=1000;foe.inv=0;foe.x=300;foe.y=300;foe.h=0;owner.hp=1000;owner.x=900;owner.y=900;owner.h=0;bb2.bots=[owner,foe];bb2.minis=[];
+    const mx=foe.x-fd,my=foe.y;
+    bb2.mines=[{x:mx,y:my,owner:0,side:0,arm:0,life:10}];bbMinesUpdate(1/60); // a PROXIMITY mine would NOT trip on a foe this far
+    ok('a foe beyond the proximity trigger does NOT set off a normal mine',foe.hp===1000&&bb2.mines.length===1);
+    bb2.mines=[{x:mx,y:my,owner:0,side:0,arm:0,life:10,timed:true,fuse:0.5}];bbMinesUpdate(1/60); // mid-fuse: still counting
+    ok('a TIMED MINE mid-fuse has not detonated yet (fuse ticking down)',foe.hp===1000&&bb2.mines.length===1&&bb2.mines[0].fuse<0.5);
+    foe.inv=0;const thp=foe.hp;bb2.mines=[{x:mx,y:my,owner:0,side:0,arm:0,life:10,timed:true,fuse:0.001}];bbMinesUpdate(1/60); // fuse expires
+    ok('a TIMED MINE detonates on its FUSE (no proximity trip) + damages a foe in the blast + is consumed',foe.hp<thp&&bb2.mines.length===0);
+    foe.x=900;foe.y=900;owner.x=300;owner.y=300;owner.inv=0;const ohp=owner.hp;bb2.mines=[{x:owner.x-fd,y:owner.y,owner:0,side:0,arm:0,life:10,timed:true,fuse:0.001}];bbMinesUpdate(1/60);
+    ok('a TIMED MINE blast spares its owner/ally (FF off)',owner.hp===ohp&&bb2.mines.length===0);}
    bb2.bots=_sb;bb2.minis=_sm;}
   // v5.1.280 TASER weapon: a short front-cone ZAP that STUNS a lined-up enemy (drive + fire frozen via _stunBB); low damage, owner/ally safe, anti perma-lock immunity
   ok('TASER in BB_WEAPONS + armory rail',!!BB_WEAPONS.find(w=>w.id==='taser')&&!!BB_ARMORY_W.find(w=>w.id==='taser'));

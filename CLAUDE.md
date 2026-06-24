@@ -60,5 +60,5 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
   career logic is in one block after `let tour=null;`; the inlined question bank is `CAREER_QUIZ`; tests in
   `harness/tests/smoke83.js` — 107 asserts.)
 - PRDs: `frcds_roborumble_v2_prd_v1.0.md`, `frcds_online_prd_v1.1.md`, `frcds_tournament_v2_prd_v1.0.md`.
-- Build: latest is `drive_showdown_v5.1.296.html` (single self-contained HTML). (Overnight 2026-06-24 haul 280→296 — see `HANDOFF_2026-06-20.md` Changelog v1.9: TASER, push-ball ∞-timed, career gamepad nav, respawn delay, parting-gift buff + draw-defer, give-up button, EXPERIMENTAL FEATURES gate, pincer escape, arena-edge hazards folded into HAZARD MASTER, STUN-MINE. New specs: `SPEC_2026-06-24_balloon_battle.md`, `SPEC_2026-06-24_combat_ideas.md`.)
+- Build: latest is `drive_showdown_v5.1.297.html` (single self-contained HTML). (Overnight 2026-06-24 haul 280→297 — see `HANDOFF_2026-06-20.md` Changelog v1.9: TASER, push-ball ∞-timed, career gamepad nav, respawn delay, parting-gift buff + draw-defer, give-up button, EXPERIMENTAL FEATURES gate, pincer escape, arena-edge hazards folded into HAZARD MASTER, STUN-MINE, TIMED MINE. New specs: `SPEC_2026-06-24_balloon_battle.md`, `SPEC_2026-06-24_combat_ideas.md`.)
 - Balance sim: `./extract.sh && node harness/tests/bbbalance.js /tmp/g.js`.
