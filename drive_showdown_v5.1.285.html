@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.284.html
-  version: 5.1.284
+  file: drive_showdown_v5.1.285.html
+  version: 5.1.285
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-24
@@ -1038,6 +1038,7 @@ function click(mx,my){
   }
   if(phase==='menu'){
     if(gpShowMap){gpShowMap=false;return;}
+    if(inR(mx,my,menuBackRect())){phase='splash';sfx('click');return;} // v5.1.285 click ← BACK → splash (mouse/touch parity with keyboard Esc)
     if(inR(mx,my,GP_MAP_BTN)){gpShowMap=true;return;}
     const mLock=tankFight||obstacleCourse;
     if(inR(mx,my,{x:10, y:175,w:183,h:26})){if(!mLock){inverted=!inverted;}return;}
@@ -1493,6 +1494,7 @@ function updateGamepad(){
   // B(1) — context sensitive
   if(just(1)){
     if(phase==='menu'&&gpShowMap)gpShowMap=false;
+    else if(phase==='menu'){phase='splash';sfx('click');} // v5.1.285 pad B on the SP menu → splash (controller parity with keyboard Esc; was no way back)
     else if(phase==='playing'||phase==='countdown'||phase==='done')retryRun();
   }
   // Start(9)/Back(8) — context sensitive
@@ -2126,7 +2128,8 @@ function drawKonami(){
     }else if(lk.icon==='ig'){
       try{ctx.drawImage(_logoIG,iconX,iconY,ICON,ICON);}catch(e){}
     }else if(lk.icon==='pm'){
-      drawPMGear(iconX+ICON/2,iconY+ICON/2,ICON/2,'#eaf2ff'); // the Projects and Mods gear mark
+      if(_logoPM&&_logoPM.complete&&_logoPM.naturalWidth){const lh=Math.round(ICON*404/719);ctx.drawImage(_logoPM,111,232,719,404,iconX,iconY+(ICON-lh)/2,ICON,lh);} // v5.1.285 the REAL Projects & Mods logo (same artwork-bbox crop as the credits screen), width-fit into the icon — replaces the placeholder vector gear
+      else drawPMGear(iconX+ICON/2,iconY+ICON/2,ICON/2,'#eaf2ff'); // vector fallback until the image decodes
     }
     // Label
     ctx.font='bold 11px Courier New';ctx.textAlign='left';
@@ -8881,6 +8884,7 @@ function drawDone(){
 const STEER_BTN={x:10,y:296,w:CW-20,h:24};
 const GP_MAP_BTN={x:CW/2-65,y:577,w:130,h:22};
 const SETTINGS_BTN={x:272,y:577,w:118,h:22};
+function menuBackRect(){return{x:8,y:8,w:54,h:22};} // v5.1.285 SP-menu → splash back chip (top-left), clear of the centered title
 function gpMenuItems(){
   const items=[
     {x:10,y:58,w:380,h:24}, // 2-PLAYER bar (index 0)
@@ -9557,6 +9561,10 @@ function drawMenu(){
   ctx.fillText('DRIVE TYPE SHOWDOWN',CW/2,34);
   ctx.font='10px Courier New';ctx.fillStyle='#444460';
   ctx.fillText(tankFight?'⚔ tank battle mode — destroy the cpu tank':obstacleCourse?'🏁 choose drive type → start obstacle course · best time wins':'push all 8 balls through the gap · best time wins',CW/2,52);
+
+  // v5.1.285 BACK-TO-SPLASH chip (top-left) — restores a mouse/controller way out of SP (keyboard Esc already worked; pad B / click here now do too)
+  {const bk=menuBackRect();ctx.fillStyle='rgba(20,20,44,0.8)';rr(bk.x,bk.y,bk.w,bk.h,7);ctx.fill();ctx.strokeStyle='#333366';ctx.lineWidth=1.2;rr(bk.x,bk.y,bk.w,bk.h,7);ctx.stroke();
+   ctx.font='bold 10px Courier New';ctx.textAlign='center';ctx.fillStyle='#8899bb';ctx.fillText('← BACK',bk.x+bk.w/2,bk.y+bk.h/2+4);}
 
   // ── 2 Player entry — full width, above the toggles ──
   ctx.fillStyle='rgba(35,15,35,0.7)';rr(10,58,380,24,10);ctx.fill();
@@ -10400,6 +10408,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.285 (2026-06-24): CHEAT-MENU real P&M logo + SP-MENU back-to-splash (controller/mouse parity) (Sam playtest). (1) The cheat-menu Projects & Mods link buttons drew the PLACEHOLDER vector gear (drawPMGear); they now draw the REAL inlined _logoPM (same artwork-bbox crop as the credits screen, width-fit into the 28px icon), with the vector as a load-time fallback. (2) The SINGLE-PLAYER menu had NO on-screen way back to the splash hub — only keyboard Esc worked, so mouse/controller players were stranded. Added a "← BACK" chip top-left (menuBackRect, clear of the centered title): click → splash, and pad B on the SP menu → splash (parity with Esc). Verified both in a headless browser screenshot. Full battery ALL GREEN.
   v5.1.284 (2026-06-24): PINCER ball-carry DISCOVERABILITY (Sam: "I don't think pincer knows it works on the ball"). The mechanic already works (v5.1.223): in PUSH-BALL a firing PINCER that faces the ball CLAMPS + CARRIES it goalward until a foe bumps it loose (`bb2.pball.heldBy`; the CPU push-ball brain already uses it) — but nothing told the player. The pincer hover-tip now spells it out ("In PUSH-BALL: fire while facing the ball to CLAMP + CARRY it goalward"). Tooltip-only; no mechanic change. Full battery ALL GREEN.
   v5.1.283 (2026-06-24): CAREER / STORY MODE is now fully GAMEPAD-navigable (Sam: "can't play single player with a controller — can't hit continue or new journey"). ROOT: the career screens (p2career hub · p2cbeat CYOA beat · p2cquiz · p2crecap) start with "p2" so they already routed through the shared 2P gamepad nav (which uses p2Click → which already dispatches to careerHubClick/careerBeatClick/careerQuizClick/careerRecapClick, and p2Back already handles their ESC) — BUT p2GpItems() had no cases for them, so it returned only the back-button rect: the dashed pad cursor sat on ← ESC and A never reached CONTINUE / NEW JOURNEY / a choice. FIX: p2GpItems() now returns each career screen's real buttons (hub CONTINUE/NEW JOURNEY, beat choices, quiz options→NEXT, recap NEW JOURNEY/BACK TO HUB) + the back rect, so the existing cursor-draw (p2Overlays) and A/B handling light up with zero new input plumbing. smoke83 +4 → 127. Full battery ALL GREEN.
   v5.1.282 (2026-06-24): PUSH-BALL "∞ — most goals" (TIMED) option (Sam request: "a timed push-ball where you score as many goals as you want within the time limit"). GOALS TO WIN gains an ∞ choice (value 0) ahead of 1/2/3/5/7: with ∞ there is NO goal cap, so the match runs the full TIME LIMIT and the side with the MOST goals at the buzzer wins (ties → draw via bbTimeUpResult, which already scored push-ball by goals). bbPbTarget() returns Infinity for 0 (the goal-cap win-check never fires); the on-field readout shows "(most goals — timed)" instead of "(first to N)". Endless-guard extended: ∞ goals with the clock OFF auto-adds a 3-min TIME LIMIT (and turning the clock off under ∞ goals restores a goal cap), so a match can always end — mirrors the v5.1.217 lives↔timer rule. Default stays GOALS TO WIN=3 (opt-in; existing behavior unchanged). smoke57 +3 → 580. Full battery ALL GREEN.
