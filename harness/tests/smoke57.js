@@ -1114,6 +1114,12 @@ src+=`
     ok('∞ goals with no clock auto-adds a TIME LIMIT (never endless)',(m2.set.bbtime|0)>0);
     m2.set.bbgoals=sg;m2.set.bbtime=st;}
    ok('bbDrawSoccerBall renders without throwing',(()=>{try{bbDrawSoccerBall(100,100,24,1.2);return true;}catch(e){return false;}})());
+   // v5.1.286 mode-aware RESPAWN delay: objective inf-life modes punish death with a longer respawn; deathmatch stays fast
+   {const sm=m2.set.bbmode;
+    m2.set.bbmode='ko';ok('RESPAWN: deathmatch/elimination keeps the fast respawn',bbRespawnDelay()===BB_STOCK_DELAY);
+    m2.set.bbmode='pushball';ok('RESPAWN: push-ball uses the LONGER objective respawn',bbRespawnDelay()===BB_RESPAWN_OBJ&&BB_RESPAWN_OBJ>BB_STOCK_DELAY);
+    m2.set.bbmode='ctf';ok('RESPAWN: CTF also uses the longer objective respawn',bbRespawnDelay()===BB_RESPAWN_OBJ);
+    m2.set.bbmode=sm;}
    {const svM=m2.mode;m2.mode='battlebots';m2.set.bbmode='pushball';const hasG=p2SettingsRows().some(r=>r.k==='bbgoals');m2.set.bbmode='ko';const noG=p2SettingsRows().some(r=>r.k==='bbgoals');m2.set.bbmode='pushball';m2.mode=svM;
     ok('GOALS TO WIN row shows for PUSH-BALL only',hasG===true&&noG===false);}
    // v5.1.222 ball PHYSICS: spawn clear of obstacles + reflect off them (was phasing through + spawning inside a center pillar)
@@ -1195,8 +1201,12 @@ src+=`
     m2.set.bblives=1;ok('bbLivesResolve: 1 life → 0 respawns',bbLivesResolve()===0);
     // infinite lives → a downed bot respawns
     m2.set.bbmode='ctf';m2.set.bbtime=0;const r=bbBotWith('none','balanced',0,0,true);r.lives=Infinity;r.dead=true;r.hp=0;r.respawnT=null;r.mhp=BB.HP;r._sx=70;r._sy=FH/2;r._sh=0;
-    bb2.bots=[r];bb2.result=null;bbModeUpdate(BB_STOCK_DELAY+0.05);
+    bb2.bots=[r];bb2.result=null;bbModeUpdate(bbRespawnDelay()+0.05); // v5.1.286 CTF (objective) now respawns on the LONGER bbRespawnDelay, not BB_STOCK_DELAY
     ok('INFINITE lives: a downed bot respawns + stays infinite',r.dead===false&&r.lives===Infinity);
+    // v5.1.286 the objective respawn really is longer: half the objective delay is NOT enough to bring the bot back
+    {const r2x=bbBotWith('none','balanced',0,0,true);r2x.lives=Infinity;r2x.dead=true;r2x.hp=0;r2x.respawnT=null;r2x.mhp=BB.HP;r2x._sx=70;r2x._sy=FH/2;r2x._sh=0;
+     bb2.bots=[r2x];bb2.result=null;m2.set.bbmode='pushball';bbModeUpdate(BB_STOCK_DELAY+0.05);
+     ok('OBJECTIVE respawn is longer: still down after only the fast-respawn time',r2x.dead===true&&(r2x.respawnT||0)>0);m2.set.bbmode='ctf';}
     // time limit: when the clock runs out, the objective leader wins
     m2.set.bbmode='ctf';m2.set.bbtime=120;const a=bbBotWith('none','balanced',0,0,true),b=bbBotWith('none','balanced',1,1,true);
     bb2.bots=[a,b];bb2.ctf=[2,1];bb2.result=null;bb2.t=120.1;bbModeUpdate(0.02);
