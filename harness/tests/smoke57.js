@@ -712,6 +712,7 @@ src+=`
     runner.x=300+RR*BB_W.partingRK+220;runner.y=300; // sprint clear before the fuse ends
     const rhp=runner.hp;bbPartingsUpdate(BB_W.partingFuse+0.05);
     ok('PARTING GIFT: a foe that RAN clear before the fuse is spared (time to run)',runner.hp===rhp&&bb2.partings.length===0);
+    ok('PARTING GIFT: with the bomb fizzled, the deferred result finalizes to the survivor WIN',bb2.result===runner.side); // v5.1.293 deferral → the runner survived → the win stands
     let pthrew=false;try{bb2.partings=[{x:200,y:200,side:0,fuse:0.7,max:BB_W.partingFuse,rk:BB_W.partingRK,dmg:BB_W.partingDmg,knock:BB_W.partingKnock}];bbDrawPartings();}catch(e){pthrew=true;}
     ok('bbDrawPartings renders the armed charge + growing danger ring without throwing',!pthrew);bb2.partings=[];}
    // v5.1.288 GIVE-UP: a disabled human in an inf-life mode can HOLD dash to concede (after a grace), self-destructing + crediting the last attacker
@@ -797,8 +798,10 @@ src+=`
     ok('LAST STAND: killing the last enemy mid-window → I survive the chain and WIN',me.dead===false&&bb2.result===0);
     const me2=bbBotWith('none','balanced',0,0,true);me2.ld.perk='laststand';me2.x=300;me2.y=300;me2.hp=1;me2._lastStandT=5;me2._lastStandUsed=true;me2.dead=false;me2.lives=0;
     const pg=bbBotWith('none','balanced',1,1,true);pg.ld.perk='partinggift';pg.x=312;pg.y=300;pg.hp=BB.HP;pg.dead=false;pg.lives=0;
-    bb2.bots=[me2,pg];bb2.result=null;bb2.partings=[];bbKill(pg,0); // v5.1.287 the parting bomb is now DELAYED + telegraphed (dodgeable) — killing the last enemy ENDS the match before it detonates → you WIN (was an instant mutual-destruction DRAW)
-    ok('LAST STAND + PARTING GIFT: the delayed bomb no longer forces a draw — the last kill WINS',me2.dead===false&&bb2.result===0&&bb2.partings.length===1);bb2.partings=[];}}
+    bb2.bots=[me2,pg];bb2.result=null;bb2.partings=[];bbKill(pg,0); // v5.1.293 the parting bomb is DELAYED, and the win is now DEFERRED while it's live — so it can still kill me2 → a DRAW is back on the table (Sam: "matches don't end immediately")
+    ok('LAST STAND + PARTING GIFT: the win is DEFERRED while the bomb is live (match not over yet)',bb2.result===null&&bb2.partings.length===1);
+    for(let f=0;f<Math.ceil(BB_W.partingFuse*60)+6&&bb2.result===null;f++)bbPartingsUpdate(1/60);
+    ok('LAST STAND + PARTING GIFT: the delayed bomb resolves to a mutual-destruction DRAW',bb2.result==='draw');bb2.partings=[];}}
   // ── v5.1.181 HEATSHIELD: flamethrower-proof + general damage reduction ──
   {const hs=bbBotWith('none','heatshield',1,1,true);hs.x=300;hs.y=300;hs.h=0;hs.inv=0;hs.hp=BB.HP;hs.burn=0;
    bbApplyFlame(hs,60,0);ok('HEATSHIELD: flamethrower-PROOF (no flame damage or burn)',hs.hp===BB.HP&&(hs.burn||0)===0);
