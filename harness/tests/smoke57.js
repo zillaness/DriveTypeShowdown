@@ -1397,6 +1397,11 @@ src+=`
    ok('FFA seat 0 is the HUMAN, the other 5 are CPUs',bb2.bots[0].ctl.type==='human'&&bb2.bots.slice(1).every(b=>b.ctl.type==='cpu'));
    ok('FFA RENDER: drawBB() runs without throwing (the null-drive crash site)',(()=>{try{updateBB(3.1);for(let i=0;i<30;i++)updateBB(1/30);drawBB();return true;}catch(e){console.log('   drawBB threw: '+e.message);return false;}})());
    bb2=sv.bb;phase=sv.ph;m2.mode=sv.mode;m2.set.tfmt=sv.tfmt;m2.set.bbmode=sv.bbmode;m2.set.bestOf=sv.bestOf;m2.set.map=sv.map;m2.set.bblives=sv.bblives;m2.tseats=sv.tseats;m2.claim=sv.claim;m2.drive=sv.drive;m2.sens=sv.sens;playerBind=sv.pb;}
+  // v5.1.271 DEATHMATCH HUD scoreboard — infinite-lives panels carry a ☠ kill tally; finite-lives panels don't (they show ♥ respawns)
+  {const svbb=bb2;
+   bb2={bots:[{lives:Infinity,kills:3}]};ok('deathmatch (inf lives) HUD panel carries a ☠ kill tally',bbHudKillTag(bb2.bots[0])==='☠3');
+   bb2={bots:[{lives:2,kills:3}]};ok('finite-lives HUD panel has NO kill tally (shows ♥ respawns instead)',bbHudKillTag(bb2.bots[0])==='');
+   bb2=svbb;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
