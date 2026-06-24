@@ -1521,6 +1521,22 @@ src+=`
    ok('a TASER-STUNNED bot is frozen under its own power in a live updateBB tick',froze);
    s._stunBB=0;s._stunImm=0;s.x=900;s.y=360;const rx=s.x,ry=s.y;for(let f=0;f<8;f++)updateBB(1/60);
    ok('the drive freeze LIFTS once the stun clears (the bot chases again)',Math.hypot(s.x-rx,s.y-ry)>1);}
+  // v5.1.294 EXPERIMENTAL arena-edge hazards (BattleBots-style hammer/spike/saw): gated, telegraphed cycle, neutral strike
+  {const sv=expFeatures;startBB(0,2);bb2.cd=0;bb2.result=null;
+   expFeatures=false;bb2._edgeHaz=null;ok('arena-edge hazards are OFF without EXPERIMENTAL FEATURES',bbEdgeHaz().length===0);
+   expFeatures=true;bb2._edgeHaz=null;const hz=bbEdgeHaz();
+   ok('EXPERIMENTAL FEATURES on → hammer + spike + saw arena hazards exist',hz.length===3&&hz.some(h=>h.type==='hammer')&&hz.some(h=>h.type==='spike')&&hz.some(h=>h.type==='saw'));
+   const saw=hz.find(h=>h.type==='saw');
+   const onIt=bbBotWith('none','balanced',0,0,true);onIt.x=saw.x;onIt.y=saw.y;onIt.hp=BB.HP;onIt.inv=0;
+   const away=bbBotWith('none','balanced',1,1,true);away.x=saw.x;away.y=saw.y+360;away.hp=BB.HP;away.inv=0;
+   bb2.bots=[onIt,away];bb2.result=null;const h0=onIt.hp,a0=away.hp;bbEdgeHazStrike(saw);
+   ok('arena-edge SAW strike damages a bot in its zone',onIt.hp<h0);
+   ok('arena-edge SAW strike spares a bot outside its zone',away.hp===a0);
+   {const sw=bbEdgeHaz().find(h=>h.type==='saw');sw.phase='tele';sw.cd=0.001;bbEdgeHazUpdate(1/60);
+    ok('arena-edge hazard cycle reaches STRIKE after the telegraph',bbEdgeHaz().find(h=>h.type==='saw').phase==='strike');}
+   let ethrew=false;try{drawBB();}catch(e){ethrew=true;console.log('   edgehaz drawBB err:',e.message);}
+   ok('drawBB renders the arena-edge hazards without throwing',!ethrew);
+   expFeatures=sv;bb2._edgeHaz=null;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
