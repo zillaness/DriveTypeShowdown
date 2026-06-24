@@ -86,4 +86,41 @@ balloons while keeping your own rear away).
 2. Spike health: do broken spikes come back (next life? repair pad?) or stay gone?
 3. Grip system: expand per-drive grip, or just reuse `tankPush`/impact-mag?
 4. Standalone mode tile vs a RoboRumble game-mode? Gated-experimental first?
+   → **ANSWERED (Sam asked 2026-06-24):** a **MAIN game type — its own tile**, not
+   a RoboRumble sub-mode. See "Main type vs sub type" below.
 5. Spike editor now or after a fixed-layout v1?
+
+## Main type vs sub type (Sam Q, 2026-06-24) — RECOMMEND: MAIN type
+The two kinds of "mode" in the game today:
+- **MAIN game types** = the top-level mode TILES (`M2_MODES`): NORMAL · SHOOTER ·
+  TANK FIGHT · **ROBORUMBLE** · **OBSTACLE RACE**. Each is its own game with its own
+  setup screen and rules. (Above those, the splash front door splits CAREER /
+  SINGLE PLAYER / MULTIPLAYER.)
+- **SUB game types** = the **GAME MODE** *setting inside* a main type. RoboRumble's
+  `BB_MODES` (KO · SUMO · DOMINATION · KOTH · VIP · CTF · PUSH-BALL · STOCK) and
+  Tank Fight's parallel `TF_MODES` are win-condition variants that **reuse that
+  main type's whole loadout** (weapon/armor/perk) and field.
+
+**Balloon battle should be a MAIN game type (its own tile), like ROBORUMBLE and
+OBSTACLE RACE — NOT a RoboRumble sub-mode.** Why:
+- A RoboRumble sub-mode **inherits the RoboRumble loadout** (pick a weapon, armor,
+  perk). Balloon battle **has none of that** — it replaces weapons with **spikes**
+  and adds **rear balloons**; the whole RoboRumble settings shape (GAME MODE / the
+  weapon armory / lives) doesn't apply. Bolting it onto RoboRumble would mean a
+  game mode where the armory screen is meaningless — a confusing mismatch.
+- It's a **distinct game kids already recognize** (its own name/identity), with its
+  own setup (eventual **spike editor**) and its own win condition (balloon
+  elimination). That's a tile, not a checkbox.
+- It's **drive-agnostic** — the point is learning each drive base; that's a headline
+  of its own game, not a tweak to RoboRumble.
+
+**Practical resolution (best of both):**
+- **UX:** its own **M2_MODES tile** (a 6th main mode) — and a Single-Player /
+  CAREER appearance later if wanted.
+- **Implementation:** **reuses the RoboRumble ENGINE** (drives, arena, contact pass,
+  `p2ImpactMag`, team shades, result/series nav, pause menu) — code-sharing, not a
+  sub-mode. Its own loadout screen (spike layout, no weapon/armor/perk) + its own
+  win check.
+- **Rollout:** **gate behind EXPERIMENTAL FEATURES first** (a hidden 6th mode) per
+  the standing "when in doubt, gate" rule; **promote to a always-visible tile** once
+  it plays well. So: a main type, engine-shared, experimental-first.

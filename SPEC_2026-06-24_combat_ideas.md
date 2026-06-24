@@ -285,3 +285,41 @@ koth) · (B) `respawnPerDeath:1.5, respawnCap:8.0`.
 - **Respawn delay / death penalty** (#4) — ✅ DONE v5.1.286 = **A** (mode-aware
   `bbRespawnDelay()`: objective inf-life modes use `BB_RESPAWN_OBJ`=7s, others keep
   the fast `BB_STOCK_DELAY`). B (escalating per-death) not taken.
+
+---
+
+## 5. MINE TYPE — how the MINELAYER "changes / cycles" mines (Sam Q, 2026-06-24)
+
+**The question:** "how does minelayer change or cycle mines?"
+
+**Current answer: it does NOT cycle.** The three mine bots are **separate
+equippable weapons**, each dropping ONE fixed kind — you choose the *type* by which
+weapon you pick in the loadout (armory rail / ◀▶ cycler), not in-match:
+- **MINELAYER** (`mine`) — proximity-trip → **damage** blast (`mineDmg` 150).
+- **STUN-MINE** (`stunmine`) — proximity-trip → **stun + chip** (control). *(gated)*
+- **TIMED MINE** (`timemine`) — **fuse**, no trip → zones a spot on a clock. *(gated)*
+
+Within a single mine weapon, what's "dynamic" is the **drop lifecycle**, not the
+type (`bbWeaponPre` drop block ~line 4888 + `bbMinesUpdate` ~line 5429):
+- RT drops a mine **behind the nose** on a cooldown (`mineCd` 1.4s).
+- Capped per owner at `mineMax` (4) — **over the cap the OLDEST mine disarms** (so
+  you can't flood the arena). That's the only "cycling" today: old → new.
+- Each mine **arms** after `mineArm` (0.7s, so you drive clear), then trips
+  (proximity, `mineTrigK`) or detonates on its `fuse` (timed); unused proximity
+  mines **fizzle** at end of `mineLife` (14s).
+
+### If Sam wants an actual in-match mine SWITCH (spec — not built)
+Two ways to let ONE "MINELAYER" adapt its mine type:
+- **A — pre-match TYPE sub-pick (recommended, simplest).** Collapse the three into
+  one MINELAYER weapon with a **mine-type chip** chosen in the loadout
+  (DAMAGE / STUN / TIMED), stored on `ld` (e.g. `ld.mineType`). No new in-match
+  input, no HUD; the bot just lays the type you set. Cleaner roster (one "mine
+  bot" instead of three) — but you commit to one type for the match.
+- **B — in-match cycle.** Tap a button to rotate DAMAGE→STUN→TIMED between drops,
+  with a tiny HUD pill showing the armed type. More tactical (adapt mid-fight) but
+  **needs a free input** — RT is fire, LT is dash; the only unused contextual one
+  is the give-up dash-hold. Would likely need a double-tap / a dedicated bind, and
+  a HUD indicator. Higher complexity for a niche gain.
+- **Recommendation:** keep the **three separate weapons** as shipped (each reads as
+  its own "bot," zero input cost), OR do **A** if Sam wants a single tidy MINELAYER
+  with a type selector. Hold **B** unless he specifically wants to switch mid-match.
