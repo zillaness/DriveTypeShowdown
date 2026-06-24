@@ -2,11 +2,13 @@
 
 Four RoboRumble combat features Sam raised in playtest.
 
-> **STATUS UPDATE (after Sam's decisions):** #1 GIVE-UP, #2 PARTING-GIFT BUFF, and
-> #4 RESPAWN DELAY are **BUILT** — give-up v5.1.288, parting-gift v5.1.287, respawn
-> v5.1.286 (see those changelog entries for the final tuning). #3 PINCER ESCAPE is
-> still **spec-only** (the recommendation below stands: damage-to-break grip + a soft
-> clamp cap). The original spec text is kept below as the design record.
+> **STATUS UPDATE — ALL FOUR BUILT:** #1 GIVE-UP (v5.1.288), #2 PARTING-GIFT BUFF
+> (v5.1.287, delayed-fuse; + v5.1.293 defers match-end so a fused bomb can still
+> DRAW), #3 PINCER ESCAPE (v5.1.291, damage-to-break grip + soft cap, gated behind
+> EXPERIMENTAL FEATURES per the recommendation below), #4 RESPAWN DELAY (v5.1.286,
+> mode-aware: objective inf-life modes use the longer `BB_RESPAWN_OBJ`). See those
+> changelog entries for final tuning. The original spec text is kept below as the
+> design record.
 
 Captured here with current-behavior refs + a buildable design + tuning + tests so
 any thread can pick one up cleanly.
@@ -269,13 +271,17 @@ koth) · (B) `respawnPerDeath:1.5, respawnCap:8.0`.
 
 ---
 
-### Backlog status
-- **TASER stun bot** — ✅ DONE v5.1.280 (experimental-gated). The "needs a spec"
-  item in the idea bank is now built.
-- **Give-up button** (#1) — spec'd here, awaiting Sam's call on the kill-credit
-  rule, then build.
-- **Parting-gift buff** (#2) — spec'd here, awaiting Sam's pick (A delayed-fuse vs
-  B drop-a-mine).
-- **Pincer escape** (#3) — spec'd here, recommend damage-to-break + soft cap.
-- **Respawn delay / death penalty** (#4) — spec'd here, recommend mode-aware
-  longer respawn for objective inf-life modes (push-ball/CTF/dom/koth).
+### Backlog status — ALL BUILT (2026-06-24 overnight)
+- **TASER stun bot** — ✅ DONE v5.1.280 (experimental-gated).
+- **Give-up button** (#1) — ✅ DONE v5.1.288. Kill-credit rule = **A** (concede
+  credits the last attacker via `victim._lastHitBy`); small blast; respawns on the
+  normal (longer, objective) clock.
+- **Parting-gift buff** (#2) — ✅ DONE v5.1.287 = **A** (delayed-fuse, telegraphed,
+  bigger). v5.1.293 defers the match-end so a fused bomb can still trade for a DRAW.
+  (B "death mine" not taken — A answered the brief.)
+- **Pincer escape** (#3) — ✅ DONE v5.1.291 = **#1 + #4** (damage-to-break grip pool
+  `grabGrip` + steady decay soft-cap → pops the clamp; works vs CPU + pincer-vs-
+  pincer). Gated behind EXPERIMENTAL FEATURES until Sam flips it on.
+- **Respawn delay / death penalty** (#4) — ✅ DONE v5.1.286 = **A** (mode-aware
+  `bbRespawnDelay()`: objective inf-life modes use `BB_RESPAWN_OBJ`=7s, others keep
+  the fast `BB_STOCK_DELAY`). B (escalating per-death) not taken.
