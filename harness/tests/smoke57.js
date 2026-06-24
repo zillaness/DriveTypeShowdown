@@ -1527,10 +1527,11 @@ src+=`
    ok('a TASER-STUNNED bot is frozen under its own power in a live updateBB tick',froze);
    s._stunBB=0;s._stunImm=0;s.x=900;s.y=360;const rx=s.x,ry=s.y;for(let f=0;f<8;f++)updateBB(1/60);
    ok('the drive freeze LIFTS once the stun clears (the bot chases again)',Math.hypot(s.x-rx,s.y-ry)>1);}
-  // v5.1.294 EXPERIMENTAL arena-edge hazards (BattleBots-style hammer/spike/saw): gated, telegraphed cycle, neutral strike
-  {const sv=expFeatures;startBB(0,2);bb2.cd=0;bb2.result=null;
-   expFeatures=false;bb2._edgeHaz=null;ok('arena-edge hazards are OFF without EXPERIMENTAL FEATURES',bbEdgeHaz().length===0);
-   expFeatures=true;bb2._edgeHaz=null;const hz=bbEdgeHaz();
+  // v5.1.294 arena-edge hazards (BattleBots-style hammer/spike/saw): telegraphed cycle, neutral strike. v5.1.296 also activate under HAZARD MASTER (Sam's side-of-arena vision).
+  {const sv=expFeatures,svh=hazardMaster;startBB(0,2);bb2.cd=0;bb2.result=null;
+   expFeatures=false;hazardMaster=false;bb2._edgeHaz=null;ok('arena-edge hazards are OFF without EXPERIMENTAL FEATURES or HAZARD MASTER',bbEdgeHaz().length===0);
+   expFeatures=false;hazardMaster=true;bb2._edgeHaz=null;ok('HAZARD MASTER on → arena-edge hazards activate (Sam’s side-of-arena hammers/spikes/saws)',bbEdgeHaz().length===3);
+   hazardMaster=false;expFeatures=true;bb2._edgeHaz=null;const hz=bbEdgeHaz();
    ok('EXPERIMENTAL FEATURES on → hammer + spike + saw arena hazards exist',hz.length===3&&hz.some(h=>h.type==='hammer')&&hz.some(h=>h.type==='spike')&&hz.some(h=>h.type==='saw'));
    const saw=hz.find(h=>h.type==='saw');
    const onIt=bbBotWith('none','balanced',0,0,true);onIt.x=saw.x;onIt.y=saw.y;onIt.hp=BB.HP;onIt.inv=0;
@@ -1542,7 +1543,7 @@ src+=`
     ok('arena-edge hazard cycle reaches STRIKE after the telegraph',bbEdgeHaz().find(h=>h.type==='saw').phase==='strike');}
    let ethrew=false;try{drawBB();}catch(e){ethrew=true;console.log('   edgehaz drawBB err:',e.message);}
    ok('drawBB renders the arena-edge hazards without throwing',!ethrew);
-   expFeatures=sv;bb2._edgeHaz=null;}
+   expFeatures=sv;hazardMaster=svh;bb2._edgeHaz=null;}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
