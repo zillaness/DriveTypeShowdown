@@ -1509,6 +1509,8 @@ src+=`
     ok('a TIMED MINE detonates on its FUSE (no proximity trip) + damages a foe in the blast + is consumed',foe.hp<thp&&bb2.mines.length===0);
     foe.x=900;foe.y=900;owner.x=300;owner.y=300;owner.inv=0;const ohp=owner.hp;bb2.mines=[{x:owner.x-fd,y:owner.y,owner:0,side:0,arm:0,life:10,timed:true,fuse:0.001}];bbMinesUpdate(1/60);
     ok('a TIMED MINE blast spares its owner/ally (FF off)',owner.hp===ohp&&bb2.mines.length===0);}
+   {let dThrew=false;bb2.mines=[{x:200,y:200,owner:0,side:0,arm:0.3,life:10,timed:true,fuse:BB_W.timeMineFuse},{x:400,y:400,owner:0,side:0,arm:0,life:10,timed:true,fuse:0.4}];try{bbDrawMines();}catch(e){dThrew=true;console.log('   timed-mine draw err:',e.message);} // exercise the new accelerating-blink branch (arming + mid-fuse)
+    ok('bbDrawMines renders a TIMED MINE (arming + mid-fuse countdown) without throwing',!dThrew);bb2.mines=[];}
    bb2.bots=_sb;bb2.minis=_sm;}
   // v5.1.280 TASER weapon: a short front-cone ZAP that STUNS a lined-up enemy (drive + fire frozen via _stunBB); low damage, owner/ally safe, anti perma-lock immunity
   ok('TASER in BB_WEAPONS + armory rail',!!BB_WEAPONS.find(w=>w.id==='taser')&&!!BB_ARMORY_W.find(w=>w.id==='taser'));
