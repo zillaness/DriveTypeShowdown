@@ -713,7 +713,26 @@ src+=`
     const rhp=runner.hp;bbPartingsUpdate(BB_W.partingFuse+0.05);
     ok('PARTING GIFT: a foe that RAN clear before the fuse is spared (time to run)',runner.hp===rhp&&bb2.partings.length===0);
     let pthrew=false;try{bb2.partings=[{x:200,y:200,side:0,fuse:0.7,max:BB_W.partingFuse,rk:BB_W.partingRK,dmg:BB_W.partingDmg,knock:BB_W.partingKnock}];bbDrawPartings();}catch(e){pthrew=true;}
-    ok('bbDrawPartings renders the armed charge + growing danger ring without throwing',!pthrew);bb2.partings=[];}}
+    ok('bbDrawPartings renders the armed charge + growing danger ring without throwing',!pthrew);bb2.partings=[];}
+   // v5.1.288 GIVE-UP: a disabled human in an inf-life mode can HOLD dash to concede (after a grace), self-destructing + crediting the last attacker
+   {const _kb=kbBoostHeld;playerBind[0]={type:'any'};
+    const gv=bbBotWith('none','balanced',0,0,false);gv.ctl.type='human';gv.ctl.bind=0;gv.x=120;gv.y=120;gv.mob=0;gv.hp=BB.HP;gv.lives=Infinity;gv.dead=false;gv._lastHitBy=1;gv._disabledT=0;gv._giveUp=0;
+    const atk=bbBotWith('none','balanced',1,1,true);atk.x=900;atk.y=900;atk.hp=BB.HP;atk.dead=false;atk.kills=0;atk.lives=Infinity;
+    bb2.bots=[gv,atk];bb2.result=null;bb2.blasts=[];bb2.deb=[];kbBoostHeld=false;
+    bbGiveUpUpdate(0.1);ok('GIVE-UP: nothing happens during the grace window',(gv._giveUp||0)===0&&!gv.dead);
+    gv._disabledT=BB_W.giveUpAvail+0.1;kbBoostHeld=false;bbGiveUpUpdate(1/60);ok('GIVE-UP: does not ramp without the hold',(gv._giveUp||0)===0);
+    kbBoostHeld=true;for(let f=0;f<Math.ceil(BB_W.giveUpHold*60)+6;f++)bbGiveUpUpdate(1/60);
+    ok('GIVE-UP: holding the dash to full → the bot self-destructs',gv.dead===true);
+    ok('GIVE-UP: the kill is credited to the LAST attacker',atk.kills===1);
+    const cpu=bbBotWith('none','balanced',0,0,true);cpu.x=120;cpu.y=120;cpu.mob=0;cpu.lives=Infinity;cpu.dead=false;cpu._disabledT=99;cpu._giveUp=0;bb2.bots=[cpu,atk];bbGiveUpUpdate(1/60);
+    ok('GIVE-UP: a CPU never concedes',(cpu._giveUp||0)===0&&!cpu.dead);
+    const fin=bbBotWith('none','balanced',0,0,false);fin.ctl.type='human';fin.ctl.bind=0;fin.x=120;fin.y=120;fin.mob=0;fin.lives=1;fin.dead=false;fin._disabledT=99;fin._giveUp=0;
+    const fa=bbBotWith('none','balanced',1,1,true);fa.lives=1;bb2.bots=[fin,fa];bbGiveUpUpdate(1/60);
+    ok('GIVE-UP: NOT offered in finite-life modes (only infinite respawns)',(fin._giveUp||0)===0&&!fin.dead);
+    kbBoostHeld=_kb;}
+   {startBB(0,2);bb2.cd=0;bb2.result=null;const d=bb2.bots[0];d.mob=0;d.lives=Infinity;d.ctl.type='human';d._disabledT=BB_W.giveUpAvail+1;d._giveUp=BB_W.giveUpHold*0.5;if(bb2.bots[1])bb2.bots[1].lives=Infinity;
+    let gthrew=false;try{drawBB();}catch(e){gthrew=true;console.log('   giveup drawBB err:',e.message);}
+    ok('drawBB renders the GIVE-UP hold ring without throwing',!gthrew);}}
   // ── v5.1.155: NONE removed as a pickable perk + new perks VAMPIRE / SPARE TIRE / PIT STOP ──
   {ok('NO PERK is a pickable perk again (neutral option)',BB_PERKS_PICK.some(p=>p.id==='none')&&BB_PERKS_PICK[0].id==='none');
    ok('CPUs always roll a real (non-NONE) perk',(()=>{for(let i=0;i<200;i++)if(bbCpuPickLoadout(2).perk==='none')return false;return true;})());

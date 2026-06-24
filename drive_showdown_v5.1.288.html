@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.287.html
-  version: 5.1.287
+  file: drive_showdown_v5.1.288.html
+  version: 5.1.288
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-24
@@ -4400,6 +4400,7 @@ function bbHitLoc(victim,fromX,fromY){ // contact point (toward the other bot) c
 }
 function bbApplyHit(victim,loc,dmg,owner,fromX,fromY,frontPierce){ // kinetic hit: front immune (unless PIERCING), rear→HP, side→mobility (+ a corner WHEEL) then spillover
   if(victim.dead||victim.inv>0||dmg<=0||(victim._lastStandT>0))return; // v5.1.181 LAST STAND: invulnerable during its window
+  if(owner!=null&&bb2&&bb2.bots[owner]&&bb2.bots[owner].side!==victim.side)victim._lastHitBy=owner; // v5.1.288 remember the last ENEMY to hit us → the GIVE-UP self-destruct credits them the kill (disabling you is rewarded)
   if(bbEggActive(victim)==='originalsin'){bbEggUnlock('originalsin');dmg*=0.5;} // v5.1.225 ORIGINAL SIN buff = indestructible WHEELS (bbWheelDamage) + GREATLY reduced HP damage (½ taken), not full immunity
   if(victim.ld&&victim.ld.reactive&&owner!=null&&bb2&&bb2.bots[owner]){ // v5.1.160 REACTIVE ARMOR: the FIRST hit on each side (front / side ×2 / rear) is fully ABSORBED (no damage taken) AND blasts the attacker for meaningful damage; then that side's charge is spent
     if(!victim._react)victim._react={front:1,side:2,rear:1};
@@ -5396,6 +5397,21 @@ function bbDrawPartings(){if(!bb2||!bb2.partings)return;const T=(bb2.t||0); // a
     const blink=((T*(4+12*frac))|0)&1;ctx.globalAlpha=1;ctx.fillStyle=blink?'#ff3b0a':'#7a1d10';if(blink){ctx.shadowColor='#ff3b0a';ctx.shadowBlur=11;}ctx.beginPath();ctx.arc(x,y,RR*0.5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
     ctx.fillStyle='#fff7c0';ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillText('💣',x,y+5);ctx.restore();}
 }
+// ── v5.1.288 GIVE-UP: in inf-life modes, a DISABLED (mobility-dead) human can HOLD the dash/boost input to concede after a short grace (the opponent's reward window) — an overheat-style ramp, then a SMALL self-destruct (old parting size) crediting the LAST attacker, then the normal respawn. Skips the dead-air of sitting helpless while a foe ignores you (the count-out only fires if BOTH sides are stuck). ──
+function bbGiveUpBoom(b){const R=RR*BB_W.giveUpRK;if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:b.x,y:b.y,t:0.5,max:0.5,r:R,parting:true});sfx('explosion'); // a SMALL boom (old parting size) — a consolation, not over-rewarding the concede
+  for(const o of bb2.bots){if(o===b||o.dead||(o.side===b.side&&!friendlyFire))continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<=R){o.hp-=BB_W.giveUpDmg*Math.max(0.55,1-d/R);o.inv=BB.hitCd;const m=d||1;o.x+=(o.x-b.x)/m*BB_W.giveUpKnock;o.y+=(o.y-b.y)/m*BB_W.giveUpKnock;obsCheck(o,RR);if(o.ctl)p2Rumble(o.ctl.bind,0.85,'heavy');if(o.hp<=0&&!o.dead)bbKill(o,null);}}
+}
+function bbGiveUpEligible(b){return b&&!b.dead&&b.ctl&&b.ctl.type!=='cpu'&&bbInfLives()&&b.mob<=0&&(b._lastStandT||0)<=0&&(b.lives>0);} // human + inf-respawn + mobility-dead + not mid-laststand
+function bbGiveUpUpdate(dt){if(!bb2)return;
+  for(const b of bb2.bots){
+    if(!bbGiveUpEligible(b)){b._disabledT=0;b._giveUp=0;continue;} // mobility back / not eligible → reset
+    b._disabledT=(b._disabledT||0)+dt;
+    const held=b._disabledT>=BB_W.giveUpAvail&&bbDashHeld(b.ctl.bind); // grace first (foe's window), then HOLD dash to ramp
+    b._giveUp=clamp((b._giveUp||0)+(held?dt:-dt*1.6),0,BB_W.giveUpHold+0.001); // overheat-style: builds while held, decays on release
+    if((b._giveUp||0)>=BB_W.giveUpHold){const lk=b._lastHitBy,killer=(lk!=null&&bb2.bots[lk]&&!bb2.bots[lk].dead&&bb2.bots[lk].side!==b.side)?lk:null; // credit the last attacker (if still around)
+      b._giveUp=0;b._disabledT=0;if(b.ctl)p2Rumble(b.ctl.bind,1,'heavy');bbGiveUpBoom(b);bbKill(b,killer);}
+  }
+}
 // v5.1.212 bbTankPortUpdate REMOVED — TANK INVASION no longer auto-fires every bot; it just unlocks the pickable CANNON in the cycler (see bbCycleField)
 function updateBB(dt){
   if(!bb2)return;
@@ -5498,6 +5514,7 @@ function updateBB(dt){
   bbShellsUpdate(dt); // v5.1.175: move/collide all shells (CANNON weapon + tank-invasion cheat)
   bbMinesUpdate(dt); // v5.1.277 MINELAYER: arm / proximity-trigger / detonate dropped mines
   bbPartingsUpdate(dt); // v5.1.287 PARTING GIFT: burn the delayed fuse → detonate the big blast
+  bbGiveUpUpdate(dt); // v5.1.288 GIVE-UP: a disabled human can hold to concede (inf-life modes)
   bbAirstrikeUpdate(dt); // v5.1.119 P7: AIRSTRIKE arena bombs (cheat)
   if(bb2.hazCd>0)bb2.hazCd=Math.max(0,bb2.hazCd-dt); // v5.1.148 HAZARD MASTER strike cooldown
   // STALEMATE COUNT-OUT: only when NOTHING is happening — an immobilized bot taps out ONLY if its side has no mobile
@@ -5777,7 +5794,12 @@ function drawBB(){
     drawP2Tag(p,b,(b.ctl.name||p2Name(b.ctl.bind))+(bbInfLives()?('  ☠'+(b.kills||0)):''),b.col); // show each bot's name above it, humans included; v5.1.269 + its kill tally in a deathmatch (infinite lives)
     if(bbMode()==='vip'&&b.vip){ctx.fillStyle='#ffd740';ctx.font='bold 15px Courier New';ctx.textAlign='center';ctx.fillText('♛',FX+b.x,FY+b.y-RR-16);} // v5.1.123 P9 VIP crown
     if((b.outT||0)>0){ctx.fillStyle='#ff5252';ctx.font='bold 14px Courier New';ctx.textAlign='center';ctx.fillText('⚠ '+Math.max(1,Math.ceil(BB.countOut-b.outT)),FX+b.x,FY+b.y+RR+20);} // STALEMATE count-out timer (both stuck)
-    else if(b.mob<=0){ctx.fillStyle='#ff8a52';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('⚠ STUCK',FX+b.x,FY+b.y+RR+20);} // immobilized but a foe can still finish it — no auto count-out
+    else if(b.mob<=0){ // immobilized but a foe can still finish it — no auto count-out
+      if(bbGiveUpEligible(b)&&(b._disabledT||0)>=BB_W.giveUpAvail){const gf=clamp((b._giveUp||0)/BB_W.giveUpHold,0,1),GR=RR+12,cx=FX+b.x,cy=FY+b.y; // v5.1.288 GIVE-UP prompt + overheat-style hold ring (replaces ⚠ STUCK once the option is live)
+        ctx.save();ctx.strokeStyle='rgba(0,0,0,0.5)';ctx.lineWidth=5;ctx.beginPath();ctx.arc(cx,cy,GR,0,Math.PI*2);ctx.stroke();
+        const col=gf>0.66?'#ff3b1a':gf>0.33?'#ff8a3d':'#ffd24d';if(gf>0){ctx.shadowColor=col;ctx.shadowBlur=10;}ctx.strokeStyle=col;ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.arc(cx,cy,GR,-Math.PI/2,-Math.PI/2+gf*Math.PI*2);ctx.stroke();ctx.lineCap='butt';ctx.shadowBlur=0;
+        ctx.fillStyle=gf>0?'#ffd24d':'#ff9a6a';ctx.font='bold 10px Courier New';ctx.textAlign='center';ctx.fillText(gf>0?'GIVING UP…':'HOLD ⤵ GIVE UP',cx,cy+RR+22);ctx.restore();}
+      else{ctx.fillStyle='#ff8a52';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('⚠ STUCK',FX+b.x,FY+b.y+RR+20);}}
     else if(b.pinT>0){ctx.fillStyle='#ffd740';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.fillText('⊗ PINNED',FX+b.x,FY+b.y+RR+20);}
     ctx.globalAlpha=1;
   }
@@ -10435,6 +10457,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.288 (2026-06-24): GIVE-UP / concede button (Sam: "in inf-life modes, when you're disabled with no mobility and can't move, hold to give up — and you blow up; credit the last attacker; the opponent should be rewarded for disabling you; hold like the overheat sequence; small explosion so losing isn't over-rewarded"). In an INFINITE-respawn mode, a DISABLED (mobility-dead) HUMAN bot — which otherwise sits helpless forever, since the count-out only fires when BOTH sides are stuck — can now concede: after a short grace (giveUpAvail 2s, the opponent's window) a "HOLD ⤵ GIVE UP" prompt appears; HOLD the dash/boost input (LT / Shift — dead weight while immobilized) to fill an OVERHEAT-style ring (giveUpHold 1.6s, decays on release); at full it SELF-DESTRUCTS in a SMALL blast (the OLD parting size — giveUpRK 6 / giveUpDmg 480, so conceding isn't over-rewarded) and dies crediting the LAST attacker (new victim._lastHitBy, set in bbApplyHit) — then respawns on the normal (longer, objective) clock, so giving up only skips the dead-air, it doesn't dodge the penalty. CPUs never concede; not offered in finite-life modes. New bbGiveUpEligible/bbGiveUpUpdate/bbGiveUpBoom. smoke57 +7 → 594. Full battery ALL GREEN.
   v5.1.287 (2026-06-24): PARTING GIFT BUFF — DELAYED, telegraphed, BIGGER blast (Sam: "parting gift isn't effective enough; bigger/larger range but give people time to run; maybe drops a mine like the MINELAYER"). On a parting-gift death we now DROP an armed charge (mine-style blinking core + a GROWING dashed danger ring that telegraphs the blast) that detonates after a FUSE (partingFuse 1.4s) instead of an instant blast — so foes get time to run, and a near-dead killer that finished you can still get caught. Bigger: partingRK 6→8.5, partingDmg 480→540, + knockback. New bbPartingDrop/bbPartingsUpdate/bbPartingDetonate/bbDrawPartings (mirrors the MINELAYER lifecycle); detonation is FF-aware (spares the dead bot's alliance), clears enemy drones, chains via bbKill (no kill-credit — the layer is gone). INTERACTION CHANGE: the bomb is now DODGEABLE, so killing a parting-gift bot as the LAST enemy ENDS the match before it detonates → you WIN (was a guaranteed instant mutual-destruction DRAW); it stays a strong 3v3 tool. smoke57 +5. Full battery ALL GREEN.
   v5.1.286 (2026-06-24): OBJECTIVE-MODE RESPAWN DELAY + count-in (Sam: "in inf-life modes like push-ball/CTF respawn should take longer — death needs to be punished competitively"). Push-ball/CTF/domination/KOTH now respawn a downed bot on BB_RESPAWN_OBJ (7s) instead of the flat BB_STOCK_DELAY (1.2s) — so a death cedes a real ~7s man-down window (the enemy gets a push / flag run). Deathmatch & kill-race keep the fast 1.2s respawn (constant action IS that mode). Recommended 7s from a headless death-rate test: armed CPU duels die ~1.5×/bot/min → ~18% downtime at 7s (a clear, recoverable penalty); 30s tested far too long (~75% dead), 5s a touch light. New bbRespawnDelay() (mode-aware) feeds the respawn block; a downed bot now shows a shrinking RESPAWN ring + seconds at its death spot (objective modes; the HUD panel ↻Ns covers every mode). smoke57 +5 → 584. Full battery ALL GREEN.
   v5.1.285 (2026-06-24): CHEAT-MENU real P&M logo + SP-MENU back-to-splash (controller/mouse parity) (Sam playtest). (1) The cheat-menu Projects & Mods link buttons drew the PLACEHOLDER vector gear (drawPMGear); they now draw the REAL inlined _logoPM (same artwork-bbox crop as the credits screen, width-fit into the 28px icon), with the vector as a load-time fallback. (2) The SINGLE-PLAYER menu had NO on-screen way back to the splash hub — only keyboard Esc worked, so mouse/controller players were stranded. Added a "← BACK" chip top-left (menuBackRect, clear of the centered title): click → splash, and pad B on the SP menu → splash (parity with Esc). Verified both in a headless browser screenshot. Full battery ALL GREEN.
