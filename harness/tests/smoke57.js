@@ -1105,6 +1105,14 @@ src+=`
     bb2.bots=[];bb2.pball={x:20,y:FH/2,vx:0,vy:0};bb2.pscore=[0,1];bb2.result=null;bbModeUpdate(0.05);
     ok('PUSH-BALL: GOALS TO WIN=2 ends the match at 2 goals',bb2.result===1&&bbPbTarget()===2);
     m2.set.bbgoals=sg;}
+   // v5.1.282 ∞ GOALS (0) = TIMED, no cap: a goal NEVER ends the match; only the clock decides (most goals)
+   {const sg=m2.set.bbgoals,st=m2.set.bbtime;m2.set.bbgoals=0;m2.set.bbtime=180;
+    ok('PUSH-BALL: GOALS TO WIN=∞ → bbPbTarget is Infinity (no cap)',bbPbTarget()===Infinity);
+    bb2.bots=[];bb2.pball={x:20,y:FH/2,vx:0,vy:0};bb2.pscore=[0,9];bb2.result=null;bb2.t=0;bbModeUpdate(0.05);
+    ok('PUSH-BALL: under ∞ goals a goal does NOT end the match (9 goals, still live)',bb2.result===null&&bb2.pscore[1]===10);
+    m2.set.bbgoals=0;m2.set.bbtime=0;bbEnforceLivesTime('bbgoals');
+    ok('∞ goals with no clock auto-adds a TIME LIMIT (never endless)',(m2.set.bbtime|0)>0);
+    m2.set.bbgoals=sg;m2.set.bbtime=st;}
    ok('bbDrawSoccerBall renders without throwing',(()=>{try{bbDrawSoccerBall(100,100,24,1.2);return true;}catch(e){return false;}})());
    {const svM=m2.mode;m2.mode='battlebots';m2.set.bbmode='pushball';const hasG=p2SettingsRows().some(r=>r.k==='bbgoals');m2.set.bbmode='ko';const noG=p2SettingsRows().some(r=>r.k==='bbgoals');m2.set.bbmode='pushball';m2.mode=svM;
     ok('GOALS TO WIN row shows for PUSH-BALL only',hasG===true&&noG===false);}
