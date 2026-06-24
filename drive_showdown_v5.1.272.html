@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.271.html
-  version: 5.1.271
+  file: drive_showdown_v5.1.272.html
+  version: 5.1.272
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -213,15 +213,14 @@ function pauseRestart(){ // restart the current match/run from pause
   else retryRun(); // single-player drive practice
 }
 function pauseToMenu(){ if(phase&&phase.indexOf('p2')===0)p2Exit(); else phase=holoMode?'holoMenu':steerMode?'steerMenu':'menu'; }
-function pauseItems(){ // RESUME · RESTART · (SETUP) · MODE · SETTINGS · MENU — context-aware
+function pauseItems(){ // RESUME · RESTART · (SETUP · MATCH) · MODE · SETTINGS · MENU — context-aware
   const is2P=phase&&phase.indexOf('p2')===0,it=[];
   it.push({lab:'▶ RESUME',  c:'#44ffaa',act:()=>{paused=false;}});
   it.push({lab:'⟳ RESTART', c:'#ffd740',act:()=>{paused=false;pauseRestart();}});
   if(is2P)it.push({lab:'🔧 SETUP',c:'#40c4ff',act:()=>{paused=false;pauseTo('p2claim');}});
+  if(is2P)it.push({lab:'🎮 MATCH SETTINGS',c:'#5fb0ff',act:()=>{paused=false;pauseTo('p2settings');}}); // v5.1.272 jump back to MATCH SETTINGS (the screen before robot setup) — Sam wanted this from pause. 🎮 = the icon the match-settings screen already uses
   it.push({lab:'🏁 MODE',    c:'#ee66bb',act:()=>{paused=false;if(is2P)pauseTo('p2modes');else pauseToMenu();}});
-  // TURN RATE: rotation-vs-translation ratio (the single sensitivity lever stays; this just biases turn vs drive). ◀▶ / D-pad L-R adjust; A resets to 1:1.
-  it.push({kind:'step',lab:'TURN RATE',c:'#7fd4ff',get:()=>rotRatio,dec:()=>setRotRatio(rotRatio-0.25),inc:()=>setRotRatio(rotRatio+0.25),act:()=>setRotRatio(1)});
-  it.push({lab:'⚙ SETTINGS', c:'#aaaadd',act:()=>{settingsReturn=phase;settingsGpIdx=0;paused=false;phase='settings';}});
+  it.push({lab:'⚙ SETTINGS', c:'#aaaadd',act:()=>{settingsReturn=phase;settingsGpIdx=0;paused=false;phase='settings';}}); // v5.1.272 TURN RATE moved here (Settings → a drag slider); was a cramped pause-menu stepper (number overlapped the ◀)
   it.push({lab:(is2P?'✕ MAIN MENU':'✕ QUIT TO MENU'),c:'#ff6b6b',act:()=>{paused=false;pauseToMenu();}}); // make it explicit this exits all the way out, not just the overlay
   return it;
 }
@@ -317,6 +316,7 @@ let cpuSettingsReturn=null; // phase to return to when leaving cpuSettings (set 
 let pupSettingsReturn=null; // phase to return to when leaving p2pupSettings
 let settingsReturn='menu'; // 'menu' or a game-phase string (when opened from the pause menu)
 let settingsGpIdx=0;
+let settingsSliderDrag=null; // v5.1.272 Settings TURN-RATE slider drag: {i, touchId?}
 let splashGpIdx=0; // v5.1.229 SPLASH gamepad cursor (v5.1.252): 0=CAREER, 1=SINGLE PLAYER, 2=MULTIPLAYER, 3=SETTINGS
 let pauseGpIdx=0; // cursor index in the pause overlay (0=RESUME 1=SETTINGS 2=QUIT)
 const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
@@ -462,7 +462,7 @@ C.addEventListener('touchstart',e=>{
       if(!_hitSlider)handleCpuSettingsClick(p.x,p.y);
       continue;
     }
-    if(phase==='settings'){handleSettingsClick(p.x,p.y);continue;}
+    if(phase==='settings'){const _si=settingsSliderHit(p);if(_si>=0){settingsSliderDrag={i:_si,touchId:t.identifier};settingsSetSlider(_si,p.x);}else handleSettingsClick(p.x,p.y);continue;} // v5.1.272 touch-drag the TURN RATE slider
   if(phase==='splash'||phase==='credits'||phase==='holoMenu'||phase==='steerMenu'||phase==='highscores'||phase==='ghosts'||phase==='achievements'){click(p.x,p.y);continue;}
     if(phase&&phase.indexOf('p2')===0){
       if(phase==='p2claim'){
@@ -533,6 +533,7 @@ C.addEventListener('touchmove',e=>{
     if(bbLoadDrag&&bbLoadDrag.touchId===t.identifier){const p=toCanvas(t);if(Math.hypot(p.x-bbLoadDrag.x,p.y-bbLoadDrag.y)>4)_bbDragMoved=true;bbLoadDrag.x=p.x;bbLoadDrag.y=p.y;continue;}
     if(p2SensDrag&&t.identifier===p2SensDrag.touchId){p2SetSens(p2SensDrag.pl,toCanvas(t).x);continue;}
     if(p2SetSliderDrag&&t.identifier===p2SetSliderDrag.touchId){p2SetSliderVal(p2SetSliderDrag.i,toCanvas(t).x);continue;}
+    if(settingsSliderDrag&&t.identifier===settingsSliderDrag.touchId){settingsSetSlider(settingsSliderDrag.i,toCanvas(t).x);continue;} // v5.1.272 TURN RATE slider drag (touch)
     if(phase==='cpuSettings'&&t.identifier===cpuSettingsDrag?.touchId){
       const p=toCanvas(t);
       const tt=Math.max(0,Math.min(1,(p.x-cpuSettingsDrag.x)/cpuSettingsDrag.w));
@@ -559,6 +560,7 @@ function clearTouch(e){
     if(p2SensDrag&&t.identifier===p2SensDrag.touchId){p2SensDrag=null;}
     if(p2SetSliderDrag&&t.identifier===p2SetSliderDrag.touchId){p2SetSliderDrag=null;}
     if(cpuSettingsDrag&&t.identifier===cpuSettingsDrag.touchId){cpuSettingsDrag=null;}
+    if(settingsSliderDrag&&t.identifier===settingsSliderDrag.touchId){settingsSliderDrag=null;} // v5.1.272 end the TURN RATE slider drag (touch)
     if(t.identifier===fireBtnTid){fireBtnTid=-1;fireBtnPressed=false;continue;}
     for(let sd=0;sd<2;sd++){if(t.identifier===p2TFireId[sd]){p2TFireId[sd]=-1;p2TFire[sd]=false;}}
     for(let sd=0;sd<2;sd++){if(t.identifier===p2Strip[sd].id){p2Strip[sd].id=-1;p2Strip[sd].v=0;}}
@@ -594,6 +596,7 @@ C.addEventListener('mousedown',e=>{
     return; // taps on toggles/links handled by the click event
   }
   if(phase==='p2mapedit'){mapEditDown(p.x,p.y);_bbDragSuppressClick=true;e.preventDefault();return;} // v5.1.233 MAP EDITOR: tools + drag-to-draw (swallow the trailing click so a SAVE/BACK phase-change doesn't fall through)
+  if(phase==='settings'){const _si=settingsSliderHit(p);if(_si>=0){settingsSliderDrag={i:_si};settingsSetSlider(_si,p.x);e.preventDefault();return;}return;} // v5.1.272 grab the TURN RATE slider to drag (non-slider clicks fall to the click event)
   if(phase==='cpuSettings'){
     const _TX=96,_TW=210;
     for(const sl of cpuSliders()){
@@ -633,10 +636,11 @@ C.addEventListener('mousemove',e=>{
   if(phase==='cpuSettings'&&cpuSettingsDrag){const p=toCanvasMouse(e);const tt=Math.max(0,Math.min(1,(p.x-cpuSettingsDrag.x)/cpuSettingsDrag.w));applyCpuSlider(cpuSettingsDrag.id,tt);return;}
   if(p2SensDrag){p2SetSens(p2SensDrag.pl,toCanvasMouse(e).x);return;}
   if(p2SetSliderDrag){p2SetSliderVal(p2SetSliderDrag.i,toCanvasMouse(e).x);return;}
+  if(settingsSliderDrag){settingsSetSlider(settingsSliderDrag.i,toCanvasMouse(e).x);return;} // v5.1.272 TURN RATE slider drag (mouse)
   if(sliderMouseDrag){applySlider(toCanvasMouse(e).x);}
 });
-C.addEventListener('mouseup',()=>{if(phase==='p2mapedit'){mapEditUp();mouseBtnHeld=false;return;}if(bbArmDrag){if(_bbDragMoved){const to=bbSeatAt(mouseX,mouseY);if(to>=0&&bbArmEquip(to,bbArmDrag.kind,bbArmDrag.id)){sfx('click');_bbDragSuppressClick=true;}else if(bb1v1ArmoryOn()){const pl=bb1v1SideAt(mouseX,mouseY);if(pl>=0&&bb1v1Equip(pl,bbArmDrag.kind,bbArmDrag.id)){sfx('click');_bbDragSuppressClick=true;}}}bbArmDrag=null;}if(bbLoadDrag){if(_bbDragMoved){const to=bbSeatAt(mouseX,mouseY);if(to>=0&&bbCopyLoadout(bbLoadDrag.from,to)){sfx('click');_bbDragSuppressClick=true;}}bbLoadDrag=null;}mouseBtnHeld=false;sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;konamiDrag=null;tankSensDrag=null;});
-C.addEventListener('mouseleave',()=>{bbArmDrag=null;bbLoadDrag=null;mouseBtnHeld=false;sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;konamiDrag=null;tankSensDrag=null;});
+C.addEventListener('mouseup',()=>{if(phase==='p2mapedit'){mapEditUp();mouseBtnHeld=false;return;}if(bbArmDrag){if(_bbDragMoved){const to=bbSeatAt(mouseX,mouseY);if(to>=0&&bbArmEquip(to,bbArmDrag.kind,bbArmDrag.id)){sfx('click');_bbDragSuppressClick=true;}else if(bb1v1ArmoryOn()){const pl=bb1v1SideAt(mouseX,mouseY);if(pl>=0&&bb1v1Equip(pl,bbArmDrag.kind,bbArmDrag.id)){sfx('click');_bbDragSuppressClick=true;}}}bbArmDrag=null;}if(bbLoadDrag){if(_bbDragMoved){const to=bbSeatAt(mouseX,mouseY);if(to>=0&&bbCopyLoadout(bbLoadDrag.from,to)){sfx('click');_bbDragSuppressClick=true;}}bbLoadDrag=null;}mouseBtnHeld=false;sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;settingsSliderDrag=null;konamiDrag=null;tankSensDrag=null;});
+C.addEventListener('mouseleave',()=>{bbArmDrag=null;bbLoadDrag=null;mouseBtnHeld=false;sliderMouseDrag=false;cpuSettingsDrag=null;p2SensDrag=null;p2SetSliderDrag=null;settingsSliderDrag=null;konamiDrag=null;tankSensDrag=null;});
 
 const BALL_STARTS=[
   {x:55,  y:175},{x:165, y:158},{x:290, y:172},
@@ -775,19 +779,28 @@ function settingsBack(){
   settingsReturn='menu';settingsGpIdx=0;
 }
 function settingsRowRect(i){return{x:10,y:68+i*50,w:CW-20,h:40};}
+function settingsRows(){return [ // v5.1.272 shared row descriptors (draw + click + gp-nav all read this) — toggles, the TURN RATE drag-slider, and the CPU-AI link
+  {kind:'toggle',label:'Sound',get:()=>sfxOn,onCol:'#44ffaa',act:()=>{sfxUnlock();sfxToggle();},hint:'plays effects in 2P matches  [M]'},
+  {kind:'toggle',label:'Mouse-Aim',get:()=>mouseAim,onCol:'#40c4ff',act:()=>toggleMouseAim(),hint:'steer toward cursor instead of key/stick  [K]'},
+  {kind:'toggle',label:'Friendly Fire',get:()=>friendlyFire,onCol:'#ff7043',act:()=>toggleFriendlyFire(),hint:'OFF = hit enemies only · ON = ram/guns/blasts hit your own team too'},
+  {kind:'toggle',label:'Aim Assist',get:()=>aimAssist,onCol:'#ffd740',act:()=>toggleAimAssist(),hint:'a smidge of magnetism — gently aims toward the nearest enemy (RoboRumble)'},
+  {kind:'toggle',label:'Rumble',get:()=>rumbleOn,onCol:'#ff66cc',act:()=>toggleRumble(),hint:'controller vibration on weapon hits/spin (audio bump is separate)'},
+  {kind:'toggle',label:'Absolute Heading',get:()=>absHeading,onCol:'#7CFC8A',act:()=>toggleAbsHeading(),hint:'snap-to-angle: right stick ANGLE = facing (vs stick = turn speed). Auto-ON for field-centric, OFF for bot-centric — override anytime'},
+  {kind:'slider',label:'Turn Rate',get:()=>rotRatio,min:0.25,max:3,onCol:'#7fd4ff',fmt:v=>v.toFixed(2)+'×',set:v=>setRotRatio(v),act:()=>setRotRatio(1),hint:'rotation speed vs translation (the sensitivity lever still scales both) — drag · 🎮 ◀▶ · A resets to 1.00×'},
+  {kind:'link',label:'CPU AI Settings',act:()=>{cpuSettingsReturn='settings';cpuGpIdx=0;phase='cpuSettings';},hint:'speed · behavior · presets'},
+];}
+function settingsSliderGeom(i){const r=settingsRowRect(i);return{x1:r.x+Math.max(150,r.w*0.42),x2:r.x+r.w-104,y:r.y+r.h/2+3};} // the TURN-RATE track (value readout sits to its right)
+function settingsSetSlider(i,mx){const d=settingsRows()[i];if(!d||d.kind!=='slider')return;const g=settingsSliderGeom(i);d.set(d.min+clamp((mx-g.x1)/(g.x2-g.x1),0,1)*(d.max-d.min));}
+function settingsSliderHit(p){const defs=settingsRows();for(let i=0;i<defs.length;i++){if(defs[i].kind!=='slider')continue;const r=settingsRowRect(i),g=settingsSliderGeom(i);if(p.y>=r.y&&p.y<=r.y+r.h&&p.x>=g.x1-16&&p.x<=g.x2+16)return i;}return -1;} // slider-row index hit by point p (for drag), else -1
 function handleSettingsClick(mx,my){
   if(inR(mx,my,{x:4,y:8,w:56,h:28})){settingsBack();return;}
-  for(let i=0;i<7;i++){
-    if(inR(mx,my,settingsRowRect(i))){
-      if(i===0){sfxUnlock();sfxToggle();}
-      else if(i===1){toggleMouseAim();}
-      else if(i===2){toggleFriendlyFire();}
-      else if(i===3){toggleAimAssist();}
-      else if(i===4){toggleRumble();}
-      else if(i===5){toggleAbsHeading();}
-      else{cpuSettingsReturn='settings';cpuGpIdx=0;phase='cpuSettings';}
-      return;
-    }
+  const defs=settingsRows();
+  for(let i=0;i<defs.length;i++){
+    if(!inR(mx,my,settingsRowRect(i)))continue;
+    const d=defs[i];
+    if(d.kind==='slider')settingsSetSlider(i,mx); // a tap on the track sets the value (drag is wired in mousedown/touchstart)
+    else d.act();
+    return;
   }
 }
 function drawSettings(){
@@ -798,29 +811,26 @@ function drawSettings(){
   ctx.font='bold 9px Courier New';ctx.textAlign='center';ctx.fillStyle='#6677aa';ctx.fillText('← BACK',33,26);
   ctx.font='bold 16px Courier New';ctx.fillStyle='#d4d4f4';ctx.textAlign='center';ctx.fillText('⚙ SETTINGS',CW/2,30);
   ctx.strokeStyle='#1a1a2a';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(10,42);ctx.lineTo(CW-10,42);ctx.stroke();
-  const sRows=[
-    {label:'Sound',val:sfxOn,onCol:'#44ffaa',hint:'plays effects in 2P matches  [M]'},
-    {label:'Mouse-Aim',val:mouseAim,onCol:'#40c4ff',hint:'steer toward cursor instead of key/stick  [K]'},
-    {label:'Friendly Fire',val:friendlyFire,onCol:'#ff7043',hint:'OFF = hit enemies only · ON = ram/guns/blasts hit your own team too'},
-    {label:'Aim Assist',val:aimAssist,onCol:'#ffd740',hint:'a smidge of magnetism — gently aims toward the nearest enemy (RoboRumble)'},
-    {label:'Rumble',val:rumbleOn,onCol:'#ff66cc',hint:'controller vibration on weapon hits/spin (audio bump is separate)'},
-    {label:'Absolute Heading',val:absHeading,onCol:'#7CFC8A',hint:'snap-to-angle: right stick ANGLE = facing (vs stick = turn speed). Auto-ON for field-centric drives, OFF for bot-centric — override here anytime'},
-    {label:'CPU AI Settings',link:true,hint:'speed · behavior · presets'},
-  ];
-  for(let i=0;i<sRows.length;i++){
-    const row=sRows[i],r=settingsRowRect(i),on=row.val,isLink=!!row.link;
+  const defs=settingsRows();
+  for(let i=0;i<defs.length;i++){
+    const row=defs[i],r=settingsRowRect(i),isLink=row.kind==='link',isSlider=row.kind==='slider',on=row.kind==='toggle'&&!!row.get();
     const sel=settingsGpIdx===i&&gpConnected;
-    ctx.fillStyle=on?'rgba(10,40,20,0.5)':isLink?'rgba(20,15,40,0.5)':'rgba(20,20,36,0.4)';
+    ctx.fillStyle=on?'rgba(10,40,20,0.5)':isLink?'rgba(20,15,40,0.5)':isSlider?'rgba(15,28,44,0.5)':'rgba(20,20,36,0.4)';
     rr(r.x,r.y,r.w,r.h,10);ctx.fill();
-    ctx.strokeStyle=sel?'#ffd740':on?'#226633':isLink?'#443388':'#2a2a40';
+    ctx.strokeStyle=sel?'#ffd740':on?'#226633':isLink?'#443388':isSlider?'#2f5a7a':'#2a2a40';
     ctx.lineWidth=sel?2:1;rr(r.x,r.y,r.w,r.h,10);ctx.stroke();
     ctx.font='bold 13px Courier New';ctx.textAlign='left';
-    ctx.fillStyle=on?'#88ffcc':isLink?'#aa88ff':'#8888aa';
+    ctx.fillStyle=on?'#88ffcc':isLink?'#aa88ff':isSlider?'#9fd4ff':'#8888aa';
     ctx.fillText(row.label,r.x+14,r.y+16);
     if(row.hint){ctx.font='8px Courier New';ctx.fillStyle='#2e2e48';ctx.fillText(row.hint,r.x+14,r.y+30);}
     if(isLink){
-      ctx.font='bold 14px Courier New';ctx.textAlign='right';ctx.fillStyle='#7755cc';
-      ctx.fillText('→',r.x+r.w-12,r.y+17);
+      ctx.font='bold 14px Courier New';ctx.textAlign='right';ctx.fillStyle='#7755cc';ctx.fillText('→',r.x+r.w-12,r.y+17);
+    }else if(isSlider){
+      const g=settingsSliderGeom(i),t=clamp((row.get()-row.min)/(row.max-row.min),0,1),kx=g.x1+t*(g.x2-g.x1);
+      ctx.strokeStyle='#33405a';ctx.lineWidth=4;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(g.x1,g.y);ctx.lineTo(g.x2,g.y);ctx.stroke(); // track
+      ctx.strokeStyle=row.onCol||'#7fd4ff';ctx.beginPath();ctx.moveTo(g.x1,g.y);ctx.lineTo(kx,g.y);ctx.stroke(); ctx.lineCap='butt'; // fill up to the knob
+      ctx.fillStyle=sel?'#ffd740':(row.onCol||'#7fd4ff');ctx.beginPath();ctx.arc(kx,g.y,7,0,Math.PI*2);ctx.fill(); // knob (drag handle)
+      ctx.font='bold 12px Courier New';ctx.textAlign='right';ctx.fillStyle='#d4d4f4';ctx.fillText(row.fmt?row.fmt(row.get()):String(row.get()),r.x+r.w-12,g.y+4); // value readout
     }else{
       const tw=48,th=22,tx=r.x+r.w-tw-10,ty=r.y+r.h/2-th/2;
       ctx.fillStyle=on?'rgba(20,80,40,0.9)':'rgba(30,30,50,0.8)';rr(tx,ty,tw,th,8);ctx.fill();
@@ -831,7 +841,7 @@ function drawSettings(){
     }
   }
   ctx.font='9px Courier New';ctx.fillStyle='#222235';ctx.textAlign='center';
-  ctx.fillText('D-pad: navigate  ·  A: toggle  ·  B / Esc: back',CW/2,CH-10);
+  ctx.fillText('D-pad: navigate  ·  A: toggle  ·  ◀▶: turn rate  ·  B / Esc: back',CW/2,CH-10);
 }
 C.addEventListener('click',e=>{
   if(_bbDragSuppressClick){_bbDragSuppressClick=false;return;} // a loadout drag-drop just finished — swallow the trailing click
@@ -1540,11 +1550,14 @@ function updateGamepad(){
   // settings screen: D-pad nav + A toggle + B back
   if(phase==='settings'){
     const now=performance.now(),rep=now-gpNavLast>180;
+    const defs=settingsRows(),maxI=defs.length-1;
     const D=just(13)||(gpAxis.ly>0.55&&rep),U=just(12)||(gpAxis.ly<-0.55&&rep);
-    if(D){settingsGpIdx=Math.min(6,settingsGpIdx+1);gpNavLast=now;}
+    const L=just(14)||(gpAxis.lx<-0.55&&rep),R=just(15)||(gpAxis.lx>0.55&&rep);
+    if(D){settingsGpIdx=Math.min(maxI,settingsGpIdx+1);gpNavLast=now;}
     if(U){settingsGpIdx=Math.max(0,settingsGpIdx-1);gpNavLast=now;}
-    const sr=settingsRowRect(settingsGpIdx);
-    if(just(0))handleSettingsClick(sr.x+sr.w/2,sr.y+20);
+    const cur=defs[settingsGpIdx];
+    if(cur&&cur.kind==='slider'&&(L||R)){cur.set(clamp(cur.get()+(R?0.25:-0.25),cur.min,cur.max));gpNavLast=now;} // v5.1.272 ◀▶ nudges the TURN RATE slider (0.25 steps)
+    if(just(0)){if(cur&&cur.kind==='slider')cur.act();else{const sr=settingsRowRect(settingsGpIdx);handleSettingsClick(sr.x+sr.w/2,sr.y+20);}} // A: slider → reset to 1.00×; else toggle/link
     if(just(1)||just(8))settingsBack();
   }
   // v5.1: SP CPU-settings gamepad nav — dpad moves the cursor, left/right adjusts the focused slider, A activates a button, B backs out
@@ -10281,6 +10294,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.272 (2026-06-20): PAUSE-MENU + SETTINGS POLISH (Sam feedback). (1) TURN RATE moved out of the pause menu into the SETTINGS screen as a DRAG-AND-DROP slider (mouse + touch drag the knob, pad ◀▶ nudges by 0.25, A resets to 1.00×). The old pause-menu stepper had the value text overlapping the ◀ arrow ("◀.00×"); the stepper is gone, so the overlap is too. Settings rows are now a shared settingsRows() descriptor list (toggles + the slider + the CPU-AI link) read by draw + click + gp-nav. (2) NEW pause-menu item "🎮 MATCH SETTINGS" (2P) jumps back to the MATCH SETTINGS screen — the one before robot setup — via pauseTo('p2settings'); Sam wanted to reach it mid-match. smoke54 +4 asserts → 84 (TURN RATE is now a Settings slider; it clamps to 3.00×; pause carries MATCH SETTINGS in 2P, not SP) + the pause-nav assert updated. Full battery ALL GREEN.
   v5.1.271 (2026-06-20): FFA/DEATHMATCH HUD SCOREBOARD. Building on the v5.1.270 panel fix: in an INFINITE-LIVES deathmatch (bbInfLives) each in-match HUD panel now shows a ☠ KILL TALLY on its right edge, so the corner panels read as a live kill-race scoreboard at a glance (the floating bot tag already showed ☠; this adds the stable cornered ranking — most useful in a 6-player FFA). No change in finite-lives last-standing modes (those still show the ♥ respawn count). smoke57 +2 asserts (deathmatch panels carry the kill tally; finite-lives panels don't) → 556 pass. Full battery ALL GREEN.
   v5.1.270 (2026-06-20): FREE-FOR-ALL BUG FIXES — render crash + invisible HUD panels + duplicate binds (Sam: "FFA still buggy"). (1) RENDER CRASH: FFA fills the empty grid seats with SYNTHETIC CPUs bound to binds past the configured seats, but tankGridApply() leaves those binds' m2.drive = null — and p2DriveCtx() did m2.drive[p].kind with no guard, so withBot()→drawRobot() threw "Cannot read properties of null (reading 'kind')" the instant an FFA match with any empty seat tried to draw (i.e. essentially every FFA match). FIX: startP2BB now assigns each filled bind a real drive (RANDOM, for drivetrain variety) + a sens, and p2DriveCtx defaults to field-centric swerve if a drive is ever missing (defense-in-depth). (2) HUD PANELS: the in-match status loop used row=[0,0] + (b.side===0?left:right) — a 2-side layout. Each FFA bot is its OWN side (0-5), so side 0 went left, side 1 right, and sides 2-5 indexed row[2..5] (undefined)→r=NaN→y=NaN: the other FOUR bots had NO visible HP/mobility bar. New bbHudSlot(p) hugs each side's edge for 2-side (regression-safe) and splits all N factions into a LEFT/RIGHT column (3+3) for FFA so all six show. (3) DUPLICATE BINDS: FFA built its roster via tankRosterFromSeats(), which auto-fills an empty SIDE with a bind:0 CPU — in FFA that collided with seat 0 (two bots sharing one bind → same drive/input); and the fill used bind:base.length, which also collided for non-contiguous seats. FIX: FFA now builds straight from the ready seats (real seat index = a unique bind) and fills the rest with the next UNUSED bind. smoke57 +10 asserts (FFA HUD: 6 finite slots, 2 columns, no overlap, 2-side regression; FFA integration: starts 6-bot, every bind has a drive, all binds distinct, seat 0 human, drawBB() renders without throwing) → 554 pass. Full battery ALL GREEN.
   v5.1.269 (2026-06-20): FLAME NERF + ROBORUMBLE KILL-RACE SCORING (Sam). (1) HUMAN FLAMETHROWER toned down — the blow-up build burnBuild 1.5→1.15 (the meter now fills in ~4.3s sustained vs ~3.3s; cone/slow unchanged). CPU flame untouched (burnBuildCpu, sim-balanced). (2) ROBORUMBLE TIMED + INFINITE LIVES is now a KILL RACE: with infinite respawns nobody's eliminated, so leftover HP was the wrong tiebreaker — the clock now decides by MOST KILLS. bbKill credits the killer (bots gained a kills counter), new bbSideKills/bbInfLives, and bbTimeUpResult scores by kills for both 2-side teams and FFA when lives are infinite (objective modes + finite-lives still score as before). Each bot's floating tag shows its ☠ kill count in a deathmatch, and the result screen shows the kill score. smoke57 +6 asserts (544 pass). Full battery ALL GREEN.
