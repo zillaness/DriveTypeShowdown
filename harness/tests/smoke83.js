@@ -328,6 +328,21 @@ src+=`
    T('career LOSS+rematch result: gp items = REMATCH + CONTINUE (2 rects, no phantom nav)', p2GpItems().length===2);
    bb2=null;career=null;phase='splash';}
 
+  // ─────────────── v5.1.283 CAREER GAMEPAD NAV: the story screens must expose their buttons to the pad ───────────────
+  // Was: career screens (p2career/p2cbeat/p2cquiz/p2crecap) returned no gp items → with a controller you couldn't hit CONTINUE / NEW JOURNEY / pick a choice.
+  {applyLayout('land2p');
+   careerSave={node:'intro',diff:'veteran',skill:1,taught:[],cleared:[],ver:1};career=null;phase='p2career';
+   let it=p2GpItems();const go=careerHubBtns().go;
+   T('p2career: CONTINUE is the focused (first) gamepad item', it.length>=2&&it[0].x===go.x&&it[0].y===go.y);
+   const before=phase;p2Click(it[0].x+it[0].w/2,it[0].y+it[0].h/2);
+   T('p2career: gamepad A on CONTINUE advances off the hub', phase!==before);
+   career=careerNew();career.node='intro';phase='p2cbeat';
+   const nB=careerBeatButtons(careerBeat('intro')).length;
+   T('p2cbeat: gamepad items = the CYOA choices + back', p2GpItems().length===nB+1&&nB>=1);
+   career=careerNew();career.flags.ending='driver';phase='p2crecap';
+   T('p2crecap: gamepad items = NEW JOURNEY + BACK TO HUB + back', p2GpItems().length===3);
+   careerSave=null;career=null;phase='splash';}
+
   console.log('smoke83: '+P+' pass, '+F+' fail');
 })();
 `;
