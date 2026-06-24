@@ -306,6 +306,15 @@ src+=`
    career=careerMigrate({node:'coach:C2',active:true,taught:['C1','C2'],diff:'veteran'}); // no _thenByNode
    careerGoto(career.node); careerContinue();
    T('OLD save (no _thenByNode) recovers via the fallback (no soft-lock)', career.stage==='arcade_course'&&phase!=='p2career');}
+  // v5.1.279 FINALE soft-lock: finishing the final (loss OR win) must NOT leave career.node on the pre-finale "Take the field" beat (goto:'finale'), which re-launched the finale on every CONTINUE → lose-final → continue → finale → lose → loop
+  {career=careerNew();career.active=true;career.diff='rookie';career.stage='capstone_rumble';career.node='finale_intro';
+   career.finale={name:'x',sub:'y',stages:['capstone_rumble'],rounds:1,round:1,won:0,active:true,result:null,invite:-1};
+   bb2={bots:[]};
+   careerMatchEnd(1); // player (side 0) LOST the final
+   T('finale LOSS → recap, finale deactivated', phase==='p2crecap'&&career.finale.active===false&&career.finale.result==='eliminated');
+   T('finale LOSS leaves career.node at the RECAP (not the pre-finale beat)', career.node==='recap');
+   careerGoto(career.node); // hub CONTINUE re-routes by node
+   T('CONTINUE after a finale loss re-shows the recap (no finale re-launch / no loop)', phase==='p2crecap'&&career.finale.active===false);}
   // v5.1.273 a quiz with zero questions skips instead of crashing
   {career=careerNew();career.node='intro';const skipped=(()=>{try{careerQuizStart({kind:'quiz',topic:'__none__',next:'hub'});return phase==='p2career';}catch(e){return false;}})();
    T('empty-pool quiz skips to next (no crash)', skipped);}

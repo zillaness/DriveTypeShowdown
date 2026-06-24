@@ -353,7 +353,7 @@ src+=`
   // ── v5.1.94 ARMORY: drag a weapon/armor chip from the rail onto a seat to equip ──
   {applyLayout('land2p');m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;phase='p2claim';tour=null;tankGridSetCpu(0);
    const chips=bbArmoryChips(),wChips=chips.filter(c=>c.kind==='weapon'),aChips=chips.filter(c=>c.kind==='armor');
-   ok('armory rail has every PICKABLE weapon (RAM-only + locked CANNON excluded) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none'&&(w.id!=='cannon'||cannonWeapon)).length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length);
+   ok('armory rail has every PICKABLE weapon (RAM-only + locked CANNON + experimental MINE excluded) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none'&&(w.id!=='cannon'||cannonWeapon)&&(w.id!=='mine'||expBots)).length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length); // v5.1.279 MINE is experimental-gated like the CANNON
    ok('v5.1.196: armory rail has the PERK group incl. NO PERK',chips.filter(c=>c.kind==='perk').length===BB_PERKS_PICK.length&&chips.some(c=>c.kind==='perk'&&c.id==='none')&&bbArmEquip&&(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','flameproof')&&m2.tseats[0].loadout.perk==='flameproof';})());
    ok('armory chip ids match the real weapon/armor tables',wChips.every(c=>BB_WEAPONS.some(w=>w.id===c.id))&&aChips.every(c=>BB_ARMOR.some(a=>a.id===c.id)));
    ok('armory rail sits inside the canvas, above the seats',chips.every(c=>c.x>=0&&c.x+c.w<=CW&&c.y>=0&&c.y+c.h<=tankCellRect(0).y));

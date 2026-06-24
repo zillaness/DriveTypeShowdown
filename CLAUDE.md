@@ -44,7 +44,7 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
 ## 📍 Project context lives here
 
 - **`MIGRATION.md`** — read first: full project state, current focus, constraints.
-- **`HANDOFF_2026-06-20.md`** — LATEST thread handoff (tip **v5.1.278**): Career COMPLETE, CREDITS, flame nerf + kill-race scoring; **FFA render-crash + HUD + duplicate-bind fixes (270)**, **FFA/deathmatch kill scoreboard (271)**, **pause-menu + Settings turn-rate drag-slider + MATCH SETTINGS-from-pause (272)**, **STORY-MODE soft-lock fix — coach-launched matches (273)**, **RoboRumble result-screen ESC (274)**, **egg-livery previews + race HUD names (275)**, **real Projects & Mods logo on credits (276)**, **MINELAYER weapon — land-mine bot (277)**, **STORY-MODE coach-continuation reload soft-lock fix (278)** + the live backlog. **Start here when resuming.**
+- **`HANDOFF_2026-06-20.md`** — LATEST thread handoff (tip **v5.1.279**): Career COMPLETE, CREDITS, flame nerf + kill-race scoring; **FFA render-crash + HUD + duplicate-bind fixes (270)**, **FFA/deathmatch kill scoreboard (271)**, **pause-menu + Settings turn-rate drag-slider + MATCH SETTINGS-from-pause (272)**, **STORY-MODE soft-lock fix — coach-launched matches (273)**, **RoboRumble result-screen ESC (274)**, **egg-livery previews + race HUD names (275)**, **real Projects & Mods logo on credits (276)**, **MINELAYER weapon — land-mine bot (277)**, **STORY-MODE coach-continuation reload soft-lock fix (278)**, **FINALE-loss soft-lock fix + EXPERIMENTAL BOTS cheat gate — MINELAYER moved behind it (279)** + the live backlog. **Start here when resuming.**
 - **`HANDOFF_2026-06-19.md`** — prior handoff (tip v5.1.245/251): map editor (done) + the Tournament v2 locked design.
 - **`OVERNIGHT_PLAN.md`** — the F1–F5 backlog + the 🏆 Tournament v2 LOCKED DESIGN block.
 - **`HANDOFF_2026-06-16.md`** — the in-depth narrative (weapons / perks / easter eggs / cheats vision).
@@ -60,5 +60,5 @@ suite actually fails, so trust its exit code once `extract.sh` has run.)
   career logic is in one block after `let tour=null;`; the inlined question bank is `CAREER_QUIZ`; tests in
   `harness/tests/smoke83.js` — 107 asserts.)
 - PRDs: `frcds_roborumble_v2_prd_v1.0.md`, `frcds_online_prd_v1.1.md`, `frcds_tournament_v2_prd_v1.0.md`.
-- Build: latest is `drive_showdown_v5.1.278.html` (single self-contained HTML).
+- Build: latest is `drive_showdown_v5.1.279.html` (single self-contained HTML).
 - Balance sim: `./extract.sh && node harness/tests/bbbalance.js /tmp/g.js`.
