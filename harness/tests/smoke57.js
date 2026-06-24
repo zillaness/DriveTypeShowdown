@@ -746,6 +746,11 @@ src+=`
   // ── v5.1.155: NONE removed as a pickable perk + new perks VAMPIRE / SPARE TIRE / PIT STOP ──
   {ok('NO PERK is a pickable perk again (neutral option)',BB_PERKS_PICK.some(p=>p.id==='none')&&BB_PERKS_PICK[0].id==='none');
    ok('CPUs always roll a real (non-NONE) perk',(()=>{for(let i=0;i<200;i++)if(bbCpuPickLoadout(2).perk==='none')return false;return true;})());
+   // v5.1.292 CPUs roll the EXPERIMENTAL weapons only when the gate is ON (keeps mainline + the balance sim clean)
+   {const sv=expFeatures;expFeatures=false;let off=false;for(let i=0;i<300;i++){const w=bbCpuPickLoadout(2).weapon;if(w==='mine'||w==='taser')off=true;}
+    ok('CPU never rolls experimental weapons with EXPERIMENTAL FEATURES off',!off);
+    expFeatures=true;let mine=false,taser=false;for(let i=0;i<500;i++){const w=bbCpuPickLoadout(2).weapon;if(w==='mine')mine=true;if(w==='taser')taser=true;}
+    ok('CPU CAN roll experimental weapons with EXPERIMENTAL FEATURES on',mine&&taser);expFeatures=sv;}
    ok('hover-tip: every weapon/armor/perk has a description',BB_ARMORY_W.concat(BB_ARMORY_A,BB_PERKS_PICK).every(c=>BB_DESC[c.id]&&BB_DESC[c.id].length>5)&&bbDescFull('perk','laststand').indexOf('INVULNERABLE')>=0); // v5.1.196
    ok('new perks exist: VAMPIRE, SPARE TIRE, PIT STOP',['vampire','sparetire','pitstop'].every(id=>BB_PERKS_PICK.some(p=>p.id===id)));
    // VAMPIRE: destroying an enemy heals the killer
