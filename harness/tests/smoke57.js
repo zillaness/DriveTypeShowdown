@@ -353,7 +353,7 @@ src+=`
   // ── v5.1.94 ARMORY: drag a weapon/armor chip from the rail onto a seat to equip ──
   {applyLayout('land2p');m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;phase='p2claim';tour=null;tankGridSetCpu(0);
    const chips=bbArmoryChips(),wChips=chips.filter(c=>c.kind==='weapon'),aChips=chips.filter(c=>c.kind==='armor');
-   ok('armory rail has every PICKABLE weapon (RAM-only + locked CANNON + experimental MINE excluded) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none'&&(w.id!=='cannon'||cannonWeapon)&&(w.id!=='mine'||expBots)).length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length); // v5.1.279 MINE is experimental-gated like the CANNON
+   ok('armory rail has every PICKABLE weapon (RAM-only + locked CANNON + experimental MINE/TASER excluded) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none'&&(w.id!=='cannon'||cannonWeapon)&&(w.id!=='mine'||expBots)&&(w.id!=='taser'||expBots)).length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length); // v5.1.279 MINE + v5.1.280 TASER are experimental-gated like the CANNON
    ok('v5.1.196: armory rail has the PERK group incl. NO PERK',chips.filter(c=>c.kind==='perk').length===BB_PERKS_PICK.length&&chips.some(c=>c.kind==='perk'&&c.id==='none')&&bbArmEquip&&(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','flameproof')&&m2.tseats[0].loadout.perk==='flameproof';})());
    ok('armory chip ids match the real weapon/armor tables',wChips.every(c=>BB_WEAPONS.some(w=>w.id===c.id))&&aChips.every(c=>BB_ARMOR.some(a=>a.id===c.id)));
    ok('armory rail sits inside the canvas, above the seats',chips.every(c=>c.x>=0&&c.x+c.w<=CW&&c.y>=0&&c.y+c.h<=tankCellRect(0).y));
@@ -1424,6 +1424,36 @@ src+=`
    bb2.mines=[{x:owner.x,y:owner.y,owner:0,side:0,arm:0,life:10}];const ahp=owner.hp;bbMinesUpdate(1/60);
    ok('an ally/owner does NOT trip its own mine',owner.hp===ahp&&bb2.mines.length===1);
    bb2.bots=_sb;bb2.minis=_sm;}
+  // v5.1.280 TASER weapon: a short front-cone ZAP that STUNS a lined-up enemy (drive + fire frozen via _stunBB); low damage, owner/ally safe, anti perma-lock immunity
+  ok('TASER in BB_WEAPONS + armory rail',!!BB_WEAPONS.find(w=>w.id==='taser')&&!!BB_ARMORY_W.find(w=>w.id==='taser'));
+  {const _sb=bb2.bots,reach=RR+RR*BB_W.taserRangeK;
+   const zapper=()=>{const a=bbBotWith('taser','balanced',0,0,true);a.ctl.brain.fire=true;a.x=300;a.y=300;a.h=0;a.firing=true;a.taserCd=0;return a;};
+   const foeAt=(side,x,y)=>{const c=bbBotWith('none','balanced',side,1,true);c.x=x;c.y=y;c.h=0;c.hp=BB.HP;c.inv=0;c._stunBB=0;c._stunImm=0;return c;};
+   {const a=zapper(),c=foeAt(1,300+reach*0.6,300);bb2.bots=[a,c];bb2.result=null;const hp0=c.hp;bbWeaponFire(1/60);
+    ok('TASER zaps a lined-up enemy in cone range → STUN applied (_stunBB>0)',(c._stunBB||0)>0&&Math.abs(c._stunBB-BB_W.taserStun)<1e-6);
+    ok('TASER deals a small CHIP on the zap + spends its cooldown + spawns the bolt fx',c.hp<hp0&&a.taserCd>0&&!!a._taserFx);}
+   {const a=zapper(),c=foeAt(1,300-reach*0.6,300);bb2.bots=[a,c];bb2.result=null;bbWeaponFire(1/60); // foe BEHIND the nose (h=0 faces +x)
+    ok('TASER does NOT zap a foe outside the front cone',(c._stunBB||0)===0);}
+   {const a=zapper(),c=foeAt(1,300+reach*0.6,300);c._stunImm=0.5;bb2.bots=[a,c];bb2.result=null;bbWeaponFire(1/60);
+    ok('TASER skips a foe in its post-stun IMMUNITY window (no perma-lock)',(c._stunBB||0)===0);}
+   {const a=zapper(),c=foeAt(0,300+reach*0.6,300);bb2.bots=[a,c];bb2.result=null;const hp0=c.hp;bbWeaponFire(1/60);
+    ok('TASER never zaps an ALLY/owner (same side)',(c._stunBB||0)===0&&c.hp===hp0);}
+   {const a=zapper();a.ctl.brain.fire=true;a._stunBB=BB_W.taserStun;bb2.bots=[a];bb2.result=null;bbWeaponPre(1/60);
+    ok('a STUNNED bot cannot fire (bbWeaponPre gates b.firing off)',a.firing===false);
+    ok('the stun ticks DOWN each frame in bbWeaponPre',(a._stunBB||0)<BB_W.taserStun);}
+   {const a=zapper();a._stunBB=1/120;bb2.bots=[a];bb2.result=null;bbWeaponPre(1/60); // < dt → expires this frame
+    ok('when the stun EXPIRES it grants a brief immunity grace',(a._stunBB||0)===0&&(a._stunImm||0)>0);}
+   bb2.bots=_sb;}
+  {startBB(0,2);bb2.cd=0;bb2.result=null;const z=bb2.bots[0];z.ld=bbResolveLoadout({weapon:'taser',armor:'balanced'});z.firing=true;z.taserCd=0;z._taserFx={t:0.2,hit:true,tx:z.x+40,ty:z.y};if(bb2.bots[1])bb2.bots[1]._stunBB=BB_W.taserStun; // a firing taser bolt + a stunned foe ring
+   let tThrew=false;try{drawBB();}catch(e){tThrew=true;console.log('   taser drawBB error:',e.message);}
+   ok('drawBB renders the TASER electrodes + zap bolt + stun ring without throwing',!tThrew);}
+  // live updateBB tick: a TASER-STUNNED bot is FROZEN under its own power (the drive-loop zeroes its AI input), and the freeze LIFTS on recovery
+  {startBB(0,2);bb2.cd=0;bb2.result=null;const s=bb2.bots[1],o=bb2.bots[0]; // s = the CPU subject (has a brain that wants to chase); o = the far-away foe
+   o.x=80;o.y=80;s.ld=bbResolveLoadout({weapon:'none',armor:'balanced'});s.mob=s.ld.mobMax;s.x=900;s.y=360;s.h=0;s._stunImm=0;
+   let froze=true;for(let f=0;f<5;f++){const x0=s.x,y0=s.y,h0=s.h;s._stunBB=0.5;updateBB(1/60);if(Math.hypot(s.x-x0,s.y-y0)>0.5||Math.abs(s.h-h0)>0.03)froze=false;} // re-stunned each frame; the AI drive toward o must be nulled
+   ok('a TASER-STUNNED bot is frozen under its own power in a live updateBB tick',froze);
+   s._stunBB=0;s._stunImm=0;s.x=900;s.y=360;const rx=s.x,ry=s.y;for(let f=0;f<8;f++)updateBB(1/60);
+   ok('the drive freeze LIFTS once the stun clears (the bot chases again)',Math.hypot(s.x-rx,s.y-ry)>1);}
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;

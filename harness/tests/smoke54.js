@@ -247,13 +247,15 @@ src+=`
    const sp=phase;phase='credits';let cdrew=true;try{drawCredits();}catch(e){cdrew=false;console.log('   drawCredits threw: '+e.message);}phase=sp;
    ok('drawCredits renders without throwing (logo + YouTube/globe icons)',cdrew);
    ok('_logoPM is declared as an Image instance',typeof _logoPM!=='undefined'&&!!_logoPM);}
-  // v5.1.279 experimental-gear gate: the MINELAYER is hidden from the loadout until the EXPERIMENTAL BOTS cheat is on
+  // v5.1.279 experimental-gear gate: the MINELAYER (+ v5.1.280 TASER) are hidden from the loadout until the EXPERIMENTAL BOTS cheat is on
   {const _e=expBots,_c=cannonWeapon;cannonWeapon=false;expBots=false;
    ok('EXPERIMENTAL BOTS cheat exists in the menu',CHEATS.some(c=>c.name==='EXPERIMENTAL BOTS'));
-   const ld={weapon:'wedge',armor:'balanced',perk:'none'},s1=new Set();for(let i=0;i<20;i++){bbCycleField(ld,'weapon',1);s1.add(ld.weapon);}
+   const ld={weapon:'wedge',armor:'balanced',perk:'none'},s1=new Set();for(let i=0;i<26;i++){bbCycleField(ld,'weapon',1);s1.add(ld.weapon);}
    ok('MINELAYER hidden from the weapon cycler when EXPERIMENTAL BOTS is off',!s1.has('mine'));
-   expBots=true;const ld2={weapon:'wedge',armor:'balanced',perk:'none'},s2=new Set();for(let i=0;i<24;i++){bbCycleField(ld2,'weapon',1);s2.add(ld2.weapon);}
+   ok('TASER hidden from the weapon cycler when EXPERIMENTAL BOTS is off',!s1.has('taser'));
+   expBots=true;const ld2={weapon:'wedge',armor:'balanced',perk:'none'},s2=new Set();for(let i=0;i<26;i++){bbCycleField(ld2,'weapon',1);s2.add(ld2.weapon);}
    ok('MINELAYER appears in the cycler when EXPERIMENTAL BOTS is on',s2.has('mine'));
+   ok('TASER appears in the cycler when EXPERIMENTAL BOTS is on',s2.has('taser'));
    expBots=_e;cannonWeapon=_c;}
 
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
