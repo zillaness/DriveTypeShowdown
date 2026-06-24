@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v5.1.272.html
-  version: 5.1.272
+  file: drive_showdown_v5.1.273.html
+  version: 5.1.273
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-06-20
@@ -6453,6 +6453,7 @@ function careerGoto(ref,thenRef){
   if(ref==='finale'){careerFinaleStart();return;}
   if(ref&&ref.indexOf('stage:')===0){careerStartStage(ref.slice(6),thenRef);return;}
   career._then=thenRef||null;
+  if(thenRef){(career._thenByNode||(career._thenByNode={}))[ref]=thenRef;} // v5.1.273 PERSIST a beat's continuation, keyed by node, so a coach beat can RECOVER it after _then is lost (ESC out of a match / ESC the beat → hub → CONTINUE). Without this, ESCing a coach-launched match stranded you in a coach↔hub soft-lock loop (the stage was unreachable; only a progress-wiping restart escaped).
   career.node=ref;
   const b=careerBeat(ref);
   career._coachKnown=!!(b&&b.kind==='coach'&&b.concept&&career.taught.includes(b.concept)); // already learned? → offer SKIP (replay)
@@ -6460,7 +6461,7 @@ function careerGoto(ref,thenRef){
   if(b&&b.kind==='quiz'){careerStore();careerQuizStart(b);return;} // a quiz beat opens the quiz screen instead
   careerStore();phase='p2cbeat';
 }
-function careerContinue(){const t=career._then;career._then=null;if(t)careerGoto(t);else{phase='p2career';careerStore();}}
+function careerContinue(){const t=career._then||(career._thenByNode&&career._thenByNode[career.node])||null;career._then=null;if(t)careerGoto(t);else{phase='p2career';careerStore();}} // v5.1.273 fall back to the node's persisted continuation so a coach beat never dead-ends to the hub
 function careerStartStage(sid,thenRef){career._rematchLeft=careerRematchBudget();startCareerMatch(sid);} // a FRESH attempt: grant the difficulty's rematch budget, then launch
 function careerRematch(){if(career&&career.stage)startCareerMatch(career.stage);} // re-run the SAME stage (budget already decremented by the caller; not reset)
 // THE FINALE (Sam): a lane-prestige bracket. Rookie = a single rumble; veteran/winner/champion = a single-elim
@@ -6522,7 +6523,7 @@ function careerBonusSummary(){
   return p.join(' · ');
 }
 function startCareerMatch(stageId){
-  const st=CAREER_STAGES[stageId];if(!st)return;
+  const st=CAREER_STAGES[stageId];if(!st){careerGoto('hub');return;} // v5.1.273 a bad/missing stage id used to early-return with NO phase change → silent soft-lock; bail to the hub instead
   career.stage=stageId;career.active=true;
   if(st.concept&&!career.taught.includes(st.concept))career.taught.push(st.concept); // playing a stage IS learning its concept
   tour=null;p2Series=null;                  // career is single matches, never a tournament/series
@@ -6688,7 +6689,7 @@ function careerBeatClick(mx,my){
   const items=careerBeatButtons(b),R=careerBeatRects(items.length);
   for(let i=0;i<items.length;i++){if(inR(mx,my,R[i])){sfx('click');const it=items[i];
     if(it.cont){careerContinue();return;}
-    if(it.fin){phase='p2career';careerStore();return;}
+    if(it.fin){careerRecapStart();return;} // v5.1.273 a finale beat's Finish → the RECAP (was: dumped to the hub, skipping the payoff)
     const ch=it.ch;career.choices[career.node]=it.i;careerApplyEffect(ch.effect);careerGoto(ch.goto,ch.then);return;}}
 }
 
@@ -6717,8 +6718,10 @@ function careerQuizPick(topic,plan){
 }
 function careerQuizStart(beat){
   const tp=CAREER_QUIZ.topics[beat.topic];
-  career._quiz={qs:careerQuizPick(beat.topic,careerQuizPlan()),i:0,correct:0,picked:null,
-    reward:beat.reward||(tp&&tp.reward)||null,next:beat.next||'hub',
+  const qs=careerQuizPick(beat.topic,careerQuizPlan()),next=beat.next||'hub';
+  if(!qs.length){careerGoto(next);return;} // v5.1.273 no questions for this topic/lane → skip the quiz instead of crashing drawCareerQuiz (q=Q.qs[0]=undefined → q.opts threw)
+  career._quiz={qs:qs,i:0,correct:0,picked:null,
+    reward:beat.reward||(tp&&tp.reward)||null,next:next,
     title:beat.title||'POP QUIZ',intro:beat.intro||'',topicLabel:(tp&&tp.label)||beat.topic};
   careerStore();phase='p2cquiz';
 }
@@ -10294,6 +10297,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v5.1.273 (2026-06-20): STORY-MODE SOFT-LOCK FIX (Sam: "a lot of soft locks and game-breaking bugs in story mode"). ROOT CAUSE: nearly every career stage is reached through a coach lesson via `goto:'coach:CX', then:'stage:YY'`. The `then` was stored only in the transient `career._then`; `career.node` rested on the coach beat while the match ran. So if you ESC'd OUT of the match (or ESC'd the coach beat → hub → CONTINUE), `_then` was already consumed → the coach's "Got it" fell through to the hub, and hub→CONTINUE re-entered the same coach with no `then` → a coach↔hub LOOP. The stage was unreachable; only a progress-wiping "NEW JOURNEY" escaped. FIX: careerGoto now PERSISTS each beat's continuation keyed by node (`career._thenByNode[ref]=thenRef`), and careerContinue falls back to it — so a coach beat always recovers its stage even after `_then` is lost. Reproduced, then verified with 900 randomized playthroughs that inject ESC at matches/beats: 0 soft-locks. Also hardened (defense-in-depth): startCareerMatch on a bad stage id bails to the hub instead of silently freezing; a quiz with no questions for the lane skips instead of crashing drawCareerQuiz; a finale beat's Finish goes to the RECAP, not the hub. smoke83 +7 asserts → 114. Full battery ALL GREEN.
   v5.1.272 (2026-06-20): PAUSE-MENU + SETTINGS POLISH (Sam feedback). (1) TURN RATE moved out of the pause menu into the SETTINGS screen as a DRAG-AND-DROP slider (mouse + touch drag the knob, pad ◀▶ nudges by 0.25, A resets to 1.00×). The old pause-menu stepper had the value text overlapping the ◀ arrow ("◀.00×"); the stepper is gone, so the overlap is too. Settings rows are now a shared settingsRows() descriptor list (toggles + the slider + the CPU-AI link) read by draw + click + gp-nav. (2) NEW pause-menu item "🎮 MATCH SETTINGS" (2P) jumps back to the MATCH SETTINGS screen — the one before robot setup — via pauseTo('p2settings'); Sam wanted to reach it mid-match. smoke54 +4 asserts → 84 (TURN RATE is now a Settings slider; it clamps to 3.00×; pause carries MATCH SETTINGS in 2P, not SP) + the pause-nav assert updated. Full battery ALL GREEN.
   v5.1.271 (2026-06-20): FFA/DEATHMATCH HUD SCOREBOARD. Building on the v5.1.270 panel fix: in an INFINITE-LIVES deathmatch (bbInfLives) each in-match HUD panel now shows a ☠ KILL TALLY on its right edge, so the corner panels read as a live kill-race scoreboard at a glance (the floating bot tag already showed ☠; this adds the stable cornered ranking — most useful in a 6-player FFA). No change in finite-lives last-standing modes (those still show the ♥ respawn count). smoke57 +2 asserts (deathmatch panels carry the kill tally; finite-lives panels don't) → 556 pass. Full battery ALL GREEN.
   v5.1.270 (2026-06-20): FREE-FOR-ALL BUG FIXES — render crash + invisible HUD panels + duplicate binds (Sam: "FFA still buggy"). (1) RENDER CRASH: FFA fills the empty grid seats with SYNTHETIC CPUs bound to binds past the configured seats, but tankGridApply() leaves those binds' m2.drive = null — and p2DriveCtx() did m2.drive[p].kind with no guard, so withBot()→drawRobot() threw "Cannot read properties of null (reading 'kind')" the instant an FFA match with any empty seat tried to draw (i.e. essentially every FFA match). FIX: startP2BB now assigns each filled bind a real drive (RANDOM, for drivetrain variety) + a sens, and p2DriveCtx defaults to field-centric swerve if a drive is ever missing (defense-in-depth). (2) HUD PANELS: the in-match status loop used row=[0,0] + (b.side===0?left:right) — a 2-side layout. Each FFA bot is its OWN side (0-5), so side 0 went left, side 1 right, and sides 2-5 indexed row[2..5] (undefined)→r=NaN→y=NaN: the other FOUR bots had NO visible HP/mobility bar. New bbHudSlot(p) hugs each side's edge for 2-side (regression-safe) and splits all N factions into a LEFT/RIGHT column (3+3) for FFA so all six show. (3) DUPLICATE BINDS: FFA built its roster via tankRosterFromSeats(), which auto-fills an empty SIDE with a bind:0 CPU — in FFA that collided with seat 0 (two bots sharing one bind → same drive/input); and the fill used bind:base.length, which also collided for non-contiguous seats. FIX: FFA now builds straight from the ready seats (real seat index = a unique bind) and fills the rest with the next UNUSED bind. smoke57 +10 asserts (FFA HUD: 6 finite slots, 2 columns, no overlap, 2-side regression; FFA integration: starts 6-bot, every bind has a drive, all binds distinct, seat 0 human, drawBB() renders without throwing) → 554 pass. Full battery ALL GREEN.

@@ -274,6 +274,30 @@ src+=`
   let bdrew=true; try{drawCareerBanner(SR.career);}catch(e){bdrew=false;}
   T('career banner renders (fit-guarded)', bdrew);
 
+  // ─────────────── v5.1.273 SOFT-LOCK REGRESSION: ESC out of a coach-launched match must NOT strand you ───────────────
+  // Repro: intro → "how do tracks work?" (coach:C1, then stage:tank_hook) → continue launches the match →
+  // player ESCs the match → back on coach:C1 with _then consumed. Continuing MUST relaunch the stage (was: dead-ended to the hub forever).
+  {career=careerNew();career.diff='veteran';career.node='intro';phase='p2cbeat';
+   const b=careerBeat('intro'),its=careerBeatButtons(b),ci=its.findIndex(it=>it.ch&&it.ch.goto==='coach:C1');
+   const rs=careerBeatRects(its.length);careerBeatClick(rs[ci].x+5,rs[ci].y+5);
+   T('intro → coach:C1 with a pending stage continuation', career.node==='coach:C1'&&career._then==='stage:tank_hook');
+   pick(0); // coach "Got it" → launches stage:tank_hook
+   T('coach continue launches the tank match', phase==='p2tank'&&career.active&&career.stage==='tank_hook');
+   p2Back(); // ESC out of the match → back to the coach beat, _then now consumed
+   T('ESC out of the career match → back on the coach beat (no result)', phase==='p2cbeat'&&career.node==='coach:C1'&&!career.active&&!career._then);
+   pick(0); // continue the coach AGAIN — must relaunch the stage, not dead-end to the hub
+   T('coach continue after ESC RELAUNCHES the stage (no soft-lock)', phase==='p2tank'&&career.active&&career.stage==='tank_hook');
+   // and the hub→CONTINUE path is also safe (resting on a coach beat)
+   p2Back(); career.active=false; career.stage=null; phase='p2cbeat'; career.node='coach:C1';
+   phase='p2career'; {const HB=careerHubBtns();careerHubClick(HB.go.x+5,HB.go.y+5);} // hub CONTINUE → re-enters coach:C1
+   T('hub CONTINUE re-enters the coach beat', phase==='p2cbeat'&&career.node==='coach:C1');
+   pick(0);
+   T('continuing that coach STILL reaches the stage (persisted continuation)', phase==='p2tank'&&career.stage==='tank_hook');
+  }
+  // v5.1.273 a quiz with zero questions skips instead of crashing
+  {career=careerNew();career.node='intro';const skipped=(()=>{try{careerQuizStart({kind:'quiz',topic:'__none__',next:'hub'});return phase==='p2career';}catch(e){return false;}})();
+   T('empty-pool quiz skips to next (no crash)', skipped);}
+
   console.log('smoke83: '+P+' pass, '+F+' fail');
 })();
 `;
