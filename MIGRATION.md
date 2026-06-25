@@ -1,11 +1,13 @@
 # MIGRATION / HANDOFF — FRC Drive Showdown
 
 Self-contained context for continuing this project in a fresh thread.
-**To resume: read this file first, then `HANDOFF_2026-06-20.md` (latest thread narrative + live backlog), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-20, at v5.1.279** (see the CURRENT-STATE block immediately below; older blocks are earlier history).
+**To resume: read this file first, then `HANDOFF_2026-06-25.md` (latest thread narrative + live backlog + the 2026-06-25 design decisions), then the user (Sam) will give direction.** Last handoff refresh: **2026-06-25, at v5.1.297** (see `HANDOFF_2026-06-25.md`; the CURRENT-STATE block below + `HANDOFF_2026-06-20.md` are the prior thread's detail).
 
 ---
 
-## ⏩ CURRENT STATE — 2026-06-20, **v5.1.279** (READ THIS FIRST — supersedes every block below)
+## ⏩ CURRENT STATE — 2026-06-25, **v5.1.297** (READ THIS FIRST — supersedes every block below; newest narrative is `HANDOFF_2026-06-25.md`)
+
+**2026-06-24→25 thread (`pensive-brown-molvpy`) — full detail in `HANDOFF_2026-06-25.md`:** EXPERIMENTAL FEATURES pass (gate rename + 280→297 haul: TASER · STUN-MINE · TIMED MINE · pincer-escape · give-up · respawn-delay · parting-gift rework · arena-edge hazards→HAZARD MASTER · push-ball ∞ · career gamepad-nav · SP-menu back · real P&M logo). Then a **design/spec session** (NOT built, awaiting Sam): SMOKE SCREEN (perk vs bot), balloon-battle = a MAIN type, and a mode-taxonomy reorg — merge NORMAL+SHOOTER→one BALL (shooter=toggle), **BATTLE BALL** (3v3 escort: 1 pusher + 2 combat, VIP "protect your pusher", ship as a CHEAT MODE first), and a **KIDS MODE** (cut-down, no-fail). Specs: `SPEC_2026-06-24_smoke_screen.md`, `SPEC_2026-06-25_mode_taxonomy.md`, updated `SPEC_2026-06-24_balloon_battle.md` / `SPEC_2026-06-24_combat_ideas.md`.
 
 **Build / branch:** tip = **`drive_showdown_v5.1.297.html`**, all green on **`dev`** (canonical; see `CLAUDE.md` BRANCH POLICY). `extract.sh` → `/tmp/g.js`; `./extract.sh && ./battery.sh` must print **ALL GREEN** before every commit. Commit as `Claude <noreply@anthropic.com>` is fine. Release ritual: edit → `git mv vN→vN+1` → `sed` the filename into `extract.sh` + `CLAUDE.md` → extract+battery green → commit "vN+1 …" → push `dev` + the session branch (`claude/pensive-brown-molvpy` this thread). **After `git mv` you must Read the renamed file before Edit.**
 
