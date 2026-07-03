@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v6.0.0.html
-  version: 6.0.0
+  file: drive_showdown_v6.1.0.html
+  version: 6.1.0
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-07-03
@@ -337,11 +337,12 @@ let cannonWeapon=false; // v5.1.188 RoboRumble cheat: UNLOCK the CANNON as a pic
 let expFeatures=false; // v5.1.290 (was expBots / "EXPERIMENTAL BOTS") GENERAL experimental-features gate: enable any EXPERIMENTAL / in-development feature — gated bots & weapons (MINELAYER, TASER) AND other in-dev mechanics — kept OUT of normal play, CPU rolls + the balance sim until on, so the shippable build + balance stay clean
 let arenaTraps=false; // v5.1.133 P7: ARENA TRAPS cheat — turn ANY arena into the DANGER ZONE (acid pit + saw blades) regardless of the chosen map
 let hazardMaster=false; // v5.1.148 P7: HAZARD MASTER — the MOUSE operates the arena traps; click to call down a crusher strike at the cursor (cooldown)
+let battleBall=false; // v6.1.0 BATTLE BALL cheat mode (EXPERIMENTAL): RoboRumble PUSH-BALL becomes an ESCORT format — the first bot of each side is that side's PUSHER (♛ ram-only VIP: weapon stripped, armor/perk kept). While a side's pusher is DOWN its goals are VOID (offense halts until it respawns); a pusher dead FOR GOOD (finite lives) loses the match outright. Combat escorts protect yours / hunt theirs.
 let iceSlip=1; // ICE SKATING slider: 1 = OFF (no ice), >1 = ice on, higher = more slip. Drives iceMode (=slip>1) + MOM.ice.fri = 0.4/iceSlip.
 let capCpuSpeed=false; // CAP CPU SPEED cheat: with MAX SENSITIVITY cranked, true = CPUs stay at base speed (only you go fast); false = CPUs keep pace (chaos). Ball/shooter only — tank/race CPUs never inherit sensitivity.
 let cheatedRun=false;paused=false; // set true while any cheat is active during a run/match; gates records + high scores
 const B2_BALL_CAP=72; // hard cap on balls in play (shared by EXTRA BALLS + MULTIBALL)
-function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1||moveOrDie||bbUnlimited||megaBots||airStrike||animeSword||explosiveShells||cannonWeapon||arenaTraps||hazardMaster||expFeatures;}
+function anyCheat(){return arcadeMode||bouncyMode||frisbeeMode||machineGun>0||ballMult!==1||multiBall||stickyPlow||noClip||iceMode||ballScale!==1||robotScale!==1||ballPups||SENS_MAX!==SENS_MAX_BASE||ramCdMult!==1||moveOrDie||bbUnlimited||megaBots||airStrike||animeSword||explosiveShells||cannonWeapon||arenaTraps||hazardMaster||battleBall||expFeatures;}
 function cheated(){return anyCheat()||cheatedRun;} // a run is "tainted" if a cheat is on now OR was on at any point this run
 function cpuPaceSens(p){ // every ball/shooter CPU (both sides, all tiers) keeps pace with the FASTEST HUMAN = max sens in the match.
   // (v5.1.98: was m2.sens[1-p] — a 2-player index that broke in 3v3, so only some bots inherited the boost: allies fast, enemies slow.)
@@ -378,12 +379,13 @@ const CHEATS=[ // v5.1.158: grouped by THEME with each slider beside its related
   {name:'EXPERIMENTAL FEATURES',desc:'enable EXPERIMENTAL / in-development FEATURES — gated bots & weapons (MINELAYER, TASER) plus other in-dev mechanics — kept OUT of normal play, CPU rolls + balance until you flip this on', get:()=>expFeatures, tog:()=>{expFeatures=!expFeatures;}}, // v5.1.290 generalized from "EXPERIMENTAL BOTS" — the test-bench for ANY new/in-dev feature (bots, weapons, perks, mechanics)
   {name:'ARENA TRAPS',    desc:'[ROBORUMBLE] turn ANY arena into the DANGER ZONE — a central acid pit + two saw blades', get:()=>arenaTraps, tog:()=>{arenaTraps=!arenaTraps;}}, // v5.1.133 P7
   {name:'HAZARD MASTER',  desc:'[ROBORUMBLE] BattleBots arena: side hammer/spikes/killsaw cycle on their own + MOUSE-click to call down a crusher strike (cooldown)', get:()=>hazardMaster, tog:()=>{hazardMaster=!hazardMaster;}}, // v5.1.148 P7 controllable hazards + v5.1.296 auto edge hazards (Sam's side-of-arena vision)
+  {name:'BATTLE BALL',    desc:'[ROBORUMBLE · PUSH-BALL] ESCORT format: each side gets a ♛ PUSHER (first bot — ram-only VIP) guarded by combat escorts. Pusher down → your goals are VOID until it respawns; pusher gone for good → you lose', get:()=>battleBall, tog:()=>{battleBall=!battleBall;}}, // v6.1.0 BATTLE BALL cheat mode (spec: SPEC_2026-06-25_mode_taxonomy.md §2 — pushball + VIP escort layer; promote to a tile later if it plays well)
 ];
 function cheatMove(d){cheatIdx=(cheatIdx+d+CHEATS.length)%CHEATS.length;sfx('click');}
 function cheatToggle(){const c=CHEATS[cheatIdx];if(c.slider){c.set(c.get()>=c.max?c.min:c.get()+c.step);}else c.tog();sfx('claim');}
 function cheatAdjust(d){const c=CHEATS[cheatIdx];if(c.slider){c.set(clamp(c.get()+d*c.step,c.min,c.max));sfx('click');}else{const half=Math.ceil(CHEATS.length/2);cheatIdx=(cheatIdx+(d>0?half:-half)+CHEATS.length)%CHEATS.length;sfx('click');}} // v5.1.158 ◀▶: nudge a slider, else jump to the other column
 function cheatsAllOff(){ // ⟲ TURN OFF ALL CHEATS button — reset every cheat to its default
-  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;moveOrDie=false;bbUnlimited=false;megaBots=false;airStrike=false;airStrikeCd=4.5;animeSword=0;explosiveShells=false;cannonWeapon=false;arenaTraps=false;hazardMaster=false;expFeatures=false;
+  arcadeMode=false;frisbeeMode=false;bouncyMode=false;machineGun=0;multiBall=false;stickyPlow=false;noClip=false;ballPups=false;capCpuSpeed=false;moveOrDie=false;bbUnlimited=false;megaBots=false;airStrike=false;airStrikeCd=4.5;animeSword=0;explosiveShells=false;cannonWeapon=false;arenaTraps=false;hazardMaster=false;battleBall=false;expFeatures=false;
   ballMult=1;iceSlip=1;iceMode=false;MOM.ice.fri=0.4;clearMomentum();
   SENS_MAX=SENS_MAX_BASE;ramCdMult=1;ballScale=1;BR=clamp(BR0,4,18);robotScale=1;setRobotScale(1);
   sfx('claim');}
@@ -2071,7 +2073,7 @@ function drawKonami(){
   // two columns so the (growing) list stays compact
   const half=Math.ceil(CHEATS.length/2); // v5.1.158 two columns laid out IN ORDER (themed groups; sliders sit beside their toggles)
   const colMax=portrait?CHEATS.length:half;
-  const colW=portrait?Math.min(364,CW-32):Math.min(380,(CW-90)/2),colGap=30,rowH=portrait?17:22,rowPitch=portrait?20:26; // v5.1.133: tighter portrait pitch so the grown cheat list + links still fit one column; v5.1.279 pitch 21→20 + rowH 18→17 to reabsorb the EXPERIMENTAL BOTS row in portrait
+  const colW=portrait?Math.min(364,CW-32):Math.min(380,(CW-90)/2),colGap=30,rowH=portrait?17:22,rowPitch=portrait?19:26; // v5.1.133: tighter portrait pitch so the grown cheat list + links still fit one column; v5.1.279 pitch 21→20 + rowH 18→17 to reabsorb the EXPERIMENTAL BOTS row; v6.1.0 pitch 20→19 for the BATTLE BALL row
   const totalW=portrait?colW:colW*2+colGap,x0=Math.round((CW-totalW)/2);
   let rowY=Math.round(CH*(portrait?0.10:0.20)); // v5.1.279 start a touch higher in portrait so the extra EXPERIMENTAL BOTS row + links still clear the bottom
   drawKonami._rows=[];
@@ -4442,6 +4444,12 @@ function bbCheckResult(lastKiller){ // last SIDE standing wins (KO); nobody left
     if(vd[0]){bb2.result=1;sfx('win');return;}
     if(vd[1]){bb2.result=0;sfx('win');return;}
   }
+  if(bbBattleBall()){ // v6.1.0 BATTLE BALL: a ♛ PUSHER dead FOR GOOD (finite lives spent) loses the match outright — the VIP-elimination layer on pushball (with default ∞ lives this never fires; death is only the temporary goal-void)
+    const pd=[false,false];for(const b of bb2.bots)if(b.pusher&&b.dead&&!(b.lives>0))pd[b.side]=true;
+    if(pd[0]&&pd[1]){bb2.result='draw';sfx('win');return;}
+    if(pd[0]){bb2.result=1;sfx('win');return;}
+    if(pd[1]){bb2.result=0;sfx('win');return;}
+  }
   // v5.1.149 GENERAL: a side is OUT only when it has NO bot alive AND none can respawn (lives). v5.1.250: generalized to N FACTIONS — last distinct side standing wins (2-side & 6-player FFA both reduce to this).
   const live=new Set();for(const b of bb2.bots)if(!b.dead||b.lives>0)live.add(b.side);
   if(live.size===0){bb2.result='draw';sfx('win');return;}
@@ -4521,6 +4529,9 @@ function startP2BB(){cheatedRun=false;paused=false;
       return{x:sp.x,y:sp.y,h:sp.h,_sx:sp.x,_sy:sp.y,_sh:sp.h,side:r.side,col:col,mob:ld.mobMax,hp:_mhp,mhp:_mhp,mega:!!megaBots,lives:_lives,inv:1.0,dead:false,dmgDealt:0,kills:0,boostT:0,boostCd:0,ctl:ctl,ld:ld,spin:0,pistCd:0,pinT:0,burn:0,outT:0,heat:{},firing:false,wheels:[0,1,2,3].map(()=>({hp:BB_W.wheelHp,dead:false})),_inp:{vx:0,vy:0,vr:0},_vis:null};})};
   bb2.minis=bbMiniSpawn(); // v5.1.117 P4: deploy a harasser for each bot carrying the MINIBOT perk
   for(let _s=0;_s<2;_s++){const _v=bb2.bots.find(b=>b.side===_s);if(_v)_v.vip=true;} // v5.1.123 P9 VIP: the first bot per side is that side's VIP (used only in VIP mode)
+  if(bbBattleBall())for(let _s=0;_s<2;_s++){const _p=bb2.bots.find(b=>b.side===_s);if(!_p)continue;_p.pusher=true; // v6.1.0 BATTLE BALL: the first bot per side is that side's PUSHER (the ♛ VIP you protect) —
+    _p.ld=bbResolveLoadout({weapon:'none',armor:(_p.ld&&_p.ld.armor)||'balanced',perk:(_p.ld&&_p.ld.perk)||'none'}); // weapon STRIPPED to ram-only (a pure ball-scorer; armor + a defensive perk are kept from the seat pick)
+    _p.mob=_p.ld.mobMax;_p.mhp=BB.HP*(megaBots?BB_W.megaHp:1)*((_p.ld&&_p.ld.hpMul)||1);_p.hp=_p.mhp;} // re-baseline mobility/HP to the pared loadout
   cpuH2H=null;
 }
 // RoboRumble RAM/DASH is always available (no RAMMING cheat needed) — LT (gamepad) / Shift (keyboard). Human-only in P1.
@@ -4534,6 +4545,7 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
   for(let p=0;p<bb2.bots.length;p++){const me=bb2.bots[p];if(me.dead)continue;const br=me.ctl.brain;if(!br)continue;
     let foe=null,bd=1e9;for(const f of bb2.bots)if(!f.dead&&f.side!==me.side){const d=Math.hypot(f.x-me.x,f.y-me.y);if(d<bd){bd=d;foe=f;}}
     if(bbMode()==='vip'){const v=bb2.bots.find(f=>!f.dead&&f.side!==me.side&&f.vip);if(v){foe=v;bd=Math.hypot(v.x-me.x,v.y-me.y);}} // v5.1.126 P9 VIP: CPUs HUNT the enemy VIP (ignore grunts)
+    if(bbBattleBall()&&!me.pusher){const v=bb2.bots.find(f=>!f.dead&&f.side!==me.side&&f.pusher);if(v){foe=v;bd=Math.hypot(v.x-me.x,v.y-me.y);}} // v6.1.0 BATTLE BALL: combat ESCORTS hunt the enemy ♛ pusher (nearest-foe fallback while it is down); the pusher itself keeps the ball brain below
     if(!foe){br.inp.vx=br.inp.vy=br.inp.vr=0;continue;}
     me._foe=foe;
     const T=tierParamsByIdx(me.ctl.tier|0,0);
@@ -4568,7 +4580,7 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
        if(tgt){const zx=tgt.x-me.x,zy=tgt.y-me.y,zd=Math.hypot(zx,zy)||1;if(zd>BB_DOM_R*0.5){br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;}}}
      else if(_mode==='koth'&&bb2.koth&&bb2.koth.active){const zx=bb2.koth.x-me.x,zy=bb2.koth.y-me.y,zd=Math.hypot(zx,zy)||1;if(zd>BB_KOTH_R*0.55){br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;}} // race to the active hill (idle during the despawn gap)
      else if(_mode==='ctf'&&bb2.flags){const ef=bb2.flags[1-me.side];let tx,ty;if(ef.carrier===me){const ob=bb2.flags[me.side];tx=ob.hx;ty=ob.hy;}else{tx=ef.x;ty=ef.y;} const zx=tx-me.x,zy=ty-me.y,zd=Math.hypot(zx,zy)||1;br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;} // CTF: grab the enemy flag, then run it home
-     else if(_mode==='pushball'&&bb2.pball){const pb=bb2.pball,goalX=me.side===0?FW-10:10,ax=goalX-pb.x,ay=FH/2-pb.y,an=Math.hypot(ax,ay)||1,nx=ax/an,ny=ay/an;const bx=pb.x-nx*(RR+BB_PB_R+6),by=pb.y-ny*(RR+BB_PB_R+6),zx=bx-me.x,zy=by-me.y,zd=Math.hypot(zx,zy)||1;br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;} // PUSH-BALL: get BEHIND the ball (relative to the enemy goal) to shove it in
+     else if(_mode==='pushball'&&bb2.pball&&(!bbBattleBall()||me.pusher)){const pb=bb2.pball,goalX=me.side===0?FW-10:10,ax=goalX-pb.x,ay=FH/2-pb.y,an=Math.hypot(ax,ay)||1,nx=ax/an,ny=ay/an;const bx=pb.x-nx*(RR+BB_PB_R+6),by=pb.y-ny*(RR+BB_PB_R+6),zx=bx-me.x,zy=by-me.y,zd=Math.hypot(zx,zy)||1;br.inp.vx=zx/zd*SPD*T.spd;br.inp.vy=zy/zd*SPD*T.spd;} // PUSH-BALL: get BEHIND the ball (relative to the enemy goal) to shove it in
      else if(_mode==='sumo'){const ex=me.x-FW/2,ey=me.y-FH/2,ed=Math.hypot(ex,ey)||1;if(ed>BB_RING*0.8){br.inp.vx=-ex/ed*SPD*T.spd;br.inp.vy=-ey/ed*SPD*T.spd;}}}
     // P2.6: fire the weapon when it makes sense (tier-scaled reliability)
     const wp=me.ld?me.ld.weapon:'none';br.fire=false;
@@ -4589,7 +4601,7 @@ function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while 
       else if(wp==='mine'||wp==='stunmine'||wp==='timemine')br.fire=dist<RR*9;                               // v5.1.277 MINELAYER / v5.1.295 STUN-MINE / v5.1.297 TIMED MINE: lay mines while a foe is anywhere near (drop cooldown gates the rate)
       else if(wp==='taser')br.fire=aimed&&dist<RR+RR*BB_W.taserRangeK+10&&Math.random()<acc;                 // v5.1.280 TASER: zap a lined-up foe in cone range (taserCd gates the actual stun rate)
     }
-    if(bbMode()==='pushball'&&bb2.pball){const pb=bb2.pball,bdx=pb.x-me.x,bdy=pb.y-me.y,bdd=Math.hypot(bdx,bdy)||1,goalX=me.side===0?FW-10:10; // v5.1.227 PUSH-BALL CPU now USES its weapon on the ball (not just a body shove): face the ball + fire to drive it goalward
+    if(bbMode()==='pushball'&&bb2.pball&&!bbBattleBall()){const pb=bb2.pball,bdx=pb.x-me.x,bdy=pb.y-me.y,bdd=Math.hypot(bdx,bdy)||1,goalX=me.side===0?FW-10:10; // v5.1.227 PUSH-BALL CPU now USES its weapon on the ball (not just a body shove): face the ball + fire to drive it goalward; v6.1.0 BATTLE BALL skips this — the pusher has no weapon and the escorts fire at their FOE (the enemy pusher), not the ball
       let bh=Math.atan2(bdy,bdx)-me.h;while(bh>Math.PI)bh-=2*Math.PI;while(bh<-Math.PI)bh+=2*Math.PI;br.inp.vr=clamp(bh*6,-TSP*T.turn,TSP*T.turn); // face the BALL (we're positioned behind it → the push/weapon aims toward the enemy goal)
       const behind=(bdx*(goalX-pb.x)+bdy*(FH/2-pb.y))>0,nearBall=bdd<RR+BB_PB_R+RR*1.8,aimedBall=Math.abs(bh)<0.6,wpb=me.ld?me.ld.weapon:'none';
       if(nearBall&&aimedBall&&behind){if(wpb==='flipper'||wpb==='piston'||wpb==='jet'||wpb==='flame'||wpb==='wedge'||wpb==='drill'||wpb==='pincer'||wpb==='spinner'||wpb==='buzzsaw')br.fire=true;} // PUSHER fling / PISTON whack / JET·FLAME shove / DOZER plow / DRILL / PINCER clamp+carry / disc fling
@@ -5023,6 +5035,7 @@ function bbBallObs(pb,r){for(const o of (tfObs||TF_OBS||[])){ // v5.1.222 reflec
     if(m===dl){pb.x=o.x-r;pb.vx=-Math.abs(pb.vx)*0.6;}else if(m===dr){pb.x=o.x+o.w+r;pb.vx=Math.abs(pb.vx)*0.6;}else if(m===dtp){pb.y=o.y-r;pb.vy=-Math.abs(pb.vy)*0.6;}else{pb.y=o.y+o.h+r;pb.vy=Math.abs(pb.vy)*0.6;}continue;}
   const cx2=clamp(pb.x,o.x,o.x+o.w),cy2=clamp(pb.y,o.y,o.y+o.h),dx=pb.x-cx2,dy=pb.y-cy2,d=Math.hypot(dx,dy)||0.01; // edge overlap → push out + reflect (0.6 restitution)
   if(d<r){const nx=dx/d,ny=dy/d;pb.x=cx2+nx*r;pb.y=cy2+ny*r;const into=pb.vx*nx+pb.vy*ny;if(into<0){pb.vx-=1.6*into*nx;pb.vy-=1.6*into*ny;}}}}
+function bbBattleBall(){return battleBall&&bbMode()==='pushball';} // v6.1.0 BATTLE BALL active = the cheat toggle + a PUSH-BALL match (the escort layer rides on pushball)
 function bbPbTarget(){const g=(m2.set&&m2.set.bbgoals!=null)?(m2.set.bbgoals|0):BB_PB_TARGET;return g>0?g:Infinity;} // v5.1.226 PUSH-BALL goals-to-win — the GOALS TO WIN setting (else the default 3); v5.1.282 0 = ∞ (no goal cap → the match ends only on the clock: most goals wins)
 function bbDrawSoccerBall(cx,cy,r,roll){ // v5.1.226 a rolling soccer ball: white body + a black pentagon cluster that spins with travel
   ctx.save();ctx.translate(cx,cy);
@@ -5196,7 +5209,7 @@ function bbModeHint(){const ctrl=' · LT/Shift = DASH · SPACE/RT = WEAPON';swit
   case'koth':return'KOTH — stand on the hill (majority wins it); it despawns + reappears elsewhere'+ctrl;
   case'vip':return'VIP ♛ — destroy the enemy VIP to win (protect yours!)'+ctrl;
   case'ctf':return'CTF ⚑ — grab the enemy flag, bring it home (your flag must be home)'+ctrl;
-  case'pushball':return'PUSH-BALL ⚽ — shove the ball into the ENEMY goal'+ctrl;
+  case'pushball':return(battleBall?'BATTLE BALL ⚽♛ — score AND protect your PUSHER (its death VOIDS your goals)':'PUSH-BALL ⚽ — shove the ball into the ENEMY goal')+ctrl; // v6.1.0 BATTLE BALL variant intro
   case'stock':return'STOCK ♥ — limited lives; respawn until they run out — last side alive wins'+ctrl;
   default:return'ROBORUMBLE — keep your FRONT to them · ram their REAR (HP) or SIDE (wheels)'+ctrl;}}
 function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing here (bbKill→bbCheckResult covers it)
@@ -5258,7 +5271,10 @@ function bbModeUpdate(dt){ // per-mode logic each live tick; KO needs nothing he
       }}
     for(const s of (bb2.shells||[])){if(s.dead)continue;const d=Math.hypot(pb.x-s.x,pb.y-s.y);if(d<BB_PB_R+5){const sp=Math.hypot(s.vx,s.vy)||1;pb.vx+=s.vx/sp*BB_PB_PUSH*2.4;pb.vy+=s.vy/sp*BB_PB_PUSH*2.4;s.dead=true;if(s.expl&&typeof bbShellExplode==='function')bbShellExplode(s);}} // v5.1.223 CANNON shell SHOVES the ball at range
     } // end !heldBy free-physics block
-    if(Math.abs(pb.y-cy)<BB_PB_GOALH/2&&(pb.x<BB_PB_GOALD||pb.x>FW-BB_PB_GOALD)){const scorer=pb.x<BB_PB_GOALD?1:0;bb2.pscore[scorer]++;sfx('win');pb.heldBy=null;bbBallSpawn(pb,cx,cy);for(let s=0;s<2;s++)if(bb2.pscore[s]>=bbPbTarget()){bb2.result=s;break;}} // GOAL → drop any carry + reset to a CLEAR center
+    if(Math.abs(pb.y-cy)<BB_PB_GOALH/2&&(pb.x<BB_PB_GOALD||pb.x>FW-BB_PB_GOALD)){const scorer=pb.x<BB_PB_GOALD?1:0;const _pu=bbBattleBall()?bb2.bots.find(b=>b.side===scorer&&b.pusher):null;
+      if(_pu&&_pu.dead){bb2.pbVoidT=2.2;sfx('claim');pb.heldBy=null;bbBallSpawn(pb,cx,cy);} // v6.1.0 BATTLE BALL: your ♛ PUSHER is DOWN → the goal is VOID (offense halts until it respawns) — ball resets, no score
+      else{bb2.pscore[scorer]++;sfx('win');pb.heldBy=null;bbBallSpawn(pb,cx,cy);for(let s=0;s<2;s++)if(bb2.pscore[s]>=bbPbTarget()){bb2.result=s;break;}}} // GOAL → drop any carry + reset to a CLEAR center
+    if(bb2.pbVoidT>0)bb2.pbVoidT-=dt; // v6.1.0 the GOAL VOID banner timer
     if(pb.x<BB_PB_R){pb.x=BB_PB_R;pb.vx=Math.abs(pb.vx)*0.5;}else if(pb.x>FW-BB_PB_R){pb.x=FW-BB_PB_R;pb.vx=-Math.abs(pb.vx)*0.5;} // wall bounce (after the goal check)
     if(pb.y<BB_PB_R){pb.y=BB_PB_R;pb.vy=Math.abs(pb.vy)*0.5;}else if(pb.y>FH-BB_PB_R){pb.y=FH-BB_PB_R;pb.vy=-Math.abs(pb.vy)*0.5;}
     bbBallObs(pb,BB_PB_R); // v5.1.222 reflect off MAP obstacles (no more phasing through pillars/walls)
@@ -5804,7 +5820,10 @@ function drawBB(){
   if(bbMode()==='pushball'&&bb2.pball){const pb=bb2.pball;ctx.save(); // v5.1.131 P9 PUSH-BALL: goal mouths + the ball + score
     for(let s=0;s<2;s++){const gx=s===0?0:FW-BB_PB_GOALD,col=M2_COLS[s===0?1:0];ctx.fillStyle=col+'22';ctx.fillRect(FX+gx,FY+FH/2-BB_PB_GOALH/2,BB_PB_GOALD,BB_PB_GOALH);ctx.strokeStyle=col+'aa';ctx.lineWidth=2;ctx.strokeRect(FX+gx,FY+FH/2-BB_PB_GOALH/2,BB_PB_GOALD,BB_PB_GOALH);} // each end goal tinted by who SCORES there
     bbDrawSoccerBall(FX+pb.x,FY+pb.y,BB_PB_R,pb.roll||0); // v5.1.226 a real rolling soccer ball
-    const sc=bb2.pscore||[0,0],_tgt=bbPbTarget();ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle='#d4d4f4';ctx.fillText('⚽ '+sc[0]+' — '+sc[1]+'  ('+(_tgt===Infinity?'most goals — timed':'first to '+_tgt)+')',CW/2,FY+58);ctx.restore();}
+    const sc=bb2.pscore||[0,0],_tgt=bbPbTarget();ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillStyle='#d4d4f4';ctx.fillText('⚽ '+sc[0]+' — '+sc[1]+'  ('+(_tgt===Infinity?'most goals — timed':'first to '+_tgt)+')',CW/2,FY+58);
+    if(bbBattleBall()){ctx.font='bold 11px Courier New';ctx.fillStyle='#ffd740';ctx.fillText('♛ BATTLE BALL — protect your pusher',CW/2,FY+72); // v6.1.0 the escort-format banner
+      if(bb2.pbVoidT>0&&((((bb2.t||0)*6)|0)&1)===0){ctx.font='bold 14px Courier New';ctx.fillStyle='#ff5a4d';ctx.fillText('♛ PUSHER DOWN — GOAL VOID',CW/2,FY+92);}} // flashing feedback when a dead-pusher goal is disallowed
+    ctx.restore();}
   bbDrawMines(); // v5.1.277 land mines on the floor (under the bots)
   bbDrawPartings(); // v5.1.287 PARTING GIFT armed charges + their growing danger ring
   for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
@@ -5853,7 +5872,7 @@ function drawBB(){
     bbDrawWheels(b); // P2.4 dead-wheel marks
     {const eg=bbNameEgg(b);if(eg){const pc=BB_EGG_PAINT[eg];ctx.save();ctx.translate(FX+b.x,FY+b.y);if(!BB_LIVERY[eg]){ctx.lineWidth=3;ctx.strokeStyle=pc[0];ctx.beginPath();ctx.arc(0,0,RR+5,-Math.PI/2,Math.PI/2);ctx.stroke();ctx.strokeStyle=pc[1];ctx.beginPath();ctx.arc(0,0,RR+5,Math.PI/2,Math.PI*1.5);ctx.stroke();}if(bbEggActive(b)){ctx.fillStyle='#ffd740';ctx.font='10px Courier New';ctx.textAlign='center';ctx.fillText('★',0,-RR-9);}ctx.restore();}} // v5.1.115 P6 egg PAINT; v5.1.221 full LIVERY replaces the ring (★ = buff active stays)
     drawP2Tag(p,b,(b.ctl.name||p2Name(b.ctl.bind))+(bbInfLives()?('  ☠'+(b.kills||0)):''),b.col); // show each bot's name above it, humans included; v5.1.269 + its kill tally in a deathmatch (infinite lives)
-    if(bbMode()==='vip'&&b.vip){ctx.fillStyle='#ffd740';ctx.font='bold 15px Courier New';ctx.textAlign='center';ctx.fillText('♛',FX+b.x,FY+b.y-RR-16);} // v5.1.123 P9 VIP crown
+    if((bbMode()==='vip'&&b.vip)||(bbBattleBall()&&b.pusher)){ctx.fillStyle='#ffd740';ctx.font='bold 15px Courier New';ctx.textAlign='center';ctx.fillText('♛',FX+b.x,FY+b.y-RR-16);} // v5.1.123 P9 VIP crown; v6.1.0 also crowns each BATTLE BALL ♛ pusher
     if((b.outT||0)>0){ctx.fillStyle='#ff5252';ctx.font='bold 14px Courier New';ctx.textAlign='center';ctx.fillText('⚠ '+Math.max(1,Math.ceil(BB.countOut-b.outT)),FX+b.x,FY+b.y+RR+20);} // STALEMATE count-out timer (both stuck)
     else if(b.mob<=0){ // immobilized but a foe can still finish it — no auto count-out
       if(bbGiveUpEligible(b)&&(b._disabledT||0)>=BB_W.giveUpAvail){const gf=clamp((b._giveUp||0)/BB_W.giveUpHold,0,1),GR=RR+12,cx=FX+b.x,cy=FY+b.y; // v5.1.288 GIVE-UP prompt + overheat-style hold ring (replaces ⚠ STUCK once the option is live)
@@ -10519,6 +10538,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v6.1.0 (2026-07-03): BATTLE BALL cheat mode (overnight; the first MINOR of the new versioning scheme; spec SPEC_2026-06-25_mode_taxonomy.md section 2). Sam's ESCORT format - RoboRumble PUSH-BALL becomes "protect your pusher": with the new BATTLE BALL cheat toggle ON, the first bot of each side is that side's PUSHER (a gold-crown ♛ VIP) - its weapon is STRIPPED to ram-only (armor + perk kept from the seat pick, mobility/HP re-baselined) so it is a pure ball-scorer, and the other seats are its combat ESCORTS with full loadouts. Win layering per the spec rec (b/c): goals still win via GOALS TO WIN, but while a side's pusher is DOWN (respawning) its goals are VOID - the ball resets with a flashing "PUSHER DOWN - GOAL VOID" banner and no score (offense halts until the 7s objective respawn brings it back); a pusher dead FOR GOOD (finite-lives config) loses the match outright (VIP-elimination clause in bbCheckResult; with the default infinite pushball lives that clause never fires). CPU dispatch: combat-escort CPUs HUNT the enemy pusher (nearest-foe fallback while it is down - the v5.1.126 VIP-hunt pattern), the pusher CPU keeps the get-behind-the-ball pushball brain, and the v5.1.227 fire-at-the-ball behavior is suspended (the pusher has no weapon; escorts fire at their foe). New: battleBall flag + cheat row (anyCheat/cheatsAllOff wired), bbBattleBall() helper, pusher assign + loadout strip in startP2BB, goal-void + pbVoidT banner, crown render on pushers, mode-intro variant. Portrait cheat menu row pitch 20->19 to reabsorb the new row (the v5.1.279 move). smoke57 +15 -> 631 (toggle/gating, pusher assign + strip, goal-void/restore, outright-loss, escort-vs-pusher CPU targeting, fire-at-ball suspension, drawBB no-throw with crowns+banner, cheat-OFF mainline unchanged). Full battery ALL GREEN.
   v6.0.0 (2026-07-03): VERSION EPOCH BUMP - identical game to v5.1.297, renumbered (zero code changes). Sam: "there's been so many major changes I think we should've been past version 5". The mainline sat on 5.1.x for ~250 ships (v5.1.49->297 gained: ROBORUMBLE + the full 15-weapon roster + perks + eggs, CAREER/STORY mode, the MAP EDITOR + share codes, tournaments, FFA + kill-race scoring, CREDITS, the cheat suite, EXPERIMENTAL FEATURES) because (a) the ritual only ever bumped the patch digit and (b) v5.2 was informally reserved by the ONLINE sandbox (drive_showdown_v5.2.0.html on claude/online-net-5wehy1). ONLINE MULTIPLAYER is now formally TABLED (Sam, 2026-07-03) - the sandbox branch stays frozen as history; if online is ever resumed it adopts whatever version is then current (no more reserved numbers). Versioning scheme going forward: MAJOR = a new era (online, an engine rework), MINOR = each feature pass / new mode (e.g. Battle Ball -> 6.1, Balloon Battle -> 6.2), PATCH = per-ship increments within a pass. Full battery ALL GREEN (byte-identical script).
   v5.1.297 (2026-06-24): EXPERIMENTAL TIMED MINE weapon - a fuse-detonated charge (overnight; gated). A documented MINELAYER follow-up: where the MINELAYER waits indefinitely for an ENEMY to trip it and the STUN-MINE trips + stuns, the TIMED MINE detonates on a FUSE (timeMineFuse 2.6s after arming, NO proximity trip) - so it ZONES a spot on a clock: drop it to deny ground / bait a foe over it, then it self-clears. Reuses the whole mine lifecycle (drop-behind, arm delay, max-live cap, owner/ally-safe) + the MINELAYER damage blast (mineDmg/mineBlastRK/mineKnock). The floor casing + the bot's rear hazard stripe are ORANGE (vs MINELAYER red, STUN-MINE blue) and the status light BLINKS FASTER (amber->red) as the fuse nears 0 - a visible countdown. Joins bbExpWeapon so the cycler/armory/CPU-roll/balance gate it behind EXPERIMENTAL FEATURES automatically; CPU lays it while a foe is near. smoke57 +6 -> 616 (incl. a bbDrawMines no-throw on the new accelerating-blink branch). Full battery ALL GREEN.
   v5.1.296 (2026-06-24): HAZARD MASTER now owns the arena-edge hazards (Sam's explicit ask: "the hazard master cheat is what I imagined - hammers/spikes/saws on the side of the arena"). The v5.1.294 BattleBots-style edge hazards (top PULVERIZER + left-wall SPIKES + floor KILLSAW, telegraphed idle->windup->STRIKE, neutral) were gated only behind EXPERIMENTAL FEATURES with a TODO to fold in later - now they ALSO activate with the HAZARD MASTER cheat (which already gave a mouse-aimed crusher strike), so HAZARD MASTER = the full side-of-arena hazard package + the click-to-crush, exactly his vision. Still also available under EXPERIMENTAL FEATURES. One-line gate change (bbEdgeHaz: hazardMaster||expFeatures) + the cheat blurb; mainline/balance untouched (both are off by default). smoke57 +1 -> 610. Full battery ALL GREEN.

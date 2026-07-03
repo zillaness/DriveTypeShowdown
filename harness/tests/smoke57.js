@@ -1559,6 +1559,56 @@ src+=`
    let ethrew=false;try{drawBB();}catch(e){ethrew=true;console.log('   edgehaz drawBB err:',e.message);}
    ok('drawBB renders the arena-edge hazards without throwing',!ethrew);
    expFeatures=sv;hazardMaster=svh;bb2._edgeHaz=null;}
+  // ── v6.1.0 BATTLE BALL cheat mode: the pushball + VIP ESCORT layer ──
+  {const svBB=battleBall,svMode=m2.set.bbmode,svGoals=m2.set.bbgoals;m2.set.bbgoals=3;
+   ok('BATTLE BALL is a registered cheat',CHEATS.some(c=>c.name==='BATTLE BALL'));
+   battleBall=true;ok('BATTLE BALL counts as a cheat (records gated)',anyCheat()===true);
+   m2.set.bbmode='pushball';ok('bbBattleBall = toggle AND pushball',bbBattleBall()===true);
+   m2.set.bbmode='ko';ok('bbBattleBall inactive outside pushball',bbBattleBall()===false);
+   m2.set.bbmode='pushball';
+   startBB(0,2);
+   ok('match start assigns a pusher per side (first bot)',bb2.bots.filter(b=>b.pusher).length===2&&bb2.bots.find(b=>b.side===0).pusher===true&&bb2.bots.find(b=>b.side===1).pusher===true);
+   ok('pusher loadout is stripped to ram-only + mob re-baselined',bb2.bots.filter(b=>b.pusher).every(b=>b.ld.weapon==='none'&&b.mob===b.ld.mobMax));
+   // goal VOID while the scoring side pusher is DOWN; counts again once alive
+   {const p0=bbBotWith('none','balanced',0,0,true);p0.pusher=true;p0.lives=5;
+    const e0=bbBotWith('spinner','balanced',0,1,true);
+    const p1=bbBotWith('none','balanced',1,2,true);p1.pusher=true;p1.lives=5;
+    const f1=bbBotWith('buzzsaw','balanced',1,3,true);
+    bb2.bots=[p0,e0,p1,f1];bb2.result=null;bb2.pscore=[0,0];bb2.pbVoidT=0;
+    p0.dead=true;bb2.pball={x:FW-1,y:FH/2,vx:0,vy:0};
+    bbModeUpdate(1/60);
+    ok('goal is VOID while the scoring side pusher is down',bb2.pscore[0]===0&&bb2.pbVoidT>0);
+    ok('void goal still resets the ball off the goal mouth',bb2.pball.x<FW-BB_PB_GOALD);
+    p0.dead=false;bb2.pball.x=FW-1;bb2.pball.y=FH/2;bb2.pbVoidT=0;
+    bbModeUpdate(1/60);
+    ok('goal COUNTS once the pusher is back up',bb2.pscore[0]===1);
+    // a pusher dead FOR GOOD (finite lives spent) loses the match outright
+    bb2.result=null;p1.dead=true;p1.lives=0;bbCheckResult();
+    ok('pusher dead for good = that side loses outright',bb2.result===0);
+    // CPU dispatch: escorts HUNT the enemy pusher; the pusher keeps the ball brain
+    bb2.result=null;p1.dead=false;p1.lives=1;
+    p0.x=200;p0.y=FH/2;p0.h=0;e0.x=400;e0.y=200;p1.x=FW-80;p1.y=FH-80;f1.x=430;f1.y=200; // enemy ESCORT right next to e0, enemy PUSHER far away
+    bb2.pball={x:300,y:FH/2,vx:0,vy:0};bbCpuUpdate(1/60);
+    ok('combat escort targets the FAR enemy pusher over the near escort',e0._foe===p1);
+    ok('the pusher CPU keeps the get-behind-the-ball brain',p0.ctl.brain.inp.vx>0);
+    // v5.1.227 fire-at-the-ball is suspended under BATTLE BALL (escorts fire at foes, the pusher has no weapon)
+    const pbw2=bbBotWith('flipper','balanced',0,4,true);pbw2.x=560;pbw2.y=FH/2;pbw2.h=0;
+    const far2=bbBotWith('none','balanced',1,5,true);far2.x=60;far2.y=60;far2.pusher=true;
+    bb2.pball={x:600,y:FH/2,vx:0,vy:0};bb2.bots=[pbw2,far2];bb2.result=null;bbCpuUpdate(1/60);
+    ok('lined-up-behind-the-ball auto-fire is OFF under BATTLE BALL',!pbw2.ctl.brain.fire);
+    // render: crowns + the void banner draw without throwing (real draw call — mock-canvas rule)
+    bb2.bots=[p0,e0,p1,f1];bb2.pbVoidT=1.0;bb2.pball={x:300,y:FH/2,vx:0,vy:0};
+    let bthrew=false;try{drawBB();}catch(e){bthrew=true;console.log('   battleball drawBB err:',e.message);}
+    ok('drawBB renders BATTLE BALL crowns + void banner without throwing',!bthrew);}
+   // cheat OFF → mainline pushball unchanged (dead first bot still scores; no pusher flags)
+   battleBall=false;
+   {const q0=bbBotWith('none','balanced',0,0,true);q0.dead=true;q0.lives=5;
+    const q1=bbBotWith('none','balanced',1,1,true);
+    bb2.bots=[q0,q1];bb2.result=null;bb2.pscore=[0,0];bb2.pball={x:FW-1,y:FH/2,vx:0,vy:0};bb2.pbVoidT=0;
+    bbModeUpdate(1/60);
+    ok('cheat OFF: a pushball goal counts regardless (mainline unchanged)',bb2.pscore[0]===1&&!q0.pusher);}
+   battleBall=svBB;m2.set.bbmode=svMode;m2.set.bbgoals=svGoals;if(bb2)bb2.pbVoidT=0;}
+
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();
 `;
