@@ -4,7 +4,7 @@
 question he posed: **perk or bot (weapon)?** This captures both, with a
 recommendation, the mechanics in *this* engine, tuning, tests, and gating.
 
-Code refs are against `drive_showdown_v5.1.297.html` (extract with `./extract.sh`).
+Code refs are against `drive_showdown_v6.0.0.html` (= v5.1.297 renumbered, identical code; extract with `./extract.sh`).
 
 ---
 

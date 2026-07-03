@@ -5,7 +5,7 @@ captured with current-state facts + recommendations. These are **structural UX
 changes** (splash, mode tiles, settings, tournament, career, tests all touch them)
 — big surface; **best built WITH Sam in a live session, gated EXPERIMENTAL first.**
 
-Code refs are against `drive_showdown_v5.1.297.html` (extract with `./extract.sh`).
+Code refs are against `drive_showdown_v6.0.0.html` (= v5.1.297 renumbered, identical code; extract with `./extract.sh`).
 
 ---
 

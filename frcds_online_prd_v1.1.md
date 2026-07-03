@@ -3,12 +3,18 @@ file: frcds_online_prd_v1.1.md
 version: 1.1
 author: Sam Cao
 created: 2026-06-15
-last_updated: 2026-06-16
+last_updated: 2026-07-03
 description: Concept/plan PRD for adding ONLINE (over-the-internet) play-with-a-friend to Drive Type Showdown — free, serverless-first, host-authoritative over WebRTC; Parsec as the zero-effort interim. NOT started (concept only).
 ai_update: Update last_updated and version. Rename file to match. Append changelog at bottom.
 ---
 
-# Drive Type Showdown — Online Multiplayer (PRD, NOT started)
+# Drive Type Showdown — Online Multiplayer (PRD, TABLED)
+
+> **⛔ TABLED (Sam, 2026-07-03).** Formally shelved after sitting dormant since 2026-06-16.
+> The sandbox branch `claude/online-net-5wehy1` (build `drive_showdown_v5.2.0.html`, P1a
+> netcode seams only) stays frozen as history — its reserved **v5.2** number is retired and
+> the mainline jumped to **v6.0.0**. If online is ever resumed, re-baseline this PRD against
+> the then-current build and adopt whatever version is current (no reserved numbers).
 
 Status: **concept / plan only.** No online code exists. This is a multi-version feature, hard to verify in the headless harness; the first real milestone is deliberately small. This revision (v1.1) re-baselines the plan against the current build — nothing here has been built.
 
