@@ -30,6 +30,18 @@ Code refs are against `drive_showdown_v6.0.0.html` (= v5.1.297 renumbered, ident
 ---
 
 ## 1. Merge NORMAL + SHOOTER → one **BALL** mode; SHOOTER = a toggle
+> **✅ BUILT (gated) — v6.3.0 (2026-07-03).** Shipped behind EXPERIMENTAL FEATURES as
+> an **alias**: the merged **BALL** tile + a **BALL TYPE** FORMAT row (`m2.set.ballFmt`)
+> are presentational; `m2.mode` keeps the canonical `'normal'`/`'shooter'` strings, so
+> tournament / career / records / all 12 smoke suites are untouched. Funnel =
+> `b2Shooter()` / `p2BallMode()` (replaced ~24 scattered checks, byte-identical);
+> tile list = `m2Modes()`. **Migration finding: NONE needed** — `tour` is never
+> persisted, career saves stage IDs (not modes), the h2h record keeps its legacy
+> display tag, and SP records already key shooter separately (`_sht`). Tests: new
+> `smoke61.js` (23 asserts). **PROMOTE step (pending Sam):** flip the merge
+> unconditional, migrate `m2.mode` to `'ball'` behind the funnel, merge the
+> tournament/career cyclers, then guard the 3 `M2_MODES.find` label sites.
+
 **Sam:** "shooter and non-shooter ball modes should be combined, and shooter is
 just a toggle within that mode."
 

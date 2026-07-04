@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v6.2.0.html
-  version: 6.2.0
+  file: drive_showdown_v6.3.0.html
+  version: 6.3.0
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-07-03
@@ -2178,6 +2178,11 @@ function b2GenBallStarts(n){
   return out.slice(0,n);
 }
 function b2Mirrored(){return m2.set.layout==='mirrored';}
+// v6.3.0 BALL-MERGE funnel: the scattered ball-mode checks route through these so a future 'ball' mode string lands in one place. This increment keeps 'normal'/'shooter' as the canonical m2.mode values (the merged BALL tile is presentational + gated behind expFeatures), so every helper is byte-identical to the old inline check.
+function b2Shooter(){return typeof m2!=='undefined'&&!!m2&&m2.mode==='shooter';} // is the current ball match the SHOOTER variant? (typeof guard mirrors modeTiers — the harness/SP can call before m2 exists)
+function p2BallMode(m){if(m===undefined)m=(typeof m2!=='undefined'&&m2)?m2.mode:null;return m==='normal'||m==='shooter'||m==='ball';} // is m (default m2.mode) any BALL variant? accepts 'ball' for the future promote step
+function b2FmtMode(){return (m2.set&&m2.set.ballFmt==='shooter')?'shooter':'normal';} // the BALL TYPE cycler value → the canonical legacy mode string
+function b2FmtSync(){if(p2BallMode())m2.mode=b2FmtMode();} // push the BALL TYPE choice into m2.mode (only while already in a ball mode)
 const B2M_WX=112; // mirrored goal walls this far in from the left/right edges
 function b2mGT(){return FH/2-70;} // vertical gap top
 function b2mGB(){return FH/2+70;} // vertical gap bottom
@@ -2325,7 +2330,7 @@ function b2CpuUpdate(dt){
     if(d<RR*2){const nx=dx/d,ny=dy/d,ov=RR*2-d;
       // v5.1.22: SHOOTER — the main CPU bot out-shoves alliance bots (tier-scaled) so it isn't bullied off its scoring run; CHAMPION plows through.
       let wa=1,wc=1;
-      if(m2.mode==='shooter'&&i<b2.bots.length&&j>=b2.bots.length&&all[i].ctl&&all[i].ctl.type==='cpu'){wa=B2_SHOVE[all[i].ctl.tier|0]||1;}
+      if(b2Shooter()&&i<b2.bots.length&&j>=b2.bots.length&&all[i].ctl&&all[i].ctl.type==='cpu'){wa=B2_SHOVE[all[i].ctl.tier|0]||1;}
       const fa=wc/(wa+wc),fc=wa/(wa+wc); // heavier robot moves less
       a.x+=nx*ov*fa;a.y+=ny*ov*fa;c.x-=nx*ov*fc;c.y-=ny*ov*fc;
       b2Wall(a,RR);b2Wall(c,RR);}
@@ -2482,9 +2487,9 @@ function cpuBallUpdate(dt){
     const mateNear=(mx,my)=>!!((b2.cpus&&b2.cpus.some(c=>c.al===al&&Math.hypot(c.x-mx,c.y-my)<RR*3))||b2.bots.some(o=>o!==bo&&o.al===al&&Math.hypot(o.x-mx,o.y-my)<RR*3)); // anti-double-team: alliance cpu OR another main on my side
     br.objT-=dt;br.aimT-=dt;
     if(br.aimT<=0){br.aimJ=(Math.random()*2-1)*T.aim;br.aimT=0.6;}
-    const cycActive=m2.mode!=='shooter'&&bo.ctl&&bo.ctl.type==='cpu';
+    const cycActive=!b2Shooter()&&bo.ctl&&bo.ctl.type==='cpu';
     if(cycActive)b2ScoreCycle(bo,br,G,T,dt);
-    if(m2.mode==='shooter'){ // v4.0: shooter-mode unstick — 2.5s without progress breaks the bot free toward center
+    if(b2Shooter()){ // v4.0: shooter-mode unstick — 2.5s without progress breaks the bot free toward center
       if(br._spx===undefined){br._spx=bo.x;br._spy=bo.y;br.stuckT=0;}
       if(Math.hypot(bo.x-br._spx,bo.y-br._spy)>34){br._spx=bo.x;br._spy=bo.y;br.stuckT=0;}
       else br.stuckT=(br.stuckT||0)+dt;
@@ -2514,8 +2519,8 @@ function cpuBallUpdate(dt){
         else if(threat&&td<170&&Math.random()<T.defBias){br.obj='defend';br.tgt=threat;}
       }
       if(br.obj!=='defend'&&br.obj!=='clear'){
-        if(m2.mode==='shooter'){
-          if(bo.intk.length>0){br.obj='shoot';br.tgt=null;}
+        if(b2Shooter()){
+if(bo.intk.length>0){br.obj='shoot';br.tgt=null;}
           else{
             let best=null,bd=1e9;
             for(const b of free){
@@ -2553,7 +2558,7 @@ function cpuBallUpdate(dt){
       let dy0=br.tgt?br.tgt.y:FH/2;
       // v3.10 shot-block/screen: anticipate only a GENUINE incoming threat (shooter foe holding intake, or a ball moving at our goal); static point-blank balls fall through to be cleared normally
       const towardOwn=al===0?-1:1;
-      const shooterThreat=m2.mode==='shooter'&&fFoe.intk&&fFoe.intk.length;
+      const shooterThreat=b2Shooter()&&fFoe.intk&&fFoe.intk.length;
       const incoming=br.tgt&&br.tgt.vx*towardOwn>20;
       if(fSharp&&(shooterThreat||incoming)){
         const src=shooterThreat?fFoe:br.tgt;
@@ -2612,13 +2617,13 @@ function cpuBallUpdate(dt){
       }
     }
     if(br.obj!=='shoot')br.fire=false;
-    if(m2.mode==='shooter'&&br.escapeT>0){tx=FW/2;ty=FH/2;aimH=null;br.fire=false;} // unstick: drive to open center, then re-pick
+    if(b2Shooter()&&br.escapeT>0){tx=FW/2;ty=FH/2;aimH=null;br.fire=false;} // unstick: drive to open center, then re-pick
     // v3.10: ball-mode speed+turn couple to the human opponent's sensitivity so the CPU keeps pace at any sens setting
     const oS=cpuPaceSens(p); // CAP CPU SPEED cheat can clamp this so MAX SENSITIVITY only turbos YOU, not the CPU
     const dx=tx-bo.x,dy=ty-bo.y,d=Math.hypot(dx,dy);
     let vx=0,vy=0;
     // v5.1: cap CPU translate at the human's drive speed — tier multipliers above 1 (CHAMPION 1.06) are clamped to 1
-    const _spF=(m2.mode==='shooter')?T.spd:Math.min(1,T.spd); // normal ball clamps to the player; SHOOTER allows the top-tier speed edge back (per-mode tuning)
+    const _spF=(b2Shooter())?T.spd:Math.min(1,T.spd); // normal ball clamps to the player; SHOOTER allows the top-tier speed edge back (per-mode tuning)
     if(d>4){const sp=SPD*_spF*oS*Math.min(1,d/36);vx=dx/d*sp;vy=dy/d*sp;}
     const hT=aimH!==null?aimH:(d>4?Math.atan2(dy,dx):bo.h);
     let dh=hT-bo.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
@@ -2770,7 +2775,7 @@ function b2StickyCarriers(){
 }
 function b2Release(car,b,kx,ky){ b.held=false;b.heldBy=null;const i=car.load.indexOf(b);if(i>=0)car.load.splice(i,1);b.vx=kx;b.vy=ky;b._grabCd=0.55; } // capture-immunity so the carrier can't instantly re-grab a stripped/stolen ball
 function b2Sticky(dt){
-  if(!b2||m2.mode==='shooter'||!b2Mirrored()||bouncyMode)return; // bouncy: CPU loses its sticky plow (push-only, fair in the chaos)
+  if(!b2||b2Shooter()||!b2Mirrored()||bouncyMode)return; // bouncy: CPU loses its sticky plow (push-only, fair in the chaos)
   for(const car of b2StickyCarriers()){
     const bo=car.bot; if(!bo.load)bo.load=[];
     car.load=bo.load=bo.load.filter(b=>b&&b.held&&!b.sc&&!b.intaken&&!b.proj);
@@ -2905,7 +2910,7 @@ function updateP2Ball(dt){
     const tgts=friendlyFire?[...b2.bots,...(b2.cpus||[])].filter(o=>o&&o!==bo):ballFoes(p); // FF on → tackle everyone but yourself (all mains + support)
     arcadeTackle(bo.bind,bo,tgts);}}
   // shooter: per-bot intake + shoot, then projectile flight (mode-gated)
-  if(m2.mode==='shooter'){
+  if(b2Shooter()){
     for(let p=0;p<b2.bots.length;p++){
       const bo=b2.bots[p],inp=bo._inp;
       const ch=Math.cos(bo.h),sh=Math.sin(bo.h);
@@ -3015,7 +3020,7 @@ function updateP2Ball(dt){
         b.x+=wx*bestOv;b.y+=wy*bestOv;
         b2Wall(b,BR);
         b.lastT=bo.al;
-        if(m2.mode!=='shooter'){ // SP parity: shooter plow corrals only
+        if(!b2Shooter()){ // SP parity: shooter plow corrals only
           const psp=Math.max(rs*0.92,60);
           b.vx+=wx*psp;b.vy+=wy*psp;
           b2TryScore(b);
@@ -3062,7 +3067,7 @@ function achH2HResult(w){ // v3.11 achievements at the H2H match-result edge
     achBeatTier(lc.tier);
     h2hRecord(lc.tier,{marg:(b2.score[w]-b2.score[1-w]),t:b2.t,drive:(m2.drive[w]&&m2.drive[w].name)||'',name:p2Name(w),mode:m2.mode}); // best win per tier
   }
-  if(m2.mode==='shooter'&&b2.score[1-w]===0)achUnlock('shutout');
+  if(b2Shooter()&&b2.score[1-w]===0)achUnlock('shutout');
   if(b2.sudden)achUnlock('golden');
   if(b2.realGoals&&b2.realGoals[w]===0&&b2.score[w]>0)achUnlock('noscore'); // won purely on opponent own-goals
 }
@@ -3073,7 +3078,7 @@ function b2MainCol(bo){ // match the on-field tag/ring: a distinct same-side sha
 }
 function b2HudRoster(al){ // per-main HUD rows for one side: {name,drive,col,mag,bind} (mag = filled magazine count in shooter, else -1)
   return b2Mains(al).map(bo=>({name:p2DispName(bo.bind,bo),drive:(m2.drive[bo.bind]?m2.drive[bo.bind].name:''),
-    col:b2MainCol(bo),mag:m2.mode==='shooter'?Math.min((bo.intk?bo.intk.length:0),4):-1,bind:bo.bind}));
+    col:b2MainCol(bo),mag:b2Shooter()?Math.min((bo.intk?bo.intk.length:0),4):-1,bind:bo.bind}));
 }
 function drawP2Ball(){
   ctx.fillStyle='#07070e';ctx.fillRect(0,0,CW,CH);
@@ -3174,8 +3179,8 @@ function drawP2Ball(){
     ctx.fillText(String(Math.ceil(b2.cd)),CW/2,FY+FH/2);
     ctx.font='bold 13px Courier New';ctx.fillStyle='#8888aa';
     ctx.fillText(b2Mirrored()
-      ?(m2.mode==='shooter'?'MIRRORED — red defends LEFT, blue RIGHT · score through the far goal · own goals count for them · SPACE / A / RT shoots':'MIRRORED — red defends LEFT, blue RIGHT · push balls through the far goal · own goals count for them')
-      :(m2.mode==='shooter'?'SHARED GAP — drive in to intake (mag of 4) · SPACE / A / RT shoots · most goals wins':'SHARED GAP — most goals wins · your last touch scores it'),CW/2,FY+FH/2+40);
+      ?(b2Shooter()?'MIRRORED — red defends LEFT, blue RIGHT · score through the far goal · own goals count for them · SPACE / A / RT shoots':'MIRRORED — red defends LEFT, blue RIGHT · push balls through the far goal · own goals count for them')
+      :(b2Shooter()?'SHARED GAP — drive in to intake (mag of 4) · SPACE / A / RT shoots · most goals wins':'SHARED GAP — most goals wins · your last touch scores it'),CW/2,FY+FH/2+40);
   }
   if(b2.result!==null){
     ctx.fillStyle='rgba(0,0,0,0.74)';ctx.fillRect(0,0,CW,CH);
@@ -3628,7 +3633,7 @@ function p2GpItems(){
     const lost=(typeof w==='number')&&w!==0,canRe=lost&&(career._rematchLeft|0)>0,R=careerNavRects(canRe,cy);
     if(canRe)it.push(R.re);it.push(R.go);return it;
   }
-  if(phase==='p2modes'){for(let i=0;i<M2_MODES.length;i++)it.push(p2ModeRect(i));it.push(p2TourBtnRect());it.push(p2RecBtnRect());}
+  if(phase==='p2modes'){for(let i=0;i<m2Modes().length;i++)it.push(p2ModeRect(i));it.push(p2TourBtnRect());it.push(p2RecBtnRect());}
   else if(phase==='p2drive'){for(const d of p2DriveList())it.push(p2DriveRect(d));}
   else if(phase==='p2settings'){const rows=p2SettingsRows();for(let i=0;i<rows.length;i++)it.push(p2SetRowRect(i));if(p2ShowCpuCfg())it.push(p2CpuCfgBtnRect());if(p2ShowPupCfg())it.push(p2PupCfgBtnRect());it.push(p2StartBtnRect());it.push(p2ResetBtnRect());}
   else if(phase==='p2pupSettings'){it.push(p2BackBtnRect());const ks=['puHp','puRapid','puSpeed','puShield','puExpl','puPierce','puAim'];for(let i=0;i<7;i++)it.push(p2SetRowRect(i));}
@@ -6376,6 +6381,9 @@ const M2_MODES=[
   {id:'battlebots',name:'ROBORUMBLE',   desc:'combat — ram the rear, guard your front', col:'#ff6b6b'},
   {id:'race',     name:'OBSTACLE RACE', desc:'first to the finish line',       col:'#40c4ff'},
 ];
+// v6.3.0 BALL-MERGE (EXPERIMENTAL, spec SPEC_2026-06-25_mode_taxonomy.md §1): with EXPERIMENTAL FEATURES on, NORMAL + SHOOTER collapse into ONE presentational "BALL" tile (push/shooter chosen by the BALL TYPE settings row). The tile is display-only — clicking it writes the canonical legacy m2.mode ('normal'/'shooter'), which nothing ever stores as 'ball', so tournament/career/records/tests are untouched. OFF → the classic 5 tiles, byte-identical.
+const M2_MODES_MERGED=[{id:'ball',name:'BALL',desc:'push or shoot balls through the gap',col:'#44ffaa'},M2_MODES[2],M2_MODES[3],M2_MODES[4]]; // references M2_MODES[2..4] so the other tiles stay in sync by construction
+function m2Modes(){return expFeatures?M2_MODES_MERGED:M2_MODES;} // the tile list the mode-picker renders (gated); m2.mode itself is ALWAYS a legacy id
 const M2_COLS=['#ff5555','#5599ff']; // red / blue alliance
 // Per-BOT team shades (v5.1.48): WARM family for RED (side 0), COOL family for BLUE (side 1) — so the team reads at a glance while each seat is uniquely identifiable.
 // [0] matches M2_COLS so 1v1 stays byte-identical.
@@ -6383,7 +6391,7 @@ const TF2_RED_COLS =['#ff5555','#ff9f43','#ffd740','#ff6f91']; // red · orange 
 const TF2_BLUE_COLS=['#5599ff','#33ccdd','#9b7bff','#44ddaa']; // blue · cyan · violet · teal
 function teamShade(side,idx){const pal=side===0?TF2_RED_COLS:TF2_BLUE_COLS;return pal[idx%pal.length];}
 const TF2_CPU_COLS=TF2_BLUE_COLS; // back-compat alias
-const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,tdrv:'open',tfmt:'1v1',ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true,bbmode:'ko',bblives:1,bbtime:0,bbgoals:3,tfmode:'deathmatch'}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
+const M2_SET_DEFAULTS={format:'timed',timeSec:90,goalN:10,lives:3,bestOf:1,layout:'mirrored',contact:'full',cpus:2,tcpus:1,tallies:0,allyTier:1,tformat:'lives',tTimeSec:90,tdrv:'open',tfmt:'1v1',ballN:'auto',pow:true,hpk:true,haz:true,puHp:true,puRapid:true,puSpeed:true,puShield:true,puExpl:true,puPierce:true,puAim:true,bbmode:'ko',bblives:1,bbtime:0,bbgoals:3,tfmode:'deathmatch',ballFmt:'push'}; // 2P MATCH SETTINGS defaults (RESET DEFAULTS button restores these). NOTE: ALLIANCE CPU SPEED lives in cpuSpeedMult (shared with the CPU-AI SPEED slider), reset separately to 1.0.
 let m2={mode:'race',_dp:0,drive:[null,null],name:[null,null],claim:[null,null],_gpPrev:[],sens:[1,1],tstrip:[false,false],
   set:{...M2_SET_DEFAULTS}};
 function p2Enter(){applyLayout('land2p');phase='p2modes';m2.claim=[null,null];m2.name=[null,null];m2._dp=0;m2._gpPrev=[];m2.tseats=null;m2.tsel=0;m2.bbLoadout=loadBBLoadout();m2.claimSel=null;} // v5.1.249 restore the last-used 1v1 loadout (was reset to [null,null])
@@ -6745,7 +6753,7 @@ function careerStageSetup(st){ // a clean, beginner-friendly 1v1 per mode (no ex
   m2.set.bestOf=1;m2.set.cpus=0;m2.set.tcpus=0;m2.set.tallies=0;m2.set.allyTier=1;
   if(st.mode==='tankfight'){m2.set.tfmt='1v1';m2.set.tfmode='deathmatch';m2.set.lives=3;m2.set.tTimeSec=90;m2.set.contact='full';}
   else if(st.mode==='race'){m2.set.layout='mirrored';}
-  else if(st.mode==='normal'||st.mode==='shooter'){m2.set.format='timed';m2.set.timeSec=75;m2.set.layout='mirrored';m2.set.contact='full';}
+  else if(p2BallMode(st.mode)){m2.set.format='timed';m2.set.timeSec=75;m2.set.layout='mirrored';m2.set.contact='full';}
   else if(st.mode==='battlebots'){m2.set.bbmode='ko';m2.set.bblives=1;m2.set.bbtime=0;m2.set.tfmt='1v1';}
 }
 // KNOWLEDGE → a real, modest in-match edge (quiz bonuses). Leak-safe: m2.sens/bbLoadout are reset on every
@@ -7447,7 +7455,7 @@ function tourQualModeLabel(){return {normal:'NORMAL BALL — most GOALS',shooter
 function tourQualMetric(){ // seed VALUE — LOWER = better seed (keeps the existing ascending sort). Per-mode metric, vs the benchmark CPU.
   if(tour.mode==='race')return (r2&&r2.bots&&r2.bots[0]&&r2.bots[0].fin!=null)?r2.bots[0].fin:Infinity;
   let res=null,score=0;
-  if((tour.mode==='normal'||tour.mode==='shooter')&&b2){res=b2.result;score=b2.score?b2.score[0]:0;}
+  if(p2BallMode(tour.mode)&&b2){res=b2.result;score=b2.score?b2.score[0]:0;}
   else if(tour.mode==='tankfight'&&tf2){res=tf2.result;score=(m2.set.tformat==='timed')?tf2SideKills(0):tf2SideLives(0);}
   else if(tour.mode==='battlebots'&&bb2){res=bb2.result;score=tourBBDamage(0);}
   return (res===0?0:1e6)-score; // winners (≤0) rank above losers (≥~1e6); within each, more score = lower = better
@@ -7455,7 +7463,7 @@ function tourQualMetric(){ // seed VALUE — LOWER = better seed (keeps the exis
 function tourQualDisplay(){ // human-readable result for the standings card
   if(tour.mode==='race')return (r2&&r2.bots&&r2.bots[0]&&r2.bots[0].fin!=null)?fmt(r2.bots[0].fin):'DNF';
   let res=null,score=0,unit='';
-  if((tour.mode==='normal'||tour.mode==='shooter')&&b2){res=b2.result;score=b2.score?b2.score[0]:0;unit=' goals';}
+  if(p2BallMode(tour.mode)&&b2){res=b2.result;score=b2.score?b2.score[0]:0;unit=' goals';}
   else if(tour.mode==='tankfight'&&tf2){res=tf2.result;if(m2.set.tformat==='timed'){score=tf2SideKills(0);unit=' kills';}else{score=tf2SideLives(0);unit=' lives';}}
   else if(tour.mode==='battlebots'&&bb2){res=bb2.result;score=Math.round(tourBBDamage(0));unit=' dmg';}
   return (res===0?'WON':(res==='draw'?'DREW':'LOST'))+' · '+score+unit;
@@ -7622,7 +7630,7 @@ function p2DriveRect(d){
   const pos=d.kind==='main'?d.idx:d.kind==='holo'?d.idx:d.idx;
   return {x:x0+pos*(w+gx),y:150+d.row*(h+gy),w,h};
 }
-function p2ModeRect(i){const n=M2_MODES.length,g=20,mar=24,w=Math.min(280,(CW-2*mar-(n-1)*g)/n),h=300,x0=(CW-(n*w+(n-1)*g))/2;return{x:x0+i*(w+g),y:220,w,h};}
+function p2ModeRect(i){const n=m2Modes().length,g=20,mar=24,w=Math.min(280,(CW-2*mar-(n-1)*g)/n),h=300,x0=(CW-(n*w+(n-1)*g))/2;return{x:x0+i*(w+g),y:220,w,h};}
 // Settings rows per mode (spec v3.1 matrix). Each row: label + cycle of values.
 function p2SettingsRows(){
   const S=m2.set;
@@ -7652,6 +7660,7 @@ function p2SettingsRows(){
     {k:'bestOf', lab:'BEST OF',          vals:[1,3,5],            show:v=>v===1?'OFF (1 round)':'BEST OF '+v},
   ];
   return[ // normal / shooter
+    ...(expFeatures?[{k:'ballFmt',lab:'BALL TYPE',vals:['push','shooter'],show:v=>v==='shooter'?'SHOOTER — intake & fire':'PUSH — plow it in'}]:[]), // v6.3.0 BALL-MERGE: the merged BALL tile picks push vs shooter here (gated); writing it syncs m2.mode via b2FmtSync
     {k:'tfmt',   lab:'TEAM FORMAT',      vals:['1v1','multi'],    show:v=>v==='multi'?'MULTI — up to 3v3 (grid)':'1v1 — classic 2-card'}, // 1v1 = original 2-card claim; multi = the 6-seat grid (mains). CPU BOTS PER SIDE adds alliance support on top.
     {k:'format', lab:'FORMAT',           vals:['timed','goals'],  show:v=>v==='timed'?'TIMED — most goals wins':'RACE TO N GOALS'},
     S.format==='timed'
@@ -7678,8 +7687,8 @@ let setDropdown=null; // index of the settings row whose dropdown is open (point
 function p2CycleSet(i,dir){const rows=p2SettingsRows(),r=rows[i];if(!r)return;
   if(!(r.k in m2.set))m2.set[r.k]=r.vals[0];
   const ci=Math.max(0,r.vals.indexOf(m2.set[r.k]));
-  m2.set[r.k]=r.vals[((ci+dir)%r.vals.length+r.vals.length)%r.vals.length];if(r.k==='tfmt')p2TfmtSyncAlliance();if(r.k==='bbmode')bbApplyModeDefaults(m2.set.bbmode);if(r.k==='bblives'||r.k==='bbtime'||r.k==='bbgoals')bbEnforceLivesTime(r.k);sfx('click');}
-function p2TfmtSyncAlliance(){if(m2.mode==='normal'||m2.mode==='shooter')m2.set.cpus=(m2.set.tfmt==='multi')?0:2;} // the MULTI grid IS the 3v3 (its mains fill both sides) → default to NO extra alliance support; the classic 1v1 keeps 2 support bots/side
+  m2.set[r.k]=r.vals[((ci+dir)%r.vals.length+r.vals.length)%r.vals.length];if(r.k==='tfmt')p2TfmtSyncAlliance();if(r.k==='ballFmt')b2FmtSync();if(r.k==='bbmode')bbApplyModeDefaults(m2.set.bbmode);if(r.k==='bblives'||r.k==='bbtime'||r.k==='bbgoals')bbEnforceLivesTime(r.k);sfx('click');}
+function p2TfmtSyncAlliance(){if(p2BallMode())m2.set.cpus=(m2.set.tfmt==='multi')?0:2;} // the MULTI grid IS the 3v3 (its mainsfill both sides) → default to NO extra alliance support; the classic 1v1 keeps 2 support bots/side
 function p2SetDropRects(){ // clickable rects for the open dropdown's choices (flips above the row if it would overflow)
   if(setDropdown===null)return [];
   const rows=p2SettingsRows(),r=rows[setDropdown];if(!r)return [];
@@ -7690,7 +7699,7 @@ function p2SetDropRects(){ // clickable rects for the open dropdown's choices (f
 function p2StartBtnRect(){return{x:CW/2-130,y:CH-90,w:260,h:48};}
 // ALLIANCE CPU AI button — opens the shared CPU-behavior settings (which drive the alliance support bots) from the 2P MATCH SETTINGS screen.
 // Only ball modes have alliance bots whose brain these prefs tune, so it's hidden in tank/race.
-function p2ShowCpuCfg(){return m2.mode==='normal'||m2.mode==='shooter';}
+function p2ShowCpuCfg(){return p2BallMode();}
 function p2CpuCfgBtnRect(){return{x:CW/2-130-210,y:CH-90,w:196,h:48};}
 function p2ShowPupCfg(){return m2.mode==='tankfight';}
 function p2PupCfgBtnRect(){return{x:CW/2-130-210,y:CH-90,w:196,h:48};} // same slot as CPU AI btn (mutually exclusive by mode)
@@ -7736,7 +7745,7 @@ function p2Click(mx,my){
   if(tankGridMode()){tankGridClick(mx,my);return;}
   if(phase==='p2recs'){p2Back();return;} // any click closes the records screen
   if(phase==='p2modes'){
-    for(let i=0;i<M2_MODES.length;i++){if(inR(mx,my,p2ModeRect(i))){tour=null;m2.mode=M2_MODES[i].id;m2._dp=0;p2cEnsureDrives();phase='p2settings';return;}}
+    for(let i=0;i<m2Modes().length;i++){if(inR(mx,my,p2ModeRect(i))){tour=null;const _id=m2Modes()[i].id;m2.mode=(_id==='ball')?b2FmtMode():_id;if(_id==='normal'||_id==='shooter')m2.set.ballFmt=(_id==='shooter')?'shooter':'push';m2._dp=0;p2cEnsureDrives();phase='p2settings';return;}} // v6.3.0 the merged BALL tile resolves to the legacy mode via the BALL TYPE choice; classic tiles reverse-sync ballFmt (inert when the gate is off)
     if(inR(mx,my,p2TourBtnRect())){
       tour={names:[],drv:[],policy:'open',seedMode:'rand',format:'double',allianceMode:false,mode:'normal',buf:'',seeds:[],M:[],qi:0};
       phase='p2tnames';return;}
@@ -7758,7 +7767,7 @@ function p2Click(mx,my){
     const rows=p2SettingsRows();
     if(setDropdown!==null){ // a dropdown is open: pick a choice or dismiss
       const r=rows[setDropdown];
-      for(const it of p2SetDropRects()){if(inR(mx,my,it)){m2.set[r.k]=it.val;if(r.k==='tfmt')p2TfmtSyncAlliance();if(r.k==='bbmode')bbApplyModeDefaults(m2.set.bbmode);if(r.k==='bblives'||r.k==='bbtime'||r.k==='bbgoals')bbEnforceLivesTime(r.k);sfx('click');setDropdown=null;return;}}
+      for(const it of p2SetDropRects()){if(inR(mx,my,it)){m2.set[r.k]=it.val;if(r.k==='tfmt')p2TfmtSyncAlliance();if(r.k==='ballFmt')b2FmtSync();if(r.k==='bbmode')bbApplyModeDefaults(m2.set.bbmode);if(r.k==='bblives'||r.k==='bbtime'||r.k==='bbgoals')bbEnforceLivesTime(r.k);sfx('click');setDropdown=null;return;}}
       setDropdown=null;return; // click outside closes it
     }
     for(let i=0;i<rows.length;i++){const rc=p2SetRowRect(i);if(inR(mx,my,rc)){
@@ -7829,7 +7838,7 @@ function p2Click(mx,my){
       if(m2.mode==='race'){startP2Race();}
       else if(m2.mode==='tankfight'){startP2Tank();}
       else if(m2.mode==='battlebots'){startP2BB();}
-      else if(m2.mode==='normal'||m2.mode==='shooter'){startP2Ball();}
+      else if(p2BallMode()){startP2Ball();}
       else{phase='p2stub';}
       return;}
   }
@@ -7901,7 +7910,7 @@ function bbDrawClaimLoadout(pl,isCpu){const cx=p2cCol(pl),col=M2_COLS[pl],r=bbCl
   ctx.fillStyle='rgba(70,55,20,0.7)';rr(r.auto.x,r.auto.y,r.auto.w,r.auto.h,8);ctx.fill();ctx.strokeStyle='#caa23a';ctx.lineWidth=1.2;rr(r.auto.x,r.auto.y,r.auto.w,r.auto.h,8);ctx.stroke();
   ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillStyle='#ffcf6a';ctx.fillText('🎲 AUTOBUILD',cx,r.auto.y+19);}
 // ═══ TANK 3v3 CLAIM GRID (v5.1.57) — 2 sides × up to 3 seats; each EMPTY / HUMAN(device) / CPU(+tier), per-seat drive. Replaces the 2-card claim for TANK FIGHT. ═══
-function tankGridMode(){return phase==='p2claim'&&(m2.mode==='tankfight'||m2.mode==='battlebots'||m2.mode==='normal'||m2.mode==='shooter')&&(m2.set.tfmt==='multi'||(m2.set.tfmt==='ffa'&&m2.mode==='battlebots'))&&!tour;} // grid claim screen — MULTI 3v3, or v5.1.250 RoboRumble FFA (6 seats, each its own faction); 1v1 + tournaments fall through to the legacy 2-card claim
+function tankGridMode(){return phase==='p2claim'&&(m2.mode==='tankfight'||m2.mode==='battlebots'||p2BallMode())&&(m2.set.tfmt==='multi'||(m2.set.tfmt==='ffa'&&m2.mode==='battlebots'))&&!tour;} // grid claim screen — MULTI 3v3, or v5.1.250 RoboRumble FFA (6 seats, each its own faction); 1v1 + tournaments fall through to the legacy 2-card claim
 function tankGridInit(){if(!Array.isArray(m2.tseats)||m2.tseats.length!==6)m2.tseats=[null,null,null,null,null,null];if(typeof m2.tsel!=='number')m2.tsel=0;}
 function tankSeatSideOf(i){return i<3?0:1;}
 function tankGridDefDrive(){const d=DRIVES[3];return{kind:'main',idx:3,name:d.name,c:d.c};} // field-centric swerve
@@ -7934,7 +7943,7 @@ function tankGridActive(){return m2.set.tfmt==='multi'&&!tour&&Array.isArray(m2.
 function tankGridMoveSel(dx,dy){tankGridInit();let side=m2.tsel<3?0:1,slot=m2.tsel%3;if(dx)side=dx<0?0:1;slot=clamp(slot+dy,0,2);m2.tsel=side*3+slot;sfx('click');}
 function tankGridApply(){tankGridEnforceDrives();for(let i=0;i<6;i++){const s=m2.tseats[i];playerBind[i]=tankGridSeatReady(s)?(s.type==='cpu'?{type:'cpu',tier:s.tier|0}:s.dev):{type:'none'};m2.drive[i]=s?s.drive:(m2.drive[i]||null);m2.sens[i]=(s&&s.sens!=null)?s.sens:1;}} // seats → per-index bind/drive/sens arrays (the match reads m2.drive[bind]/playerBind[bind])
 function tankGridToSeats(){const seats=[[],[]];for(let i=0;i<6;i++){const s=m2.tseats[i];if(!tankGridSeatReady(s))continue;seats[tankSeatSideOf(i)].push({type:s.type,bind:i,tier:s.tier|0});}return seats;}
-function tankGridStart(){p2SeriesStart();if(m2.mode==='battlebots')startP2BB();else if(m2.mode==='normal'||m2.mode==='shooter')startP2Ball();else startP2Tank();}
+function tankGridStart(){p2SeriesStart();if(m2.mode==='battlebots')startP2BB();else if(p2BallMode())startP2Ball();else startP2Tank();}
 function tankGridDevLabel(dev){return !dev?'?':dev.type==='kb'?'⌨ KEYBOARD':dev.type==='gp'?('🎮 PAD '+(dev.gp+1)):dev.type==='touchL'?'👆 TOUCH L':dev.type==='touchR'?'👆 TOUCH R':'?';}
 function tankCellRect(i){const side=i<3?0:1,slot=i%3;return{x:side===0?64:664,y:120+slot*156,w:552,h:148};}
 function tankCellSub(i){const c=tankCellRect(i),bb=(m2.mode==='battlebots');return{rel:{x:c.x+c.w-38,y:c.y+12,w:28,h:26},name:{x:c.x+112,y:c.y+28,w:210,h:32},sens:{x1:c.x+120,x2:c.x+300,y:c.y+(bb?100:116)},tL:{x:c.x+118,y:c.y+82,w:30,h:28},tR:{x:c.x+262,y:c.y+82,w:30,h:28},grp:{x:c.x+356,y:c.y+44,w:162,h:22},dL:{x:c.x+356,y:c.y+76,w:30,h:30},dR:{x:c.x+c.w-46,y:c.y+76,w:30,h:30},player:{x:c.x+c.w-254,y:c.y+102,w:120,h:36},cpu:{x:c.x+c.w-126,y:c.y+102,w:120,h:36}};} // BB: the sens slider rides UP so the loadout row (c.y+122) below stays clear. (No touch BUTTON — an awaiting seat claims touch by a TAP; see tankGridClick.)
@@ -7943,7 +7952,7 @@ function tankGridGpPoll(){tankGridInit();for(let gi=0;gi<gpBtnsAll.length;gi++){
 function tankGridGpNav(){tankGridInit();const now=performance.now(),rep=now-gpNavLast>180;for(let gi=0;gi<gpBtnsAll.length;gi++){const b=gpBtnsAll[gi]||[],pv=gpPrevAll[gi]||[],ax=gpAxesAll[gi]||{lx:0,ly:0},jb=k=>b[k]&&!(pv&&pv[k]);const si=m2.tseats.findIndex(s=>s&&s.type==='human'&&s.dev&&s.dev.type==='gp'&&s.dev.gp===gi);if(jb(8)){const e=tankGridNextEmpty(0);if(e>=0){tankGridSetCpu(e);gpNavLast=now;}} /* v5.1.229 BACK/SELECT = drop a CPU into the next open seat (add AI opponents controller-only) */ if(si>=0){if(jb(14)||(ax.lx<-0.55&&rep)){tankGridCycleDrive(si,-1);gpNavLast=now;}else if(jb(15)||(ax.lx>0.55&&rep)){tankGridCycleDrive(si,1);gpNavLast=now;}else if(jb(12)||(ax.ly<-0.55&&rep)){tankGridCycleGroup(si,-1);gpNavLast=now;}else if(jb(13)||(ax.ly>0.55&&rep)){tankGridCycleGroup(si,1);gpNavLast=now;}if(jb(4)){const _s=m2.tseats[si];if(_s)_s.sens=clamp(Math.round(((_s.sens!=null?_s.sens:1)-0.1)*10)/10,SENS_MIN,SENS_MAX);sfx('click');}if(jb(5)){const _s=m2.tseats[si];if(_s)_s.sens=clamp(Math.round(((_s.sens!=null?_s.sens:1)+0.1)*10)/10,SENS_MIN,SENS_MAX);sfx('click');}if(m2.mode==='battlebots'){const _ld=bbSeatLoadout(si);if(jb(3)){bbCycleField(_ld,'weapon',1);gpNavLast=now;}if(jb(2)){bbCycleField(_ld,'armor',1);gpNavLast=now;}if(jb(0)){bbCycleField(_ld,'perk',1);gpNavLast=now;}} // v5.1.186 GAMEPAD loadout cycling for the BB grid: Y=weapon · X=armor · A=PERK (was mouse/touch only — pad players couldn't pick a perk)
       if(jb(1)){tankGridRelease(si);gpNavLast=now;}if(jb(9)&&tankGridCanStart())tankGridStart();}else{if(jb(14)||(ax.lx<-0.55&&rep)){tankGridMoveSel(-1,0);gpNavLast=now;}else if(jb(15)||(ax.lx>0.55&&rep)){tankGridMoveSel(1,0);gpNavLast=now;}else if(jb(12)||(ax.ly<-0.55&&rep)){tankGridMoveSel(0,-1);gpNavLast=now;}else if(jb(13)||(ax.ly>0.55&&rep)){tankGridMoveSel(0,1);gpNavLast=now;}if(jb(9)&&tankGridCanStart())tankGridStart();}}}
 function tankGridClick(mx,my){tankGridInit();if(nameEntry.active&&nameEntry.target==='tgrid')nameEntry.active=false;if(inR(mx,my,p2StartBtnRect())){if(tankGridCanStart())tankGridStart();return;}if(m2.mode==='battlebots'&&bbGridHasCpu()&&inR(mx,my,bbGridAutoRect())){bbGridAutobuildCpus();return;}for(let i=0;i<6;i++){const c=tankCellRect(i),s=m2.tseats[i],sub=tankCellSub(i);if(m2.mode==='battlebots'&&s){const lr=bbSeatLoadRects(c),ld=bbSeatLoadout(i);if(inR(mx,my,lr.wL)){bbCycleField(ld,'weapon',-1);return;}if(inR(mx,my,lr.wR)){bbCycleField(ld,'weapon',1);return;}if(inR(mx,my,lr.aL)){bbCycleField(ld,'armor',-1);return;}if(inR(mx,my,lr.aR)){bbCycleField(ld,'armor',1);return;}if(inR(mx,my,lr.pL)){bbCycleField(ld,'perk',-1);return;}if(inR(mx,my,lr.pR)){bbCycleField(ld,'perk',1);return;}if(Math.hypot(mx-(c.x+80),my-(c.y+62))<=11){bbCycleAccent(ld,1);return;}if(Math.hypot(mx-(c.x+52),my-(c.y+86))<=26){bbCyclePaint(ld,1);return;}}if(s&&s.type==='human'){if(inR(mx,my,sub.rel)){tankGridRelease(i);return;}if(inR(mx,my,sub.name)){m2.tsel=i;nameEntry={active:true,target:'tgrid',seat:i,text:(s.name||''),orig:(s.name||'PLAYER')};sfx('click');return;}if(inR(mx,my,sub.grp)){tankGridCycleGroup(i,1);return;}if(inR(mx,my,sub.dL)){tankGridCycleDrive(i,-1);return;}if(inR(mx,my,sub.dR)){tankGridCycleDrive(i,1);return;}if(!s.dev){tankGridSetTouch(i);return;}const g=sub.sens;if(my>=g.y-12&&my<=g.y+12&&mx>=g.x1-10&&mx<=g.x2+10){tankGridSetSens(i,mx);sfx('click');return;}if(inR(mx,my,c)){m2.tsel=i;sfx('click');return;}}else if(s&&s.type==='cpu'){if(inR(mx,my,sub.rel)){tankGridRelease(i);return;}if(inR(mx,my,sub.tL)){tankGridCycleTier(i,-1);return;}if(inR(mx,my,sub.tR)){tankGridCycleTier(i,1);return;}if(inR(mx,my,sub.grp)){tankGridCycleGroup(i,1);return;}if(inR(mx,my,sub.dL)){tankGridCycleDrive(i,-1);return;}if(inR(mx,my,sub.dR)){tankGridCycleDrive(i,1);return;}if(inR(mx,my,c)){m2.tsel=i;sfx('click');return;}}else{if(inR(mx,my,sub.player)){tankGridAddPlayer(i);return;}if(inR(mx,my,sub.cpu)){m2.tsel=i;tankGridSetCpu(i);return;}if(inR(mx,my,c)){m2.tsel=i;sfx('click');return;}}}}
-function drawTankGrid(){tankGridInit();tankGridEnforceDrives();p2Chrome('SET UP YOUR '+(m2.mode==='battlebots'?'BOTS':(m2.mode==='normal'||m2.mode==='shooter')?'ROBOTS':'TANKS')+(bbIsFFA()?' — 6-PLAYER FREE-FOR-ALL (every bot for itself)':' — up to 3 per side'),'click a seat then press a key/pad — or + PLAYER / + CPU · ◀▶ drive · ▲▼ category · click a name to rename · START when both sides are set'+(m2.mode==='battlebots'?' · ⚙ ARMORY: drag a weapon/armor/perk onto a bot · drag a bot’s loadout to copy · 🎮 Y=weapon X=armor A=perk':'')+' · 🎮 D-pad: move · any button: join · BACK: +CPU · B: release/swap · START: go');const blink=((Date.now()/450)|0)%2?'|':'';for(let i=0;i<6;i++){const c=tankCellRect(i),s=m2.tseats[i],side=i<3?0:1,slot=i%3,sel=(i===m2.tsel),shade=(bbIsFFA()?FFA_COLS[i%FFA_COLS.length]:teamShade(side,slot)),sub=tankCellSub(i),editing=(nameEntry.active&&nameEntry.target==='tgrid'&&nameEntry.seat===i);ctx.fillStyle=s?'rgba(20,20,38,0.82)':'rgba(12,12,24,0.6)';rr(c.x,c.y,c.w,c.h,12);ctx.fill();ctx.strokeStyle=sel?'#ffd740':(tankGridSeatReady(s)?shade:(s?'#caa23a':'#3a3a5a'));ctx.lineWidth=sel?3:(s?2.2:1.3);rr(c.x,c.y,c.w,c.h,12);ctx.stroke();ctx.font='bold 12px Courier New';ctx.textAlign='left';ctx.fillStyle=shade;ctx.fillText(bbIsFFA()?('BOT '+(i+1)):((side===0?'RED':'BLUE')+' '+(slot+1)),c.x+14,c.y+22);if(s){m2.drive[i]=s.drive;p2cDrawDrivePreview(i,c.x+52,c.y+86,0.8);if(m2.mode==='battlebots'&&s.loadout)bbDrawWeaponPreview(s.loadout,c.x+52,c.y+86,0.8);if(m2.mode==='battlebots'){ctx.save();ctx.fillStyle=bbAccentSwatch(bbSeatLoadout(i));ctx.beginPath();ctx.arc(c.x+80,c.y+62,6.5,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#0a0a14';ctx.lineWidth=1.4;ctx.stroke();ctx.font='8px Courier New';ctx.fillStyle='#8a8aa8';ctx.textAlign='center';ctx.fillText('🎨',c.x+80,c.y+50);ctx.restore();}}else{p2DrawBotIcon(c.x+50,c.y+84,22,'#2a2a40');}
+function drawTankGrid(){tankGridInit();tankGridEnforceDrives();p2Chrome('SET UP YOUR '+(m2.mode==='battlebots'?'BOTS':p2BallMode()?'ROBOTS':'TANKS')+(bbIsFFA()?' — 6-PLAYER FREE-FOR-ALL (every bot for itself)':' — up to 3 per side'),'click a seat then press a key/pad — or + PLAYER / + CPU · ◀▶ drive · ▲▼ category · click a name to rename · START when both sides are set'+(m2.mode==='battlebots'?' · ⚙ ARMORY: drag a weapon/armor/perk onto a bot · drag a bot’s loadout to copy · 🎮 Y=weapon X=armor A=perk':'')+' · 🎮 D-pad: move · any button: join · BACK: +CPU · B: release/swap · START: go');const blink=((Date.now()/450)|0)%2?'|':'';for(let i=0;i<6;i++){const c=tankCellRect(i),s=m2.tseats[i],side=i<3?0:1,slot=i%3,sel=(i===m2.tsel),shade=(bbIsFFA()?FFA_COLS[i%FFA_COLS.length]:teamShade(side,slot)),sub=tankCellSub(i),editing=(nameEntry.active&&nameEntry.target==='tgrid'&&nameEntry.seat===i);ctx.fillStyle=s?'rgba(20,20,38,0.82)':'rgba(12,12,24,0.6)';rr(c.x,c.y,c.w,c.h,12);ctx.fill();ctx.strokeStyle=sel?'#ffd740':(tankGridSeatReady(s)?shade:(s?'#caa23a':'#3a3a5a'));ctx.lineWidth=sel?3:(s?2.2:1.3);rr(c.x,c.y,c.w,c.h,12);ctx.stroke();ctx.font='bold 12px Courier New';ctx.textAlign='left';ctx.fillStyle=shade;ctx.fillText(bbIsFFA()?('BOT '+(i+1)):((side===0?'RED':'BLUE')+' '+(slot+1)),c.x+14,c.y+22);if(s){m2.drive[i]=s.drive;p2cDrawDrivePreview(i,c.x+52,c.y+86,0.8);if(m2.mode==='battlebots'&&s.loadout)bbDrawWeaponPreview(s.loadout,c.x+52,c.y+86,0.8);if(m2.mode==='battlebots'){ctx.save();ctx.fillStyle=bbAccentSwatch(bbSeatLoadout(i));ctx.beginPath();ctx.arc(c.x+80,c.y+62,6.5,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#0a0a14';ctx.lineWidth=1.4;ctx.stroke();ctx.font='8px Courier New';ctx.fillStyle='#8a8aa8';ctx.textAlign='center';ctx.fillText('🎨',c.x+80,c.y+50);ctx.restore();}}else{p2DrawBotIcon(c.x+50,c.y+84,22,'#2a2a40');}
   if(s){const cxR=c.x+436,gi2=Math.max(0,DGROUPS.findIndex(g=>g.kind===s.drive.kind)),gr=sub.grp;ctx.fillStyle='rgba(40,40,62,0.7)';rr(gr.x,gr.y,gr.w,gr.h,6);ctx.fill();ctx.strokeStyle='#4a4a6a';ctx.lineWidth=1;rr(gr.x,gr.y,gr.w,gr.h,6);ctx.stroke();ctx.fillStyle='#bcd';ctx.font='bold 10px Courier New';ctx.textAlign='center';ctx.fillText('▲▼ '+DGROUPS[gi2].tab,gr.x+gr.w/2,gr.y+15);{const _dgap=sub.dR.x-(sub.dL.x+sub.dL.w)-16,_dpx=Math.max(8,Math.min(13,_dgap/Math.max(1,s.drive.name.length*0.6)));ctx.font='bold '+_dpx.toFixed(1)+'px Courier New';}ctx.fillStyle=s.drive.c||'#aab';ctx.fillText(s.drive.name,(sub.dL.x+sub.dL.w+sub.dR.x)/2,c.y+97);for(const d of[-1,1]){const ar=d<0?sub.dL:sub.dR;ctx.fillStyle='rgba(40,40,62,0.7)';rr(ar.x,ar.y,ar.w,ar.h,7);ctx.fill();ctx.strokeStyle='#4a4a6a';ctx.lineWidth=1;rr(ar.x,ar.y,ar.w,ar.h,7);ctx.stroke();ctx.fillStyle='#aab';ctx.textAlign='center';ctx.font='bold 15px Courier New';ctx.fillText(d<0?'◀':'▶',ar.x+ar.w/2,ar.y+21);}ctx.fillStyle='rgba(90,30,30,0.7)';rr(sub.rel.x,sub.rel.y,sub.rel.w,sub.rel.h,6);ctx.fill();ctx.strokeStyle='#a55';ctx.lineWidth=1;rr(sub.rel.x,sub.rel.y,sub.rel.w,sub.rel.h,6);ctx.stroke();ctx.fillStyle='#fbb';ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillText('✕',sub.rel.x+sub.rel.w/2,sub.rel.y+18);}
   if(s&&s.type==='human'){ctx.textAlign='left';ctx.font='bold 16px Courier New';ctx.fillStyle='#e8e8ff';ctx.fillText('👤 '+(editing?(nameEntry.text+blink):(s.name||'PLAYER')),c.x+114,c.y+44);ctx.font='9px Courier New';ctx.fillStyle=editing?'#ffd740':'#778';ctx.fillText(editing?'type a name · ENTER':'✎ rename',c.x+114,c.y+58);
     if(s.dev){ctx.font='12px Courier New';ctx.textAlign='left';ctx.fillStyle='#9ab';ctx.fillText(tankGridDevLabel(s.dev),c.x+114,c.y+82);const g=sub.sens,sv=(s.sens!=null?s.sens:1);ctx.font='9px Courier New';ctx.fillStyle='#778';ctx.fillText('SENS',g.x1,g.y-9);ctx.strokeStyle='#44446a';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(g.x1,g.y);ctx.lineTo(g.x2,g.y);ctx.stroke();const tx=g.x1+(sv-SENS_MIN)/(SENS_MAX-SENS_MIN)*(g.x2-g.x1);ctx.fillStyle=shade;ctx.beginPath();ctx.arc(tx,g.y,7,0,7);ctx.fill();ctx.font='bold 11px Courier New';ctx.textAlign='right';ctx.fillStyle='#aab';ctx.fillText(sv.toFixed(1)+'×',g.x2,g.y-9);}
@@ -8040,7 +8049,7 @@ function p2Overlays(){
         ctx.fillStyle=st.id!==-1?'#ffd740aa':'#ffffff2e';
         ctx.beginPath();ctx.arc(r.x+r.w/2,clamp(ky,r.y+12,r.y+r.h-12),14,0,Math.PI*2);ctx.fill();
       }
-      if(m2.mode==='shooter'||m2.mode==='tankfight'){
+      if(b2Shooter()||m2.mode==='tankfight'){
         const r=p2FireRect(sd);
         ctx.fillStyle=p2TFire[sd]?'rgba(255,80,80,0.5)':'rgba(255,80,80,0.16)';
         rr(r.x,r.y,r.w,r.h,12);ctx.fill();
@@ -8076,7 +8085,7 @@ function p2Draw(){
   if(phase==='p2pupSettings'){drawP2PupSettings();return;}
   if(phase==='p2modes'){
     p2Chrome('MULTIPLAYER — PICK A MODE','head to head · one machine');
-    for(let i=0;i<M2_MODES.length;i++){const m=M2_MODES[i],r=p2ModeRect(i),sel=m2.mode===m.id;
+    for(let i=0;i<m2Modes().length;i++){const m=m2Modes()[i],r=p2ModeRect(i),sel=(m2.mode===m.id)||(m.id==='ball'&&p2BallMode());
       ctx.fillStyle='rgba(25,25,45,0.7)';rr(r.x,r.y,r.w,r.h,14);ctx.fill();
       ctx.strokeStyle=sel?m.col:m.col+'55';ctx.lineWidth=sel?2.5:1.5;rr(r.x,r.y,r.w,r.h,14);ctx.stroke();
       ctx.font='bold 20px Courier New';ctx.textAlign='center';ctx.fillStyle=m.col;
@@ -10561,6 +10570,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v6.3.0 (2026-07-03): BALL-MERGE (overnight; EXPERIMENTAL-gated; spec SPEC_2026-06-25_mode_taxonomy.md section 1). Sam: "shooter and non-shooter ball modes should be combined, and shooter is just a toggle." With EXPERIMENTAL FEATURES on, the NORMAL + SHOOTER multiplayer tiles collapse into ONE presentational BALL tile whose push-vs-shooter split is chosen by a new BALL TYPE settings row (a FORMAT cycler, m2.set.ballFmt in push/shooter, per the spec rec over a bool). Built as a behavior-preserving ALIAS: the legacy strings normal/shooter stay the canonical m2.mode values (NOTHING ever stores mode:ball this increment), so the engine, tournament, career, the h2h record display tag, and all 12 existing smoke suites are untouched and pass with ZERO edits. Two mechanical parts: (1) a b2Shooter()/p2BallMode() funnel replacing the ~24 scattered m2.mode===shooter / normal||shooter checks (a provably byte-identical refactor the full battery verifies) so the eventual promote to a real ball string is a one-line change; (2) the gated tile list m2Modes() (=expFeatures?merged:classic) + the BALL TYPE row + b2FmtSync() on both settings-apply paths (cycler + dropdown) + the tile-click BALL->legacy-mode resolution. Gate OFF = byte-identical classic 5 tiles. AUDIT (recorded in the spec): no saved-config migration is needed - tour is never persisted, career saves stage IDs (not mode strings), h2h keeps its legacy display tag, SP records already key shooter separately via the _sht suffix; the spec's migration step is dropped as dead code. Tournament + career UIs deliberately still show NORMAL/SHOOTER as separate (the promote-step boundary; flag for a playtester). NEW smoke61.js (23 asserts, auto-discovered by battery.sh: funnel truth table, gate-off byte-identity, gate-on 4-tile merge, tile-click + BALL TYPE + dropdown m2.mode sync, an end-to-end merged shooter match, p2Draw/drawP2Ball no-throw in both formats, h2h tag preservation, reset). Full battery ALL GREEN; balance unchanged. PROMOTE STEP (OUT of this increment, for the handoff): flip the merge unconditional, migrate m2.mode to a ball string behind the funnel, merge the tournament/career cyclers, then guard the 3 M2_MODES.find label sites.
   v6.2.0 (2026-07-03): SMOKE SCREEN perk (overnight; EXPERIMENTAL-gated; spec SPEC_2026-06-24_smoke_screen.md). The missing DISENGAGE perk for RoboRumble: a 10th BB_PERKS entry (SMOKE SCREEN, id smokescreen) that AUTO panic-pops a smoke cloud when its owner drops to <=30% HP (smokeHpTrip) OR is immobilized (mob 0), on a 12s per-bot re-pop cooldown (smokeCd) - no input added (RT/LT are taken). The cloud (bb2.smokes, a lazy list mirroring the bb2.mines lifecycle) is VISION/TARGETING ONLY - it never blocks movement, ramming, or damage - and it is ONE-SIDED via bbInEnemySmoke(b,vs) (viewer-relative: a side is never blinded by its OWN smoke; vs=-1 = any cloud, used for the shared-screen visual fade). While a cloud stands it breaks EVERY enemy auto-acquire path onto a bot inside it: the bbCpuUpdate nearest-foe scan (with a MANDATORY unfiltered fallback re-scan so a CPU whose every foe is smoked never freezes), the VIP-hunt and BATTLE-BALL pusher-hunt overrides, the ARCADE-CPU turret track (bbAimAngle), the human turret aim-assist snap (bbAimAssistTurret), and the chassis heading-magnetism - each guarded by bb2.smokes emptiness so mainline (no-cloud) play is byte-identical and per-frame cost is unchanged. Render: bbDrawSmoke() draws 5 deterministic drifting gray puffs per cloud (clocked by bb2.t, NO Math.random in the sim path), grow-in over smokeGrow then hold, alpha fades over the last smokeFade, drawn OVER the bots and UNDER the hazard strikes; a concealed bot also fades to alpha 0.3. Gating (mirrors the v5.1.290/292 experimental-weapon model): bbExpPerk(id) hides it from the perk cycler (bbCycleField), the armory rail (bbArmoryChips), and the CPU roll (bbCpuPickLoadout) until EXPERIMENTAL FEATURES is on - and the auto-trigger itself checks expFeatures at FIRE time, so a stale saved ld.perk=smokescreen is INERT with the gate off (loadBBLoadout does no id validation) and the balance sim (never sets expFeatures) stays clean. Tunables in BB_W: smokeDur 4.0 / smokeRK 3.2 / smokeCd 12.0 / smokeHpTrip 0.30 / smokeGrow 0.4 / smokeFade 0.6. smoke57 +24 -> 655 (registration/gating both ways, cycler/rail/CPU-roll exclusion + inclusion, one-sided concealment, lock-break + re-acquire + all-foes-smoked fallback, auto-trigger on HP and on immobilize + cooldown hold, gate-off inert, bbDrawSmoke+drawBB no-throw incl. the concealed-bot alpha branch). Full battery ALL GREEN; balance unchanged.
   v6.1.0 (2026-07-03): BATTLE BALL cheat mode (overnight; the first MINOR of the new versioning scheme; spec SPEC_2026-06-25_mode_taxonomy.md section 2). Sam's ESCORT format - RoboRumble PUSH-BALL becomes "protect your pusher": with the new BATTLE BALL cheat toggle ON, the first bot of each side is that side's PUSHER (a gold-crown ♛ VIP) - its weapon is STRIPPED to ram-only (armor + perk kept from the seat pick, mobility/HP re-baselined) so it is a pure ball-scorer, and the other seats are its combat ESCORTS with full loadouts. Win layering per the spec rec (b/c): goals still win via GOALS TO WIN, but while a side's pusher is DOWN (respawning) its goals are VOID - the ball resets with a flashing "PUSHER DOWN - GOAL VOID" banner and no score (offense halts until the 7s objective respawn brings it back); a pusher dead FOR GOOD (finite-lives config) loses the match outright (VIP-elimination clause in bbCheckResult; with the default infinite pushball lives that clause never fires). CPU dispatch: combat-escort CPUs HUNT the enemy pusher (nearest-foe fallback while it is down - the v5.1.126 VIP-hunt pattern), the pusher CPU keeps the get-behind-the-ball pushball brain, and the v5.1.227 fire-at-the-ball behavior is suspended (the pusher has no weapon; escorts fire at their foe). New: battleBall flag + cheat row (anyCheat/cheatsAllOff wired), bbBattleBall() helper, pusher assign + loadout strip in startP2BB, goal-void + pbVoidT banner, crown render on pushers, mode-intro variant. Portrait cheat menu row pitch 20->19 to reabsorb the new row (the v5.1.279 move). smoke57 +15 -> 631 (toggle/gating, pusher assign + strip, goal-void/restore, outright-loss, escort-vs-pusher CPU targeting, fire-at-ball suspension, drawBB no-throw with crowns+banner, cheat-OFF mainline unchanged). Full battery ALL GREEN.
   v6.0.0 (2026-07-03): VERSION EPOCH BUMP - identical game to v5.1.297, renumbered (zero code changes). Sam: "there's been so many major changes I think we should've been past version 5". The mainline sat on 5.1.x for ~250 ships (v5.1.49->297 gained: ROBORUMBLE + the full 15-weapon roster + perks + eggs, CAREER/STORY mode, the MAP EDITOR + share codes, tournaments, FFA + kill-race scoring, CREDITS, the cheat suite, EXPERIMENTAL FEATURES) because (a) the ritual only ever bumped the patch digit and (b) v5.2 was informally reserved by the ONLINE sandbox (drive_showdown_v5.2.0.html on claude/online-net-5wehy1). ONLINE MULTIPLAYER is now formally TABLED (Sam, 2026-07-03) - the sandbox branch stays frozen as history; if online is ever resumed it adopts whatever version is then current (no more reserved numbers). Versioning scheme going forward: MAJOR = a new era (online, an engine rework), MINOR = each feature pass / new mode (e.g. Battle Ball -> 6.1, Balloon Battle -> 6.2), PATCH = per-ship increments within a pass. Full battery ALL GREEN (byte-identical script).
