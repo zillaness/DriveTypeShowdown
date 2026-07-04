@@ -295,7 +295,7 @@ src+=`
    bbCycleField(ld,'armor',-1);ok('cycling ARMOR backward wraps to the last',ld.armor===BB_ARMOR[BB_ARMOR.length-1].id);
    ld.perk='none';bbCycleField(ld,'perk',1);ok('cycling PERK from NONE → the first real perk',ld.perk===BB_PERKS_PICK[1].id&&ld.perk!=='none'); // v5.1.196 NONE is BB_PERKS_PICK[0] (pickable again)
    bbCycleField(ld,'perk',1);ok('cycling PERK forward advances to the next perk',ld.perk===BB_PERKS_PICK[2].id);
-   ld.perk=BB_PERKS_PICK[0].id;bbCycleField(ld,'perk',-1);ok('cycling PERK backward from NONE wraps to the LAST perk',ld.perk===BB_PERKS_PICK[BB_PERKS_PICK.length-1].id);
+   ld.perk=BB_PERKS_PICK[0].id;bbCycleField(ld,'perk',-1);const _pkList=BB_PERKS_PICK.filter(p=>!bbExpPerk(p.id)||expFeatures);ok('cycling PERK backward from NONE wraps to the LAST pickable perk',ld.perk===_pkList[_pkList.length-1].id); // v6.2.0 experimental perks (SMOKE SCREEN) excluded from the cycle while the gate is off
    m2.tseats=null;}
   // ── v5.1.137: 3v3 grid AUTOBUILD-all-CPUs button ──
   {m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;
@@ -354,7 +354,7 @@ src+=`
   {applyLayout('land2p');m2.mode='battlebots';m2.set.tfmt='multi';m2.tseats=[null,null,null,null,null,null];m2.tsel=0;phase='p2claim';tour=null;tankGridSetCpu(0);
    const chips=bbArmoryChips(),wChips=chips.filter(c=>c.kind==='weapon'),aChips=chips.filter(c=>c.kind==='armor');
    ok('armory rail has every PICKABLE weapon (RAM-only + locked CANNON + EXPERIMENTAL gear excluded) + every armor chip',wChips.length===BB_WEAPONS.filter(w=>w.id!=='none'&&(w.id!=='cannon'||cannonWeapon)&&(!bbExpWeapon(w.id)||expFeatures)).length&&!wChips.some(c=>c.id==='none')&&aChips.length===BB_ARMOR.length); // v5.1.295 experimental gear (mine/taser/stunmine) gated via bbExpWeapon
-   ok('v5.1.196: armory rail has the PERK group incl. NO PERK',chips.filter(c=>c.kind==='perk').length===BB_PERKS_PICK.length&&chips.some(c=>c.kind==='perk'&&c.id==='none')&&bbArmEquip&&(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','flameproof')&&m2.tseats[0].loadout.perk==='flameproof';})());
+   ok('v5.1.196: armory rail has the PERK group incl. NO PERK',chips.filter(c=>c.kind==='perk').length===BB_PERKS_PICK.filter(p=>!bbExpPerk(p.id)||expFeatures).length&&chips.some(c=>c.kind==='perk'&&c.id==='none')&&bbArmEquip&&(()=>{m2.tseats=[{loadout:{weapon:'wedge',armor:'balanced'}}];return bbArmEquip(0,'perk','flameproof')&&m2.tseats[0].loadout.perk==='flameproof';})()); // v6.2.0 experimental perks hidden from the rail while the gate is off (mirrors the weapon assert above)
    ok('armory chip ids match the real weapon/armor tables',wChips.every(c=>BB_WEAPONS.some(w=>w.id===c.id))&&aChips.every(c=>BB_ARMOR.some(a=>a.id===c.id)));
    ok('armory rail sits inside the canvas, above the seats',chips.every(c=>c.x>=0&&c.x+c.w<=CW&&c.y>=0&&c.y+c.h<=tankCellRect(0).y));
    const sp=wChips.find(c=>c.id==='spinner'),hit=bbArmoryHit(sp.x+sp.w/2,sp.y+sp.h/2);
@@ -1608,6 +1608,83 @@ src+=`
     bbModeUpdate(1/60);
     ok('cheat OFF: a pushball goal counts regardless (mainline unchanged)',bb2.pscore[0]===1&&!q0.pusher);}
    battleBall=svBB;m2.set.bbmode=svMode;m2.set.bbgoals=svGoals;if(bb2)bb2.pbVoidT=0;}
+
+  // ── v6.2.0 SMOKE SCREEN perk: auto panic-smoke, one-sided concealment, lock/aim breaks ──
+  {const sv=expFeatures,svAA=aimAssist,svMode=m2.set.bbmode;m2.set.bbmode='ko';
+   ok('SMOKE SCREEN perk registered + experimental-gated + described',BB_PERKS.some(p=>p.id==='smokescreen')&&bbExpPerk('smokescreen')===true&&!!BB_DESC.smokescreen);
+   // pickability gating: gate OFF hides it from cycler + armory + CPU rolls; ON surfaces it
+   expFeatures=false;
+   {const ld={weapon:'none',armor:'balanced',perk:'none'};let saw=false;for(let i=0;i<BB_PERKS_PICK.length+2;i++){bbCycleField(ld,'perk',1);if(ld.perk==='smokescreen')saw=true;}
+    ok('gate OFF: the perk cycler never lands on SMOKE SCREEN',!saw);
+    ok('gate OFF: no SMOKE chip on the armory rail',!bbArmoryChips().some(c=>c.kind==='perk'&&c.id==='smokescreen'));
+    let rolled=false;for(let i=0;i<300;i++)if(bbCpuPickLoadout(2).perk==='smokescreen')rolled=true;
+    ok('gate OFF: 300 CPU rolls never pick SMOKE SCREEN',!rolled);}
+   expFeatures=true;
+   {ok('gate ON: SMOKE chip appears on the armory rail',bbArmoryChips().some(c=>c.kind==='perk'&&c.id==='smokescreen'));
+    let rolled=false;for(let i=0;i<500;i++)if(bbCpuPickLoadout(2).perk==='smokescreen')rolled=true;
+    ok('gate ON: CPUs do roll SMOKE SCREEN',rolled);}
+   // cloud engine: pop → grow → expire
+   startBB(0,2);bb2.smokes=null;
+   bbSmokePop(300,300,0,null);
+   ok('bbSmokePop creates one live cloud',bb2.smokes.length===1&&bb2.smokes[0].side===0);
+   bbSmokeUpdate(0.2);
+   ok('cloud radius eases in (mid-grow below full size)',bbSmokeR(bb2.smokes[0])>0&&bbSmokeR(bb2.smokes[0])<RR*BB_W.smokeRK);
+   bbSmokeUpdate(BB_W.smokeDur);
+   ok('cloud expires after smokeDur',bb2.smokes.length===0);
+   // one-sided concealment (viewer-relative)
+   bb2.smokes=[{x:300,y:300,side:0,owner:null,t:BB_W.smokeDur-1,max:BB_W.smokeDur}];
+   {const a={x:300,y:300,side:0},e={x:302,y:300,side:1},far={x:900,y:300,side:1};
+    ok('enemy viewer loses a bot inside its own-side cloud',bbInEnemySmoke(a,1)===true);
+    ok('own smoke never blinds the owning side',bbInEnemySmoke(a,0)===false);
+    ok('a bot outside every cloud is never concealed',bbInEnemySmoke(far,1)===false);
+    ok('an enemy CHASER in my cloud stays VISIBLE to my side (the one-sided advantage)',bbInEnemySmoke(e,0)===false);
+    ok('the any-cloud sentinel (-1) sees every occupant',bbInEnemySmoke(a,-1)===true);}
+   // CPU lock break + re-acquire + unfiltered fallback
+   {const cpu=bbBotWith('spinner','balanced',1,0,true);cpu.x=200;cpu.y=200;
+    const A=bbBotWith('none','balanced',0,1,true);A.x=260;A.y=200; // NEAR but smoked
+    const B=bbBotWith('none','balanced',0,2,true);B.x=700;B.y=200; // FAR but clear
+    bb2.smokes=[{x:260,y:200,side:0,owner:null,t:BB_W.smokeDur-1,max:BB_W.smokeDur}];
+    bb2.bots=[cpu,A,B];bb2.result=null;bbCpuUpdate(1/60);
+    ok('CPU skips the smoked near foe and locks the clear far one',cpu._foe===B);
+    bb2.smokes=[];bbCpuUpdate(1/60);
+    ok('cloud gone → CPU re-acquires the nearest foe',cpu._foe===A);
+    bb2.smokes=[{x:260,y:200,side:0,owner:null,t:BB_W.smokeDur-1,max:BB_W.smokeDur},{x:700,y:200,side:0,owner:null,t:BB_W.smokeDur-1,max:BB_W.smokeDur}];
+    bbCpuUpdate(1/60);
+    ok('EVERY foe smoked → unfiltered fallback keeps the CPU hunting',cpu._foe===A||cpu._foe===B);}
+   // perk auto-trigger: low HP pops, cooldown holds, immobilize pops, gate OFF inert
+   {const pb=bbBotWith('none','balanced',0,0,false);pb.ld.perk='smokescreen';pb.mhp=BB.HP;pb.hp=BB.HP*0.2;pb.lives=1;
+    const en=bbBotWith('none','balanced',1,1,true);en.x=900;en.y=600;
+    bb2.bots=[pb,en];bb2.result=null;bb2.smokes=null;pb._smokeCd=0;
+    bbSmokeUpdate(1/60);
+    ok('low HP auto-pops exactly one panic cloud',!!bb2.smokes&&bb2.smokes.length===1&&pb._smokeCd>BB_W.smokeCd-1);
+    bbSmokeUpdate(1/60);
+    ok('cooldown holds (no second pop)',bb2.smokes.length===1);
+    pb.hp=BB.HP;pb.mob=0;pb._smokeCd=0;bb2.smokes=null;
+    bbSmokeUpdate(1/60);
+    ok('immobilized (mob 0) also trips the panic pop',!!bb2.smokes&&bb2.smokes.length===1);
+    expFeatures=false;pb.hp=BB.HP*0.2;pb.mob=BB.MOB;pb._smokeCd=0;bb2.smokes=null;
+    bbSmokeUpdate(1/60);
+    ok('gate OFF: a stale saved SMOKE perk is fully inert',!bb2.smokes||bb2.smokes.length===0);
+    expFeatures=true;}
+   // aim-assist break: no turret snap onto a smoked foe
+   {aimAssist=true;
+    const hb=bbBotWith('flame','balanced',0,0,false);hb.x=300;hb.y=300;
+    const sf=bbBotWith('none','balanced',1,1,true);sf.x=380;sf.y=300; // dead ahead, in cone
+    bb2.bots=[hb,sf];bb2.smokes=[{x:380,y:300,side:1,owner:null,t:BB_W.smokeDur-1,max:BB_W.smokeDur}];
+    const a1=bbAimAssistTurret(hb,0.3);
+    ok('no aim-assist snap onto a smoked foe',a1===0.3);
+    bb2.smokes=[];
+    const a2=bbAimAssistTurret(hb,0.3);
+    ok('cloud gone → the snap returns',a2!==0.3);}
+   // render: grow-in + fade-out + concealed-bot alpha all draw without throwing (real draw call)
+   {const c1={x:300,y:300,side:0,owner:null,t:BB_W.smokeDur-0.05,max:BB_W.smokeDur};
+    const c2={x:500,y:300,side:1,owner:null,t:BB_W.smokeDur*0.5,max:BB_W.smokeDur};
+    const c3={x:700,y:300,side:0,owner:null,t:0.1,max:BB_W.smokeDur};
+    const inb=bbBotWith('none','balanced',1,0,true);inb.x=300;inb.y=300;
+    bb2.bots=[inb];bb2.smokes=[c1,c2,c3];
+    let sthrew=false;try{bbDrawSmoke();drawBB();}catch(e){sthrew=true;console.log('   smoke draw err:',e.message);}
+    ok('bbDrawSmoke + drawBB render clouds and a concealed bot without throwing',!sthrew);}
+   expFeatures=sv;aimAssist=svAA;m2.set.bbmode=svMode;if(bb2)bb2.smokes=null;}
 
   console.log('--- battlebots P1: '+P+' pass, '+F+' fail ---');
 })();

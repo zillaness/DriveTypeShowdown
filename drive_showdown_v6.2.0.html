@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v6.1.0.html
-  version: 6.1.0
+  file: drive_showdown_v6.2.0.html
+  version: 6.2.0
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-07-03
@@ -183,7 +183,7 @@ function toggleRumble(){rumbleOn=!rumbleOn;try{localStorage.setItem('frcds_rumbl
 const AIM_ASSIST_CONE=0.36, AIM_ASSIST_PULL=6.0, AIM_ASSIST_RANGE_K=9; // only assists within ±~20° of where you're already pointing; turn-rate gain; range = RR×K
 function bbAimAssistTurret(b,ang){ // bias a manual TURRET aim toward the nearest enemy within the assist cone (a smidge)
   if(!aimAssist||!bb2||!bb2.bots)return ang;
-  let foe=null,bd=1e9;for(const f of bb2.bots){if(f.dead||f.side===b.side)continue;const d=Math.hypot(f.x-b.x,f.y-b.y);if(d<bd){bd=d;foe=f;}}
+  let foe=null,bd=1e9;for(const f of bb2.bots){if(f.dead||f.side===b.side)continue;if(bb2.smokes&&bb2.smokes.length&&bbInEnemySmoke(f,b.side))continue;const d=Math.hypot(f.x-b.x,f.y-b.y);if(d<bd){bd=d;foe=f;}} // v6.2.0 SMOKE SCREEN kills the snap onto a smoked foe (short-circuited by cloud-list emptiness → mainline untouched)
   if(!foe)return ang;let dh=Math.atan2(foe.y-b.y,foe.x-b.x)-ang;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;
   return Math.abs(dh)>AIM_ASSIST_CONE?ang:ang+dh*0.5;}
 let rotRatio=1; try{const _r=parseFloat(localStorage.getItem('frcds_rot'));if(_r>0)rotRatio=clamp(_r,0.25,3);}catch(e){} // TURN-RATE ratio vs translation (1 = 1:1, the classic feel); adjustable in the pause menu. Keeps the single simple sensitivity lever but lets turn vs drive be biased.
@@ -4198,6 +4198,7 @@ const BB_WEAPONS=[
   {id:'timemine',name:'TIMED MINE', cls:'kineticStrike', weight:0.4, deal:1.00, take:1.05}, // v5.1.297 EXPERIMENTAL — a TIMED CHARGE: drops a mine that detonates on a FUSE (no proximity trip), so it zones a spot on a clock — bait a foe over it / deny ground for the fuse, then it self-clears (vs the MINELAYER's wait-for-a-trip field)
 ];
 function bbExpWeapon(id){return id==='mine'||id==='taser'||id==='stunmine'||id==='timemine';} // v5.1.295 EXPERIMENTAL gear — hidden from the loadout/armory/CPU-roll/balance unless EXPERIMENTAL FEATURES is on (one list to grow as new experiments land)
+function bbExpPerk(id){return id==='smokescreen';} // v6.2.0 EXPERIMENTAL perks — same gate, perk flavor (mirrors bbExpWeapon: hidden from cycler/armory/CPU-roll until EXPERIMENTAL FEATURES is on)
 const BB_ARMOR=[ // v5.1.156: spd (speed mult), hpMul (HP-pool mult), runflat (never fully immobilized), reactive (reflect on first hit per zone)
   {id:'balanced',  name:'BALANCED',  rps:'balanced',  weight:0.0, take:1.00, zone:{front:1,side:1,rear:1}}, // default neutral
   {id:'hardplate', name:'HARDPLATE', rps:'hardplate', weight:0.45,take:0.62, hpMul:1.45, zone:{front:1,side:1,rear:0.85}}, // v5.1.179 BUFF: lighter (weight 0.6→0.45 — the speed penalty was crippling it) + bigger HP pool (1.35→1.45). Kinetic-tough, thermal-weak
@@ -4233,7 +4234,7 @@ function bbLoadoutForBind(bind){ // MULTI grid seat loadout, else 1v1 claim load
 }
 // ── P2.5: weapon/armor loadout PICKER (tap-cyclers on each RoboRumble grid seat; the grid covers 1v1→3v3) ──
 function bbSeatLoadout(i){if(!m2.tseats||!m2.tseats[i])return {weapon:'wedge',armor:'balanced'};if(!m2.tseats[i].loadout)m2.tseats[i].loadout={weapon:'wedge',armor:'balanced'};return m2.tseats[i].loadout;} // v5.1.104: default picker seat = the DOZER blade (every bot has at least a blade; RAM-only is no longer a pickable/default)
-function bbCycleField(ld,field,dir){const list=field==='weapon'?BB_WEAPONS.filter(x=>x.id!=='none'&&(x.id!=='cannon'||cannonWeapon)&&(!bbExpWeapon(x.id)||expFeatures)):field==='perk'?BB_PERKS_PICK:BB_ARMOR,ids=list.map(x=>x.id),n=ids.length,i=ids.indexOf(ld[field]),cur=(i<0)?(dir>0?-1:0):i;ld[field]=ids[((cur+dir)%n+n)%n];sfx('click');bbLoadoutTouched(ld);} // v5.1.103: weapon cycler SKIPS RAM-ONLY; v5.1.155: 'perk' cycles the PICKABLE perks; v5.1.249 persist 1v1 loadout
+function bbCycleField(ld,field,dir){const list=field==='weapon'?BB_WEAPONS.filter(x=>x.id!=='none'&&(x.id!=='cannon'||cannonWeapon)&&(!bbExpWeapon(x.id)||expFeatures)):field==='perk'?BB_PERKS_PICK.filter(p=>!bbExpPerk(p.id)||expFeatures):BB_ARMOR,ids=list.map(x=>x.id),n=ids.length,i=ids.indexOf(ld[field]),cur=(i<0)?(dir>0?-1:0):i;ld[field]=ids[((cur+dir)%n+n)%n];sfx('click');bbLoadoutTouched(ld);} // v5.1.103: weapon cycler SKIPS RAM-ONLY; v5.1.155: 'perk' cycles the PICKABLE perks; v5.1.249 persist 1v1 loadout
 function bbStatBars(ld){const r=bbResolveLoadout(ld);return{speed:clamp((r.speedMul-0.45)/0.55,0,1),mob:clamp((r.mobMax/BB.MOB-1)/0.5,0,1),dmg:clamp((r.deal-0.6)/1.0,0,1),tough:clamp((1.4-r.take)/0.9,0,1)};} // 0..1 readout bars: SPEED / MOBILITY / DAMAGE / TOUGHNESS
 // ── v5.1.90 BB grid polish: per-seat stat bars + drag-to-copy a loadout between seats ──
 function bbSeatStatsRect(c){return{x:c.x+12,y:c.y+108,w:90,h:38};} // 4 thin SPD/MOB/DMG/TUF bars in the left column, under the preview, clear of the loadout bar (c.x+108+) and the SENS slider (c.x+120+)
@@ -4296,7 +4297,8 @@ const BB_DESC={ // v5.1.246 hover-tip blurbs (ids unique across weapon/armor/per
   pitstop:'deploy a MEDIC drone that restores ally MOBILITY (tires / wheels) — not HP',
   adrenaline:'deal MORE damage the lower your HP (berserk)',
   painkiller:'first mobility hit → a grace window of full speed, then the damage catches up',
-  laststand:'on death, a short INVULNERABLE window to take the foe with you'};
+  laststand:'on death, a short INVULNERABLE window to take the foe with you',
+  smokescreen:'EXPERIMENTAL — auto PANIC-SMOKE at low HP or when immobilized: a cloud that hides you from enemy CPUs + auto-aim (vision only, no damage block) so you can disengage'};
 function bbDescFull(kind,id){const t=kind==='weapon'?bbWeaponById(id):kind==='armor'?bbArmorById(id):bbPerkById(id);return ((t&&t.name)||id)+' — '+(BB_DESC[id]||'');}
 const BB_PERKS=[ // v5.1.112 P2: a 3rd loadout slot — PERK (id stays in ld.perk; 'none' kept ONLY as the no-effect fallback, NOT pickable since v5.1.155)
   {id:'none',       name:'NO PERK',      lab:'NONE', ic:'∅'},
@@ -4309,6 +4311,7 @@ const BB_PERKS=[ // v5.1.112 P2: a 3rd loadout slot — PERK (id stays in ld.per
   {id:'adrenaline', name:'ADRENALINE',   lab:'RAGE', ic:'💢'}, // v5.1.181 BERSERK: you deal MORE damage the lower your HP (closer to death = harder hits)
   {id:'painkiller', name:'PAINKILLER',   lab:'PAIN', ic:'💊'}, // v5.1.181 DELAY mobility damage: stay fully mobile for a grace window after the first hit, THEN the damage catches up
   {id:'laststand',  name:'LAST STAND',   lab:'STAND',ic:'💀'}, // v5.1.181 on (would-be) DEATH: a short INVULNERABLE + perfect-mobility window — one last chance to take the foe with you
+  {id:'smokescreen',name:'SMOKE SCREEN', lab:'SMOKE',ic:'🌫'}, // v6.2.0 EXPERIMENTAL: auto panic-smoke on low HP / immobilize — the cloud breaks enemy CPU lock + auto-aim (the missing ESCAPE niche; spec SPEC_2026-06-24_smoke_screen.md)
 ];
 const BB_PERKS_PICK=BB_PERKS.slice(); // v5.1.196 NO PERK is pickable again (Sam: a neutral option when you don't want perks to interfere) — 'none' kept first; CPUs still roll a real perk (bbCpuPickLoadout excludes none)
 function bbPerkById(id){return BB_PERKS.find(p=>p.id===id)||BB_PERKS[0];}
@@ -4320,9 +4323,10 @@ function bbAdrenaline(atk){ // v5.1.181 ADRENALINE: damage scales UP as the atta
 const BB_ARM_WCOL='#d9c08a', BB_ARM_ACOL='#8fbfd9', BB_ARM_PCOL='#a6d9a0'; // weapons warm, armor cool, perks green (match the seat ⚔/🛡/✦ labels)
 function bbArmoryChips(){ // laid-out chip rects for the top rail: weapon group ⚔ … armor 🛡 … perk ✦, centered (v5.1.113: + PERK group)
   const WPN=BB_ARMORY_W.filter(w=>(w.id!=='cannon'||cannonWeapon)&&(!bbExpWeapon(w.id)||expFeatures)); // v5.1.188 CANNON cheat-gated; v5.1.295 all EXPERIMENTAL weapons (MINELAYER/TASER/STUN-MINE…) hidden from the armory rail until EXPERIMENTAL FEATURES is on
-  const gap=3,LBL=18,GRP=14,cy=85,ch=26,N=WPN.length+BB_ARMORY_A.length+BB_PERKS_PICK.length;
+  const PRK=BB_PERKS_PICK.filter(p=>!bbExpPerk(p.id)||expFeatures); // v6.2.0 experimental perks hidden from the rail until the gate is on (mirrors WPN above)
+  const gap=3,LBL=18,GRP=14,cy=85,ch=26,N=WPN.length+BB_ARMORY_A.length+PRK.length;
   const cw=clamp(Math.floor((CW-10-3*LBL-2*GRP-(N-3)*gap)/N),22,44); // v5.1.181 chips SHRINK to fit the canvas as the roster grows (was fixed 44 → overflowed at 11 weapons + 9 perks)
-  const wW=LBL+WPN.length*(cw+gap)-gap, aW=LBL+BB_ARMORY_A.length*(cw+gap)-gap, pW=LBL+BB_PERKS_PICK.length*(cw+gap)-gap, total=wW+GRP+aW+GRP+pW;
+  const wW=LBL+WPN.length*(cw+gap)-gap, aW=LBL+BB_ARMORY_A.length*(cw+gap)-gap, pW=LBL+PRK.length*(cw+gap)-gap, total=wW+GRP+aW+GRP+pW;
   let x=Math.round((CW-total)/2);const out=[];
   out.push({kind:'wlabel',ic:'⚔',x:x,y:cy,w:16,h:ch});x+=LBL;
   for(const w of WPN){out.push({kind:'weapon',id:w.id,lab:w.lab,ic:w.ic,x:x,y:cy,w:cw,h:ch});x+=cw+gap;}
@@ -4331,7 +4335,7 @@ function bbArmoryChips(){ // laid-out chip rects for the top rail: weapon group 
   for(const a of BB_ARMORY_A){out.push({kind:'armor',id:a.id,lab:a.lab,ic:a.ic,x:x,y:cy,w:cw,h:ch});x+=cw+gap;}
   x+=GRP-gap;
   out.push({kind:'plabel',ic:'✦',x:x,y:cy,w:16,h:ch});x+=LBL;
-  for(const p of BB_PERKS_PICK){out.push({kind:'perk',id:p.id,lab:p.lab,ic:p.ic,x:x,y:cy,w:cw,h:ch});x+=cw+gap;}
+  for(const p of PRK){out.push({kind:'perk',id:p.id,lab:p.lab,ic:p.ic,x:x,y:cy,w:cw,h:ch});x+=cw+gap;}
   return out;
 }
 function bbArmoryHit(mx,my){for(const c of bbArmoryChips()){if((c.kind==='weapon'||c.kind==='armor'||c.kind==='perk')&&inR(mx,my,c))return c;}return null;} // which armory chip is under the point
@@ -4380,7 +4384,7 @@ function bbCpuPickLoadout(tier){ // P2.6: a CPU with no chosen loadout arms itse
   const w=ws[Math.floor(Math.random()*ws.length)];let a;
   if((tier|0)>=2)a=(w==='spinner'||w==='wedge')?'hardplate':(w==='flame')?'heatshield':'balanced';
   else{const as=['hardplate','heatshield','light','balanced'];a=as[Math.floor(Math.random()*as.length)];}
-  const pk=BB_PERKS_PICK.filter(p=>p.id!=='none').map(p=>p.id);return {weapon:w,armor:a,perk:pk[Math.floor(Math.random()*pk.length)]}; // v5.1.196: CPUs always roll a REAL perk (NO PERK is human-pickable but excluded from the CPU roll)
+  const pk=BB_PERKS_PICK.filter(p=>p.id!=='none'&&(!bbExpPerk(p.id)||expFeatures)).map(p=>p.id);return {weapon:w,armor:a,perk:pk[Math.floor(Math.random()*pk.length)]}; // v6.2.0 CPUs roll experimental perks only when the gate is ON (v5.1.292 weapon precedent; the balance sim never sets expFeatures → stays clean) // v5.1.196: CPUs always roll a REAL perk (NO PERK is human-pickable but excluded from the CPU roll)
 }
 function bbSeatLoadRects(c){const y=c.y+122;return{ // v5.1.173 three compact groups: ⚔ weapon · 🛡 armor · ✦ PERK (perk was missing from the grid)
   wL:{x:c.x+128,y:y,w:18,h:20},wR:{x:c.x+204,y:y,w:18,h:20},
@@ -4543,9 +4547,10 @@ function bbDashHeld(bind){const b=playerBind[bind];if(!b||b.type==='cpu')return 
 function bbCpuUpdate(dt){ // P1 brain: keep your FRONT to the foe (armor) while driving to its REAR to ram it
   if(!bb2)return;
   for(let p=0;p<bb2.bots.length;p++){const me=bb2.bots[p];if(me.dead)continue;const br=me.ctl.brain;if(!br)continue;
-    let foe=null,bd=1e9;for(const f of bb2.bots)if(!f.dead&&f.side!==me.side){const d=Math.hypot(f.x-me.x,f.y-me.y);if(d<bd){bd=d;foe=f;}}
-    if(bbMode()==='vip'){const v=bb2.bots.find(f=>!f.dead&&f.side!==me.side&&f.vip);if(v){foe=v;bd=Math.hypot(v.x-me.x,v.y-me.y);}} // v5.1.126 P9 VIP: CPUs HUNT the enemy VIP (ignore grunts)
-    if(bbBattleBall()&&!me.pusher){const v=bb2.bots.find(f=>!f.dead&&f.side!==me.side&&f.pusher);if(v){foe=v;bd=Math.hypot(v.x-me.x,v.y-me.y);}} // v6.1.0 BATTLE BALL: combat ESCORTS hunt the enemy ♛ pusher (nearest-foe fallback while it is down); the pusher itself keeps the ball brain below
+    let foe=null,bd=1e9;for(const f of bb2.bots)if(!f.dead&&f.side!==me.side&&!bbInEnemySmoke(f,me.side)){const d=Math.hypot(f.x-me.x,f.y-me.y);if(d<bd){bd=d;foe=f;}} // v6.2.0 SMOKE SCREEN breaks the lock: smoked foes are invisible to the scan…
+    if(!foe)for(const f of bb2.bots)if(!f.dead&&f.side!==me.side){const d=Math.hypot(f.x-me.x,f.y-me.y);if(d<bd){bd=d;foe=f;}} // …but if EVERY foe is smoked, fall back UNFILTERED so the CPU never freezes (spec-mandated)
+    if(bbMode()==='vip'){const v=bb2.bots.find(f=>!f.dead&&f.side!==me.side&&f.vip&&!bbInEnemySmoke(f,me.side));if(v){foe=v;bd=Math.hypot(v.x-me.x,v.y-me.y);}} // v5.1.126 P9 VIP: CPUs HUNT the enemy VIP (ignore grunts); v6.2.0 a SMOKED VIP drops the override
+    if(bbBattleBall()&&!me.pusher){const v=bb2.bots.find(f=>!f.dead&&f.side!==me.side&&f.pusher&&!bbInEnemySmoke(f,me.side));if(v){foe=v;bd=Math.hypot(v.x-me.x,v.y-me.y);}} // v6.1.0 BATTLE BALL: combat ESCORTS hunt the enemy ♛ pusher (nearest-foe fallback while it is down); v6.2.0 a smoked pusher escapes the hunt
     if(!foe){br.inp.vx=br.inp.vy=br.inp.vr=0;continue;}
     me._foe=foe;
     const T=tierParamsByIdx(me.ctl.tier|0,0);
@@ -4625,7 +4630,8 @@ const BB_W={
   wheelHp:40, faultK:0.22, tankPush:1.5, eggHeal:22, modDps:38, drillArc:Math.PI*0.42, drillReachK:2.15, drillRampT:1.05, drillStick:90, drillMin:305, drillMax:510, drillCharge:1.5, drillBoreDmg:18, drillBoreKnock:6, hazStrikeRK:4.2, hazStrikeDmg:150, hazStrikeCd:1.3, ehCycle:3.2, ehTele:0.9, ehActive:0.45, ehDmg:120, ehKnock:16, repairArc:Math.PI*0.55, repairReachK:11.0, repairHps:110, repairMobps:80, repairWheelps:30, repairDmg:8, repairDmgBuff:1.3, repairBuffT:1.6, repairSpinRamp:0.6, repairBuffRK:12.0, repairLifeDps:28, repairLifeHeal:40, repairRampT:1.4, repairRampMin:0.3, repairMoveMul:0.5, vampHeal:130, medicReachK:2.6, medicHp:90, medicHps:42, medicMobps:90, medicWheelps:26, medicSpd:1.05, reactDmg:120, // v5.1.166 DRILL buffed (ramp 1.7→1.4, dps 45→80 / 175→250 — it read as weak); MEDIC now has its own HP (90, destructible) + heals tires less (55→26); v5.1.161 PIT STOP medic; raw HP damage PENETRATES the front; REACTIVE reflect 120
   miniRR:0.5, miniSpd:0.92, miniKnock:5.5, miniPinT:0.35, miniHp:55, miniDps:80, megaHp:2.6, megaDmg:1.55, airCd:4.5, airR:9.0, airDmg:480, airTele:1.2, airWave:3, swordCd:3.0, swordArc:Math.PI*0.9, swordRange:1.6, swordDmg:70, swordKnock:14, swordCutT:0.85, iaiWind:0.24, iaiBlinkK:4.0, tankPortCd:0.55, tankPortSpd:400, tankPortDmg:42, tankPortLife:2.0, cannonCd:0.77, cannonMgCd:0.12, cannonSpd:512, cannonDmg:137, cannonLife:1.9, cannonRangeK:7.0, cannonKnock:11, cannonBlastR:75, // v5.1.215 cannonMgCd = full-auto reload under MACHINE GUN; v5.1.172 TANK INVASION cheat shells; v5.1.175 CANNON weapon; v5.1.189 cannonBlastR = EXPLOSIVE-round AoE radius (like the tank explosive powerup)
   mineCd:1.4, mineArm:0.7, mineTrigK:1.4, mineBlastRK:2.6, mineDmg:150, mineKnock:9, mineLife:14, mineMax:4, stunMineStun:1.1, stunMineDmg:14, stunMineRK:2.0, timeMineFuse:2.6, // v5.1.277 MINELAYER drop cooldown · arm delay · proximity trigger (×RR) · blast radius (×RR) · peak dmg · knockback · fizzle seconds · max live; v5.1.295 STUN-MINE reuses that lifecycle but its detonation STUNS (stunMineStun s) + chips (stunMineDmg) in a smaller radius (stunMineRK); v5.1.297 TIMED MINE detonates timeMineFuse s after arming (fuse-only, no proximity trip) reusing the MINELAYER damage blast
-  taserCd:2.6, taserRangeK:3.2, taserArc:Math.PI*0.42, taserStun:1.1, taserImm:0.8, taserDmg:20, taserKnock:7 // v5.1.280 TASER: zap cooldown · reach (×RR) · front cone half-spread · STUN seconds (drive+fire frozen) · post-stun immunity grace (anti perma-lock) · chip damage (pre-loadout) · knockback
+  taserCd:2.6, taserRangeK:3.2, taserArc:Math.PI*0.42, taserStun:1.1, taserImm:0.8, taserDmg:20, taserKnock:7, // v5.1.280 TASER: zap cooldown · reach (×RR) · front cone half-spread · STUN seconds
+  smokeDur:4.0, smokeRK:3.2, smokeCd:12.0, smokeHpTrip:0.30, smokeGrow:0.4, smokeFade:0.6 // v6.2.0 SMOKE SCREEN perk: cloud life (s) · radius (×RR) · per-bot re-pop cooldown (s) · HP fraction that trips the panic pop · grow-in seconds · fade-out seconds
 };
 function bbDriveFamily(bind){ // map a drive to a fault FAMILY: tank/steer pivot (turn-bias) vs swerve/holo translate (strafe drift)
   const id=(typeof p2cDriveDef!=='undefined')?p2cDriveDef(bind).id:'tank';
@@ -4703,7 +4709,7 @@ function bbFlameLOS(a,c){const obs=(typeof tfObs!=='undefined'&&tfObs)?tfObs:(ty
 function bbIsTurret(w){return w==='flame'||w==='cannon';} // v5.1.99: TURRETED weapons aim independent of the chassis (right stick / mouse for humans, foe-track for CPUs); v5.1.175 + CANNON
 function bbAimAngle(b){ // v5.1.100 turret aim — the independent aim is an ARCADE-DRIVE PERK ONLY (the one-stick drive frees a hand to aim, exactly like the tank cannon). SWERVE/HOLO already aim by rotating the chassis while strafing (no turret needed); TANK/STEER are locked forward (their tradeoff). Non-arcade → fire along the chassis (b.h).
   if(typeof p2cDriveDef==='undefined'||p2cDriveDef(b.ctl.bind).id!=='arcade')return b.h;
-  if(b.ctl.type==='cpu'){let foe=null,bd=1e9;for(const f of bb2.bots)if(!f.dead&&f.side!==b.side){const d=Math.hypot(f.x-b.x,f.y-b.y);if(d<bd){bd=d;foe=f;}}return foe?Math.atan2(foe.y-b.y,foe.x-b.x):b.h;} // an ARCADE cpu tracks the nearest foe
+  if(b.ctl.type==='cpu'){let foe=null,bd=1e9;for(const f of bb2.bots)if(!f.dead&&f.side!==b.side&&!bbInEnemySmoke(f,b.side)){const d=Math.hypot(f.x-b.x,f.y-b.y);if(d<bd){bd=d;foe=f;}}return foe?Math.atan2(foe.y-b.y,foe.x-b.x):b.h;} // an ARCADE cpu tracks the nearest foe
   const pb=playerBind[b.ctl.bind];if(!pb)return b.h;
   if(pb.type==='gp'){const ax=gpAxesAll[pb.gp];if(ax&&Math.hypot(ax.rx,ax.ry)>=0.35)return bbAimAssistTurret(b,Math.atan2(ax.ry,ax.rx));return b.h;} // ARCADE: the RIGHT STICK aims the turret (deadzoned, +aim assist); else hold forward
   if(pb.type==='any'&&Math.hypot(gpAxis.rx,gpAxis.ry)>=0.35)return bbAimAssistTurret(b,Math.atan2(gpAxis.ry,gpAxis.rx));      // v5.1.263 'any': a live pad right-stick aims; else the mouse
@@ -5433,6 +5439,21 @@ function bbShellsUpdate(dt){ // v5.1.175 move + collide ALL shells (cannon weapo
   bb2.shells=bb2.shells.filter(s=>!s.dead);
 }
 function bbMines(){if(!bb2.mines)bb2.mines=[];return bb2.mines;} // v5.1.277 MINELAYER mine list (lazy; bb2 is recreated each match, so mines reset)
+function bbSmokes(){if(!bb2.smokes)bb2.smokes=[];return bb2.smokes;} // v6.2.0 SMOKE SCREEN cloud list (lazy-created only when a cloud pops → mainline never allocates; bb2 recreated each match, so clouds reset)
+function bbSmokePop(x,y,side,owner){bbSmokes().push({x:x,y:y,side:side,owner:owner,t:BB_W.smokeDur,max:BB_W.smokeDur});sfx('thump');} // pop a cloud (trigger-agnostic: the perk auto-pops it; a future deploy-weapon variant can reuse this)
+function bbSmokeR(s){return RR*BB_W.smokeRK*clamp((s.max-s.t)/BB_W.smokeGrow,0,1);} // radius eases in over smokeGrow then holds
+function bbInEnemySmoke(b,vs){if(!bb2||!bb2.smokes||!bb2.smokes.length)return false;for(const s of bb2.smokes){if(vs!==-1&&s.side===vs)continue;if(Math.hypot(b.x-s.x,b.y-s.y)<=bbSmokeR(s))return true;}return false;} // is b hidden FROM viewer side vs? ONE-SIDED: a side is never blinded by its own smoke (viewer-relative — the owner in its own cloud IS hidden from the enemy); vs=-1 = any cloud (the shared-screen visual fade)
+function bbSmokeUpdate(dt){if(!bb2)return; // v6.2.0 SMOKE SCREEN: the perk PANIC trigger + cloud aging
+  for(const b of bb2.bots){if(b._smokeCd>0)b._smokeCd=Math.max(0,b._smokeCd-dt);
+    if(b.dead||!expFeatures||bbPerkOf(b)!=='smokescreen'||(b._smokeCd||0)>0)continue; // expFeatures checked at FIRE time → a stale saved perk id is INERT with the gate off (loadBBLoadout does no id validation)
+    if(b.hp/(b.mhp||BB.HP)<=BB_W.smokeHpTrip||b.mob<=0){b._smokeCd=BB_W.smokeCd;bbSmokePop(b.x,b.y,b.side,b);if(b.ctl)p2Rumble(b.ctl.bind,0.4,'thump');}} // auto panic-smoke on low HP or immobilized; re-pops each smokeCd while the panic holds
+  if(bb2.smokes&&bb2.smokes.length){for(const s of bb2.smokes)s.t-=dt;bb2.smokes=bb2.smokes.filter(s=>s.t>0);}}
+function bbDrawSmoke(){if(!bb2||!bb2.smokes||!bb2.smokes.length)return; // v6.2.0 SMOKE SCREEN clouds — drawn OVER the bots (concealment reads instantly); deterministic puff drift clocked by bb2.t (NO Math.random in the sim path)
+  const T=(bb2.t||0);ctx.save();
+  for(const s of bb2.smokes){const R=bbSmokeR(s);if(R<=0)continue;const al=0.55*clamp(s.t/BB_W.smokeFade,0,1);
+    for(let i=0;i<5;i++){const a=T*0.4+i*2.1,pr=R*(0.34+0.13*i),px=FX+s.x+Math.cos(a)*R*0.32,py=FY+s.y+Math.sin(a*1.3)*R*0.28;
+      ctx.globalAlpha=al*(1-i*0.12);ctx.fillStyle=(i&1)?'#8a93a3':'#6f7787';ctx.beginPath();ctx.arc(px,py,pr,0,Math.PI*2);ctx.fill();}}
+  ctx.restore();}
 function bbMineDetonate(mn){
   if(mn.stun){const R=RR*BB_W.stunMineRK;if(!bb2.blasts)bb2.blasts=[];bb2.blasts.push({x:mn.x,y:mn.y,t:0.35,r:R});sfx('shoot'); // v5.1.295 STUN-MINE: a small electric burst that STUNS (drive+fire frozen) + chips, instead of the big damage blast
     for(const c of bb2.bots){if(c.dead||(c.side===mn.side&&!friendlyFire))continue;const d=Math.hypot(c.x-mn.x,c.y-mn.y);if(d<=R+RR){if((c._stunImm||0)<=0)c._stunBB=BB_W.stunMineStun;bbApplyHit(c,bbHitLoc(c,mn.x,mn.y),BB_W.stunMineDmg,mn.owner,mn.x,mn.y,0.5);c.spin=Math.max(0,(c.spin||0)-0.5);if(c.ctl)p2Rumble(c.ctl.bind,0.8,'heavy');if(c.hp<=0&&!c.dead)bbKill(c,mn.owner);}}
@@ -5517,7 +5538,7 @@ function updateBB(dt){
       b._inp=inp; // slow as mobility drops; turnMul = the loadout's weight turn penalty
       b.h+=inp.vr*dt;b.x+=inp.vx*dt;b.y+=inp.vy*dt;
       if(aimAssist&&b.ctl.type!=='cpu'&&b._flT<=0){ // v5.1.174 AIM ASSIST: a smidge of heading magnetism toward the nearest enemy you're roughly facing — lines up ANY front-arc weapon
-        let foe=null,bd=1e9;for(const f of bb2.bots){if(f.dead||f.side===b.side)continue;const d=Math.hypot(f.x-b.x,f.y-b.y);if(d<bd){bd=d;foe=f;}}
+        let foe=null,bd=1e9;for(const f of bb2.bots){if(f.dead||f.side===b.side)continue;if(bb2.smokes&&bb2.smokes.length&&bbInEnemySmoke(f,b.side))continue;const d=Math.hypot(f.x-b.x,f.y-b.y);if(d<bd){bd=d;foe=f;}} // v6.2.0 SMOKE SCREEN: no heading magnetism onto a smoked foe (guarded by cloud-list emptiness)
         if(foe&&bd<RR*AIM_ASSIST_RANGE_K){let dh=Math.atan2(foe.y-b.y,foe.x-b.x)-b.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;if(Math.abs(dh)<AIM_ASSIST_CONE)b.h+=dh*AIM_ASSIST_PULL*dt;}}
       const _boring=(b.ld&&b.ld.weapon==='drill'&&b.firing&&(b.boostT||0)>0); // v5.1.210 a BORING drill (drill ON + dash) phases THROUGH walls/obstacles
       if(!noClip&&!_boring){const px=b.x,py=b.y;obsCheck(b,RR);wallHit=(Math.abs(b.x-px)>0.5||Math.abs(b.y-py)>0.5);}
@@ -5587,6 +5608,7 @@ function updateBB(dt){
   bbMinesUpdate(dt); // v5.1.277 MINELAYER: arm / proximity-trigger / detonate dropped mines
   bbPartingsUpdate(dt); // v5.1.287 PARTING GIFT: burn the delayed fuse → detonate the big blast
   bbGiveUpUpdate(dt); // v5.1.288 GIVE-UP: a disabled human can hold to concede (inf-life modes)
+  bbSmokeUpdate(dt); // v6.2.0 SMOKE SCREEN: perk panic trigger + cloud aging (no-ops in mainline — clouds only pop with EXPERIMENTAL FEATURES on)
   bbAirstrikeUpdate(dt); // v5.1.119 P7: AIRSTRIKE arena bombs (cheat)
   if(bb2.hazCd>0)bb2.hazCd=Math.max(0,bb2.hazCd-dt); // v5.1.148 HAZARD MASTER strike cooldown
   // STALEMATE COUNT-OUT: only when NOTHING is happening — an immobilized bot taps out ONLY if its side has no mobile
@@ -5827,7 +5849,7 @@ function drawBB(){
   bbDrawMines(); // v5.1.277 land mines on the floor (under the bots)
   bbDrawPartings(); // v5.1.287 PARTING GIFT armed charges + their growing danger ring
   for(let p=0;p<bb2.bots.length;p++){const b=bb2.bots[p];if(b.dead)continue;
-    const blink=b.inv>0&&Math.floor(b.inv*12)%2===0;ctx.globalAlpha=blink?0.45:1;
+    const blink=b.inv>0&&Math.floor(b.inv*12)%2===0;let _al=blink?0.45:1;if(bb2.smokes&&bb2.smokes.length&&bbInEnemySmoke(b,-1))_al=Math.min(_al,0.3);ctx.globalAlpha=_al; // v6.2.0 a smoked bot FADES (shared screen — everyone sees the fog; the -1 sentinel = any cloud)
     _noScoop=true;_bbLivery=bbNameEgg(b);_bbPaint=_bbLivery?null:bbPaintFor(b.ld);withBot(b.ctl.bind,b,()=>{drawRobot();});_bbLivery=null;_bbPaint=null;_noScoop=false; // RoboRumble: a weapon replaces the ball plow; v5.1.221 name-egg LIVERY / v5.1.232 custom PAINT (body) + v5.1.248 ACCENT repaint the chassis + wheels
     ctx.save();ctx.translate(FX+b.x,FY+b.y);
     p2AllianceRing(p,b.col);
@@ -5890,6 +5912,7 @@ function drawBB(){
     ctx.strokeStyle=b.col;ctx.lineWidth=4;ctx.lineCap='round';ctx.beginPath();ctx.arc(px,py,RR+8,-Math.PI/2,-Math.PI/2+frac*Math.PI*2);ctx.stroke();ctx.lineCap='butt';
     ctx.fillStyle='#e6ecff';ctx.font='bold 17px Courier New';ctx.textAlign='center';ctx.fillText(secs+'',px,py+6);
     ctx.font='bold 8px Courier New';ctx.fillStyle='#9aa2c4';ctx.fillText('RESPAWN',px,py-RR-3);ctx.restore();}
+  bbDrawSmoke(); // v6.2.0 SMOKE SCREEN clouds — over the bots (concealment reads instantly), under the hazard strikes
   bbDrawEdgeHaz(); // v5.1.294 EXPERIMENTAL arena-edge hazards — drawn OVER the bots so a slam/saw reads as striking them
   // v5.1.117 P4: harasser minibots — small chassis, side-colored ring + heading wedge
   for(const m of (bb2.minis||[])){if(m.dead)continue;const mrr=bbMiniRR();
@@ -10538,6 +10561,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v6.2.0 (2026-07-03): SMOKE SCREEN perk (overnight; EXPERIMENTAL-gated; spec SPEC_2026-06-24_smoke_screen.md). The missing DISENGAGE perk for RoboRumble: a 10th BB_PERKS entry (SMOKE SCREEN, id smokescreen) that AUTO panic-pops a smoke cloud when its owner drops to <=30% HP (smokeHpTrip) OR is immobilized (mob 0), on a 12s per-bot re-pop cooldown (smokeCd) - no input added (RT/LT are taken). The cloud (bb2.smokes, a lazy list mirroring the bb2.mines lifecycle) is VISION/TARGETING ONLY - it never blocks movement, ramming, or damage - and it is ONE-SIDED via bbInEnemySmoke(b,vs) (viewer-relative: a side is never blinded by its OWN smoke; vs=-1 = any cloud, used for the shared-screen visual fade). While a cloud stands it breaks EVERY enemy auto-acquire path onto a bot inside it: the bbCpuUpdate nearest-foe scan (with a MANDATORY unfiltered fallback re-scan so a CPU whose every foe is smoked never freezes), the VIP-hunt and BATTLE-BALL pusher-hunt overrides, the ARCADE-CPU turret track (bbAimAngle), the human turret aim-assist snap (bbAimAssistTurret), and the chassis heading-magnetism - each guarded by bb2.smokes emptiness so mainline (no-cloud) play is byte-identical and per-frame cost is unchanged. Render: bbDrawSmoke() draws 5 deterministic drifting gray puffs per cloud (clocked by bb2.t, NO Math.random in the sim path), grow-in over smokeGrow then hold, alpha fades over the last smokeFade, drawn OVER the bots and UNDER the hazard strikes; a concealed bot also fades to alpha 0.3. Gating (mirrors the v5.1.290/292 experimental-weapon model): bbExpPerk(id) hides it from the perk cycler (bbCycleField), the armory rail (bbArmoryChips), and the CPU roll (bbCpuPickLoadout) until EXPERIMENTAL FEATURES is on - and the auto-trigger itself checks expFeatures at FIRE time, so a stale saved ld.perk=smokescreen is INERT with the gate off (loadBBLoadout does no id validation) and the balance sim (never sets expFeatures) stays clean. Tunables in BB_W: smokeDur 4.0 / smokeRK 3.2 / smokeCd 12.0 / smokeHpTrip 0.30 / smokeGrow 0.4 / smokeFade 0.6. smoke57 +24 -> 655 (registration/gating both ways, cycler/rail/CPU-roll exclusion + inclusion, one-sided concealment, lock-break + re-acquire + all-foes-smoked fallback, auto-trigger on HP and on immobilize + cooldown hold, gate-off inert, bbDrawSmoke+drawBB no-throw incl. the concealed-bot alpha branch). Full battery ALL GREEN; balance unchanged.
   v6.1.0 (2026-07-03): BATTLE BALL cheat mode (overnight; the first MINOR of the new versioning scheme; spec SPEC_2026-06-25_mode_taxonomy.md section 2). Sam's ESCORT format - RoboRumble PUSH-BALL becomes "protect your pusher": with the new BATTLE BALL cheat toggle ON, the first bot of each side is that side's PUSHER (a gold-crown ♛ VIP) - its weapon is STRIPPED to ram-only (armor + perk kept from the seat pick, mobility/HP re-baselined) so it is a pure ball-scorer, and the other seats are its combat ESCORTS with full loadouts. Win layering per the spec rec (b/c): goals still win via GOALS TO WIN, but while a side's pusher is DOWN (respawning) its goals are VOID - the ball resets with a flashing "PUSHER DOWN - GOAL VOID" banner and no score (offense halts until the 7s objective respawn brings it back); a pusher dead FOR GOOD (finite-lives config) loses the match outright (VIP-elimination clause in bbCheckResult; with the default infinite pushball lives that clause never fires). CPU dispatch: combat-escort CPUs HUNT the enemy pusher (nearest-foe fallback while it is down - the v5.1.126 VIP-hunt pattern), the pusher CPU keeps the get-behind-the-ball pushball brain, and the v5.1.227 fire-at-the-ball behavior is suspended (the pusher has no weapon; escorts fire at their foe). New: battleBall flag + cheat row (anyCheat/cheatsAllOff wired), bbBattleBall() helper, pusher assign + loadout strip in startP2BB, goal-void + pbVoidT banner, crown render on pushers, mode-intro variant. Portrait cheat menu row pitch 20->19 to reabsorb the new row (the v5.1.279 move). smoke57 +15 -> 631 (toggle/gating, pusher assign + strip, goal-void/restore, outright-loss, escort-vs-pusher CPU targeting, fire-at-ball suspension, drawBB no-throw with crowns+banner, cheat-OFF mainline unchanged). Full battery ALL GREEN.
   v6.0.0 (2026-07-03): VERSION EPOCH BUMP - identical game to v5.1.297, renumbered (zero code changes). Sam: "there's been so many major changes I think we should've been past version 5". The mainline sat on 5.1.x for ~250 ships (v5.1.49->297 gained: ROBORUMBLE + the full 15-weapon roster + perks + eggs, CAREER/STORY mode, the MAP EDITOR + share codes, tournaments, FFA + kill-race scoring, CREDITS, the cheat suite, EXPERIMENTAL FEATURES) because (a) the ritual only ever bumped the patch digit and (b) v5.2 was informally reserved by the ONLINE sandbox (drive_showdown_v5.2.0.html on claude/online-net-5wehy1). ONLINE MULTIPLAYER is now formally TABLED (Sam, 2026-07-03) - the sandbox branch stays frozen as history; if online is ever resumed it adopts whatever version is then current (no more reserved numbers). Versioning scheme going forward: MAJOR = a new era (online, an engine rework), MINOR = each feature pass / new mode (e.g. Battle Ball -> 6.1, Balloon Battle -> 6.2), PATCH = per-ship increments within a pass. Full battery ALL GREEN (byte-identical script).
   v5.1.297 (2026-06-24): EXPERIMENTAL TIMED MINE weapon - a fuse-detonated charge (overnight; gated). A documented MINELAYER follow-up: where the MINELAYER waits indefinitely for an ENEMY to trip it and the STUN-MINE trips + stuns, the TIMED MINE detonates on a FUSE (timeMineFuse 2.6s after arming, NO proximity trip) - so it ZONES a spot on a clock: drop it to deny ground / bait a foe over it, then it self-clears. Reuses the whole mine lifecycle (drop-behind, arm delay, max-live cap, owner/ally-safe) + the MINELAYER damage blast (mineDmg/mineBlastRK/mineKnock). The floor casing + the bot's rear hazard stripe are ORANGE (vs MINELAYER red, STUN-MINE blue) and the status light BLINKS FASTER (amber->red) as the fuse nears 0 - a visible countdown. Joins bbExpWeapon so the cycler/armory/CPU-roll/balance gate it behind EXPERIMENTAL FEATURES automatically; CPU lays it while a foe is near. smoke57 +6 -> 616 (incl. a bbDrawMines no-throw on the new accelerating-blink branch). Full battery ALL GREEN.
