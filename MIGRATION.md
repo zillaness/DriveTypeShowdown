@@ -5,7 +5,17 @@ Self-contained context for continuing this project in a fresh thread.
 
 ---
 
-## ⏩ CURRENT STATE — 2026-07-03, **v6.0.0** (READ THIS FIRST — supersedes every block below; newest narrative is `HANDOFF_2026-06-25.md`)
+## ⏩ CURRENT STATE — 2026-07-03, **v6.5.0** (READ THIS FIRST — supersedes every block below; newest narrative is `HANDOFF_2026-06-25.md`)
+
+**2026-07-03 OVERNIGHT HAUL (v6.0.0 → v6.5.0) — the epoch bump + all 5 spec'd features, each a MINOR, all EXPERIMENTAL-gated, all green on `dev`:**
+- **v6.0.0 — VERSION EPOCH BUMP** (= v5.1.297 renumbered; online TABLED; new MAJOR·MINOR·PATCH scheme — details below).
+- **v6.1.0 — BATTLE BALL** (cheat toggle; spec `SPEC_2026-06-25_mode_taxonomy.md` §2): RoboRumble PUSH-BALL → ESCORT format. First bot/side = a ♛ PUSHER (ram-only VIP), others = combat escorts. Pusher down → goals VOID until respawn; pusher gone for good → lose. Helper `bbBattleBall()`; smoke57 +15.
+- **v6.2.0 — SMOKE SCREEN perk** (`SPEC_2026-06-24_smoke_screen.md`): auto panic-smoke at ≤30% HP / immobilize; a one-sided cloud (`bb2.smokes`, `bbInEnemySmoke`) that breaks enemy CPU lock + all auto-aim (with a mandatory unfiltered fallback so CPUs never freeze); vision-only. `bbExpPerk` gate; smoke57 +24 → 655.
+- **v6.3.0 — BALL-MERGE** (`SPEC_2026-06-25_mode_taxonomy.md` §1): NORMAL+SHOOTER → one gated **BALL** tile + a **BALL TYPE** row, via an **alias** (`m2.mode` stays `normal`/`shooter`; funnel `b2Shooter()`/`p2BallMode()`; tile list `m2Modes()`). No config migration needed (audited). NEW `smoke61.js` (23).
+- **v6.4.0 — KIDS MODE** (`SPEC_2026-06-25_mode_taxonomy.md` §3): a self-contained no-fail `kids` phase — big bot pushes one big ball into one big goal, confetti, endless. Splash bottom row goes 3-up (KIDS·SETTINGS·CREDITS) when gated on. NEW `smoke62.js` (13).
+- **v6.5.0 — BALLOON BATTLE** (`SPEC_2026-06-24_balloon_battle.md`): a new MAIN mode SHARING the `bb2` engine (`m2.mode==='balloon'` via `bbEngineMode()`). 3 rear balloons + front spikes; pop a foe's rear balloons with your front spikes at force (`p2ImpactMag`); 0 balloons = out, last standing wins. Weapons/armor/HP replaced by `bbBalloonContact`. `m2ModeName()` added so gated modes don't crash the label sites. NEW `smoke63.js` (17).
+
+**Gate model:** everything above is behind the **EXPERIMENTAL FEATURES** cheat (`expFeatures`) EXCEPT Battle Ball (its own **BATTLE BALL** cheat toggle). Gate OFF ⟹ mainline byte-identical (every existing suite passes unchanged; balance sim never sets `expFeatures`). **Common PROMOTE step for all 5** (needs a live pass with Sam): flip each from gated → always-visible/mainline, per each spec's status banner. Tests: smoke57=655, smoke61=23, smoke62=13, smoke63=17; full battery **ALL GREEN**.
 
 **2026-07-03 — VERSION EPOCH BUMP → v6.0.0** (Sam: "so many major changes, we should've been past version 5"): `drive_showdown_v6.0.0.html` = **v5.1.297 renumbered, zero code changes** (battery ALL GREEN, byte-identical script). Why 5.1.x ran to ~250 ships: the ritual only bumped the patch digit, and v5.2 was informally reserved by the online sandbox. **ONLINE MULTIPLAYER is formally TABLED (Sam, 2026-07-03)** — the `claude/online-net-5wehy1` sandbox (with its `drive_showdown_v5.2.0.html`) stays frozen as history; its v5.2 reservation is retired; if online ever resumes it adopts whatever version is then current. **Versioning going forward: MAJOR = a new era (online, engine rework) · MINOR = each feature pass / new mode (Battle Ball→6.1, Balloon Battle→6.2, …) · PATCH = per-ship within a pass.**
 
