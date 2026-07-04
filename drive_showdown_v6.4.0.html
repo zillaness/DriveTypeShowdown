@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  file: drive_showdown_v6.3.0.html
-  version: 6.3.0
+  file: drive_showdown_v6.4.0.html
+  version: 6.4.0
   author: Sam Cao
   created: 2026-06-11
   last_updated: 2026-07-03
@@ -468,6 +468,7 @@ C.addEventListener('touchstart',e=>{
       continue;
     }
     if(phase==='settings'){const _si=settingsSliderHit(p);if(_si>=0){settingsSliderDrag={i:_si,touchId:t.identifier};settingsSetSlider(_si,p.x);}else handleSettingsClick(p.x,p.y);continue;} // v5.1.272 touch-drag the TURN RATE slider
+  if(phase==='kids'){if(inR(p.x,p.y,kidsBackRect())){sfx('click');applyLayout('legacy');phase='splash';continue;}const j=joys.L;if(!j.active){j.active=true;j.id=t.identifier;j.bx=p.x;j.by=p.y;j.dx=0;j.dy=0;}continue;} // v6.4.0 KIDS: tap the back arrow → splash, else touch-drag anywhere drives (the left virtual joystick)
   if(phase==='splash'||phase==='credits'||phase==='holoMenu'||phase==='steerMenu'||phase==='highscores'||phase==='ghosts'||phase==='achievements'){click(p.x,p.y);continue;}
     if(phase&&phase.indexOf('p2')===0){
       if(phase==='p2claim'){
@@ -711,6 +712,7 @@ window.addEventListener('keydown',e=>{
     e.preventDefault();return;
   }
   if(phase==='credits'){if(e.key==='Escape'){phase='splash';sfx('click');}e.preventDefault();return;} // v5.1.264 ESC out of credits → splash
+  if(phase==='kids'){if(e.key==='Escape'){applyLayout('legacy');phase='splash';sfx('click');}e.preventDefault();return;} // v6.4.0 ESC out of KIDS → splash (keys drive; no other key handling)
   if(phase==='layoutPreview'){
     if(e.key==='Escape'){applyLayout('legacy');phase='menu';}
     else if(e.key==='l'||e.key==='L'){applyLayout(LAYOUT_ORDER[(LAYOUT_ORDER.indexOf(curLayout)+1)%LAYOUT_ORDER.length]);}
@@ -1002,8 +1004,10 @@ function click(mx,my){
     if(inR(mx,my,R.mp)){sfx('click');p2Enter();return;}                                // MULTIPLAYER → landscape head-to-head
     if(inR(mx,my,R.set)){sfx('click');settingsReturn='splash';settingsGpIdx=0;phase='settings';return;}
     if(inR(mx,my,R.credits)){sfx('click');phase='credits';return;}                       // v5.1.264 CREDITS
+    if(R.kids&&inR(mx,my,R.kids)){kidsEnter();return;}                                   // v6.4.0 KIDS (EXPERIMENTAL)
     return;
   }
+  if(phase==='kids'){ if(inR(mx,my,kidsBackRect())){sfx('click');applyLayout('legacy');phase='splash';} return; } // v6.4.0 back arrow → splash
   if(phase==='credits'){ // v5.1.264 CREDITS screen — back + the Projects and Mods links
     if(inR(mx,my,drawCredits._back||{x:14,y:14,w:80,h:30})){sfx('click');phase='splash';return;}
     for(const lk of (drawCredits._links||[]))if(inR(mx,my,{x:lk.hx,y:lk.hy,w:lk.hw,h:lk.hh})){window.open(lk.url,'_blank');return;}
@@ -1587,11 +1591,12 @@ function updateGamepad(){
   if(phase==='splash'){ // v5.1.229 full gamepad nav: stick/D-pad moves a visible cursor over SP / MP / SETTINGS, A selects (was A=MP / Y=SP shortcuts only — no way to reach SETTINGS or pick by cursor)
     const now=performance.now(),rep=now-gpNavLast>180;
     const D=just(13)||(gpAxis.ly>0.55&&rep)||just(15)||(gpAxis.lx>0.55&&rep),U=just(12)||(gpAxis.ly<-0.55&&rep)||just(14)||(gpAxis.lx<-0.55&&rep);
-    if(D){splashGpIdx=Math.min(4,splashGpIdx+1);gpNavLast=now;sfx('click');}
+    if(D){splashGpIdx=Math.min(expFeatures?5:4,splashGpIdx+1);gpNavLast=now;sfx('click');}
     if(U){splashGpIdx=Math.max(0,splashGpIdx-1);gpNavLast=now;sfx('click');}
-    if(just(0)){sfx('click');if(splashGpIdx===0)careerEnter();else if(splashGpIdx===2)p2Enter();else if(splashGpIdx===3){settingsReturn='splash';settingsGpIdx=0;phase='settings';}else if(splashGpIdx===4){phase='credits';}else{applyLayout('legacy');phase='menu';}} // A = open the focused card (0=CAREER 1=SINGLE 2=MULTI 3=SETTINGS 4=CREDITS)
+    if(just(0)){sfx('click');if(splashGpIdx===0)careerEnter();else if(splashGpIdx===2)p2Enter();else if(splashGpIdx===3){settingsReturn='splash';settingsGpIdx=0;phase='settings';}else if(splashGpIdx===4){phase='credits';}else if(splashGpIdx===5)kidsEnter();else{applyLayout('legacy');phase='menu';}} // A = open the focused card (0=CAREER 1=SINGLE 2=MULTI 3=SETTINGS 4=CREDITS 5=KIDS when EXPERIMENTAL)
     else if(just(3)){sfx('click');applyLayout('legacy');phase='menu';} // Y = quick Single Player
   }
+  if(phase==='kids'){if(just(1)){sfx('click');applyLayout('legacy');phase='splash';}} // v6.4.0 KIDS: B = back to splash (driving reads gpAxis.lx/ly directly in kidsUpdate)
   // Menu navigation — 2D grid: up/down move rows, left/right move columns
   if(phase==='menu'&&!gpShowMap){
     const items=gpMenuItems();
@@ -1635,6 +1640,7 @@ function update(dt){
   if(konamiActive)return; // cheat menu open: freeze gameplay underneath; closing resumes right where you were
   if(paused){if(!canPause())paused=false;else return;} // pause menu: freeze gameplay (auto-clear if we left the match)
   frameN++;
+  if(phase==='kids'){kidsUpdate(dt);return;} // v6.4.0 KIDS MODE (EXPERIMENTAL)
   if(phase&&phase.indexOf('p2')===0){
     if(phase==='p2claim'){if(tankGridMode())tankGridGpPoll();else p2ClaimGp();}
     else if(phase==='p2race'){p2SensAdjust(dt);updateP2Race(dt);}
@@ -8291,6 +8297,7 @@ function drawInner(){
   if(phase==='settings'){drawSettings();return;}
   if(phase==='cpuSettings'){drawCpuSettings();return;}
   if(phase==='splash'){drawSplash();return;}
+  if(phase==='kids'){drawKids();return;} // v6.4.0 KIDS MODE (EXPERIMENTAL)
   if(phase==='credits'){drawCredits();return;}
   if(phase==='menu'){drawMenu();if(gpShowMap)drawControllerMap();return;}
   if(phase==='results'){drawResults();return;}
@@ -9599,13 +9606,66 @@ function drawCpuSettings(){
 
 // ── v5.1.92 SPLASH front door: pick SINGLE PLAYER (portrait/phone) or MULTIPLAYER (landscape/desktop) ──
 // Rendered on the legacy (portrait) layout — the central hub that both paths return to.
-function splashRects(){const hw=(CW-60-12)/2;return{   // v5.1.261 three matching cards (Sam: same style/size, START aligned, similar 2-line descriptions); CAREER leads by color + position
+// ═══ KIDS MODE (v6.4.0, EXPERIMENTAL-gated; spec SPEC_2026-06-25_mode_taxonomy.md §3) ═══
+// A severely cut-down, NO-FAIL, colorful mode for young kids: drive a big friendly bot,
+// push ONE big ball into ONE big goal, confetti on every score, endless — no timer, no
+// lives, no records, minimal text. Self-contained (its own phase 'kids'); reuses only the
+// universal input primitives (keys / gpAxis / the touch joystick joys.L). Gated behind
+// EXPERIMENTAL FEATURES for now (byte-identical splash when off); promote to a prominent
+// always-visible splash tile once Sam approves.
+const KIDS_BOT_R=26,KIDS_BALL_R=30,KIDS_SPD=155,KIDS_GOALW=140; // big bot · big ball · gentle speed · wide goal
+let kidsState=null;
+function kidsField(){return {x:14,y:150,w:CW-28,h:CH-330};} // recomputed from CW/CH so a resize stays consistent
+function kidsBackRect(){return {x:12,y:12,w:60,h:34};}
+function kidsEnter(){applyLayout('legacy');const F=kidsField();kidsState={bot:{x:CW/2,y:F.y+F.h-60,h:-Math.PI/2},ball:{x:CW/2,y:F.y+F.h*0.5,vx:0,vy:0},score:0,conf:[],flash:0};phase='kids';sfx('click');}
+function kidsBurst(x,y){const ks=kidsState;if(!ks)return;const cols=['#ff5a8a','#ffd740','#44e0ff','#7cff6b','#ff8c42','#c77dff'];for(let i=0;i<26;i++){const a=Math.random()*Math.PI*2,sp=60+Math.random()*220;ks.conf.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-120,t:0.9+Math.random()*0.7,rot:Math.random()*6,vr:(Math.random()-0.5)*12,c:cols[i%cols.length],s:3+Math.random()*4});}} // cosmetic only (kids mode is not in the balance sim) → Math.random is fine here
+function kidsUpdate(dt){const ks=kidsState;if(!ks)return;const F=kidsField();
+  let ix=0,iy=0; // universal drive input: arrows/WASD + gamepad left stick + touch joystick
+  if(keys['ArrowLeft']||keys['a']||keys['A'])ix-=1; if(keys['ArrowRight']||keys['d']||keys['D'])ix+=1;
+  if(keys['ArrowUp']||keys['w']||keys['W'])iy-=1; if(keys['ArrowDown']||keys['s']||keys['S'])iy+=1;
+  ix+=gpAxis.lx; iy+=gpAxis.ly; if(joys.L.active){ix+=joys.L.dx/JR; iy+=joys.L.dy/JR;}
+  const im=Math.hypot(ix,iy); if(im>1){ix/=im;iy/=im;}
+  ks.bot.x+=ix*KIDS_SPD*dt; ks.bot.y+=iy*KIDS_SPD*dt; if(im>0.1)ks.bot.h=Math.atan2(iy,ix);
+  ks.bot.x=clamp(ks.bot.x,F.x+KIDS_BOT_R,F.x+F.w-KIDS_BOT_R); ks.bot.y=clamp(ks.bot.y,F.y+KIDS_BOT_R,F.y+F.h-KIDS_BOT_R);
+  const b=ks.ball; b.x+=b.vx*dt; b.y+=b.vy*dt; b.vx*=0.96; b.vy*=0.96;
+  const dx=b.x-ks.bot.x,dy=b.y-ks.bot.y,d=Math.hypot(dx,dy)||1,minD=KIDS_BOT_R+KIDS_BALL_R; // gentle body-push
+  if(d<minD){const nx=dx/d,ny=dy/d;b.x=ks.bot.x+nx*minD;b.y=ks.bot.y+ny*minD;b.vx+=nx*KIDS_SPD*1.7;b.vy+=ny*KIDS_SPD*1.7;}
+  if(b.x<F.x+KIDS_BALL_R){b.x=F.x+KIDS_BALL_R;b.vx=Math.abs(b.vx)*0.5;} else if(b.x>F.x+F.w-KIDS_BALL_R){b.x=F.x+F.w-KIDS_BALL_R;b.vx=-Math.abs(b.vx)*0.5;}
+  if(b.y>F.y+F.h-KIDS_BALL_R){b.y=F.y+F.h-KIDS_BALL_R;b.vy=-Math.abs(b.vy)*0.5;}
+  const gx0=CW/2-KIDS_GOALW/2,gx1=CW/2+KIDS_GOALW/2;
+  if(b.y<F.y+KIDS_BALL_R){ if(b.x>gx0&&b.x<gx1){ks.score++;ks.flash=1.0;sfx('win');kidsBurst(b.x,F.y);b.x=CW/2;b.y=F.y+F.h*0.5;b.vx=0;b.vy=0;} else {b.y=F.y+KIDS_BALL_R;b.vy=Math.abs(b.vy)*0.5;} } // GOAL → confetti + reset; else bounce off the top wall
+  for(const c of ks.conf){c.x+=c.vx*dt;c.y+=c.vy*dt;c.vy+=380*dt;c.t-=dt;c.rot+=c.vr*dt;} ks.conf=ks.conf.filter(c=>c.t>0);
+  if(ks.flash>0)ks.flash-=dt*1.6;
+}
+function drawKidsBot(bt){ctx.save();ctx.translate(bt.x,bt.y);
+  ctx.save();ctx.rotate(bt.h);ctx.fillStyle='#ffd740';ctx.beginPath();ctx.moveTo(KIDS_BOT_R+2,0);ctx.lineTo(KIDS_BOT_R+12,-7);ctx.lineTo(KIDS_BOT_R+12,7);ctx.closePath();ctx.fill();ctx.restore(); // heading nub
+  ctx.beginPath();ctx.arc(0,0,KIDS_BOT_R,0,Math.PI*2);ctx.fillStyle='#ff5a8a';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-8,-4,6,0,Math.PI*2);ctx.arc(8,-4,6,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#222';ctx.beginPath();ctx.arc(-8,-4,3,0,Math.PI*2);ctx.arc(8,-4,3,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#222';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,4,8,0.15*Math.PI,0.85*Math.PI);ctx.stroke();
+  ctx.restore();}
+function drawKids(){const F=kidsField();const ks=kidsState||{score:0,conf:[],bot:{x:CW/2,y:F.y+F.h-60,h:-Math.PI/2},ball:{x:CW/2,y:F.y+F.h*0.5},flash:0};
+  ctx.fillStyle='#1b1440';ctx.fillRect(0,0,CW,CH); for(let y=0;y<CH;y+=3){ctx.fillStyle='rgba(0,0,0,0.10)';ctx.fillRect(0,y,CW,1);}
+  ctx.textAlign='center';ctx.font='bold 22px Courier New';ctx.fillStyle='#ffd740';ctx.fillText('KIDS MODE',CW/2,44);
+  ctx.font='bold 30px Courier New';ctx.fillStyle='#fff';ctx.fillText('⭐ '+ks.score,CW/2,88);
+  ctx.fillStyle='#241a5c';rr(F.x,F.y,F.w,F.h,18);ctx.fill();ctx.strokeStyle='#5a4bd6';ctx.lineWidth=4;rr(F.x,F.y,F.w,F.h,18);ctx.stroke();
+  const gx0=CW/2-KIDS_GOALW/2;ctx.fillStyle=(ks.flash>0&&(Math.floor(ks.flash*12)&1))?'#fff':'#48ff9e';ctx.fillRect(gx0,F.y-5,KIDS_GOALW,11);
+  ctx.font='bold 11px Courier New';ctx.fillStyle='#48ff9e';ctx.fillText('★ GOAL ★',CW/2,F.y-11);
+  const b=ks.ball;ctx.beginPath();ctx.arc(b.x,b.y,KIDS_BALL_R,0,Math.PI*2);ctx.fillStyle='#ffffff';ctx.fill();ctx.strokeStyle='#333';ctx.lineWidth=3;ctx.stroke();
+  ctx.fillStyle='#333';ctx.beginPath();ctx.arc(b.x-9,b.y-6,3.5,0,Math.PI*2);ctx.arc(b.x+9,b.y-6,3.5,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#333';ctx.lineWidth=2;ctx.beginPath();ctx.arc(b.x,b.y+2,10,0.15*Math.PI,0.85*Math.PI);ctx.stroke(); // smiley ball
+  drawKidsBot(ks.bot);
+  for(const c of ks.conf){ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.rot);ctx.globalAlpha=clamp(c.t,0,1);ctx.fillStyle=c.c;ctx.fillRect(-c.s/2,-c.s/2,c.s,c.s);ctx.restore();} ctx.globalAlpha=1;
+  ctx.font='bold 13px Courier New';ctx.fillStyle='#bca8ff';ctx.textAlign='center';ctx.fillText('DRIVE! PUSH THE BALL IN THE GOAL!',CW/2,F.y+F.h+34);
+  const bk=kidsBackRect();ctx.fillStyle='rgba(255,255,255,0.14)';rr(bk.x,bk.y,bk.w,bk.h,10);ctx.fill();ctx.strokeStyle='#ffd740';ctx.lineWidth=2;rr(bk.x,bk.y,bk.w,bk.h,10);ctx.stroke();ctx.fillStyle='#ffd740';ctx.font='bold 20px Courier New';ctx.textAlign='center';ctx.fillText('←',bk.x+bk.w/2,bk.y+bk.h/2+7);
+}
+function splashRects(){const hw=(CW-60-12)/2;const tw=(CW-60-24)/3;const R={   // v5.1.261 three matching cards (Sam: same style/size, START aligned, similar 2-line descriptions); CAREER leads by color + position
   career:{x:30,y:172,w:CW-60,h:112}, // CAREER / STORY MODE — first, gold
   sp :{x:30,y:298,w:CW-60,h:112},    // SINGLE PLAYER
   mp :{x:30,y:424,w:CW-60,h:112},    // MULTIPLAYER
-  set:{x:30,y:550,w:hw,h:40},        // global SETTINGS (left half)
-  credits:{x:30+hw+12,y:550,w:hw,h:40}, // v5.1.264 CREDITS (right half)
-};}
+  };
+  if(expFeatures){R.kids={x:30,y:550,w:tw,h:40};R.set={x:30+tw+12,y:550,w:tw,h:40};R.credits={x:30+2*(tw+12),y:550,w:tw,h:40};} // v6.4.0 KIDS (EXPERIMENTAL) → the bottom row goes 3-up
+  else{R.set={x:30,y:550,w:hw,h:40};R.credits={x:30+hw+12,y:550,w:hw,h:40};} // classic 2-up (byte-identical when the gate is off)
+  return R;}
 // an icon on a light backing disc — visible regardless of how the platform renders the emoji (PC vs Mac)
 function drawSplashIcon(cx,cy,icon,col,sz){
   ctx.save();
@@ -9649,6 +9709,7 @@ function drawSplash(){
   drawSplashCardC(R.career,'🎓','STORY MODE',['Story-driven tutorial — master every','robot drive. Quizzes + a tournament.'],'#ffd740','rgba(22,42,28,0.7)');
   drawSplashCardC(R.sp,'🕹','SINGLE PLAYER',['Drive-type challenge — master every','robot drive. Portrait · phone-friendly.'],'#44ffaa','rgba(18,44,30,0.55)');
   drawSplashCardC(R.mp,'👥','MULTIPLAYER',['Head-to-head 1v1–3v3: ball · tank ·','race · RoboRumble. Landscape · desktop.'],'#ee66bb','rgba(40,16,40,0.6)');
+  if(R.kids){const k=R.kids;ctx.fillStyle='rgba(50,22,52,0.9)';rr(k.x,k.y,k.w,k.h,10);ctx.fill();ctx.strokeStyle='#ff8ad0';ctx.lineWidth=1.5;rr(k.x,k.y,k.w,k.h,10);ctx.stroke();ctx.font='bold 13px Courier New';ctx.fillStyle='#ff8ad0';ctx.textAlign='center';ctx.fillText('🧸 KIDS',k.x+k.w/2,k.y+27);} // v6.4.0 EXPERIMENTAL KIDS entry (3-up bottom row)
   const s=R.set;ctx.fillStyle='rgba(20,20,44,0.82)';rr(s.x,s.y,s.w,s.h,10);ctx.fill();
   ctx.strokeStyle='#334466';ctx.lineWidth=1.5;rr(s.x,s.y,s.w,s.h,10);ctx.stroke();
   ctx.font='bold 13px Courier New';ctx.fillStyle='#8899cc';ctx.textAlign='center';ctx.fillText('⚙ SETTINGS',s.x+s.w/2,s.y+27);
@@ -9659,7 +9720,7 @@ function drawSplash(){
   const portrait=window.innerHeight>window.innerWidth;
   ctx.font='10px Courier New';ctx.fillStyle=portrait?'#44ffaa':'#ee66bb';
   ctx.fillText(portrait?'📱 Portrait — Single Player fits your screen':'🖥 Landscape — Multiplayer is built for this',CW/2,612);
-  if(gpConnected){const F=[R.career,R.sp,R.mp,R.set,R.credits][splashGpIdx];if(F){ctx.save();ctx.strokeStyle='#ffd740';ctx.lineWidth=3;ctx.setLineDash([7,5]);rr(F.x-4,F.y-4,F.w+8,F.h+8,14);ctx.stroke();ctx.setLineDash([]);ctx.restore();}} // v5.1.229 gamepad focus cursor (v5.1.252 +CAREER at idx 0; v5.1.264 +CREDITS at idx 4)
+  if(gpConnected){const F=[R.career,R.sp,R.mp,R.set,R.credits,R.kids][splashGpIdx];if(F){ctx.save();ctx.strokeStyle='#ffd740';ctx.lineWidth=3;ctx.setLineDash([7,5]);rr(F.x-4,F.y-4,F.w+8,F.h+8,14);ctx.stroke();ctx.setLineDash([]);ctx.restore();}} // v5.1.229 gamepad focus cursor (v5.1.252 +CAREER at idx 0; v5.1.264 +CREDITS at idx 4)
   ctx.fillStyle='#33334a';ctx.font='9px Courier New';
   ctx.fillText(gpConnected?'tap a path · 🎮 stick/D-pad: move · A: select · Y: Single Player':'tap a path · keys: 1 = Single · 2 = Multiplayer · 3 = Story · C = Credits',CW/2,632);
   drawMuteBtn();
@@ -10570,6 +10631,7 @@ requestAnimationFrame(loop);
   v5.1.21 (2026-06-14): TANK-FIGHT CPU HONORS ITS DRIVE TYPE. The tank-fight CPU no longer slides like swerve regardless of drive. Swerve/holo still strafe freely (the common case); tank/arcade/steer now drive like a tank — they steer the BODY toward where they're travelling to relocate and navigate around cover, and lock onto the foe only when settled in a clear firing pose (then hold the range band and shoot). This is the fix deferred in v5.1.20, now working: it paths around obstacle maps and wins (every drive type beats an idle foe in-harness; tank/arcade close from full court and win). The obstacle-RACE CPU is left holonomic for now (free-strafe is the common pick there). Full battery green (smoke38's arcade duel exercises the non-strafe path). Single file, no assets.
   v5.1.20 (2026-06-14): CHAMPION TANK DODGE BUFF. The tank bullet-dodge is stronger at the top end (scaled by sharpness): detection range 408->495px, lateral catch ~101->124px, sidestep strength ~4x->5.3x, so a sharp CHAMPION evades far more incoming fire (lower tiers improve modestly too). NOTE / KNOWN: in tank-fight and obstacle-race the CPU still moves holonomically (free strafe) regardless of its drive type — the human respects its drive (tank/arcade/steer don't strafe) but the CPU does not. A fix was attempted and reverted: the tank/race CPU navigates AROUND obstacles by strafing, so locking it to heading-only motion makes it drive straight into cover and stall (it won't turn off-target to path around). Proper support needs obstacle-aware steering in those brains — deferred. Full battery green. Single file, no assets.
   v5.1.19 (2026-06-14): RAMMING ON LEFT TRIGGER + DASH/RAM BUFF + RACE DASH. (1) RAMMING boost moved from Right Bumper to LEFT TRIGGER — RB (and LB) are the sensitivity controls, so RB collided too; LT is otherwise unbound (it only appeared in the controller-map display). RT/A still fire, so RAM + MACHINE GUN coexist. Keyboard boost stays on Shift. (2) Dash/ram buffed: faster (speed mul 2.6->3.2) and farther (duration 0.22s->0.30s), with a harder ram (knockback 44->56); cooldown and stun unchanged. (3) The dash now works in the H2H OBSTACLE RACE — a held boost briefly speeds the racer up (separate lanes, so it's a pure dash, no tackle); human-only, requires the RAMMING cheat. Full battery green. Single file, no assets. (NOTE: investigated CHAMPION 'one ball at a time' — it's the sticky-plow capture cone filling up at the gap, a balance-sensitive design limit, left as-is pending a decision on widening the scoop.)
+  v6.4.0 (2026-07-03): KIDS MODE (overnight; EXPERIMENTAL-gated; spec SPEC_2026-06-25_mode_taxonomy.md section 3). Sam: "a severely cut-down mode for children." A dead-simple, NO-FAIL, colorful drive-and-score toy: its own phase (kids) where a young kid drives a big friendly smiley bot and pushes ONE big smiley ball into ONE big bright goal - confetti bursts on every score, an endless star counter, and that is it. What is CUT: no weapons, no lives, no timer, no fail state, no records/achievements, and near-zero text (just DRIVE! PUSH THE BALL IN THE GOAL!). Controls are the universal input (arrows/WASD, the gamepad left stick, or touch-drag anywhere = the left virtual joystick), a gentle speed, a big bot + big ball so it is easy. Self-contained: kidsEnter/kidsUpdate/drawKids + kidsField/kidsBackRect/kidsBurst/drawKidsBot, hooked into update()/drawInner()/the pointer handler/keydown(ESC)/the splash gamepad nav. Placement: a 4th splash entry - the bottom row goes 3-up (KIDS | SETTINGS | CREDITS) when EXPERIMENTAL FEATURES is on, else the classic 2-up (SETTINGS | CREDITS), so the splash is byte-identical with the gate off. Exit: the back arrow / ESC / gamepad B. Gated experimental-first per the standing rule; PROMOTE step (for the handoff): flip the KIDS tile to always-visible + give it a prominent big card (a parent handing over the phone should see it without the Konami gate). NEW smoke62.js (13 asserts, auto-discovered: entry/state, tile gating both ways, keyboard drive, goal->score+confetti+ball-reset, off-goal no-score, 600-frame no-fail endless, drawKids/drawSplash no-throw, back-arrow exit). Full battery ALL GREEN; balance unchanged.
   v6.3.0 (2026-07-03): BALL-MERGE (overnight; EXPERIMENTAL-gated; spec SPEC_2026-06-25_mode_taxonomy.md section 1). Sam: "shooter and non-shooter ball modes should be combined, and shooter is just a toggle." With EXPERIMENTAL FEATURES on, the NORMAL + SHOOTER multiplayer tiles collapse into ONE presentational BALL tile whose push-vs-shooter split is chosen by a new BALL TYPE settings row (a FORMAT cycler, m2.set.ballFmt in push/shooter, per the spec rec over a bool). Built as a behavior-preserving ALIAS: the legacy strings normal/shooter stay the canonical m2.mode values (NOTHING ever stores mode:ball this increment), so the engine, tournament, career, the h2h record display tag, and all 12 existing smoke suites are untouched and pass with ZERO edits. Two mechanical parts: (1) a b2Shooter()/p2BallMode() funnel replacing the ~24 scattered m2.mode===shooter / normal||shooter checks (a provably byte-identical refactor the full battery verifies) so the eventual promote to a real ball string is a one-line change; (2) the gated tile list m2Modes() (=expFeatures?merged:classic) + the BALL TYPE row + b2FmtSync() on both settings-apply paths (cycler + dropdown) + the tile-click BALL->legacy-mode resolution. Gate OFF = byte-identical classic 5 tiles. AUDIT (recorded in the spec): no saved-config migration is needed - tour is never persisted, career saves stage IDs (not mode strings), h2h keeps its legacy display tag, SP records already key shooter separately via the _sht suffix; the spec's migration step is dropped as dead code. Tournament + career UIs deliberately still show NORMAL/SHOOTER as separate (the promote-step boundary; flag for a playtester). NEW smoke61.js (23 asserts, auto-discovered by battery.sh: funnel truth table, gate-off byte-identity, gate-on 4-tile merge, tile-click + BALL TYPE + dropdown m2.mode sync, an end-to-end merged shooter match, p2Draw/drawP2Ball no-throw in both formats, h2h tag preservation, reset). Full battery ALL GREEN; balance unchanged. PROMOTE STEP (OUT of this increment, for the handoff): flip the merge unconditional, migrate m2.mode to a ball string behind the funnel, merge the tournament/career cyclers, then guard the 3 M2_MODES.find label sites.
   v6.2.0 (2026-07-03): SMOKE SCREEN perk (overnight; EXPERIMENTAL-gated; spec SPEC_2026-06-24_smoke_screen.md). The missing DISENGAGE perk for RoboRumble: a 10th BB_PERKS entry (SMOKE SCREEN, id smokescreen) that AUTO panic-pops a smoke cloud when its owner drops to <=30% HP (smokeHpTrip) OR is immobilized (mob 0), on a 12s per-bot re-pop cooldown (smokeCd) - no input added (RT/LT are taken). The cloud (bb2.smokes, a lazy list mirroring the bb2.mines lifecycle) is VISION/TARGETING ONLY - it never blocks movement, ramming, or damage - and it is ONE-SIDED via bbInEnemySmoke(b,vs) (viewer-relative: a side is never blinded by its OWN smoke; vs=-1 = any cloud, used for the shared-screen visual fade). While a cloud stands it breaks EVERY enemy auto-acquire path onto a bot inside it: the bbCpuUpdate nearest-foe scan (with a MANDATORY unfiltered fallback re-scan so a CPU whose every foe is smoked never freezes), the VIP-hunt and BATTLE-BALL pusher-hunt overrides, the ARCADE-CPU turret track (bbAimAngle), the human turret aim-assist snap (bbAimAssistTurret), and the chassis heading-magnetism - each guarded by bb2.smokes emptiness so mainline (no-cloud) play is byte-identical and per-frame cost is unchanged. Render: bbDrawSmoke() draws 5 deterministic drifting gray puffs per cloud (clocked by bb2.t, NO Math.random in the sim path), grow-in over smokeGrow then hold, alpha fades over the last smokeFade, drawn OVER the bots and UNDER the hazard strikes; a concealed bot also fades to alpha 0.3. Gating (mirrors the v5.1.290/292 experimental-weapon model): bbExpPerk(id) hides it from the perk cycler (bbCycleField), the armory rail (bbArmoryChips), and the CPU roll (bbCpuPickLoadout) until EXPERIMENTAL FEATURES is on - and the auto-trigger itself checks expFeatures at FIRE time, so a stale saved ld.perk=smokescreen is INERT with the gate off (loadBBLoadout does no id validation) and the balance sim (never sets expFeatures) stays clean. Tunables in BB_W: smokeDur 4.0 / smokeRK 3.2 / smokeCd 12.0 / smokeHpTrip 0.30 / smokeGrow 0.4 / smokeFade 0.6. smoke57 +24 -> 655 (registration/gating both ways, cycler/rail/CPU-roll exclusion + inclusion, one-sided concealment, lock-break + re-acquire + all-foes-smoked fallback, auto-trigger on HP and on immobilize + cooldown hold, gate-off inert, bbDrawSmoke+drawBB no-throw incl. the concealed-bot alpha branch). Full battery ALL GREEN; balance unchanged.
   v6.1.0 (2026-07-03): BATTLE BALL cheat mode (overnight; the first MINOR of the new versioning scheme; spec SPEC_2026-06-25_mode_taxonomy.md section 2). Sam's ESCORT format - RoboRumble PUSH-BALL becomes "protect your pusher": with the new BATTLE BALL cheat toggle ON, the first bot of each side is that side's PUSHER (a gold-crown ♛ VIP) - its weapon is STRIPPED to ram-only (armor + perk kept from the seat pick, mobility/HP re-baselined) so it is a pure ball-scorer, and the other seats are its combat ESCORTS with full loadouts. Win layering per the spec rec (b/c): goals still win via GOALS TO WIN, but while a side's pusher is DOWN (respawning) its goals are VOID - the ball resets with a flashing "PUSHER DOWN - GOAL VOID" banner and no score (offense halts until the 7s objective respawn brings it back); a pusher dead FOR GOOD (finite-lives config) loses the match outright (VIP-elimination clause in bbCheckResult; with the default infinite pushball lives that clause never fires). CPU dispatch: combat-escort CPUs HUNT the enemy pusher (nearest-foe fallback while it is down - the v5.1.126 VIP-hunt pattern), the pusher CPU keeps the get-behind-the-ball pushball brain, and the v5.1.227 fire-at-the-ball behavior is suspended (the pusher has no weapon; escorts fire at their foe). New: battleBall flag + cheat row (anyCheat/cheatsAllOff wired), bbBattleBall() helper, pusher assign + loadout strip in startP2BB, goal-void + pbVoidT banner, crown render on pushers, mode-intro variant. Portrait cheat menu row pitch 20->19 to reabsorb the new row (the v5.1.279 move). smoke57 +15 -> 631 (toggle/gating, pusher assign + strip, goal-void/restore, outright-loss, escort-vs-pusher CPU targeting, fire-at-ball suspension, drawBB no-throw with crowns+banner, cheat-OFF mainline unchanged). Full battery ALL GREEN.

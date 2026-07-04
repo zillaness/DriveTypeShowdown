@@ -116,6 +116,15 @@ shape: **role-differentiated 3v3 escort.**
   or lightly armed; 3v3 only or also 2v2/1+1; who picks the pusher role.
 
 ## 3. **KIDS MODE** — a severely cut-down mode for children
+> **✅ BUILT (gated) — v6.4.0 (2026-07-03).** Shipped option **(a) simplified BALL** as
+> its own self-contained `kids` phase (drive a big smiley bot, push one big ball into one
+> big goal, confetti + a star counter, endless, no-fail, no records/timer). Reached from a
+> **splash KIDS entry** — the bottom row goes 3-up (KIDS·SETTINGS·CREDITS) when EXPERIMENTAL
+> FEATURES is on, byte-identical 2-up when off. Controls = universal input (keys / stick /
+> touch-drag). Tests: new `smoke62.js` (13 asserts). **PROMOTE step (pending Sam):** flip
+> the KIDS entry to always-visible + a prominent big card (a parent handing over the phone
+> shouldn't need the Konami gate).
+
 **Sam:** "considering a severely cut-down mode for children."
 
 - **Goal:** a dead-simple, **no-fail, colorful** mode a young kid can just *drive*
