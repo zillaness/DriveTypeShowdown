@@ -1,5 +1,18 @@
 # BALLOON BATTLE — mode spec (2026-06-24)
 
+> **✅ BUILT (gated) — v6.5.0 (2026-07-03).** Shipped as a MAIN mode that SHARES the
+> RoboRumble `bb2` engine (`m2.mode==='balloon'`, routed via `bbEngineMode()`), gated
+> behind EXPERIMENTAL FEATURES (a hidden 6th `M2_MODES_MERGED` tile). Each bot gets 3 rear
+> balloons + a front spike bank; the bot-vs-bot damage pass is swapped for `bbBalloonContact`
+> (spike → nearest live rear balloon, needs front-arc + `p2ImpactMag` force + reach, drains a
+> spike per pop); 0 balloons → `bbKill`; respawn refits. **5 open decisions LOCKED per the
+> recommendations below:** (1) spread `BAL_OFF` a touch wider than ¼/¾; (2) spikeHp 3, no
+> in-life repair, resets on respawn; (3) grip = reuse impact-mag (no new per-drive grip);
+> (4) MAIN tile, engine-shared, experimental-first (as answered); (5) fixed layout v1 — the
+> **spike editor** is deferred. Tests: new `smoke63.js` (17 asserts) + a CPU-vs-CPU sanity.
+> **PROMOTE / follow-ups:** flip the tile always-visible · spike editor · chariot side-spikes ·
+> a timed "most balloons" variant · a true mutual-KO draw · per-drive grip if wanted.
+
 **SPEC ONLY — not built.** Sam's design, captured from voice (the native transcript
 mangled it twice; this is the cleaned-up version). It's a real activity Sam runs
 **IRL in robotics class — the kids love it**, because it teaches *driving skill*

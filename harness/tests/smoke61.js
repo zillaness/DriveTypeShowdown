@@ -21,7 +21,7 @@ src+=`
 
   // ── 3. GATE ON → merged BALL tile list ──
   expFeatures=true;
-  ok('gate ON: m2Modes merges to 4 tiles, BALL first',m2Modes().length===4&&m2Modes()[0].id==='ball'&&m2Modes()[1].id==='tankfight'&&m2Modes()[2].id==='battlebots'&&m2Modes()[3].id==='race');
+  ok('gate ON: BALL merges to one tile, first (BALLOON BATTLE added as the gated 6th)',m2Modes()[0].id==='ball'&&m2Modes()[1].id==='tankfight'&&m2Modes()[2].id==='battlebots'&&m2Modes()[3].id==='race'&&!m2Modes().some(m=>m.id==='shooter'));
 
   // ── 4. clicking the BALL tile resolves to a legacy mode via BALL TYPE ──
   applyLayout('land2p');phase='p2modes';tour=null;m2.set.ballFmt='push';
