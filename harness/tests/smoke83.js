@@ -343,6 +343,9 @@ src+=`
    T('p2crecap: gamepad items = NEW JOURNEY + BACK TO HUB + back', p2GpItems().length===3);
    careerSave=null;career=null;phase='splash';}
 
+  // v6.5.1 result-screen grammar: the career player is named YOU → the win banner must read WIN, not WINS
+  T('p2WinVerb: YOU takes WIN (2nd person), others take WINS', p2WinVerb('YOU')==='WIN'&&p2WinVerb('you')==='WIN'&&p2WinVerb('RED')==='WINS'&&p2WinVerb('RIVAL')==='WINS');
+
   console.log('smoke83: '+P+' pass, '+F+' fail');
 })();
 `;
