@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<!--
+  file: ai/drive_showdown_ai_speedrun.html
+  version: 1.0.0
+  author: Sam Cao (AI Lab addon)
+  created: 2026-07-16
+  description: Adversarial neuroevolution SPEEDRUN OPTIMIZER for the ORIGINAL single-player
+    portrait ("legacy" 400x720) Drive Showdown time trial — push all 8 balls through the
+    center gap as fast as possible. Faithfully re-implements the real game's field geometry,
+    kinematic robot + scoop-plow physics, ball drag/collisions, and scoring rule (ported from
+    drive_showdown_v5.1.98.html). A population of neural-net drivers competes; the fittest
+    breed; over generations the fleet discovers the ideal racing line and drops its best time.
+    The champion's run exports as a GAME-COMPATIBLE GHOST (frcds-ghosts JSON) so you can import
+    it into the real game and race the AI's optimal path. No build, no libraries, offline.
+  ai_update: Patch with targeted edits only. Bump version + changelog at bottom. JS syntax check after edits.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07070e">
+<title>DriveShowdown · AI Speedrun</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{--bg:#07070e;--panel:#0e0e1c;--line:#1d1d33;--mint:#44ffaa;--blue:#5aa8ff;--amber:#ffce4d;--red:#ff5c6a;--dim:#7a7a98;--ball:#ffd740;--gold:#ffce4d;}
+  html,body{height:100%;background:var(--bg);color:#e8e8ff;font-family:'Courier New',monospace;overflow:hidden;}
+  #app{display:flex;flex-direction:column;height:100dvh;}
+  #bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;background:linear-gradient(180deg,#101024,#0a0a16);
+       border-bottom:1px solid var(--line);user-select:none;}
+  #bar .brand{font-weight:bold;letter-spacing:1px;color:var(--mint);text-shadow:0 0 10px rgba(68,255,170,.4);margin-right:4px;white-space:nowrap;}
+  #bar .brand b{color:#fff;}
+  #bar .tag{font-size:10px;color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:2px 6px;white-space:nowrap;}
+  button{font-family:inherit;font-size:12px;color:#dfe;background:#161630;border:1px solid #2a2a4a;border-radius:6px;
+          padding:6px 10px;cursor:pointer;transition:.12s;white-space:nowrap;}
+  button:hover{background:#20204a;border-color:var(--mint);color:#fff;}
+  button.on{background:var(--mint);color:#04120c;border-color:var(--mint);font-weight:bold;}
+  button.gold{border-color:#4a3a1a;}
+  button.gold.on{background:var(--gold);color:#1a1204;border-color:var(--gold);}
+  .sep{width:1px;height:22px;background:var(--line);margin:0 2px;}
+  .ctl{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--dim);}
+  .ctl input[type=range]{width:82px;accent-color:var(--mint);}
+  #canwrap{position:relative;flex:1;min-height:0;}
+  canvas{display:block;width:100%;height:100%;}
+  #hint{position:absolute;left:12px;bottom:10px;font-size:11px;color:var(--dim);pointer-events:none;text-shadow:0 1px 3px #000;max-width:60%;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <span class="brand">DRIVE<b>SHOWDOWN</b> · AI SPEEDRUN</span>
+    <span class="tag" id="modeTag">EVOLVE</span>
+    <span class="sep"></span>
+    <button id="btnPlay" class="on">⏸ Pause</button>
+    <button id="btnSpeed">▶ 4×</button>
+    <span class="sep"></span>
+    <button id="btnReset">↺ Reset Evolution</button>
+    <button id="btnReplay" class="gold">🏁 Replay Best</button>
+    <span class="sep"></span>
+    <button id="btnGhost">👻 Export Ghost → real game</button>
+    <span class="sep"></span>
+    <div class="ctl">POP <input id="pop" type="range" min="20" max="120" step="10" value="60"><span id="popV">60</span></div>
+    <div class="ctl">MUT <input id="mut" type="range" min="1" max="60" step="1" value="18"><span id="mutV">0.18</span></div>
+    <div class="ctl">PATHS <input id="pathToggle" type="checkbox" checked style="accent-color:var(--mint)"></div>
+  </div>
+  <div id="canwrap">
+    <canvas id="view"></canvas>
+    <div id="hint">The bright robot is the current best of a whole population of neural nets, all racing to push the 8 balls through the top gap. Fittest breed each generation → the best time keeps dropping. Hit 👻 to export the ideal path as a ghost you can load into the real game.</div>
+  </div>
+</div>
+<a id="dl" style="display:none"></a>
+<script>
+"use strict";
+/* ============================================================================
+   DriveShowdown AI Speedrun — neuroevolution for the single-player portrait
+   time trial. Physics + geometry + scoring ported verbatim (behaviourally) from
+   drive_showdown_v5.1.98.html legacy layout. Goal: score all 8 balls fastest.
+   ==========================================================================*/
+const CV=document.getElementById('view'), G=CV.getContext('2d');
+let W=0,H=0,DPR=1;
+
+/* ---------- real-game constants (legacy 400x720 single-player) ---------- */
+const FW=380, FH=628;                                  // field-local play area
+const WALL_Y=118, WALL_H=10, GAP_L=125, GAP_R=255;     // scoring wall + gap
+const RR=17, BR=9;                                     // robot / ball radii
+const SPD=180, TSP=2.85;                               // max linear / angular speed
+const SCORE_Y=WALL_Y-BR-6;                             // a ball with y<103 has scored
+const GAP_CX=(GAP_L+GAP_R)/2, GOAL_Y=WALL_Y-15;        // aim point at the gap mouth
+const BALL_STARTS=[
+  {x:55,y:175},{x:165,y:158},{x:290,y:172},
+  {x:352,y:238},{x:195,y:268},{x:65,y:318},
+  {x:250,y:400},{x:48,y:455}
+];
+const ROBOT_START={x:FW/2,y:FH-58,h:-Math.PI/2};
+// scoop arms in robot-local coords (+x forward), RR=17 -> matches setRobotScale(1)
+const PLOW_SEGS=[
+  [RR+2,-(RR+5), RR+14,-(RR+13)], [RR+14,-(RR+13), RR+26,-(RR+20)],
+  [RR+2, RR+5,   RR+14, RR+13],   [RR+14, RR+13,   RR+26, RR+20]
+];
+const TIMEOUT=48;                                      // seconds cap per attempt
+const DT=1/60;
+const NGHOST_KEY='arcade';                             // drive-leaderboard the exported ghost lands in
+
+const clamp=(x,a,b)=>x<a?a:x>b?b:x;
+const clamp01=x=>x<0?0:x>1?1:x;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const fmt=t=>t.toFixed(2)+'s';
+let RNG=Math.random;
+function gauss(){let u=0,v=0;while(u===0)u=RNG();while(v===0)v=RNG();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+
+/* ============================== NEURAL NET ================================= */
+// inputs: nearest-ball local (x,y,closeness), 2nd-ball local (x,y),
+//         ball->gap unit dir in robot frame (x,y), robot pos (x,y), fraction scored
+const NET=[10,12,8,2];                                 // -> steer, throttle
+const IN_LAB=['b1x','b1y','b1·','b2x','b2y','g→x','g→y','R.x','R.y','n/8'];
+const OUT_LAB=['steer','throttle'];
+function genomeLength(s){let n=0;for(let i=0;i<s.length-1;i++)n+=s[i]*s[i+1]+s[i+1];return n;}
+const GENOME_LEN=genomeLength(NET);
+function randomGenome(){const g=new Float32Array(GENOME_LEN);for(let i=0;i<GENOME_LEN;i++)g[i]=gauss()*0.8;return g;}
+const _A=new Float32Array(16),_B=new Float32Array(16);
+function forward(genome,inputs){
+  let cur=_A,nxt=_B;for(let i=0;i<inputs.length;i++)cur[i]=inputs[i];
+  let p=0;
+  for(let l=0;l<NET.length-1;l++){
+    const inN=NET[l],outN=NET[l+1];
+    for(let o=0;o<outN;o++){let s=0;for(let i=0;i<inN;i++)s+=genome[p++]*cur[i];s+=genome[p++];nxt[o]=Math.tanh(s);}
+    const t=cur;cur=nxt;nxt=t;
+  }
+  return cur;
+}
+
+/* ============================== PHYSICS (ported) ========================== */
+function wallCheckRobot(r){                              // robot: kinematic, position-only clamp
+  if(r.x<RR)r.x=RR; else if(r.x>FW-RR)r.x=FW-RR;
+  if(r.y<RR)r.y=RR; else if(r.y>FH-RR)r.y=FH-RR;
+  const hw=WALL_H/2;
+  if(Math.abs(r.y-WALL_Y)<RR+hw && !(r.x>=GAP_L&&r.x<=GAP_R)){
+    if(r.y>WALL_Y)r.y=WALL_Y+RR+hw; else r.y=WALL_Y-RR-hw;
+  }
+}
+function wallCheckBall(b){                               // balls carry velocity -> bounce
+  if(b.x<BR){b.x=BR;if(b.vx<0)b.vx*=-0.38;} else if(b.x>FW-BR){b.x=FW-BR;if(b.vx>0)b.vx*=-0.38;}
+  if(b.y<BR){b.y=BR;if(b.vy<0)b.vy*=-0.38;} else if(b.y>FH-BR){b.y=FH-BR;if(b.vy>0)b.vy*=-0.38;}
+  const hw=WALL_H/2;
+  if(Math.abs(b.y-WALL_Y)<BR+hw && !(b.x>=GAP_L&&b.x<=GAP_R)){
+    if(b.y>WALL_Y){b.y=WALL_Y+BR+hw;if(b.vy<0)b.vy*=-0.28;} else {b.y=WALL_Y-BR-hw;if(b.vy>0)b.vy*=-0.28;}
+  }
+}
+function closestOnSeg(px,py,ax,ay,bx,by){
+  const dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy; if(l2<1e-4)return[ax,ay];
+  const t=clamp(((px-ax)*dx+(py-ay)*dy)/l2,0,1); return[ax+t*dx,ay+t*dy];
+}
+function scoreIf(b,t){ if(b.y<SCORE_Y){b.sc=true;b.vx=0;b.vy=0;b.scT=t;} }
+
+function stepWorld(car){
+  if(car.done)return;
+  const r=car.robot;
+  // ---- neural driver -> arcade/tank kinematics (vx,vy along heading; vr turn) ----
+  const inp=senseSP(car);
+  const o=forward(car.genome,inp); car.out[0]=o[0]; car.out[1]=o[1];
+  const steer=o[0], thr=o[1];
+  const vr=steer*TSP, vx=Math.cos(r.h)*thr*SPD, vy=Math.sin(r.h)*thr*SPD;
+  r.h+=vr*DT; r.x+=vx*DT; r.y+=vy*DT;
+  wallCheckRobot(r);
+  const rs=Math.hypot(vx,vy);
+  // ---- free ball motion + drag + scoring ----
+  const drag=Math.pow(0.87,DT*60);
+  for(const b of car.balls){
+    if(b.sc)continue;
+    b.x+=b.vx*DT; b.y+=b.vy*DT; b.vx*=drag; b.vy*=drag;
+    if(Math.abs(b.vx)<0.4)b.vx=0; if(Math.abs(b.vy)<0.4)b.vy=0;
+    wallCheckBall(b); scoreIf(b,car.t);
+  }
+  // ---- ball-ball separation (restitution ~0.82) ----
+  const B=car.balls;
+  for(let i=0;i<B.length;i++){ const a=B[i]; if(a.sc)continue;
+    for(let j=i+1;j<B.length;j++){ const c=B[j]; if(c.sc)continue;
+      let dx=c.x-a.x,dy=c.y-a.y,d=Math.hypot(dx,dy); if(d>0&&d<2*BR){
+        const nx=dx/d,ny=dy/d,ov=(2*BR-d)/2;
+        a.x-=nx*ov;a.y-=ny*ov;c.x+=nx*ov;c.y+=ny*ov;
+        const va=a.vx*nx+a.vy*ny, vc=c.vx*nx+c.vy*ny, imp=(vc-va)*0.82;
+        a.vx+=nx*imp;a.vy+=ny*imp;c.vx-=nx*imp;c.vy-=ny*imp;
+      }
+    }
+  }
+  // ---- robot body push ----
+  for(const b of car.balls){ if(b.sc)continue;
+    const dx=b.x-r.x,dy=b.y-r.y,d=Math.hypot(dx,dy)||0.01;
+    if(d<RR+BR){ const nx=dx/d,ny=dy/d,ov=RR+BR-d;
+      b.x+=nx*ov;b.y+=ny*ov; r.x-=nx*ov*0.055;r.y-=ny*ov*0.055; wallCheckRobot(r); wallCheckBall(b);
+      const psp=Math.max(rs*0.88,55); b.vx+=nx*psp;b.vy+=ny*psp; scoreIf(b,car.t);
+    }
+  }
+  // ---- scoop-arm plow ----
+  const ch=Math.cos(r.h),sh=Math.sin(r.h);
+  for(const b of car.balls){ if(b.sc)continue;
+    const rdx=b.x-r.x,rdy=b.y-r.y, lx=ch*rdx+sh*rdy, ly=-sh*rdx+ch*rdy;
+    let bestOv=0,bnx=0,bny=0,bd=Infinity;
+    for(const s of PLOW_SEGS){
+      const cp=closestOnSeg(lx,ly,s[0],s[1],s[2],s[3]);
+      const ex=lx-cp[0],ey=ly-cp[1],dist=Math.hypot(ex,ey)||0.01;
+      if(dist<BR&&dist<bd){bd=dist;bnx=ex/dist;bny=ey/dist;bestOv=BR-dist;}
+    }
+    if(bestOv>0){
+      const wx=ch*bnx-sh*bny, wy=sh*bnx+ch*bny;
+      b.x+=wx*bestOv;b.y+=wy*bestOv; wallCheckBall(b);
+      const psp=Math.max(rs*0.92,60); b.vx+=wx*psp;b.vy+=wy*psp; scoreIf(b,car.t);
+    }
+  }
+  // ---- bookkeeping ----
+  car.t+=DT; car.steps++;
+  if(car.steps%2===0){ car.ghost.push([Math.round(car.t*1000)/1000,Math.round(r.x*10)/10,Math.round(r.y*10)/10,Math.round(r.h*1000)/1000]); } // 30 Hz, matches the game's ghost format
+  if(car.path.length===0 || (r.x-car.path[car.path.length-1][0])**2+(r.y-car.path[car.path.length-1][1])**2>16) car.path.push([r.x,r.y]);
+  let scored=0;
+  for(const b of car.balls){ if(b.sc){scored++;} else { const cl=1-clamp(Math.hypot(b.x-GAP_CX,b.y-GOAL_Y)/470,0,1); if(cl>b.close)b.close=cl; } }
+  car.scored=scored;
+  if(scored===8){ car.done=true; car.finishT=car.t; }
+  else if(car.t>=TIMEOUT){ car.done=true; car.finishT=null; }
+  car.fit=fitnessSP(car);
+}
+function senseSP(car){
+  const r=car.robot;
+  let b1=null,b2=null,d1=1e9,d2=1e9;
+  for(const b of car.balls){ if(b.sc)continue; const d=Math.hypot(b.x-r.x,b.y-r.y);
+    if(d<d1){d2=d1;b2=b1;d1=d;b1=b;} else if(d<d2){d2=d;b2=b;} }
+  if(!b1)return[0,0,0,0,0,0,0,r.x/FW*2-1,r.y/FH*2-1,1];
+  if(!b2){b2=b1;d2=d1;}
+  const ch=Math.cos(r.h),sh=Math.sin(r.h);
+  const l1x=ch*(b1.x-r.x)+sh*(b1.y-r.y), l1y=-sh*(b1.x-r.x)+ch*(b1.y-r.y);
+  const l2x=ch*(b2.x-r.x)+sh*(b2.y-r.y), l2y=-sh*(b2.x-r.x)+ch*(b2.y-r.y);
+  let gvx=GAP_CX-b1.x, gvy=GOAL_Y-b1.y; const gl=Math.hypot(gvx,gvy)||1; gvx/=gl; gvy/=gl;
+  const glx=ch*gvx+sh*gvy, gly=-sh*gvx+ch*gvy;
+  return[clamp(l1x/220,-1,1),clamp(l1y/220,-1,1),1-clamp(d1/300,0,1),
+         clamp(l2x/260,-1,1),clamp(l2y/260,-1,1), glx,gly,
+         r.x/FW*2-1, r.y/FH*2-1, car.scored/8];
+}
+function fitnessSP(car){
+  let fit=0;
+  for(const b of car.balls){ if(b.sc)fit+=1000-clamp(b.scT,0,TIMEOUT)*12; else fit+=300*b.close; }
+  let nd=1e9; const r=car.robot; for(const b of car.balls) if(!b.sc)nd=Math.min(nd,Math.hypot(b.x-r.x,b.y-r.y));
+  if(nd<1e9)fit+=40*(1-clamp(nd/500,0,1));
+  fit-=car.t*10;                                        // continuous speed pressure (dawdling costs)
+  if(car.scored===8&&car.finishT!=null)fit+=5000+(TIMEOUT-car.finishT)*80;
+  return fit;
+}
+function makeCar(genome){
+  return {genome,out:[0,0],
+    robot:{x:ROBOT_START.x,y:ROBOT_START.y,h:ROBOT_START.h},
+    balls:BALL_STARTS.map(p=>({x:p.x,y:p.y,vx:0,vy:0,sc:false,scT:0,close:0})),
+    t:0,steps:0,ghost:[],path:[],done:false,scored:0,finishT:null,fit:0};
+}
+
+/* ============================== EVOLUTION ================================= */
+const evo={pop:60,mut:0.18,gen:1,cars:[],genomes:[],hist:[],
+  bestTime:Infinity,bestGhost:null,bestGenome:null,championGen:0,newRecord:0};
+function seedPopulation(n){evo.genomes=[];for(let i=0;i<n;i++)evo.genomes.push(randomGenome());}
+function spawnGeneration(){evo.cars=evo.genomes.map(g=>makeCar(g));}
+function resetEvolution(){evo.gen=1;evo.bestTime=Infinity;evo.bestGhost=null;evo.bestGenome=null;evo.hist=[];evo.newRecord=0;seedPopulation(evo.pop);spawnGeneration();}
+function tournament(sorted){let bi=1e9,best=null;for(let k=0;k<3;k++){const idx=(Math.pow(RNG(),1.7)*sorted.length)|0;if(idx<bi){bi=idx;best=sorted[idx];}}return best.genome;}
+function crossover(a,b){const c=new Float32Array(GENOME_LEN);for(let i=0;i<GENOME_LEN;i++)c[i]=RNG()<0.5?a[i]:b[i];return c;}
+function mutate(g){for(let i=0;i<GENOME_LEN;i++){if(RNG()<evo.mut){if(RNG()<0.1)g[i]=gauss()*0.8;else g[i]+=gauss()*0.35;}}return g;}
+function nextGeneration(){
+  const scored=evo.cars.slice().sort((a,b)=>b.fit-a.fit);
+  const best=scored[0].fit, avg=scored.reduce((s,x)=>s+x.fit,0)/scored.length;
+  // fastest *finisher* this generation
+  let fastest=null;
+  for(const c of evo.cars) if(c.finishT!=null && (fastest==null||c.finishT<fastest.finishT)) fastest=c;
+  evo.hist.push({best,avg,time:fastest?fastest.finishT:null,scored:scored[0].scored});
+  if(fastest && fastest.finishT<evo.bestTime){
+    evo.bestTime=fastest.finishT; evo.bestGhost=fastest.ghost.slice();
+    evo.bestGenome=Float32Array.from(fastest.genome); evo.championGen=evo.gen; evo.newRecord=90;
+  }
+  const P=evo.genomes.length;
+  const elites=Math.max(2,Math.round(P*0.08));
+  const immigrants=Math.max(1,Math.round(P*0.12));      // fresh random blood every gen -> escapes plateaus
+  const next=[]; for(let i=0;i<elites;i++)next.push(Float32Array.from(scored[i].genome));
+  while(next.length<P-immigrants){const ch=crossover(tournament(scored),tournament(scored));mutate(ch);next.push(ch);}
+  while(next.length<P)next.push(randomGenome());
+  evo.genomes=next; evo.gen++; spawnGeneration();
+}
+function stepEvolution(){
+  let any=false;
+  for(const c of evo.cars){ if(!c.done){ stepWorld(c); any=true; } }
+  if(!any) nextGeneration();
+}
+
+/* ============================== REPLAY MODE =============================== */
+// Deterministic re-run of the champion genome (reproduces the ideal line WITH balls).
+const replay={active:false,car:null,hold:0};
+function startReplay(){
+  if(!evo.bestGenome){flash('No champion yet — let it train until it finishes a run.');return;}
+  replay.car=makeCar(evo.bestGenome); replay.active=true; replay.hold=0;
+  document.getElementById('modeTag').textContent='REPLAY BEST';
+  document.getElementById('btnReplay').classList.add('on');
+}
+function stopReplay(){replay.active=false;document.getElementById('modeTag').textContent='EVOLVE';document.getElementById('btnReplay').classList.remove('on');}
+function stepReplay(){
+  const c=replay.car;
+  if(c.done){ replay.hold+=DT; if(replay.hold>2.2){ replay.car=makeCar(evo.bestGenome); replay.hold=0; } return; }
+  stepWorld(c);
+}
+
+/* ============================== RENDER ==================================== */
+let fld={s:1,x0:0,y0:0};                                // field-local -> screen
+function layoutField(view){
+  const padX=16, topPad=30, botPad=14;                  // reserve headroom for the over-field timer/counter
+  const s=Math.min((view.w-2*padX)/FW,(view.h-topPad-botPad)/FH);
+  fld.s=s; fld.x0=view.x+(view.w-FW*s)/2; fld.y0=view.y+topPad+(view.h-topPad-botPad-FH*s)/2;
+}
+const FX=x=>fld.x0+x*fld.s, FY=y=>fld.y0+y*fld.s;
+function roundRect(x,y,w,h,r){G.beginPath();G.moveTo(x+r,y);G.arcTo(x+w,y,x+w,y+h,r);G.arcTo(x+w,y+h,x,y+h,r);G.arcTo(x,y+h,x,y,r);G.arcTo(x,y,x+w,y,r);G.closePath();}
+
+function drawField(){
+  const s=fld.s;
+  // play area
+  G.fillStyle='#0c0c16'; G.fillRect(FX(0),FY(0),FW*s,FH*s);
+  // scoring zone (above wall)
+  G.fillStyle='rgba(0,230,118,.07)'; G.fillRect(FX(0),FY(0),FW*s,(WALL_Y)*s);
+  // field border
+  G.strokeStyle='#2b2b46'; G.lineWidth=2; G.strokeRect(FX(0),FY(0),FW*s,FH*s);
+  // wall (two solid segments, gap in the middle)
+  G.fillStyle='#3a3a58';
+  G.fillRect(FX(0),FY(WALL_Y-WALL_H/2),(GAP_L)*s,WALL_H*s);
+  G.fillRect(FX(GAP_R),FY(WALL_Y-WALL_H/2),(FW-GAP_R)*s,WALL_H*s);
+  // gap goal glow
+  G.fillStyle='rgba(68,255,170,.16)'; G.fillRect(FX(GAP_L),FY(0),(GAP_R-GAP_L)*s,WALL_Y*s);
+  G.strokeStyle='rgba(68,255,170,.55)'; G.lineWidth=2;
+  G.beginPath(); G.moveTo(FX(GAP_L),FY(WALL_Y)); G.lineTo(FX(GAP_L),FY(0)); G.moveTo(FX(GAP_R),FY(WALL_Y)); G.lineTo(FX(GAP_R),FY(0)); G.stroke();
+  G.fillStyle='rgba(68,255,170,.6)'; G.font=(11)+'px "Courier New",monospace'; G.textAlign='center';
+  G.fillText('▲ GOAL ▲',FX(GAP_CX),FY(14));
+}
+function drawBall(b){
+  const s=fld.s;
+  G.beginPath(); G.arc(FX(b.x),FY(b.y),BR*s,0,7);
+  if(b.sc){ G.fillStyle='#00e676'; G.globalAlpha=0.85; } else { G.fillStyle='#ffd740'; }
+  G.fill(); G.globalAlpha=1;
+  G.strokeStyle='rgba(0,0,0,.35)'; G.lineWidth=1; G.stroke();
+}
+function drawRobot(r,bright){
+  const s=fld.s; G.save(); G.translate(FX(r.x),FY(r.y)); G.rotate(r.h);
+  G.globalAlpha=bright?1:0.14;
+  // body
+  G.fillStyle=bright?'#44ffaa':'#3a6b57';
+  G.beginPath(); G.arc(0,0,RR*s,0,7); G.fill();
+  // heading triangle
+  G.fillStyle=bright?'#04120c':'#0c1a14';
+  G.beginPath(); G.moveTo(RR*s*0.9,0); G.lineTo(-RR*s*0.4,RR*s*0.55); G.lineTo(-RR*s*0.4,-RR*s*0.55); G.closePath(); G.fill();
+  if(bright){
+    // scoop arms
+    G.strokeStyle='#8affd4'; G.lineWidth=2.2; G.beginPath();
+    for(const seg of PLOW_SEGS){ G.moveTo(seg[0]*s,seg[1]*s); G.lineTo(seg[2]*s,seg[3]*s); }
+    G.stroke();
+  }
+  G.globalAlpha=1; G.restore();
+}
+function drawPath(path,color,width){
+  if(!path||path.length<2)return;
+  G.strokeStyle=color; G.lineWidth=width; G.lineJoin='round';
+  G.beginPath(); G.moveTo(FX(path[0][0]),FY(path[0][1]));
+  for(let i=1;i<path.length;i++) G.lineTo(FX(path[i][0]),FY(path[i][1]));
+  G.stroke();
+}
+
+/* ---- sidebar panels (brain + graph + leaderboard) ---- */
+function panel(x,y,w,h,title){
+  G.fillStyle='rgba(14,14,28,.92)';G.strokeStyle='#22223a';G.lineWidth=1;roundRect(x,y,w,h,8);G.fill();G.stroke();
+  G.fillStyle='#8a8ab0';G.font='11px "Courier New",monospace';G.textAlign='left';G.fillText(title,x+10,y+16);
+}
+function drawNet(genome,inputs,x,y,w,h){
+  panel(x,y,w,h,'DRIVER BRAIN — live activations');
+  const gx0=x+34,gx1=x+w-58,gy0=y+30,gy1=y+h-16;
+  const lx=[];for(let l=0;l<NET.length;l++)lx.push(lerp(gx0,gx1,l/(NET.length-1)));
+  const pos=[];for(let l=0;l<NET.length;l++){const n=NET[l],a=[];for(let i=0;i<n;i++){const yy=n===1?(gy0+gy1)/2:lerp(gy0,gy1,i/(n-1));a.push([lx[l],yy]);}pos.push(a);}
+  const acts=[Array.from(inputs)];let cur=Array.from(inputs),p=0;
+  for(let l=0;l<NET.length-1;l++){const inN=NET[l],outN=NET[l+1],nx=[];
+    for(let o=0;o<outN;o++){let s=0;
+      for(let i=0;i<inN;i++){const wg=genome[p++],al=clamp01(Math.abs(wg)*0.5);
+        G.strokeStyle=wg>=0?`rgba(68,255,170,${0.05+al*0.5})`:`rgba(255,92,106,${0.05+al*0.5})`;
+        G.lineWidth=clamp(Math.abs(wg)*1.2,0.3,2.3);
+        G.beginPath();G.moveTo(pos[l][i][0],pos[l][i][1]);G.lineTo(pos[l+1][o][0],pos[l+1][o][1]);G.stroke();
+        s+=wg*cur[i];}
+      s+=genome[p++];nx.push(Math.tanh(s));}
+    acts.push(nx);cur=nx;}
+  for(let l=0;l<NET.length;l++)for(let i=0;i<pos[l].length;i++){
+    const a=acts[l][i]||0,m=clamp01(Math.abs(a));
+    G.fillStyle=a>=0?`rgba(68,255,170,${0.25+m*0.75})`:`rgba(255,92,106,${0.25+m*0.75})`;
+    G.beginPath();G.arc(pos[l][i][0],pos[l][i][1],5,0,7);G.fill();
+    G.strokeStyle='rgba(255,255,255,.15)';G.lineWidth=1;G.stroke();}
+  G.fillStyle='#666688';G.font='9px "Courier New",monospace';G.textAlign='right';
+  for(let i=0;i<NET[0];i++)G.fillText(IN_LAB[i],pos[0][i][0]-9,pos[0][i][1]+3);
+  G.textAlign='left';const last=NET.length-1;
+  for(let i=0;i<NET[last];i++)G.fillText(OUT_LAB[i],pos[last][i][0]+9,pos[last][i][1]+3);
+}
+function drawGraph(x,y,w,h){
+  panel(x,y,w,h,'BEST FINISH TIME / GENERATION');
+  const gx0=x+12,gx1=x+w-12,gy0=y+28,gy1=y+h-16;
+  const pts=evo.hist.filter(p=>p.time!=null);
+  if(pts.length<1){G.fillStyle='#555';G.font='11px "Courier New",monospace';G.fillText(evo.hist.length?'no full runs yet…':'training…',x+12,y+h/2);return;}
+  let mn=1e9,mx=0;for(const p of pts){mn=Math.min(mn,p.time);mx=Math.max(mx,p.time);}
+  if(mx-mn<0.5)mx=mn+0.5;
+  const idx=evo.hist.map((p,i)=>[i,p.time]).filter(p=>p[1]!=null);
+  const N=evo.hist.length;
+  const px=i=>N<=1?gx0:lerp(gx0,gx1,i/(N-1)), py=v=>lerp(gy0,gy1,clamp01((v-mn)/(mx-mn)));
+  G.strokeStyle='#44ffaa';G.lineWidth=1.8;G.beginPath();
+  idx.forEach((p,k)=>{k?G.lineTo(px(p[0]),py(p[1])):G.moveTo(px(p[0]),py(p[1]));});G.stroke();
+  idx.forEach(p=>{G.fillStyle='#44ffaa';G.beginPath();G.arc(px(p[0]),py(p[1]),2,0,7);G.fill();});
+  G.fillStyle='#8a8ab0';G.font='9px "Courier New",monospace';G.textAlign='left';
+  G.fillText(mx.toFixed(2)+'s',x+12,gy0+2); G.fillText(mn.toFixed(2)+'s ◀ best',x+12,gy1+11);
+  G.textAlign='right';G.fillText('gen '+N,gx1,gy0+2);
+}
+
+/* ---- HUD in the left margin + over the field ---- */
+function stat(x,y,label,val,color,size){
+  G.textAlign='left';G.fillStyle='#6a6a88';G.font='10px "Courier New",monospace';G.fillText(label,x,y-14);
+  G.fillStyle=color||'#fff';G.font='bold '+size+'px "Courier New",monospace';G.fillText(String(val),x,y+size-8);
+}
+function drawHUD(view,leader){
+  // over-field timer + counter (mirrors the real game HUD)
+  G.textAlign='center';G.fillStyle='#dde';G.font='bold '+(20)+'px "Courier New",monospace';
+  G.fillText(fmt(leader?leader.t:0),FX(FW/2),FY(0)-8);
+  const sc=leader?leader.scored:0;
+  G.textAlign='right';G.font='bold '+(15)+'px "Courier New",monospace';G.fillStyle=sc===8?'#00e676':'#ffd740';
+  G.fillText(sc+'/8',FX(FW),FY(0)-8);
+  // left-margin stat stack
+  const mx=view.x+14; let my=view.y+34;
+  if(replay.active){
+    stat(mx,my,'MODE','REPLAY','#ffce4d',20); my+=44;
+    stat(mx,my,'CHAMPION','gen '+evo.championGen,'#fff',16); my+=36;
+    stat(mx,my,'IDEAL TIME',isFinite(evo.bestTime)?fmt(evo.bestTime):'—','#44ffaa',20); my+=42;
+    G.fillStyle='#7a7a98';G.font='11px "Courier New",monospace';G.textAlign='left';
+    G.fillText('Re-running the best brain',mx,my); G.fillText('deterministically.',mx,my+15);
+  }else{
+    stat(mx,my,'GENERATION',evo.gen,'#fff',24); my+=46;
+    stat(mx,my,'BEST TIME',isFinite(evo.bestTime)?fmt(evo.bestTime):'no finish yet','#44ffaa',isFinite(evo.bestTime)?22:14); my+=42;
+    if(isFinite(evo.bestTime)){ G.fillStyle='#6a6a88';G.font='10px "Courier New",monospace';G.textAlign='left';G.fillText('(gen '+evo.championGen+')',mx,my-14); }
+    const done=evo.cars.filter(c=>c.done).length;
+    stat(mx,my,'ATTEMPTS DONE',done+' / '+evo.cars.length,'#5aa8ff',16); my+=34;
+    stat(mx,my,'LEADER',(leader?leader.scored:0)+'/8 balls','#ffd740',16); my+=36;
+    if(evo.newRecord>0){
+      G.globalAlpha=clamp01(evo.newRecord/90);G.fillStyle='#ffce4d';G.font='bold 22px "Courier New",monospace';G.textAlign='left';
+      G.fillText('🏁 NEW RECORD',mx,my+6);G.globalAlpha=1;evo.newRecord--;
+    }
+  }
+}
+function flash(m){const h=document.getElementById('hint');h.textContent=m;h.style.color='#ffce4d';setTimeout(()=>{h.style.color='';h.textContent='';},3200);}
+
+/* ============================== MAIN LOOP ================================= */
+const SPEEDS=[{lbl:'▶ 1×',n:1},{lbl:'▶ 4×',n:4},{lbl:'▶ 10×',n:10},{lbl:'⏩ 30×',n:30},{lbl:'⏩ MAX',n:150}];
+let speedIdx=1, playing=true, showPaths=true;
+function currentLeader(){
+  let best=null;
+  for(const c of evo.cars){ if(!best||c.fit>best.fit) best=c; }
+  return best;
+}
+function frame(){
+  requestAnimationFrame(frame);
+  const SB=clamp(W*0.30,280,380);
+  const fieldView={x:0,y:0,w:W-SB,h:H};
+  layoutField(fieldView);
+  // ---- simulate ----
+  if(playing){
+    const iters=SPEEDS[speedIdx].n;
+    for(let k=0;k<iters;k++){ if(replay.active)stepReplay(); else stepEvolution(); }
+  }
+  // ---- draw ----
+  G.fillStyle='#07070e'; G.fillRect(0,0,W,H);
+  drawField();
+  let leader;
+  if(replay.active){
+    leader=replay.car;
+    if(showPaths) drawPath(leader.path,'rgba(255,206,77,.9)',2.5);
+    for(const b of leader.balls) drawBall(b);
+    drawRobot(leader.robot,true);
+  }else{
+    leader=currentLeader();
+    // faint swarm of every robot (conveys the population), balls only for the leader
+    for(const c of evo.cars) if(c!==leader) drawRobot(c.robot,false);
+    if(evo.bestGhost && showPaths){ // gold record line (from the champion ghost samples)
+      G.strokeStyle='rgba(255,206,77,.35)';G.lineWidth=1.5;G.setLineDash([6,6]);G.beginPath();
+      for(let i=0;i<evo.bestGhost.length;i++){const g=evo.bestGhost[i];i?G.lineTo(FX(g[1]),FY(g[2])):G.moveTo(FX(g[1]),FY(g[2]));}
+      G.stroke();G.setLineDash([]);
+    }
+    if(leader){
+      if(showPaths) drawPath(leader.path,'rgba(68,255,170,.8)',2);
+      for(const b of leader.balls) drawBall(b);
+      drawRobot(leader.robot,true);
+    }
+  }
+  drawHUD(fieldView,leader);
+  // ---- sidebar ----
+  const sx=W-SB+10, sw=SB-20;
+  const netH=Math.min(H*0.40,290), graphH=Math.min(H*0.28,180);
+  const brain=(replay.active?replay.car:leader);
+  const inp=brain?senseSP(brain):new Array(NET[0]).fill(0);
+  drawNet(replay.active?evo.bestGenome:(evo.bestGenome||(brain&&brain.genome)||randomGenome()), inp, sx,10,sw,netH);
+  drawGraph(sx,10+netH+10,sw,graphH);
+  const ly=10+netH+10+graphH+10, lh=H-ly-10;
+  if(lh>60){
+    panel(sx,ly,sw,lh,'LEADERBOARD — balls · time');
+    G.font='11px "Courier New",monospace';G.textAlign='left';
+    if(replay.active){
+      G.fillStyle='#9a9ac0';
+      const lines=['This is the fastest path the','evolution found — the AI\'s','ideal racing line through all','8 balls. Export it as a ghost','and load it into the real','game to race against it.'];
+      lines.forEach((t,i)=>G.fillText(t,sx+10,ly+34+i*16));
+    }else{
+      const top=evo.cars.slice().sort((a,b)=>b.fit-a.fit).slice(0,Math.min(8,Math.floor((lh-30)/16)));
+      top.forEach((c,i)=>{const yy=ly+34+i*16;
+        G.fillStyle=(c===leader)?'#44ffaa':(c.done?(c.finishT!=null?'#8affc0':'#77778f'):'#c8c8e0');
+        G.fillText('#'+(i+1),sx+10,yy);
+        G.fillText(c.scored+'/8',sx+42,yy);
+        G.fillText(c.finishT!=null?fmt(c.finishT):(c.done?'DNF':'…'+fmt(c.t)),sx+92,yy);
+      });
+    }
+  }
+}
+
+/* ============================== GHOST EXPORT ============================== */
+function exportGhost(){
+  if(!evo.bestGhost||!isFinite(evo.bestTime)){flash('No completed run yet — let it finish scoring all 8 first.');return;}
+  const ghosts={}; ghosts[NGHOST_KEY]={t:evo.bestTime,samples:evo.bestGhost};
+  const data=JSON.stringify({v:1,kind:'frcds-ghosts',exported:new Date().toISOString(),ghosts},null,2);
+  const a=document.getElementById('dl');
+  a.href='data:application/json,'+encodeURIComponent(data);
+  a.download='frc_ghosts_AI_'+NGHOST_KEY+'_'+evo.bestTime.toFixed(2)+'s.json';
+  a.click();
+  flash('Ghost exported ('+fmt(evo.bestTime)+'). In Drive Showdown: Single Player → high scores → Ghosts → import this file, then race the '+NGHOST_KEY+' drive.');
+}
+
+/* ============================== UI WIRING ================================= */
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  const wrap=document.getElementById('canwrap'); W=wrap.clientWidth; H=wrap.clientHeight;
+  CV.width=Math.round(W*DPR); CV.height=Math.round(H*DPR); G.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize',resize);
+document.getElementById('btnPlay').onclick=function(){playing=!playing;this.textContent=playing?'⏸ Pause':'▶ Play';this.classList.toggle('on',playing);};
+document.getElementById('btnSpeed').onclick=function(){speedIdx=(speedIdx+1)%SPEEDS.length;this.textContent=SPEEDS[speedIdx].lbl;};
+document.getElementById('btnReset').onclick=function(){stopReplay();resetEvolution();flash('Evolution reset — fresh random population on the real single-player field.');};
+document.getElementById('btnReplay').onclick=function(){if(replay.active)stopReplay();else startReplay();};
+document.getElementById('btnGhost').onclick=exportGhost;
+document.getElementById('pop').oninput=function(){evo.pop=+this.value;document.getElementById('popV').textContent=this.value;};
+document.getElementById('pop').onchange=function(){if(!replay.active){seedPopulation(evo.pop);evo.gen=1;evo.hist=[];spawnGeneration();flash('Population resized to '+evo.pop+' — restarting evolution.');}};
+document.getElementById('mut').oninput=function(){evo.mut=+this.value/100;document.getElementById('mutV').textContent=evo.mut.toFixed(2);};
+document.getElementById('pathToggle').onchange=function(){showPaths=this.checked;};
+window.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();document.getElementById('btnPlay').click();}
+  if(e.key==='r'||e.key==='R')document.getElementById('btnReplay').click();
+});
+
+/* ---- boot ---- */
+resize(); resetEvolution(); frame();
+</script>
+<!--
+  changelog
+  v1.0.0 (2026-07-16): initial AI Speedrun. Faithful port of the single-player portrait
+    ("legacy" 400x720) time trial — geometry, kinematic robot + scoop-plow + body-push ball
+    physics, ball drag/collisions, and the y<103-through-the-gap scoring rule. Neuroevolution
+    population (MLP driver, 10 task sensors -> steer/throttle, elitism + tournament + crossover
+    + gaussian mutation) minimizes time to score all 8 balls. Live brain + best-time graph +
+    leaderboard, deterministic Replay Best mode, and GAME-COMPATIBLE ghost export (frcds-ghosts
+    JSON) so the AI's ideal path loads straight into the real game.
+-->
+</body>
+</html>

@@ -1,84 +1,96 @@
 # DriveShowdown · AI Lab 🧠🏎️
 
-An **adversarial machine-learning system that learns to play DriveShowdown** — the
-classic "AI learns to drive" spectacle you see on YouTube (MarI/O, Code Bullet,
-"AI learns to park"), built into a single offline HTML file.
+Adversarial **machine learning that plays DriveShowdown** — the "AI learns to play this
+game" spectacle you see on YouTube, built into single offline HTML files (no build, no
+libraries, no server).
 
-Open **[`ai_drive_showdown.html`](./ai_drive_showdown.html)** in any browser. No
-build step, no libraries, no server, works offline.
+There are two tools here:
 
-![what it looks like](#) <!-- population of neural-net cars racing a procedural track,
-with a live brain + fitness graph on the right -->
+| File | What it does |
+|------|--------------|
+| **[`drive_showdown_ai_speedrun.html`](./drive_showdown_ai_speedrun.html)** | **⭐ The main one.** Evolves an AI to play the **real single-player portrait game** and find the *ideal path to score the fastest*. |
+| [`ai_drive_showdown.html`](./ai_drive_showdown.html) | A general "AI learns to drive" racing demo on procedural tracks (great for the classic neuroevolution look). |
 
 ---
 
-## What it does
+## ⭐ AI Speedrun — the fastest path through the real single-player game
 
-A **population of ~60 cars, each driven by its own small neural network**, is
-dropped onto a procedurally generated race track. At first they all crash
-instantly. Through **survival-of-the-fittest** — the cars compete, the fittest
-survive and breed, their offspring are mutated — the fleet teaches *itself* to
-drive clean laps over a few dozen generations. You watch it happen live.
+The original single-player portrait mode of DriveShowdown (the byte-identical **"legacy"
+400×720 layout**) is a **time trial**: push all **8 balls** through the center gap as fast
+as possible. The game even saves your best time and records a **ghost** of your best run.
 
-Then hit **⚔ Showdown** to put the two best evolved brains **wheel-to-wheel on
-the same track**, with car-to-car collisions, and see who wins.
+`drive_showdown_ai_speedrun.html` turns that into a machine-learning problem:
 
-## Why it's "adversarial"
+> A population of ~60 neural-network drivers all attempt the run at once. The fittest
+> (fastest, most balls scored) breed each generation. Over a few dozen generations the AI
+> teaches itself to herd all 8 balls through the gap — and then keeps **shaving its time
+> down** toward the optimal racing line.
 
-Two layers of competition:
+In a headless run it finds its first full 8/8 clear around **generation 16**, then optimizes
+**42s → 22s → ~19.7s** as evolution refines the path.
 
-1. **Selection pressure (the population is the adversary).** Every generation the
-   cars are ranked against each other; only the top performers pass on their
-   weights. A genome only survives by out-driving its peers. That competitive
-   filtering *is* the learning signal — no hand-labeled data, no reward
-   engineering beyond "get further around the track."
-2. **Head-to-head Showdown.** The champion races a rival brain on one track.
-   Contact scrubs speed, so **blocking and racing lines become real strategy** —
-   a directly adversarial race, not just two independent time trials.
+### It plays the *real* game
 
-## How the AI works
+The field geometry, robot physics, and scoring rule are **ported faithfully** from
+`drive_showdown_v5.1.98.html` (the legacy single-player layout), so the AI is solving the
+actual game, not a lookalike:
+
+- exact field `380×628`, wall at `y=118`, goal gap `x∈[125,255]`, all 8 ball spawn positions;
+- the game's **kinematic robot** (`SPD=180`, `TSP=2.85`) with the real **scoop-arm plow** + body-push ball handling;
+- ball drag/bounce and ball-ball collisions;
+- the real scoring rule — a ball counts when it crosses the wall line (`y < 103`) through the gap.
+
+### 👻 Export the ideal path back into the real game
+
+This is the payoff. Hit **👻 Export Ghost** and you get a `frc_ghosts_AI_*.json` file in the
+game's own **`frcds-ghosts`** format. In real DriveShowdown: **Single Player → high scores →
+Ghosts → import**, then drive the `arcade` course — and you race against the translucent
+ghost of the **AI's optimal line**. The ML's answer becomes a ghost you can actually chase.
+
+### How the AI works
 
 | Piece | Detail |
 |-------|--------|
-| **Inputs** | 5 raycast distance sensors (the car "feels" the walls) + current speed → 6 numbers |
-| **Brain** | Fixed-topology MLP `6 → 8 → 6 → 2`, `tanh` activations (124 weights) |
-| **Outputs** | steering and throttle, each in `[-1, 1]` |
-| **Genome** | the flat weight vector — this is what evolution mutates |
-| **Fitness** | how far the car gets around the centerline (progress in track-segments; 110 = one lap), with a tiny survival bonus |
-| **Selection** | elitism (top ~8% copied intact) + front-biased tournament selection |
-| **Breeding** | uniform crossover of two parents' weights |
-| **Mutation** | Gaussian creep on each weight at the mutation rate, with occasional full resets |
+| **Inputs (10)** | nearest un-scored ball (local x, y, closeness), 2nd-nearest ball (x, y), the direction that ball must travel to reach the gap (in the robot's frame), robot position (x, y), and fraction of balls scored |
+| **Brain** | MLP `10 → 12 → 8 → 2`, `tanh` (254 weights) |
+| **Outputs** | steering and throttle |
+| **Fitness** | `1000 × balls scored` (earlier = more) + progress of un-scored balls toward the gap − a small time penalty + a large bonus for a full 8/8 clear that grows the faster you finish |
+| **Evolution** | elitism (top ~8%) + front-biased tournament selection + uniform crossover + Gaussian mutation + fresh "immigrant" genomes each generation (to escape plateaus) |
 
-This is **neuroevolution** (a genetic algorithm optimizing neural-net weights) —
-gradient-free, so there's nothing to differentiate and it's easy to watch and
-understand. No training data, no backprop, no GPU.
+Gradient-free **neuroevolution** — no training data, no backprop, no GPU.
 
-## Controls
+### Controls
 
-- **⏸ / ▶** pause & resume · **▶ 1× … ⏩ MAX** simulation speed (fast-forward the training)
-- **⟳ New Track** — fresh procedural track (same brains, new challenge)
-- **↺ Reset Evolution** — start from a random population
-- **⚔ Showdown** — race the two best brains head-to-head
-- **💾 Save Champion / 📂 Load** — export/import the best brain as JSON (also auto-saved to `localStorage`)
-- **POP / MUT** sliders — population size and mutation rate · **SENSORS** toggle
-- Keyboard: `Space` play/pause · `N` new track · `S` showdown
+- **⏸ / ▶** pause · **▶ 1× … ⏩ MAX** simulation speed (fast-forward training)
+- **↺ Reset Evolution** — fresh random population
+- **🏁 Replay Best** — deterministically re-run the champion so you can watch the ideal line (with the balls) at any speed
+- **👻 Export Ghost** — download the game-compatible ghost of the ideal path
+- **POP / MUT** sliders, **PATHS** toggle · keys: `Space` play/pause, `R` replay
 
-## Reading the screen
+### Reading the screen
 
-- **Left** — the track and the live fleet. Faded cars have crashed; bright cars are
-  still driving; the leader wears a gold ring and shows its sensor rays.
-- **Right, top** — the champion's **brain**, drawn live: green edges are positive
-  weights, red negative, thickness = magnitude, node brightness = current activation.
-- **Right, middle** — **fitness per generation** (green = best, blue = average), the
-  learning curve going up and to the right.
-- **Right, bottom** — the current **leaderboard**.
+- **Center** — the real portrait field. Bright mint robot = current best of the population;
+  faint robots behind it = the rest of the fleet; yellow balls turn green when scored; the
+  mint line is the leader's path and the dashed gold line is the champion's recorded ideal line.
+- **Top of field** — the game's own **timer** and **N/8** ball counter.
+- **Right** — the driver's **brain** (live activations), the **best-finish-time-per-generation**
+  curve dropping over time, and the **leaderboard** (balls · time).
 
-## Recording it for YouTube
+### Recording it for YouTube
 
-Set speed to `⏩ MAX`, let it rip for ~30 generations until the fitness curve
-plateaus, drop back to `▶ 1×` to show a clean lap, then hit **⚔ Showdown** for the
-money shot. Screen-record the whole thing — the generation counter, the rising
-curve, and the head-to-head finish tell the story on their own.
+Set speed to **⏩ MAX**, let it run until the best-time curve flattens (~40–60 generations),
+then hit **🏁 Replay Best** at **1×** to show the clean, optimal run scoring all 8 balls.
+Screen-record the generation counter and the dropping best time — that's the whole story.
+
+---
+
+## The general racing demo — `ai_drive_showdown.html`
+
+The same neuroevolution engine on a **procedurally generated race track**: a fleet of
+neural-net cars with raycast sensors learns to drive clean laps, with a head-to-head
+**Showdown** between the two best evolved brains (car-to-car collisions, contact scrubs
+speed, so blocking is real strategy). This is the classic "AI learns to drive" look; the
+Speedrun tool above is the one that plays your actual game.
 
 ---
 
