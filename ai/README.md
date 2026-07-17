@@ -43,44 +43,67 @@ actual game, not a lookalike:
 ### 👻 Export the ideal path back into the real game
 
 This is the payoff. Hit **👻 Export Ghost** and you get a `frc_ghosts_AI_*.json` file in the
-game's own **`frcds-ghosts`** format. In real DriveShowdown: **Single Player → high scores →
-Ghosts → import**, then drive the `arcade` course — and you race against the translucent
-ghost of the **AI's optimal line**. The ML's answer becomes a ghost you can actually chase.
+game's own **`frcds-ghosts`** format (keyed to whichever drive type the champion used). In real
+DriveShowdown: **Single Player → high scores → Ghosts → import**, then drive that course — and you
+race against the translucent ghost of the **AI's optimal line**. The ML's answer becomes a ghost you
+can actually chase — and you can go the other way too, importing *your* ghost to race the AI here.
 
 ### How the AI works
 
 | Piece | Detail |
 |-------|--------|
-| **Inputs (10)** | nearest un-scored ball (local x, y, closeness), 2nd-nearest ball (x, y), the direction that ball must travel to reach the gap (in the robot's frame), robot position (x, y), and fraction of balls scored |
-| **Brain** | MLP `10 → 12 → 8 → 2`, `tanh` (254 weights) |
-| **Outputs** | steering and throttle |
+| **Inputs (12)** | nearest un-scored ball (local x, y, closeness), 2nd-nearest ball (x, y), the direction that ball must travel to reach the gap (robot frame), robot position (x, y), fraction of balls scored, and the robot's absolute heading (sinθ, cosθ) |
+| **Brain** | MLP `12 → 12 → 8 → 2 or 3`, `tanh` (output size = the drive type's degrees of freedom) |
+| **Outputs** | steer/throttle (tank, arcade), or forward/strafe/rotate (swerve) |
 | **Fitness** | `1000 × balls scored` (earlier = more) + progress of un-scored balls toward the gap − a small time penalty + a large bonus for a full 8/8 clear that grows the faster you finish |
 | **Evolution** | elitism (top ~8%) + front-biased tournament selection + uniform crossover + Gaussian mutation + fresh "immigrant" genomes each generation (to escape plateaus) |
 
 Gradient-free **neuroevolution** — no training data, no backprop, no GPU.
 
-### Controls
+### Drive types & sensitivity — the theoretical run changes with the controls
 
-- **⏸ / ▶** pause · **▶ 1× … ⏩ MAX** simulation speed (fast-forward training)
-- **↺ Reset Evolution** — fresh random population
-- **🏁 Replay Best** — deterministically re-run the champion so you can watch the ideal line (with the balls) at any speed
-- **👻 Export Ghost** — download the game-compatible ghost of the ideal path
-- **POP / MUT** sliders, **PATHS** toggle · keys: `Space` play/pause, `R` replay
+Cycle **🚗 Drive type** through the 4 original DriveShowdown controls, each with faithful kinematics:
 
-### Reading the screen
+- **Tank** — two tracks; can't floor-and-turn-max at once, so a touch slower than arcade.
+- **Arcade** — single stick; throttle and turn are independent.
+- **Swerve · bot** — omnidirectional, robot-relative (strafe any way + rotate).
+- **Swerve · field** — omnidirectional, field-relative — *same capability* as bot-centric, so a
+  similar best time, but it has to learn to account for its heading, so it often **trains at a
+  different rate**. Watch the COMPUTE stat and the Compare table.
 
-- **Center** — the real portrait field. Bright mint robot = current best of the population;
-  faint robots behind it = the rest of the fleet; yellow balls turn green when scored; the
-  mint line is the leader's path and the dashed gold line is the champion's recorded ideal line.
-- **Top of field** — the game's own **timer** and **N/8** ball counter.
-- **Right** — the driver's **brain** (live activations), the **best-finish-time-per-generation**
-  curve dropping over time, and the **leaderboard** (balls · time).
+**⚙ Sensitivity** (1× / 1.5× / 2×) is the real game's speed & turn lever — 2× is twice as fast and
+turny, so the theoretical best time is faster. Analog input + 2× sensitivity = the outright fastest.
+
+### Controls, telemetry & analysis
+
+Hover any control for a tooltip, or hit **❔ Help** for the full reference. Highlights:
+
+- **⏸ / ▶** pause · **▶ 1× … ⏩ MAX** speed · **↺ Reset** · **🏁 Replay Best** (deterministic re-run)
+- **🎮 Analog ↔ ⌨ Keyboard** — analog is continuous (the theoretical fastest); keyboard quantizes to
+  W/A/S/D on-off like a keyboard player (usually a bit slower). The **telemetry** panel shows *both*
+  representations of whatever the AI is doing — an analog stick **and** the mapped keys lighting up —
+  plus per-output bars, speed/heading/position, and a steer/throttle oscilloscope.
+- **📈 Telemetry** on/off — pure observation; off just trains a hair faster (the real lever for a
+  faster best is Analog + 2× sensitivity).
+- **OPTIMAL path** — the champion's ideal racing line, coloured by speed (red slow → green fast).
+- **💾 Save Run / ⚖ Compare / 📊 Export Data** — snapshot champions, overlay every saved run's ghost
+  and **rank them by finish time and training compute** (agent-steps) to find the most efficient
+  settings, and export everything (drive, sensitivity, compute, full 30 Hz telemetry) to CSV.
+- **👻 Export Ghost / 📥 Import Human** — export the AI line into the real game, or **import a ghost
+  you played in the game** and watch it **play back in real time** on the field, ranked head-to-head
+  against the AI in Compare.
+- Keys: `Space` play · `R` replay · `T` telemetry · `I` input · `C` compare · `D` export · `?` help
 
 ### Recording it for YouTube
 
-Set speed to **⏩ MAX**, let it run until the best-time curve flattens (~40–60 generations),
-then hit **🏁 Replay Best** at **1×** to show the clean, optimal run scoring all 8 balls.
-Screen-record the generation counter and the dropping best time — that's the whole story.
+Set speed to **⏩ MAX**, let it run until the best-time curve flattens, then hit **🏁 Replay Best**
+at **1×** to show the clean, optimal run. Screen-record the generation counter and the dropping best
+time. For an extra beat: import your own human ghost and race it against the AI's line.
+
+### Roadmap
+
+- **Car / Ackermann steering** — a 5th drive type where turn rate scales with speed and there's no
+  pivot-in-place (queued).
 
 ---
 
