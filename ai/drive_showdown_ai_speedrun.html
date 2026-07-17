@@ -127,7 +127,7 @@ const PLOW_SEGS=[
   [RR+2,-(RR+5), RR+14,-(RR+13)], [RR+14,-(RR+13), RR+26,-(RR+20)],
   [RR+2, RR+5,   RR+14, RR+13],   [RR+14, RR+13,   RR+26, RR+20]
 ];
-const TIMEOUT=48;                                      // seconds cap per attempt
+const TIMEOUT=56;                                      // seconds cap per attempt (headroom for diff drives' first sloppy full-clears)
 const DT=1/60;
 
 const clamp=(x,a,b)=>x<a?a:x>b?b:x;
@@ -285,8 +285,12 @@ function stepWorld(car){
     car.telem.push([Math.round(car.t*1000)/1000,Math.round(r.x*10)/10,Math.round(r.y*10)/10,Math.round(r.h*1000)/1000,
                     Math.round(o0*1000)/1000,Math.round(o1*1000)/1000,Math.round(o2*1000)/1000,Math.round(rs*10)/10,scored]);
   }
+  // ball-progress metric (monotone): scoring, or pushing any ball nearer the gap, raises it
+  let closeSum=0; for(const b of car.balls) closeSum+=b.close;
+  const prog=scored*1000+closeSum*300;
+  if(prog>car.progMark+0.5){ car.progMark=prog; car.progStep=car.steps; }
   if(scored===8){ car.done=true; car.finishT=car.t; }
-  else if(car.t>=TIMEOUT){ car.done=true; car.finishT=null; }
+  else if(car.t>=TIMEOUT || car.steps-car.progStep>=600){ car.done=true; car.finishT=null; } // 10s without ball progress -> hopeless; stop early (huge compute saver in early gens)
   car.fit=fitnessSP(car);
 }
 function senseSP(car){
@@ -310,7 +314,7 @@ function fitnessSP(car){
   for(const b of car.balls){ if(b.sc)fit+=1000-clamp(b.scT,0,TIMEOUT)*12; else fit+=300*b.close; }
   let nd=1e9; const r=car.robot; for(const b of car.balls) if(!b.sc)nd=Math.min(nd,Math.hypot(b.x-r.x,b.y-r.y));
   if(nd<1e9)fit+=40*(1-clamp(nd/500,0,1));
-  fit-=car.t*10;                                        // continuous speed pressure (dawdling costs)
+  fit-=((car.done&&car.finishT==null)?TIMEOUT:car.t)*10; // speed pressure; every DNF pays the full-time cost so an early-killed staller can't outrank a slow progresser
   if(car.scored===8&&car.finishT!=null)fit+=5000+(TIMEOUT-car.finishT)*80;
   return fit;
 }
@@ -318,19 +322,24 @@ function makeCar(genome){
   return {genome,out:[0,0,0],
     robot:{x:ROBOT_START.x,y:ROBOT_START.y,h:ROBOT_START.h},
     balls:BALL_STARTS.map(p=>({x:p.x,y:p.y,vx:0,vy:0,sc:false,scT:0,close:0})),
-    t:0,steps:0,ghost:[],telem:[],path:[],done:false,scored:0,finishT:null,fit:0};
+    t:0,steps:0,ghost:[],telem:[],path:[],done:false,scored:0,finishT:null,fit:0,progMark:-1,progStep:0};
 }
 
 /* ============================== EVOLUTION ================================= */
 const evo={pop:60,mut:0.18,gen:1,cars:[],genomes:[],hist:[],totalSteps:0,championSteps:0,
   bestTime:Infinity,bestGhost:null,bestTelem:null,bestGenome:null,championGen:0,
-  championMode:'joystick',championDrive:'tank',championSens:1,newRecord:0};
+  championMode:'joystick',championDrive:'tank',championSens:1,newRecord:0,stag:0,bestFitSeen:-1e18};
 function seedPopulation(n){evo.genomes=[];for(let i=0;i<n;i++)evo.genomes.push(randomGenome());}
 function spawnGeneration(){evo.cars=evo.genomes.map(g=>makeCar(g));}
-function resetEvolution(){evo.gen=1;evo.bestTime=Infinity;evo.bestGhost=null;evo.bestTelem=null;evo.bestGenome=null;evo.hist=[];evo.newRecord=0;evo.totalSteps=0;evo.championSteps=0;seedPopulation(evo.pop);spawnGeneration();}
+function resetEvolution(){evo.gen=1;evo.bestTime=Infinity;evo.bestGhost=null;evo.bestTelem=null;evo.bestGenome=null;evo.hist=[];evo.newRecord=0;evo.totalSteps=0;evo.championSteps=0;evo.stag=0;evo.bestFitSeen=-1e18;seedPopulation(evo.pop);spawnGeneration();}
 function tournament(sorted){let bi=1e9,best=null;for(let k=0;k<3;k++){const idx=(Math.pow(RNG(),1.7)*sorted.length)|0;if(idx<bi){bi=idx;best=sorted[idx];}}return best.genome;}
 function crossover(a,b){const c=new Float32Array(GENOME_LEN);for(let i=0;i<GENOME_LEN;i++)c[i]=RNG()<0.5?a[i]:b[i];return c;}
-function mutate(g){for(let i=0;i<GENOME_LEN;i++){if(RNG()<evo.mut){if(RNG()<0.1)g[i]=gauss()*0.8;else g[i]+=gauss()*0.35;}}return g;}
+function mutate(g){
+  const boost=1+Math.min(1.5,evo.stag*0.12);            // stagnation-adaptive: up to 2.5x while stuck on a plateau
+  const rate=Math.min(0.9,evo.mut*boost);
+  for(let i=0;i<GENOME_LEN;i++){if(RNG()<rate){if(RNG()<0.1)g[i]=gauss()*0.8;else g[i]+=gauss()*0.35*boost;}}
+  return g;
+}
 function nextGeneration(){
   const scored=evo.cars.slice().sort((a,b)=>b.fit-a.fit);
   const best=scored[0].fit, avg=scored.reduce((s,x)=>s+x.fit,0)/scored.length;
@@ -338,6 +347,7 @@ function nextGeneration(){
   let fastest=null;
   for(const c of evo.cars) if(c.finishT!=null && (fastest==null||c.finishT<fastest.finishT)) fastest=c;
   evo.hist.push({best,avg,time:fastest?fastest.finishT:null,scored:scored[0].scored});
+  if(best>evo.bestFitSeen+1e-6){ evo.bestFitSeen=best; evo.stag=0; } else evo.stag++;  // plateau detector -> adaptive mutation
   if(fastest && fastest.finishT<evo.bestTime){
     evo.bestTime=fastest.finishT; evo.bestGhost=fastest.ghost.slice(); evo.bestTelem=fastest.telem.slice();
     evo.bestGenome=Float32Array.from(fastest.genome); evo.championGen=evo.gen; evo.championMode=inputMode;
@@ -1004,6 +1014,12 @@ resize(); resetEvolution(); frame();
 </script>
 <!--
   changelog
+  v1.3.1 (2026-07-17): training reliability + speed. Early-stall termination (an attempt that
+    makes zero ball progress for 10s stops simulating — hopeless randoms no longer burn the full
+    timeout, so early generations run several times faster). All DNFs now pay the full time
+    penalty so an early-killed staller can't outrank a slow progresser. Stagnation-adaptive
+    mutation (rate/sigma boost up to 2.5x on fitness plateaus, resets on improvement) to escape
+    the 6-7/8-ball trap. TIMEOUT 48->56s so diff drives' first sloppy full-clears fit under the cap.
   v1.3.0 (2026-07-17): human ghosts + learnability. Import ghosts exported from the real game
     (frcds-ghosts) and overlay them with real-time playback (synced to the champion in Replay);
     they join the Compare ranking for head-to-head human-vs-AI. Added absolute heading (sinθ/cosθ)
