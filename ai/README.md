@@ -4,12 +4,13 @@ Adversarial **machine learning that plays DriveShowdown** — the "AI learns to 
 game" spectacle you see on YouTube, built into single offline HTML files (no build, no
 libraries, no server).
 
-There are two tools here:
+There are three tools here:
 
 | File | What it does |
 |------|--------------|
-| **[`drive_showdown_ai_speedrun.html`](./drive_showdown_ai_speedrun.html)** | **⭐ The main one.** Evolves an AI to play the **real single-player portrait game** and find the *ideal path to score the fastest*. |
-| [`ai_drive_showdown.html`](./ai_drive_showdown.html) | A general "AI learns to drive" racing demo on procedural tracks (great for the classic neuroevolution look). |
+| **[`drive_showdown_solo_lab.html`](./drive_showdown_solo_lab.html)** | **⭐ Start here — the educational bundle.** PLAY the real single-player time trial yourself (keyboard or **gamepad**, original graphics) *and* train the AI on it, in one file with zero friction between the two: your runs instantly become ghosts the AI compares against, the AI's champion races you live. Includes a **guided tutorial** on how adversarial ML works, **challenges** with saved progress, a **replay scrubber** with slow motion for studying telemetry, honest **two-stick telemetry**, and a settings model where changing things never nukes a run in progress. (Plus a certain classic cheat code.) |
+| [`drive_showdown_ai_speedrun.html`](./drive_showdown_ai_speedrun.html) | The focused ML research tool — the trainer alone, where all the findings below were made. |
+| [`ai_drive_showdown.html`](./ai_drive_showdown.html) | A general "AI learns to drive" racing demo on procedural tracks (the classic neuroevolution look). |
 
 ---
 

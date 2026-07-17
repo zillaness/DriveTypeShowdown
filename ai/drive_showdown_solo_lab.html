@@ -38,6 +38,38 @@
   .sep{width:1px;height:22px;background:var(--line);margin:0 2px;}
   .ctl{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--dim);}
   .ctl input[type=range]{width:82px;accent-color:var(--mint);}
+  select{font-family:inherit;font-size:12px;color:#dfe;background:#161630;border:1px solid #2a2a4a;border-radius:6px;padding:5px 6px;cursor:pointer;}
+  select:hover{border-color:var(--mint);}
+  /* settings model: amber = applies at next run; mint = live-tweakable any time */
+  .runset{border-left:3px solid var(--amber)!important;}
+  .liveset{border-left:3px solid var(--mint)!important;}
+  select.runset,.ctl.runset input{outline:none;}
+  #pendingBadge{display:none;font-size:10px;color:#1a1204;background:var(--amber);border-radius:4px;padding:2px 7px;font-weight:bold;white-space:nowrap;}
+  #pendingBadge.show{display:inline-block;}
+  #gpBadge{font-size:10px;color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:2px 6px;white-space:nowrap;}
+  #gpBadge.on{color:#04120c;background:var(--mint);border-color:var(--mint);font-weight:bold;}
+  #tut{position:absolute;left:0;right:0;bottom:0;z-index:45;display:none;padding:14px 18px;background:linear-gradient(0deg,#0d0d1ef8,#0d0d1ee0);border-top:2px solid var(--mint);}
+  #tut.show{display:block;}
+  #tut .step{font-size:10px;color:var(--dim);letter-spacing:1px;}
+  #tut h3{font-size:14px;color:var(--mint);margin:2px 0 4px;}
+  #tut p{font-size:12.5px;line-height:1.5;color:#d8d8f0;max-width:900px;}
+  #tut .btns{margin-top:8px;display:flex;gap:8px;}
+  #chal{position:absolute;right:0;top:0;bottom:0;z-index:44;display:none;width:330px;overflow:auto;background:#0c0c1af5;border-left:1px solid var(--line);padding:14px;}
+  #chal.show{display:block;}
+  #chal h3{color:var(--gold);font-size:14px;margin-bottom:8px;}
+  #chal .c{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;}
+  #chal .c.done{border-color:var(--mint);background:rgba(68,255,170,.06);}
+  #chal .c b{font-size:12px;color:#fff;} #chal .c.done b{color:var(--mint);}
+  #chal .c p{font-size:11px;color:var(--dim);line-height:1.4;margin-top:2px;}
+  #konami{position:absolute;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(5,5,12,.92);}
+  #konami.show{display:flex;}
+  #konami .card{max-width:560px;background:#0d0d1c;border:2px solid var(--mint);border-radius:14px;padding:30px 34px;text-align:center;box-shadow:0 0 60px rgba(68,255,170,.25);}
+  #konami h1{color:var(--mint);font-size:20px;margin-bottom:14px;letter-spacing:1px;}
+  #konami p{color:#d8d8f0;font-size:13px;line-height:1.65;margin:8px 0;}
+  #konami a{color:var(--blue);}
+  #scrubWrap{display:none;align-items:center;gap:6px;}
+  #scrubWrap.show{display:flex;}
+  #scrub{width:200px;accent-color:var(--gold);}
   #canwrap{position:relative;flex:1;min-height:0;}
   canvas{display:block;width:100%;height:100%;}
   #hint{position:absolute;left:12px;bottom:10px;font-size:11px;color:var(--dim);pointer-events:none;text-shadow:0 1px 3px #000;max-width:60%;}
@@ -64,12 +96,25 @@
   <div id="bar">
     <span class="brand">DRIVE<b>SHOWDOWN</b> · SOLO + AI LAB</span>
     <span class="sep"></span>
-    <button id="btnModePlay" class="on" data-tip="<b>Play mode</b> — drive the real single-player time trial yourself with WASD/Arrows. Shortcut: <b>M</b> toggles modes.">🎮 PLAY</button>
+    <button id="btnModePlay" class="on" data-tip="<b>Play mode</b> — drive the real single-player time trial yourself with keyboard or gamepad. Shortcut: <b>M</b> toggles modes.">🎮 PLAY</button>
     <button id="btnModeLab" data-tip="<b>Lab mode</b> — the neuroevolution trainer: watch a population of neural-net drivers evolve to beat the same course. Shortcut: <b>M</b>.">🤖 LAB</button>
+    <button id="btnTut" data-tip="<b>Tutorial</b> — a guided, step-by-step walkthrough of how adversarial machine learning works and what every lever does. It drives the app for you as it explains.">🎓 Tutorial</button>
+    <button id="btnChal" data-tip="<b>Challenges</b> — gamified goals: get the AI to hit target times within generation or compute budgets, beat the AI yourself, and more. Progress is saved.">🏆 Challenges</button>
     <button id="btnLearn" data-tip="<b>Learn</b> — six concrete, numbers-backed lessons about machine learning discovered while building this. Shortcut: <b>L</b>.">📖 Learn</button>
     <span class="sep"></span>
-    <button id="btnDrive" data-tip="<b>Drive type</b> — the robot's control model. Shared between Play and Lab, so switching here changes what you drive AND what the AI trains on. Tank/Arcade/Swerve·bot/Swerve·field, each with its own feel.">🚗 Tank</button>
-    <button id="btnSens" data-tip="<b>Sensitivity</b> — the real game's speed &amp; turn lever. 2× is twice as fast and twitchy. Shared between Play and Lab.">⚙ 1× sens</button>
+    <select id="selDrive" class="runset" data-tip="<b>Drive type</b> (amber = applies when you start a NEW run — changing it never interrupts the current one). Shared between Play and Lab.">
+      <option value="tank">🚗 Tank</option>
+      <option value="arcade">🚗 Arcade</option>
+      <option value="swervB">🚗 Swerve · bot</option>
+      <option value="swervF">🚗 Swerve · field</option>
+    </select>
+    <select id="selSens" class="runset" data-tip="<b>Sensitivity</b> — the real game's speed &amp; turn lever (amber = applies at next run). 2× is twice as fast and twitchy.">
+      <option value="1">⚙ 1× sens</option>
+      <option value="1.5">⚙ 1.5× sens</option>
+      <option value="2">⚙ 2× sens</option>
+    </select>
+    <span id="pendingBadge">⏳ applies next run</span>
+    <span id="gpBadge">🎮 no pad</span>
     <span class="sep"></span>
     <span id="barPlay" style="display:contents">
       <button id="btnStart" class="on" data-tip="<b>Start / Retry Run</b> — begin a fresh timed attempt (3-2-1-GO countdown). Shortcut: <b>R</b>.">▶ Start Run</button>
@@ -79,14 +124,22 @@
       <button id="btnImportPlayGhost" data-tip="<b>Import Ghost</b> — load a ghost file (yours, a friend's, or one exported from the real game) to race against.">📥 Import</button>
     </span>
     <span id="barLab" style="display:none">
-      <button id="btnPlay" class="on" data-tip="<b>Play / Pause</b> the simulation. Shortcut: <b>Space</b>.">⏸ Pause</button>
-      <button id="btnSpeed" data-tip="<b>Simulation speed</b> — physics steps per frame. MAX fast-forwards training; the result is identical, just quicker to reach.">▶ 4×</button>
+      <button id="btnPlay" class="on liveset" data-tip="<b>Play / Pause</b> the simulation (mint = safe to touch any time). Shortcut: <b>Space</b>.">⏸ Pause</button>
+      <div class="ctl liveset" data-tip="<b>Simulation speed</b> (mint = live). Left end is SLOW MOTION (0.25×) — perfect for studying telemetry in Replay; right end is MAX fast-forward for training. Never changes results, only how fast you watch them.">
+        <span>🐢</span><input id="speedSlider" type="range" min="0" max="7" step="1" value="3"><span id="speedV" style="min-width:38px">4×</span>
+      </div>
+      <span id="scrubWrap" data-tip="<b>Replay scrubber</b> — drag to any moment of the champion's run. The sim re-computes deterministically to that instant, so you can step through the telemetry frame by frame.">
+        <span>⏱</span><input id="scrub" type="range" min="0" max="1000" step="1" value="0"><span id="scrubV" style="font-size:10px;color:var(--dim)">0.00s</span>
+      </span>
       <span class="sep"></span>
-      <button id="btnReset" data-tip="<b>Reset Evolution</b> — start over from a fresh random population.">↺ Reset</button>
-      <button id="btnReplay" class="gold" data-tip="<b>Replay Best</b> — deterministically re-run the champion at any speed. Shortcut: <b>R</b> (Lab mode).">🏁 Replay Best</button>
+      <button id="btnReset" data-tip="<b>New Run</b> — start a fresh evolution with the current (amber) settings. This is the ONLY thing that applies pending setting changes.">↺ New Run</button>
+      <button id="btnReplay" class="gold" data-tip="<b>Replay Best</b> — deterministically re-run the champion. Combine with the 🐢 slow end of the speed slider and the ⏱ scrubber to study its telemetry. Shortcut: <b>R</b> (Lab mode).">🏁 Replay Best</button>
       <span class="sep"></span>
-      <button id="btnInput" data-tip="<b>AI input model.</b> Analog (joystick, continuous) is the theoretical fastest; Keyboard (digital on/off) is usually a bit slower. Restarts evolution.">🎮 Analog</button>
-      <button id="btnTelem" class="on" data-tip="<b>Telemetry ON/OFF</b> — records/shows the AI's control inputs. Pure observation; doesn't change how fast the AI can go.">📈 Telemetry</button>
+      <select id="selInput" class="runset" data-tip="<b>AI input model</b> (amber = applies at next run). Analog (continuous) is the theoretical fastest; Keyboard (digital on/off) is usually a bit slower.">
+        <option value="joystick">🎮 AI: Analog</option>
+        <option value="keyboard">⌨ AI: Keyboard</option>
+      </select>
+      <button id="btnTelem" class="on liveset" data-tip="<b>Telemetry ON/OFF</b> (mint = live) — records/shows control inputs. Pure observation; doesn't change how fast the AI can go.">📈 Telemetry</button>
       <span class="sep"></span>
       <button id="btnSaveRun" data-tip="<b>Save Run</b> — snapshot the current champion into a list you can compare later.">💾 Save Run</button>
       <button id="btnCompare" data-tip="<b>Compare Runs</b> — overlay every saved run + ghost and rank by time and training compute. Shortcut: <b>C</b>.">⚖ Compare</button>
@@ -94,11 +147,11 @@
       <button id="btnGhost" data-tip="<b>Export Ghost</b> — download the AI's ideal path in the real game's ghost format.">👻 Ghost → game</button>
       <button id="btnImport" data-tip="<b>Import Human Ghost</b> — load a ghost exported from the real game; overlays with real-time playback and joins Compare.">📥 Import Human</button>
       <span class="sep"></span>
-      <div class="ctl" data-tip="<b>Population size</b> — drivers per generation."><span>POP</span> <input id="pop" type="range" min="20" max="120" step="10" value="60"><span id="popV">60</span></div>
-      <div class="ctl" data-tip="<b>Mutation rate</b> — exploration vs fine-tuning."><span>MUT</span> <input id="mut" type="range" min="1" max="60" step="1" value="18"><span id="mutV">0.18</span></div>
-      <div class="ctl" data-tip="<b>Live path</b> of the current best robot."><label>PATH <input id="pathToggle" type="checkbox" checked style="accent-color:var(--mint)"></label></div>
-      <div class="ctl" data-tip="<b>Optimal path</b> — the champion's ideal line, coloured by speed."><label>OPTIMAL <input id="optToggle" type="checkbox" checked style="accent-color:var(--gold)"></label></div>
-      <div class="ctl" data-tip="<b>Ghosts</b> — show/hide imported &amp; human runs overlay."><label>GHOSTS <input id="humanToggle" type="checkbox" checked style="accent-color:#fff"></label></div>
+      <div class="ctl runset" data-tip="<b>Population size</b> (amber = applies at next run) — drivers per generation."><span>POP</span> <input id="pop" type="range" min="20" max="120" step="10" value="60"><span id="popV">60</span></div>
+      <div class="ctl liveset" data-tip="<b>Mutation rate</b> (mint = live — evolution uses it from the next generation on) — exploration vs fine-tuning."><span>MUT</span> <input id="mut" type="range" min="1" max="60" step="1" value="18"><span id="mutV">0.18</span></div>
+      <div class="ctl liveset" data-tip="<b>Live path</b> of the current best robot."><label>PATH <input id="pathToggle" type="checkbox" checked style="accent-color:var(--mint)"></label></div>
+      <div class="ctl liveset" data-tip="<b>Optimal path</b> — the champion's ideal line, coloured by speed."><label>OPTIMAL <input id="optToggle" type="checkbox" checked style="accent-color:var(--gold)"></label></div>
+      <div class="ctl liveset" data-tip="<b>Ghosts</b> — show/hide imported &amp; human runs overlay."><label>GHOSTS <input id="humanToggle" type="checkbox" checked style="accent-color:#fff"></label></div>
     </span>
     <button id="btnHelp" data-tip="Open the full controls reference. Shortcut: <b>?</b>">❔ Help</button>
   </div>
@@ -107,6 +160,9 @@
     <div id="hint">Push all 8 balls through the top gap, as fast as you can. Hover any control for what it does, or hit <b>❔ Help</b> / <b>📖 Learn</b>.</div>
     <div id="help"></div>
     <div id="learn"></div>
+    <div id="tut"></div>
+    <div id="chal"></div>
+    <div id="konami"></div>
   </div>
 </div>
 <div id="tooltip"></div>
@@ -150,11 +206,27 @@ let RNG=Math.random;
 function gauss(){let u=0,v=0;while(u===0)u=RNG();while(v===0)v=RNG();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
 
 /* ---- settings shared across modes ---- */
+// Two kinds of settings, visually distinguished in the toolbar:
+//   RUN settings (amber left border): drive, sensitivity, AI input model, POP.
+//     Changing one NEVER interrupts the current run — it goes into `pending` and applies
+//     the next time a run starts (▶ Start Run in Play, ↺ New Run in Lab).
+//   LIVE settings (mint left border): speed, pause, telemetry, path/ghost toggles, MUT.
+//     Safe to touch mid-run; they observe or pace, they don't define the experiment.
 const DEADZONE=0.28;
 let mode='play';                     // 'play' (you drive) | 'lab' (AI trains)
 let inputMode='joystick';
 let sensitivity=1;
 let telemOn=true;
+const pending={drive:null,sens:null,inputMode:null,pop:null};   // null = no change queued
+function pendingCount(){return Object.values(pending).filter(v=>v!=null).length;}
+function updatePendingBadge(){document.getElementById('pendingBadge').classList.toggle('show',pendingCount()>0);}
+function applyPending(){
+  if(pending.drive!=null){setDrive(pending.drive);pending.drive=null;}
+  if(pending.sens!=null){sensitivity=pending.sens;pending.sens=null;}
+  if(pending.inputMode!=null){inputMode=pending.inputMode;pending.inputMode=null;}
+  if(pending.pop!=null){evo.pop=pending.pop;pending.pop=null;}
+  updatePendingBadge();
+}
 let showOptimal=true;
 let showCompare=false;
 let savedRuns=[];
@@ -164,11 +236,12 @@ let showHuman=true, ghostClock=0;
 const HUMAN_PAL=['#ffffff','#ff9de0','#a0e0ff','#ffe08a','#c0ffb0','#e0b0ff'];
 
 /* ============================== NEURAL NET ================================= */
+// colors (c) ported from the real game's DRIVES table so each drive keeps its identity
 const DRIVES={
-  tank:   {label:'Tank',           model:'tank', in:10, out:2, key:'tank',           outLab:['steer','throttle'],       desc:'two tracks — can\'t floor-and-turn-max at once'},
-  arcade: {label:'Arcade',         model:'diff', in:10, out:2, key:'arcade',         outLab:['steer','throttle'],       desc:'single stick — throttle and turn are independent'},
-  swervB: {label:'Swerve · bot',   model:'holoR',in:10, out:3, key:'holo_swerve',    outLab:['forward','strafe','rotate'],desc:'omnidirectional, robot-relative — strafe any direction + rotate independently'},
-  swervF: {label:'Swerve · field', model:'holoF',in:16, out:2, key:'holo_swerve_fc', outLab:['move X','move Y'],desc:'omnidirectional, field-relative with heading hold — physically as capable as bot-centric but by far the hardest for the AI to learn (see 📖 Learn)'},
+  tank:   {label:'Tank',           model:'tank', in:10, out:2, key:'tank',           c:'#00e676', outLab:['steer','throttle'],       desc:'two tracks — can\'t floor-and-turn-max at once. ↑/↓ = left track, W/S = right track (two sticks on a pad)'},
+  arcade: {label:'Arcade',         model:'diff', in:10, out:2, key:'arcade',         c:'#40c4ff', outLab:['steer','throttle'],       desc:'single stick — throttle and turn are independent. WASD or arrows'},
+  swervB: {label:'Swerve · bot',   model:'holoR',in:10, out:3, key:'holo_swerve',    c:'#ffab40', outLab:['forward','strafe','rotate'],desc:'omnidirectional, robot-relative. WASD = move, ←/→ = rotate (left stick move, right stick rotate)'},
+  swervF: {label:'Swerve · field', model:'holoF',in:16, out:2, key:'holo_swerve_fc', c:'#e040fb', outLab:['move X','move Y'],desc:'omnidirectional, field-relative with heading hold. WASD = move on the field — physically as capable as bot-centric but by far the hardest for the AI to learn (see 📖 Learn)'},
 };
 const DRIVE_ORDER=['tank','arcade','swervB','swervF'];
 let drive='tank';
@@ -214,18 +287,58 @@ function forward(genome,inputs){
 }
 
 /* ============================== HUMAN CONTROLS ============================= */
+// Keyboard clusters + gamepad sticks, ported from the real game's getInp() mappings:
+//   Tank:   ↑/↓ = LEFT track, W/S = RIGHT track. Pad: right stick Y = left track,
+//           left stick Y = right track (crossed to match the keyboard sides, like the game).
+//   Arcade: WASD or arrows merged (Y = fwd/back, X = turn). Pad: either stick.
+//   Swerve·bot:   WASD = translate (robot frame), ←/→ = rotate. Pad: L stick move, R stick X rotate.
+//   Swerve·field: WASD = translate (field frame); heading hold, no rotate. Pad: L stick.
 const heldKeys=new Set();
-function isDown(...keys){for(const k of keys)if(heldKeys.has(k))return true;return false;}
-// Maps live keys to the SAME output space each drive's net produces, so the telemetry
-// panel (built for AI outputs) renders human control just as well — one code path, two drivers.
+const k=s=>heldKeys.has(s)?1:0;
+const GP_DEAD=0.12;
+let gpConnected=false;
+function gpAxes(){                                   // {lx,ly,rx,ry} with deadzone, or zeros
+  const pads=(navigator.getGamepads&&navigator.getGamepads())||[];
+  for(const p of pads){ if(!p||!p.connected)continue;
+    const dz=v=>Math.abs(v)>GP_DEAD?v:0;
+    gpConnected=true;
+    return {lx:dz(p.axes[0]||0),ly:dz(p.axes[1]||0),rx:dz(p.axes[2]||0),ry:dz(p.axes[3]||0),pad:p};
+  }
+  gpConnected=false;
+  return {lx:0,ly:0,rx:0,ry:0,pad:null};
+}
+// Returns [o0,o1,o2] in the SAME output space each drive's net produces, so telemetry and
+// physics use one code path for both drivers. Keyboard is digital; pad axes are analog.
 function humanControlVector(){
-  const up=isDown('w','arrowup'), dn=isDown('s','arrowdown'), lt=isDown('a','arrowleft'), rt=isDown('d','arrowright');
-  const rotL=isDown('q'), rotR=isDown('e');
+  const g=gpAxes();
   const m=DRIVES[drive].model;
-  if(m==='tank')  return [(rt?1:0)-(lt?1:0), (up?1:0)-(dn?1:0), 0];
-  if(m==='holoR') return [(up?1:0)-(dn?1:0), (rt?1:0)-(lt?1:0), (rotR?1:0)-(rotL?1:0)];
-  if(m==='holoF') return [(rt?1:0)-(lt?1:0), (dn?1:0)-(up?1:0), 0];
-  return [(rt?1:0)-(lt?1:0), (up?1:0)-(dn?1:0), 0];               // diff (arcade)
+  if(m==='tank'){
+    const L=clamp(k('arrowup')-k('arrowdown')-g.ry,-1,1);        // arrows / right stick = LEFT track
+    const R=clamp(k('w')-k('s')-g.ly,-1,1);                      // WASD / left stick = RIGHT track
+    return [(R-L)/2, (L+R)/2, 0];   // stepWorld's tank model reconstructs exactly L=o1-o0, R=o1+o0
+  }
+  if(m==='holoR'){
+    const fw=clamp(k('w')-k('s')-g.ly,-1,1);
+    const st=clamp(k('d')-k('a')+g.lx,-1,1);
+    const rot=clamp(k('arrowright')-k('arrowleft')+g.rx,-1,1);
+    return [fw,st,rot];
+  }
+  if(m==='holoF'){
+    const vx=clamp(k('d')-k('a')+g.lx,-1,1);
+    const vy=clamp(k('s')-k('w')+g.ly,-1,1);
+    return [vx,vy,0];
+  }
+  // arcade: WASD or arrows merged; either stick
+  const jx=Math.abs(g.lx)+Math.abs(g.ly)>0.05?g.lx:g.rx;
+  const jy=Math.abs(g.lx)+Math.abs(g.ly)>0.05?g.ly:g.ry;
+  const f=clamp((k('w')||k('arrowup'))-(k('s')||k('arrowdown'))-jy,-1,1);
+  const t=clamp((k('d')||k('arrowright'))-(k('a')||k('arrowleft'))+jx,-1,1);
+  return [t,f,0];
+}
+function gpStartPressed(){                            // A button (or Start) begins a run from idle/done
+  const g=gpAxes(); if(!g.pad)return false;
+  const b=g.pad.buttons;
+  return !!((b[0]&&b[0].pressed)||(b[9]&&b[9].pressed));
 }
 
 /* ============================== PHYSICS (ported) ========================== */
@@ -457,8 +570,10 @@ function startReplay(){
   if(!evo.bestGenome){flash('No champion yet — let it train until it finishes a run.');return;}
   replay.car=makeCar(evo.bestGenome); replay.active=true; replay.hold=0;
   document.getElementById('btnReplay').classList.add('on');
+  document.getElementById('scrubWrap').classList.add('show');
+  flash('Replay — drag the ⏱ scrubber to any instant, and drag the speed slider to 🐢 slow motion to study the telemetry.');
 }
-function stopReplay(){replay.active=false;document.getElementById('btnReplay').classList.remove('on');}
+function stopReplay(){replay.active=false;document.getElementById('btnReplay').classList.remove('on');document.getElementById('scrubWrap').classList.remove('show');}
 function stepReplay(){
   const c=replay.car;
   if(c.done){ replay.hold+=DT; if(replay.hold>2.2){ replay.car=makeCar(evo.bestGenome); replay.hold=0; } return; }
@@ -503,41 +618,136 @@ function layoutField(view){
 const FX=x=>fld.x0+x*fld.s, FY=y=>fld.y0+y*fld.s;
 function roundRect(x,y,w,h,r){G.beginPath();G.moveTo(x+r,y);G.arcTo(x+w,y,x+w,y+h,r);G.arcTo(x+w,y+h,x,y+h,r);G.arcTo(x,y+h,x,y,r);G.arcTo(x,y,x+w,y,r);G.closePath();}
 
+/* Original single-player graphics, ported from drive_showdown_v5.1.98.html:
+   grid floor + zone tints + labels (drawField), the metal wall with gap markers (drawWall),
+   gradient balls with shadow + gloss (drawBalls), and the square robot with drive-colored
+   border, front bumper stripe, drop shadow, glow ring, filled scoop pocket, and ANIMATED
+   drivetrain (spinning tank tracks / aiming swerve pods). */
 function drawField(){
   const s=fld.s;
-  G.fillStyle='#0c0c16'; G.fillRect(FX(0),FY(0),FW*s,FH*s);
-  G.fillStyle='rgba(0,230,118,.07)'; G.fillRect(FX(0),FY(0),FW*s,(WALL_Y)*s);
-  G.strokeStyle='#2b2b46'; G.lineWidth=2; G.strokeRect(FX(0),FY(0),FW*s,FH*s);
-  G.fillStyle='#3a3a58';
-  G.fillRect(FX(0),FY(WALL_Y-WALL_H/2),(GAP_L)*s,WALL_H*s);
-  G.fillRect(FX(GAP_R),FY(WALL_Y-WALL_H/2),(FW-GAP_R)*s,WALL_H*s);
-  G.fillStyle='rgba(68,255,170,.16)'; G.fillRect(FX(GAP_L),FY(0),(GAP_R-GAP_L)*s,WALL_Y*s);
-  G.strokeStyle='rgba(68,255,170,.55)'; G.lineWidth=2;
-  G.beginPath(); G.moveTo(FX(GAP_L),FY(WALL_Y)); G.lineTo(FX(GAP_L),FY(0)); G.moveTo(FX(GAP_R),FY(WALL_Y)); G.lineTo(FX(GAP_R),FY(0)); G.stroke();
-  G.fillStyle='rgba(68,255,170,.6)'; G.font=(11)+'px "Courier New",monospace'; G.textAlign='center';
-  G.fillText('▲ GOAL ▲',FX(GAP_CX),FY(14));
+  G.save(); G.translate(fld.x0,fld.y0); G.scale(s,s);
+  G.fillStyle='#0a1a0a'; G.fillRect(0,0,FW,FH);
+  G.strokeStyle='#14221488'; G.lineWidth=1;
+  for(let x=0;x<=FW;x+=46){G.beginPath();G.moveTo(x,0);G.lineTo(x,FH);G.stroke();}
+  for(let y=0;y<=FH;y+=46){G.beginPath();G.moveTo(0,y);G.lineTo(FW,y);G.stroke();}
+  G.fillStyle='rgba(255,60,40,0.04)'; G.fillRect(0,0,FW,WALL_Y);
+  G.fillStyle='rgba(20,80,255,0.04)'; G.fillRect(0,WALL_Y,FW,FH-WALL_Y);
+  G.strokeStyle='#1e3a1e'; G.lineWidth=4; G.strokeRect(0,0,FW,FH);
+  G.font='12px Courier New'; G.textAlign='center';
+  G.fillStyle='rgba(255,80,60,0.28)'; G.fillText('↑  SCORING ZONE  ↑',FW/2,WALL_Y/2+6);
+  G.fillStyle='rgba(60,100,255,0.28)'; G.fillText('↓  PUSH FROM HERE  ↓',FW/2,FH-16);
+  // wall
+  const wy=WALL_Y-WALL_H/2;
+  G.fillStyle='#b4bcc8';
+  G.fillRect(0,wy,GAP_L,WALL_H); G.fillRect(GAP_R,wy,FW-GAP_R,WALL_H);
+  G.strokeStyle='rgba(200,215,255,0.45)'; G.lineWidth=1;
+  G.strokeRect(0,wy,GAP_L,WALL_H); G.strokeRect(GAP_R,wy,FW-GAP_R,WALL_H);
+  G.strokeStyle='#00e87888'; G.lineWidth=1.5; G.setLineDash([5,5]);
+  G.beginPath(); G.moveTo(GAP_L+2,WALL_Y); G.lineTo(GAP_R-2,WALL_Y); G.stroke(); G.setLineDash([]);
+  G.fillStyle='#00e878'; G.font='bold 18px sans-serif'; G.textAlign='center';
+  G.fillText('↑',GAP_CX,WALL_Y+7);
+  G.strokeStyle='#00e87855'; G.lineWidth=1;
+  G.beginPath(); G.moveTo(GAP_L,WALL_Y-20); G.lineTo(GAP_L,WALL_Y+20);
+  G.moveTo(GAP_R,WALL_Y-20); G.lineTo(GAP_R,WALL_Y+20); G.stroke();
+  G.restore();
 }
 function drawBall(b){
-  const s=fld.s;
-  G.beginPath(); G.arc(FX(b.x),FY(b.y),BR*s,0,7);
-  if(b.sc){ G.fillStyle='#00e676'; G.globalAlpha=0.85; } else { G.fillStyle='#ffd740'; }
-  G.fill(); G.globalAlpha=1;
-  G.strokeStyle='rgba(0,0,0,.35)'; G.lineWidth=1; G.stroke();
-}
-function drawRobot(r,bright){
-  const s=fld.s; G.save(); G.translate(FX(r.x),FY(r.y)); G.rotate(r.h);
-  G.globalAlpha=bright?1:0.14;
-  G.fillStyle=bright?'#44ffaa':'#3a6b57';
-  G.beginPath(); G.arc(0,0,RR*s,0,7); G.fill();
-  G.fillStyle=bright?'#04120c':'#0c1a14';
-  G.beginPath(); G.moveTo(RR*s*0.9,0); G.lineTo(-RR*s*0.4,RR*s*0.55); G.lineTo(-RR*s*0.4,-RR*s*0.55); G.closePath(); G.fill();
-  if(bright){
-    G.strokeStyle='#8affd4'; G.lineWidth=2.2; G.beginPath();
-    for(const seg of PLOW_SEGS){ G.moveTo(seg[0]*s,seg[1]*s); G.lineTo(seg[2]*s,seg[3]*s); }
-    G.stroke();
-  }
+  G.save(); G.translate(fld.x0,fld.y0); G.scale(fld.s,fld.s);
+  G.globalAlpha=b.sc?0.3:1;
+  G.beginPath(); G.arc(b.x+2,b.y+3,BR,0,Math.PI*2);
+  G.fillStyle='rgba(0,0,0,0.55)'; G.fill();
+  const g=G.createRadialGradient(b.x-BR*0.3,b.y-BR*0.35,BR*0.08,b.x,b.y,BR);
+  g.addColorStop(0,'#fff59d'); g.addColorStop(0.4,'#ffe000'); g.addColorStop(1,'#d84000');
+  G.beginPath(); G.arc(b.x,b.y,BR,0,Math.PI*2); G.fillStyle=g; G.fill();
+  G.beginPath(); G.arc(b.x-BR*0.32,b.y-BR*0.38,BR*0.21,0,Math.PI*2);
+  G.fillStyle='rgba(255,255,255,0.38)'; G.fill();
   G.globalAlpha=1; G.restore();
 }
+// animated drivetrain state (persists across frames like the game's wSpin/swerveMods)
+const wSpin={l:0,r:0};
+const swerveMods=[{d:0,s:0},{d:0,s:0},{d:0,s:0},{d:0,s:0}];
+function drawTrackAnim(x1,x2,y,spin,color){
+  const h=6;
+  G.fillStyle='#0d0d1a'; G.fillRect(x1,y-h/2,x2-x1,h);
+  G.strokeStyle=color+'55'; G.lineWidth=0.8;
+  const sp=5,off=((spin*4)%sp+sp)%sp;
+  for(let tx=x1+off;tx<x2;tx+=sp){G.beginPath();G.moveTo(tx,y-h/2);G.lineTo(tx,y+h/2);G.stroke();}
+  G.strokeStyle=color+'99'; G.lineWidth=1.2; G.strokeRect(x1,y-h/2,x2-x1,h);
+}
+function drawSwerveWhl(cx,cy,dir,spin,color){
+  G.save(); G.translate(cx,cy); G.rotate(dir);
+  G.fillStyle='#111'; G.fillRect(-10,-4.5,20,9);
+  G.strokeStyle=color+'55'; G.lineWidth=0.9;
+  const sp=4,off=((spin*3)%sp+sp)%sp;
+  for(let tx=-10+off;tx<10;tx+=sp){G.beginPath();G.moveTo(tx,-4.5);G.lineTo(tx,4.5);G.stroke();}
+  G.strokeStyle=color; G.lineWidth=2; G.strokeRect(-10,-4.5,20,9);
+  G.strokeStyle=color; G.lineWidth=2.5;
+  G.beginPath(); G.moveTo(-10,0); G.lineTo(14,0); G.stroke();
+  G.fillStyle=color;
+  G.beginPath(); G.moveTo(14,0); G.lineTo(10,-4); G.lineTo(10,4); G.closePath(); G.fill();
+  G.restore();
+}
+// bright robot gets the full animated treatment; swarm robots stay cheap faded squares
+function drawRobot(r,bright,car){
+  const col=DRIVES[drive].c, m=DRIVES[drive].model;
+  G.save(); G.translate(fld.x0,fld.y0); G.scale(fld.s,fld.s);
+  G.translate(r.x,r.y);
+  if(!bright){
+    G.globalAlpha=0.14; G.rotate(r.h);
+    G.fillStyle='#1a1a2e'; G.fillRect(-RR,-RR,RR*2,RR*2);
+    G.strokeStyle=col; G.lineWidth=2; G.strokeRect(-RR,-RR,RR*2,RR*2);
+    G.globalAlpha=1; G.restore(); return;
+  }
+  // shadow (unrotated, like the game)
+  G.beginPath(); G.ellipse(2,5,RR,RR*0.6,0,0,Math.PI*2);
+  G.fillStyle='rgba(0,0,0,0.42)'; G.fill();
+  G.rotate(r.h);
+  // drivetrain animation from the car's live outputs
+  const o=car?car.out:[0,0,0];
+  const SS=SPD*sensitivity, S=0.065, M=6284;
+  if(m==='tank'||m==='diff'){
+    const st=o[0],th=o[1],L=clamp(th-st,-1,1),R=clamp(th+st,-1,1);
+    wSpin.l=(wSpin.l+L*SS*DT*4*S*60+M)%M; wSpin.r=(wSpin.r+R*SS*DT*4*S*60+M)%M;
+    drawTrackAnim(-RR+1,RR-1,-(RR+3),wSpin.l,col);
+    drawTrackAnim(-RR+1,RR-1,(RR+3),wSpin.r,col);
+  }
+  // glow ring
+  G.beginPath(); G.arc(0,0,RR+8,0,Math.PI*2); G.fillStyle=col+'14'; G.fill();
+  // body: square with drive-colored border + front bumper stripe
+  G.fillStyle='#1a1a2e';
+  roundRectG(-RR,-RR,RR*2,RR*2,4); G.fill();
+  G.strokeStyle=col; G.lineWidth=3; roundRectG(-RR,-RR,RR*2,RR*2,4); G.stroke();
+  G.fillStyle=col+'cc'; G.fillRect(RR-5,-RR,5,RR*2);
+  // scoop: filled pocket + arms with round caps
+  G.save(); G.lineCap='round'; G.lineJoin='round';
+  G.beginPath();
+  G.moveTo(PLOW_SEGS[0][0],PLOW_SEGS[0][1]);
+  G.lineTo(PLOW_SEGS[0][2],PLOW_SEGS[0][3]); G.lineTo(PLOW_SEGS[1][2],PLOW_SEGS[1][3]);
+  G.lineTo(PLOW_SEGS[3][2],PLOW_SEGS[3][3]);
+  G.lineTo(PLOW_SEGS[3][0],PLOW_SEGS[3][1]); G.lineTo(PLOW_SEGS[2][0],PLOW_SEGS[2][1]);
+  G.closePath();
+  G.fillStyle='rgba(60,60,90,0.35)'; G.fill();
+  G.strokeStyle=col; G.lineWidth=4;
+  G.beginPath(); G.moveTo(PLOW_SEGS[0][0],PLOW_SEGS[0][1]); G.lineTo(PLOW_SEGS[0][2],PLOW_SEGS[0][3]); G.lineTo(PLOW_SEGS[1][2],PLOW_SEGS[1][3]); G.stroke();
+  G.beginPath(); G.moveTo(PLOW_SEGS[2][0],PLOW_SEGS[2][1]); G.lineTo(PLOW_SEGS[2][2],PLOW_SEGS[2][3]); G.lineTo(PLOW_SEGS[3][2],PLOW_SEGS[3][3]); G.stroke();
+  G.restore();
+  // swerve pods on top of the chassis, aiming along each module's velocity (like the game)
+  if(m==='holoR'||m==='holoF'){
+    let vlx,vly,vr;
+    if(m==='holoR'){ vlx=o[0]*SS; vly=o[1]*SS; vr=(o[2]||0)*TSP*sensitivity; }
+    else { const ch=Math.cos(r.h),sh=Math.sin(r.h); const wx=o[0]*SS,wy=o[1]*SS;
+           vlx=ch*wx+sh*wy; vly=-sh*wx+ch*wy; vr=0; }
+    const cx=[RR*0.7,RR*0.7,-RR*0.7,-RR*0.7], cy=[-RR*0.7,RR*0.7,-RR*0.7,RR*0.7];
+    for(let i=0;i<4;i++){
+      const vxc=vlx-cy[i]*vr, vyc=vly+cx[i]*vr, mag=Math.hypot(vxc,vyc);
+      if(mag>2)swerveMods[i].d=Math.atan2(vyc,vxc);
+      swerveMods[i].s=(swerveMods[i].s+mag*S*DT*60+M)%M;
+      drawSwerveWhl(cx[i],cy[i],swerveMods[i].d,swerveMods[i].s,col);
+    }
+  }
+  G.restore();
+}
+function roundRectG(x,y,w,h,r){G.beginPath();G.moveTo(x+r,y);G.arcTo(x+w,y,x+w,y+h,r);G.arcTo(x+w,y+h,x,y+h,r);G.arcTo(x,y+h,x,y,r);G.arcTo(x,y,x+w,y,r);G.closePath();}
 function drawPath(path,color,width){
   if(!path||path.length<2)return;
   G.strokeStyle=color; G.lineWidth=width; G.lineJoin='round';
@@ -709,26 +919,48 @@ function drawStick(cx,cy,rad,steer,thr){
   G.strokeStyle='rgba(68,255,170,.4)';G.beginPath();G.moveTo(cx,cy);G.lineTo(kx,ky);G.stroke();
   G.fillStyle='#44ffaa';G.beginPath();G.arc(kx,ky,5,0,7);G.fill();
 }
+// Per-drive control layout matching the REAL game's input scheme — most drives are
+// genuinely two-stick (tank: one per track; swerves: translate + rotate), and the keyboard
+// uses TWO clusters (WASD + arrows). Telemetry mirrors that honestly.
+//   sticks: [{lab, x, y}]  (y up = +) — one or two of them
+//   clusters: [{lab, keys:[[char,lit],...4 or 2]}] — WASD cluster and/or arrow cluster
 function ctrlScheme(o){
-  const OL=DRIVES[drive].outLab, dz=DEADZONE, m=DRIVES[drive].model;
+  const dz=DEADZONE, m=DRIVES[drive].model;
   if(m==='tank'){ const st=o[0],th=o[1],L=clamp(th-st,-1,1),R=clamp(th+st,-1,1);
     return {bars:[{lab:'L track',val:L,col:'#44ffaa'},{lab:'R track',val:R,col:'#5aa8ff'}],
-      sx:st,sy:th,rot:null,stickLab:'stick→tracks',keys:[['W',th>dz],['A',st<-dz],['S',th<-dz],['D',st>dz]]}; }
+      sticks:[{lab:'L STICK → R trk',x:0,y:R},{lab:'R STICK → L trk',x:0,y:L}],
+      clusters:[{lab:'W/S = R track',keys:[['W',R>dz],['S',R<-dz]]},
+                {lab:'↑/↓ = L track',keys:[['↑',L>dz],['↓',L<-dz]]}]};
+  }
   if(m==='holoR'){
-    return {bars:[{lab:OL[0],val:o[0],col:'#44ffaa'},{lab:OL[1],val:o[1],col:'#5aa8ff'},{lab:OL[2],val:o[2],col:'#ffce4d'}],
-      sx:o[1],sy:o[0],rot:o[2],stickLab:'TRANSLATE',keys:[['W',o[0]>dz],['A',o[1]<-dz],['S',o[0]<-dz],['D',o[1]>dz]]}; }
+    return {bars:[{lab:'forward',val:o[0],col:'#44ffaa'},{lab:'strafe',val:o[1],col:'#5aa8ff'},{lab:'rotate',val:o[2],col:'#ffce4d'}],
+      sticks:[{lab:'L STICK move',x:o[1],y:o[0]},{lab:'R STICK rotate',x:o[2],y:0}],
+      clusters:[{lab:'WASD move',keys:[['W',o[0]>dz],['A',o[1]<-dz],['S',o[0]<-dz],['D',o[1]>dz]]},
+                {lab:'←/→ rotate',keys:[['←',o[2]<-dz],['→',o[2]>dz]]}]};
+  }
   if(m==='holoF'){
-    return {bars:[{lab:OL[0],val:o[0],col:'#44ffaa'},{lab:OL[1],val:o[1],col:'#5aa8ff'}],
-      sx:o[0],sy:-o[1],rot:null,stickLab:'TRANSLATE',keys:[['W',o[1]<-dz],['A',o[0]<-dz],['S',o[1]>dz],['D',o[0]>dz]]}; }
-  return {bars:[{lab:OL[0],val:o[0],col:'#44ffaa'},{lab:OL[1],val:o[1],col:'#5aa8ff'}],
-    sx:o[0],sy:o[1],rot:null,stickLab:'JOYSTICK',keys:[['W',o[1]>dz],['A',o[0]<-dz],['S',o[1]<-dz],['D',o[0]>dz]]};
+    return {bars:[{lab:'move X',val:o[0],col:'#44ffaa'},{lab:'move Y',val:o[1],col:'#5aa8ff'}],
+      sticks:[{lab:'L STICK move',x:o[0],y:-o[1]}],
+      clusters:[{lab:'WASD move (field)',keys:[['W',o[1]<-dz],['A',o[0]<-dz],['S',o[1]>dz],['D',o[0]>dz]]}]};
+  }
+  return {bars:[{lab:'steer',val:o[0],col:'#44ffaa'},{lab:'throttle',val:o[1],col:'#5aa8ff'}],
+    sticks:[{lab:'EITHER STICK',x:o[0],y:o[1]}],
+    clusters:[{lab:'WASD or arrows',keys:[['W',o[1]>dz],['A',o[0]<-dz],['S',o[1]<-dz],['D',o[0]>dz]]}]};
 }
-function drawKeysArr(x,y,keys,rot){
-  const ks=18,gp=3,c1=x+ks+gp;
+function drawKeyCluster(x,y,cluster){
+  const ks=16,gp=3;
   const key=(kx,ky,ch,lit)=>{G.fillStyle=lit?'#44ffaa':'#181830';roundRect(kx,ky,ks,ks,4);G.fill();
-    G.strokeStyle='#33335a';G.lineWidth=1;G.stroke();G.fillStyle=lit?'#04120c':'#8a8ab0';G.font='bold 10px "Courier New",monospace';G.textAlign='center';G.fillText(ch,kx+ks/2,ky+ks/2+4);};
-  key(c1,y,keys[0][0],keys[0][1]);key(x,y+ks+gp,keys[1][0],keys[1][1]);key(c1,y+ks+gp,keys[2][0],keys[2][1]);key(x+2*(ks+gp),y+ks+gp,keys[3][0],keys[3][1]);
-  if(rot!=null){key(x+3*(ks+gp)+6,y,'Q',rot<-DEADZONE);key(x+3*(ks+gp)+6,y+ks+gp,'E',rot>DEADZONE);}
+    G.strokeStyle='#33335a';G.lineWidth=1;G.stroke();G.fillStyle=lit?'#04120c':'#8a8ab0';G.font='bold 9px "Courier New",monospace';G.textAlign='center';G.fillText(ch,kx+ks/2,ky+ks/2+3.5);};
+  const K=cluster.keys;
+  if(K.length===4){ // WASD diamond
+    key(x+ks+gp,y,K[0][0],K[0][1]); key(x,y+ks+gp,K[1][0],K[1][1]);
+    key(x+ks+gp,y+ks+gp,K[2][0],K[2][1]); key(x+2*(ks+gp),y+ks+gp,K[3][0],K[3][1]);
+  } else { // 2-key column (up/down or left/right pair)
+    key(x+ks+gp,y,K[0][0],K[0][1]); key(x+ks+gp,y+ks+gp,K[1][0],K[1][1]);
+  }
+  G.fillStyle='#6a6a88';G.font='8px "Courier New",monospace';G.textAlign='center';
+  G.fillText(cluster.lab,x+1.5*(ks+gp),y+2*(ks+gp)+9);
+  return 3*(ks+gp)+6;   // width consumed
 }
 function outSpeed(o){const SS=SPD*sensitivity,m=DRIVES[drive].model;
   if(m==='holoR'||m==='holoF')return Math.hypot(o[0],o[1])*SS;
@@ -746,19 +978,21 @@ function drawTelemetry(px,py,pw,ph,car){
   let y=py+36;
   for(const b of sc.bars){ barBip(inX,y,inW-42,b.lab,b.val,b.col,right); y+=22; }
   y+=6;
-  const rowH=58, stickR=rowH/2-4, scx=inX+stickR+2, scy=y+rowH/2;
-  drawStick(scx,scy,stickR,sc.sx,sc.sy);
-  if(sc.rot!=null){
-    G.strokeStyle='#ffce4d';G.lineWidth=2;const a0=-Math.PI/2,a1=a0+clamp(sc.rot,-1,1)*Math.PI*0.9;
-    G.beginPath();G.arc(scx,scy,stickR+4,Math.min(a0,a1),Math.max(a0,a1));G.stroke();
+  // sticks row: one or TWO analog sticks, matching the drive's real control scheme
+  const rowH=56, stickR=rowH/2-6;
+  let sxCur=inX+stickR+2;
+  for(const st of sc.sticks){
+    drawStick(sxCur,y+rowH/2-4,stickR,st.x,st.y);
+    G.fillStyle='#6a6a88';G.font='8px "Courier New",monospace';G.textAlign='center';
+    G.fillText(st.lab,sxCur,y+rowH+2);
+    sxCur+=stickR*2+16;
   }
-  G.fillStyle='#6a6a88';G.font='9px "Courier New",monospace';G.textAlign='center';G.fillText(sc.stickLab,scx,y+rowH+3);
-  const kX=inX+rowH+20,kY=y+2;
-  drawKeysArr(kX,kY,sc.keys,sc.rot);
-  G.fillStyle='#6a6a88';G.textAlign='center';G.fillText('KEYBOARD',kX+(sc.rot!=null?32:22),y+rowH+3);
+  // key clusters (WASD + arrows) to the right of the sticks
+  let kX=sxCur-stickR+4;
+  for(const cl of sc.clusters){ kX+=drawKeyCluster(kX,y+4,cl); }
   G.textAlign='left';G.fillStyle='#8a8ab0';G.font='9px "Courier New",monospace';
-  G.fillText(DRIVES[drive].label+' · '+(car&&car.human?'you':(inputMode==='keyboard'?'⌨ digital':'🎮 analog'))+' · '+sensitivity.toFixed(1)+'× sens',inX,y+rowH+17);
-  y+=rowH+29;
+  G.fillText(DRIVES[drive].label+' · '+(car&&car.human?(gpConnected?'🎮 pad':'⌨ you'):(inputMode==='keyboard'?'⌨ digital':'🎮 analog'))+' · '+sensitivity.toFixed(1)+'× sens',inX,y+rowH+14);
+  y+=rowH+26;
   const spd=outSpeed(o), hdg=car?(((car.robot.h*180/Math.PI)%360)+360)%360:0, colW=inW/3;
   mini(inX,y,'SPEED px/s',spd.toFixed(0),'#44ffaa');
   mini(inX+colW,y,'HEADING',hdg.toFixed(0)+'°','#cfe');
@@ -896,8 +1130,24 @@ function drawSoloSidebar(sx,y,sw,h){
 function flash(m){const h=document.getElementById('hint');h.textContent=m;h.style.color='#ffce4d';setTimeout(()=>{h.style.color='';h.textContent='';},3200);}
 
 /* ============================== MAIN LOOP ================================= */
-const SPEEDS=[{lbl:'▶ 1×',n:1},{lbl:'▶ 4×',n:4},{lbl:'▶ 10×',n:10},{lbl:'⏩ 30×',n:30},{lbl:'⏩ MAX',n:150}];
-let speedIdx=1, playing=true, showPaths=true;
+// speed slider: left end is SLOW MOTION for studying telemetry (0.25x = one physics step
+// every 4 frames via fractional accumulation), right end is MAX training fast-forward.
+const SPEED_STEPS=[{lbl:'🐢¼×',n:0.25},{lbl:'½×',n:0.5},{lbl:'1×',n:1},{lbl:'4×',n:4},{lbl:'10×',n:10},{lbl:'30×',n:30},{lbl:'75×',n:75},{lbl:'MAX',n:150}];
+let speedIdx=3, simAcc=0, playing=true, showPaths=true;
+function simIters(){ simAcc+=SPEED_STEPS[speedIdx].n; const it=Math.floor(simAcc); simAcc-=it; return it; }
+function speedN(){return SPEED_STEPS[speedIdx].n;}
+// replay scrubber: deterministic re-sim of the champion to any instant (cheap: <=3360 steps of one car)
+function scrubTo(frac){
+  if(!replay.active||!evo.bestGenome)return;
+  const T=isFinite(evo.bestTime)?evo.bestTime:TIMEOUT;
+  const c=makeCar(evo.bestGenome);
+  let guard=0; const target=frac*T;
+  while(c.t<target && !c.done && guard<TIMEOUT*60+10){ stepWorld(c); guard++; }
+  replay.car=c; replay.hold=0;
+  playing=false;
+  const bp=document.getElementById('btnPlay'); bp.textContent='▶ Play'; bp.classList.remove('on');
+  document.getElementById('scrubV').textContent=c.t.toFixed(2)+'s';
+}
 function currentLeader(){
   let best=null;
   for(const c of evo.cars){ if(!best||c.fit>best.fit) best=c; }
@@ -905,8 +1155,13 @@ function currentLeader(){
 }
 function frameLab(fieldView,SB){
   if(playing){
-    const iters=SPEEDS[speedIdx].n;
+    const iters=simIters();
     for(let k=0;k<iters;k++){ if(replay.active)stepReplay(); else stepEvolution(); }
+    if(replay.active&&replay.car){ // keep the scrubber tracking the live replay position
+      const T=isFinite(evo.bestTime)?evo.bestTime:TIMEOUT;
+      document.getElementById('scrub').value=Math.round(clamp01(replay.car.t/T)*1000);
+      document.getElementById('scrubV').textContent=replay.car.t.toFixed(2)+'s';
+    }
   }
   drawField();
   if(showOptimal) drawOptimalPath();
@@ -916,14 +1171,14 @@ function frameLab(fieldView,SB){
     leader=replay.car;
     if(showPaths) drawPath(leader.path,'rgba(68,255,170,.85)',2);
     for(const b of leader.balls) drawBall(b);
-    drawRobot(leader.robot,true);
+    drawRobot(leader.robot,true,leader);
   }else{
     leader=currentLeader();
     for(const c of evo.cars) if(c!==leader) drawRobot(c.robot,false);
     if(leader){
       if(showPaths) drawPath(leader.path,'rgba(68,255,170,.8)',2);
       for(const b of leader.balls) drawBall(b);
-      drawRobot(leader.robot,true);
+      drawRobot(leader.robot,true,leader);
     }
   }
   drawHUD(fieldView,leader);
@@ -968,10 +1223,10 @@ function frameSolo(fieldView,SB){
   if(solo.car){
     drawPath(solo.car.path,'rgba(68,255,170,.8)',2);
     for(const b of solo.car.balls) drawBall(b);
-    drawRobot(solo.car.robot,true);
+    drawRobot(solo.car.robot,true,solo.car);
   } else {                            // idle preview: show the real starting layout, not an empty box
     for(const p of BALL_STARTS) drawBall({x:p.x,y:p.y,sc:false});
-    drawRobot(ROBOT_START,true);
+    drawRobot(ROBOT_START,true,null);
   }
   drawSoloHUD(fieldView);
   const marginW=fld.x0-fieldView.x-16;
@@ -984,15 +1239,27 @@ function frameSolo(fieldView,SB){
   else if(solo.phase==='countdown') drawSoloCountdown();
   else if(solo.phase==='done') drawSoloDoneOverlay();
 }
+let gpStartLatch=false, gpBadgeTick=0;
 function frame(){
   requestAnimationFrame(frame);
   const SB=clamp(W*0.30,280,380);
   const fieldView={x:0,y:0,w:W-SB,h:H};
   layoutField(fieldView);
+  // gamepad: badge + A/Start begins a run from idle/done in Play mode
+  if(++gpBadgeTick%20===0){ gpAxes();
+    const b=document.getElementById('gpBadge');
+    b.classList.toggle('on',gpConnected); b.textContent=gpConnected?'🎮 pad ✓':'🎮 no pad';
+  }
+  if(mode==='play'&&(solo.phase==='idle'||solo.phase==='done')){
+    const p=gpStartPressed();
+    if(p&&!gpStartLatch){gpStartLatch=true;beginNewRun(false);startSoloRun();}
+    if(!p)gpStartLatch=false;
+  }
+  checkChallenges();
   const _maxD=humanGhosts.reduce((m,g)=>Math.max(m,g.t),0);
   if(mode==='lab'&&replay.active) ghostClock=replay.car.t;
   else if(mode==='play'&&solo.car&&solo.phase==='playing') ghostClock=solo.car.t;
-  else if(_maxD>0){ const step=(mode==='lab'&&playing)?DT*SPEEDS[speedIdx].n:DT; ghostClock+=step; if(ghostClock>_maxD+1.2)ghostClock=0; }
+  else if(_maxD>0){ const step=(mode==='lab'&&playing)?DT*speedN():DT; ghostClock+=step; if(ghostClock>_maxD+1.2)ghostClock=0; }
   G.fillStyle='#07070e'; G.fillRect(0,0,W,H);
   if(mode==='lab') frameLab(fieldView,SB); else frameSolo(fieldView,SB);
 }
@@ -1070,30 +1337,30 @@ function buildHelp(){
     <div>
       <h2>MODES</h2>
       <ul>
-        <li><span class="k">🎮 PLAY</span> — you drive with WASD/Arrows (+Q/E to rotate on Swerve·bot). <kbd>M</kbd> toggles modes.</li>
+        <li><span class="k">🎮 PLAY</span> — you drive, keyboard or gamepad. <kbd>M</kbd> toggles modes. <span class="k">🎓 Tutorial</span> gives a guided tour; <span class="k">🏆 Challenges</span> are gamified goals with saved progress.</li>
         <li><span class="k">🤖 LAB</span> — the neuroevolution trainer from the AI Speedrun tool.</li>
         <li>Finish a Play run and it's <b>instantly</b> a ghost inside Lab's Compare table — no export needed. Train a Lab champion and hit <span class="k">🏆 Race AI</span> in Play to race it live — also no export needed. 👻 file export/import still works for sharing outside this browser.</li>
       </ul>
-      <h2>PLAY MODE</h2>
+      <h2>SETTINGS: AMBER vs MINT</h2>
       <ul>
-        <li><span class="k">▶ Start Run</span> — 3-2-1-GO countdown, then drive. <kbd>R</kbd> retries any time.</li>
-        <li>No timer cuts you off — like the real game, it's a personal-best time trial, not a game-over clock.</li>
-        <li><span class="k">🏆 Race AI</span> — load the Lab's current best run as a live ghost opponent.</li>
-        <li><span class="k">👻 Export Mine / 📥 Import</span> — share your personal best, or load someone else's ghost to race.</li>
+        <li><span class="g">AMBER-edged controls</span> (drive, sensitivity, AI input model, POP) <b>define the run</b>. Changing one never interrupts anything — it queues (⏳ badge) and applies when you hit <span class="k">▶ Start Run</span> or <span class="k">↺ New Run</span>. Pick your setup, then run.</li>
+        <li><span class="k">MINT-edged controls</span> (speed, pause, MUT, telemetry, path/ghost toggles) are <b>live</b> — safe to touch mid-run; they observe or pace, they don't change the experiment.</li>
+        <li>Drive &amp; sensitivity are shared between modes, so applying a queued change also restarts the Lab population (💾 Save Run first to keep a champion). Settings persist across sessions.</li>
       </ul>
-      <h2>DRIVE TYPES &amp; SENSITIVITY</h2>
+      <h2>PLAY MODE — CONTROLS</h2>
       <ul>
-        <li><span class="k">🚗 Drive</span> and <span class="k">⚙ Sens</span> are shared between modes — what you pick is what you drive AND what the AI trains on.</li>
-        <li><span class="k">Tank</span> two tracks · <span class="k">Arcade</span> single stick · <span class="k">Swerve · bot</span> omni, robot-relative · <span class="k">Swerve · field</span> omni, field-relative with heading hold — physically just as capable, but by far the hardest for the AI (see 📖 Learn).</li>
+        <li><span class="k">Tank</span>: <kbd>W/S</kbd> = right track, <kbd>↑/↓</kbd> = left track (pad: one stick per track). <span class="k">Arcade</span>: WASD <i>or</i> arrows (pad: either stick). <span class="k">Swerve·bot</span>: WASD move + <kbd>←/→</kbd> rotate (pad: L stick move, R stick rotate). <span class="k">Swerve·field</span>: WASD moves on the field, heading hold.</li>
+        <li><span class="k">▶ Start Run</span> or <kbd>R</kbd> or pad <b>A/Start</b> — 3-2-1-GO, then drive. No timer cuts you off — it's a personal-best time trial.</li>
+        <li><span class="k">🏆 Race AI</span> — load the Lab's best run as a live ghost opponent. <span class="k">👻 Export Mine / 📥 Import</span> — share ghosts.</li>
       </ul>
     </div>
     <div>
       <h2>LAB MODE</h2>
       <ul>
-        <li><span class="k">⏸/▶</span> pause/resume · <span class="k">▶1×…⏩MAX</span> sim speed · <span class="k">↺ Reset</span> fresh population · <span class="k">🏁 Replay Best</span> deterministic champion replay.</li>
-        <li><span class="k">🎮 Analog / ⌨ Keyboard</span> — the AI's input model. Analog (continuous) is the theoretical fastest.</li>
-        <li><span class="k">📈 Telemetry</span> — the AI's control inputs live: bars, joystick, W/A/S/D, an oscilloscope. Pure observation — never limits AI speed.</li>
-        <li><span class="k">POP / MUT</span> — population size / mutation rate.</li>
+        <li><span class="k">⏸/▶</span> pause · <span class="k">speed slider</span> from 🐢 0.25× slow-motion (for studying telemetry) to MAX fast-forward · <span class="k">↺ New Run</span> fresh population (applies queued settings) · <span class="k">🏁 Replay Best</span> deterministic champion replay.</li>
+        <li><span class="k">⏱ Scrubber</span> (appears in Replay) — drag to ANY instant of the champion's run; the sim re-computes deterministically, so telemetry, brain activations, and ball state all match that exact moment.</li>
+        <li><span class="k">AI input model</span> — Analog (continuous, the theoretical fastest) vs Keyboard (on/off).</li>
+        <li><span class="k">📈 Telemetry</span> — the drive's REAL control layout, live: per-output bars, <b>two sticks</b> where the drive really uses two (tank: one per track; swerve: move + rotate), both keyboard clusters (WASD + arrows), and an oscilloscope.</li>
       </ul>
       <h2>SAVING &amp; EXPORT</h2>
       <ul>
@@ -1149,6 +1416,116 @@ function buildLearn(){
 }
 function toggleLearn(on){document.getElementById('learn').classList.toggle('show',on);}
 
+/* ============================== GUIDED TUTORIAL =========================== */
+// Step-by-step walkthrough of how the adversarial ML works and what each lever does.
+// Each step SETS UP the app state it talks about, so the user watches the real thing.
+const TUT_STEPS=[
+ {t:'Welcome — an AI that teaches itself to play',
+  p:'This is the real DriveShowdown single-player course, and the robots you see are a population of NEURAL NETWORKS learning to play it — no rules, no instructions, just trial and error. This tour drives the app for you; hit Next to continue, ✕ anytime to exit.',
+  do:()=>{setMode('lab');stopReplay();beginNewRun(true);setSpeed(3);}},
+ {t:'Step 1 · The population',
+  p:'Every faint square is one AI driver with its own randomly-wired brain. Right now they\'re all terrible — most spin, park, or drive into walls. That\'s the starting material. The bright robot is whoever is doing least badly. This is generation 1 of survival of the fittest.',
+  do:()=>{setSpeed(2);}},
+ {t:'Step 2 · Fitness — what "better" means',
+  p:'Each attempt gets a score: balls pushed through the gap dominate everything, then how FAST they went in, then partial credit for nudging balls closer. Getting this scoring right is half of machine learning — an early version of this tool accidentally rewarded a fast 6-ball run more than a slow 7-ball run, and the AI rationally stopped trying for the 7th ball for 70 straight generations.',
+  do:()=>{}},
+ {t:'Step 3 · The adversarial part',
+  p:'When every attempt ends, drivers are ranked AGAINST EACH OTHER. Only the winners pass their brain-wiring to the next generation: top performers are copied intact, the rest of the next generation is bred from tournament winners (two parents\' weights mixed) plus random mutation. Each generation is a tougher field to survive in — your rivals are last generation\'s best.',
+  do:()=>{setSpeed(4);}},
+ {t:'Step 4 · The brain',
+  p:'The right panel shows the current best driver\'s actual neural network, live: 10 inputs (where the nearest balls are, which way the gap is, where the robot is), a few layers of weighted connections (green = positive, red = negative, thickness = strength), and outputs that ARE the stick inputs. Nobody programmed a strategy — this wiring was found by breeding.',
+  do:()=>{}},
+ {t:'Step 5 · Watch it learn',
+  p:'Let\'s fast-forward. The BEST FINISH TIME graph will start empty, then drop as champions appear and get faster. The COMPUTE stat counts every simulated step — that\'s the real "cost" of training, and different settings need wildly different amounts of it.',
+  do:()=>{setSpeed(7);}},
+ {t:'Step 6 · The levers you control',
+  p:'AMBER controls (drive, sensitivity, AI input model, POP) define the experiment — changing them queues (⏳) until you start a new run, so you can\'t accidentally nuke hours of training. MINT controls (speed, MUT, telemetry, toggles) are live. POP = more drivers per generation (broader search, slower). MUT = how much offspring differ (explore vs fine-tune). Try dragging MUT now — it applies from the very next generation.',
+  do:()=>{setSpeed(5);}},
+ {t:'Step 7 · Drive types are experiments',
+  p:'The same course feels completely different to learn depending on the control scheme. Tank trains most reliably. Arcade can bootstrap in ~13 generations on a lucky seed. And field-centric swerve — the EASIEST drive for humans — is by far the HARDEST for the AI (open 📖 Learn for why; it\'s the best story in this tool).',
+  do:()=>{}},
+ {t:'Step 8 · Study the champion',
+  p:'Once a champion exists, 🏁 Replay Best re-runs it deterministically. Drag the speed slider to 🐢 slow motion and scrub the ⏱ timeline to any instant — the TELEMETRY panel shows exactly what its virtual sticks and keys were doing at that moment. This is how you find out WHAT it actually learned.',
+  do:()=>{if(evo.bestGenome){startReplay();setSpeed(2);}}},
+ {t:'Step 9 · Your turn',
+  p:'Switch to 🎮 PLAY and drive the same course yourself (keyboard or gamepad), then hit 🏆 Race AI to race the champion\'s ghost live. Open 🏆 Challenges for goals — beat target times, train within generation budgets, or out-drive your own AI. Have fun, and check 📖 Learn for everything we learned building this.',
+  do:()=>{stopReplay();setSpeed(3);}},
+];
+let tutIdx=-1;
+function setSpeed(i){speedIdx=clamp(i,0,SPEED_STEPS.length-1);document.getElementById('speedSlider').value=speedIdx;document.getElementById('speedV').textContent=SPEED_STEPS[speedIdx].lbl;}
+function tutRender(){
+  const el=document.getElementById('tut');
+  if(tutIdx<0||tutIdx>=TUT_STEPS.length){el.classList.remove('show');return;}
+  const s=TUT_STEPS[tutIdx];
+  el.innerHTML='<div class="step">GUIDED TUTORIAL · '+(tutIdx+1)+' / '+TUT_STEPS.length+'</div>'+
+    '<h3>'+s.t+'</h3><p>'+s.p+'</p>'+
+    '<div class="btns">'+(tutIdx>0?'<button id="tutBack">◀ Back</button>':'')+
+    '<button id="tutNext" class="on">'+(tutIdx===TUT_STEPS.length-1?'Finish ✓':'Next ▶')+'</button>'+
+    '<button id="tutExit">✕ Exit tour</button></div>';
+  el.classList.add('show');
+  document.getElementById('tutNext').onclick=()=>{tutIdx++;if(tutIdx<TUT_STEPS.length){TUT_STEPS[tutIdx].do();}tutRender();};
+  const b=document.getElementById('tutBack'); if(b)b.onclick=()=>{tutIdx--;TUT_STEPS[tutIdx].do();tutRender();};
+  document.getElementById('tutExit').onclick=()=>{tutIdx=-1;tutRender();};
+}
+function startTutorial(){tutIdx=0;TUT_STEPS[0].do();tutRender();}
+
+/* ============================== CHALLENGES ================================ */
+const CHALLENGES=[
+ {id:'first8', icon:'🏁',name:'First Full Clear',  desc:'Get the AI to score all 8 balls, any settings.', check:()=>isFinite(evo.bestTime)},
+ {id:'sub45',  icon:'⚡',name:'Sub-45 Club',       desc:'Evolve a champion faster than 45.00s.',          check:()=>isFinite(evo.bestTime)&&evo.bestTime<45},
+ {id:'sub35',  icon:'🔥',name:'Speed Demon',       desc:'Evolve a champion faster than 35.00s.',          check:()=>isFinite(evo.bestTime)&&evo.bestTime<35},
+ {id:'gen40',  icon:'🌱',name:'Fast Learner',      desc:'First full clear within 40 generations of a run.',check:()=>isFinite(evo.bestTime)&&evo.championGen<=40},
+ {id:'thrifty',icon:'🔋',name:'Compute Miser',     desc:'A full clear using under 3M agent-steps of training compute.',check:()=>isFinite(evo.bestTime)&&evo.championSteps>0&&evo.championSteps<3e6},
+ {id:'kbAI',   icon:'⌨', name:'Digital Driver',    desc:'A full clear with the AI restricted to keyboard (on/off) inputs.',check:()=>isFinite(evo.bestTime)&&evo.championMode==='keyboard'},
+ {id:'beatAI', icon:'🥊',name:'Beat the Machine',  desc:'Finish a Play run faster than the AI champion (same drive & sensitivity).',
+   check:()=>{const pb=solo.best[soloKey()];return !!pb&&isFinite(evo.bestTime)&&evo.championDrive===drive&&evo.championSens===sensitivity&&pb.t<evo.bestTime;}},
+ {id:'triDrive',icon:'🚗',name:'Polyglot Trainer', desc:'Full clears on 3 different drive types (across runs).',check:()=>chalState.drivesCleared.length>=3},
+ {id:'sevenF', icon:'🧗',name:'Field Work',        desc:'Coax field-centric swerve to 7/8 balls — expert difficulty.',check:()=>drive==='swervF'&&evo.hist.length>0&&evo.hist[evo.hist.length-1].scored>=7},
+];
+let chalState={done:{},drivesCleared:[]};
+function loadChal(){try{const s=JSON.parse(localStorage.getItem('frcds_chal')||'{}');chalState.done=s.done||{};chalState.drivesCleared=s.drivesCleared||[];}catch(e){}}
+function saveChal(){try{localStorage.setItem('frcds_chal',JSON.stringify(chalState));}catch(e){}}
+function chalRender(){
+  const el=document.getElementById('chal');
+  const n=CHALLENGES.filter(c=>chalState.done[c.id]).length;
+  el.innerHTML='<h3>🏆 CHALLENGES — '+n+' / '+CHALLENGES.length+'</h3>'+
+    CHALLENGES.map(c=>'<div class="c'+(chalState.done[c.id]?' done':'')+'"><b>'+c.icon+' '+c.name+(chalState.done[c.id]?' ✓':'')+'</b><p>'+c.desc+'</p></div>').join('')+
+    '<p style="font-size:10px;color:#6a6a88;margin-top:6px">Progress saves in this browser. Settings for each goal are up to you — that\'s the game.</p>';
+}
+let chalTick=0;
+function checkChallenges(){
+  if(++chalTick%30)return;                              // ~2x per second is plenty
+  if(isFinite(evo.bestTime)&&!chalState.drivesCleared.includes(evo.championDrive)){
+    chalState.drivesCleared.push(evo.championDrive); saveChal();
+  }
+  let changed=false;
+  for(const c of CHALLENGES){
+    if(chalState.done[c.id])continue;
+    let ok=false; try{ok=c.check();}catch(e){}
+    if(ok){chalState.done[c.id]=true;changed=true;flash('🏆 CHALLENGE COMPLETE: '+c.icon+' '+c.name+'!');}
+  }
+  if(changed){saveChal();chalRender();}
+}
+
+/* ============================== KONAMI CODE =============================== */
+const KONAMI=['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a'];
+let konBuf=[];
+function konamiFeed(key){
+  konBuf.push(key); if(konBuf.length>KONAMI.length)konBuf.shift();
+  if(konBuf.length===KONAMI.length&&konBuf.every((k2,i)=>k2===KONAMI[i])){konBuf=[];showKonami();}
+}
+function showKonami(){
+  const el=document.getElementById('konami');
+  el.innerHTML='<div class="card">'+
+    '<h1>✦ YOU FOUND IT ✦</h1>'+
+    '<p>I haven\'t figured out what goes here yet.</p>'+
+    '<p>But while you\'re here — <b>thank you Ethan</b> for prompting me to build this,<br>and <b>thank you Claude</b> for actually building it.</p>'+
+    '<p style="margin-top:14px;font-size:11px;color:#7a7a98">built with <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a><br><span style="color:#55556e">(referral code goes here someday, maybe)</span></p>'+
+    '<div style="margin-top:16px"><button id="konClose" class="on">✕ back to the robots</button></div></div>';
+  el.classList.add('show');
+  document.getElementById('konClose').onclick=()=>el.classList.remove('show');
+}
+
 /* ============================== TOOLTIPS ================================= */
 const TIP=document.getElementById('tooltip');
 function positionTip(mx,my){
@@ -1182,22 +1559,39 @@ function setMode(m){
 document.getElementById('btnModePlay').onclick=()=>setMode('play');
 document.getElementById('btnModeLab').onclick=()=>setMode('lab');
 document.getElementById('btnLearn').onclick=()=>toggleLearn(!document.getElementById('learn').classList.contains('show'));
-document.getElementById('btnDrive').onclick=function(){
-  if(lockedForPlay()){flash('Finish or retry your current run before switching drive type.');return;}
-  setDrive(DRIVE_ORDER[(DRIVE_ORDER.indexOf(drive)+1)%DRIVE_ORDER.length]);
-  this.textContent='🚗 '+DRIVES[drive].label;
-  stopReplay(); resetEvolution(); solo.phase='idle'; solo.car=null;
-  flash('Drive type → '+DRIVES[drive].label+': '+DRIVES[drive].desc+'.'+
-        (drive==='swervF'?' In Lab, crank POP to 120 and be patient — this one usually reaches 6-7/8.':''));
+// ---- RUN settings (amber): queue into `pending`, applied only when a new run starts ----
+function syncSettingUI(){
+  document.getElementById('selDrive').value=pending.drive!=null?pending.drive:drive;
+  document.getElementById('selSens').value=String(pending.sens!=null?pending.sens:sensitivity);
+  document.getElementById('selInput').value=pending.inputMode!=null?pending.inputMode:inputMode;
+  const p=pending.pop!=null?pending.pop:evo.pop;
+  document.getElementById('pop').value=p; document.getElementById('popV').textContent=p;
+  updatePendingBadge();
+  try{localStorage.setItem('frcds_solo_settings',JSON.stringify({drive:pending.drive??drive,sens:pending.sens??sensitivity,inputMode:pending.inputMode??inputMode,pop:pending.pop??evo.pop}));}catch(e){}
+}
+document.getElementById('selDrive').onchange=function(){
+  pending.drive=this.value===drive?null:this.value; updatePendingBadge(); syncSettingUI();
+  if(pending.drive)flash('Drive → '+DRIVES[this.value].label+': '+DRIVES[this.value].desc+'. ⏳ Applies when you start a new run — your current run is untouched.'+(this.value==='swervF'?' (Lab tip: POP 120 + patience.)':''));
 };
-document.getElementById('btnSens').onclick=function(){
-  if(lockedForPlay()){flash('Finish or retry your current run before switching sensitivity.');return;}
-  const opts=[1,1.5,2]; sensitivity=opts[(opts.indexOf(sensitivity)+1)%opts.length];
-  this.textContent='⚙ '+sensitivity+'× sens';
-  stopReplay(); resetEvolution(); solo.phase='idle'; solo.car=null;
-  flash('Sensitivity → '+sensitivity+'× '+(sensitivity>1?'(faster & twitchier).':'(base game speed).'));
+document.getElementById('selSens').onchange=function(){
+  const v=parseFloat(this.value);
+  pending.sens=v===sensitivity?null:v; updatePendingBadge(); syncSettingUI();
+  if(pending.sens!=null)flash('Sensitivity → '+v+'× '+(v>1?'(faster & twitchier).':'(base speed).')+' ⏳ Applies at the next run.');
 };
-document.getElementById('btnStart').onclick=startSoloRun;
+document.getElementById('selInput').onchange=function(){
+  pending.inputMode=this.value===inputMode?null:this.value; updatePendingBadge(); syncSettingUI();
+  if(pending.inputMode)flash('AI input model → '+(this.value==='joystick'?'ANALOG (continuous — theoretical fastest).':'KEYBOARD (digital on/off — usually a bit slower).')+' ⏳ Applies at the next run.');
+};
+// applies pending settings; resets evolution only when something actually changed (or forced)
+function beginNewRun(force){
+  const had=pendingCount()>0;
+  if(had)applyPending();
+  syncSettingUI();
+  if(had||force){ stopReplay(); resetEvolution();
+    if(had)flash('Settings applied — fresh run. (Drive/sens are shared, so the Lab population restarted too.)'); }
+  return had;
+}
+document.getElementById('btnStart').onclick=function(){ beginNewRun(false); startSoloRun(); };
 document.getElementById('btnAddAIGhost').onclick=function(){
   if(!evo.bestGenome){flash('No AI champion yet — switch to 🤖 LAB and let it train until it finishes a run.');return;}
   addGhostEntry('AI '+DRIVES[evo.championDrive].label+' g'+evo.championGen, DRIVES[evo.championDrive].key, evo.bestTime, evo.bestGhost, '#ffce4d');
@@ -1206,15 +1600,15 @@ document.getElementById('btnAddAIGhost').onclick=function(){
 document.getElementById('btnExportMyGhost').onclick=exportMyGhost;
 document.getElementById('btnImportPlayGhost').onclick=()=>document.getElementById('ghostFile').click();
 document.getElementById('btnPlay').onclick=function(){playing=!playing;this.textContent=playing?'⏸ Pause':'▶ Play';this.classList.toggle('on',playing);};
-document.getElementById('btnSpeed').onclick=function(){speedIdx=(speedIdx+1)%SPEEDS.length;this.textContent=SPEEDS[speedIdx].lbl;};
-document.getElementById('btnReset').onclick=function(){stopReplay();resetEvolution();flash('Evolution reset — fresh random population.');};
-document.getElementById('btnReplay').onclick=function(){if(replay.active)stopReplay();else startReplay();};
-document.getElementById('btnInput').onclick=function(){
-  inputMode=inputMode==='joystick'?'keyboard':'joystick';
-  this.textContent=inputMode==='joystick'?'🎮 Analog':'⌨ Keyboard';
-  stopReplay(); resetEvolution();
-  flash('AI input model → '+(inputMode==='joystick'?'ANALOG — the theoretical fastest.':'KEYBOARD — usually a little slower.'));
+document.getElementById('speedSlider').oninput=function(){
+  speedIdx=+this.value; document.getElementById('speedV').textContent=SPEED_STEPS[speedIdx].lbl;
 };
+document.getElementById('scrub').oninput=function(){ scrubTo(+this.value/1000); };
+document.getElementById('btnReset').onclick=function(){
+  const had=beginNewRun(true);
+  if(!had)flash('New run — fresh random population with the current settings.');
+};
+document.getElementById('btnReplay').onclick=function(){if(replay.active)stopReplay();else startReplay();};
 document.getElementById('btnTelem').onclick=function(){
   telemOn=!telemOn; this.classList.toggle('on',telemOn);
   flash(telemOn?'Telemetry ON.':'Telemetry OFF — nothing recorded, trains a hair faster. Never limited AI top speed.');
@@ -1224,8 +1618,12 @@ document.getElementById('btnCompare').onclick=function(){showCompare=!showCompar
 document.getElementById('btnData').onclick=exportData;
 document.getElementById('btnGhost').onclick=exportGhost;
 document.getElementById('btnHelp').onclick=()=>toggleHelp(!document.getElementById('help').classList.contains('show'));
-document.getElementById('pop').oninput=function(){evo.pop=+this.value;document.getElementById('popV').textContent=this.value;};
-document.getElementById('pop').onchange=function(){if(!replay.active){seedPopulation(evo.pop);evo.gen=1;evo.hist=[];evo.totalSteps=0;evo.championSteps=0;spawnGeneration();flash('Population resized to '+evo.pop+'.');}};
+document.getElementById('pop').oninput=function(){document.getElementById('popV').textContent=this.value;};
+document.getElementById('pop').onchange=function(){
+  const v=+this.value;
+  pending.pop=v===evo.pop?null:v; updatePendingBadge();
+  if(pending.pop!=null)flash('Population → '+v+'. ⏳ Applies at the next ↺ New Run — the current population keeps evolving untouched.');
+};
 document.getElementById('mut').oninput=function(){evo.mut=+this.value/100;document.getElementById('mutV').textContent=evo.mut.toFixed(2);};
 document.getElementById('pathToggle').onchange=function(){showPaths=this.checked;};
 document.getElementById('optToggle').onchange=function(){showOptimal=this.checked;};
@@ -1239,11 +1637,16 @@ document.getElementById('ghostFile').onchange=function(e){
     catch(err){ flash('Could not read that file — expected a ghost exported from Drive Showdown (frc_ghosts JSON).'); } };
   rd.readAsText(f); e.target.value='';
 };
+document.getElementById('btnTut').onclick=startTutorial;
+document.getElementById('btnChal').onclick=function(){const el=document.getElementById('chal');chalRender();el.classList.toggle('show');};
 function normKey(e){return e.key.toLowerCase();}
 window.addEventListener('keydown',e=>{
+  konamiFeed(normKey(e));                                // ↑↑↓↓←→←→BA, always listening
   const helpOpen=document.getElementById('help').classList.contains('show');
   const learnOpen=document.getElementById('learn').classList.contains('show');
   if((helpOpen||learnOpen)&&e.key==='Escape'){toggleHelp(false);toggleLearn(false);return;}
+  if(document.getElementById('konami').classList.contains('show')&&e.key==='Escape'){document.getElementById('konami').classList.remove('show');return;}
+  if(document.getElementById('chal').classList.contains('show')&&e.key==='Escape'){document.getElementById('chal').classList.remove('show');return;}
   if(e.target&&/input|textarea/i.test(e.target.tagName))return;
   if(e.key==='l'||e.key==='L'){toggleLearn(!document.getElementById('learn').classList.contains('show'));return;}
   if(e.key==='m'||e.key==='M'){setMode(mode==='play'?'lab':'play');return;}
@@ -1251,25 +1654,47 @@ window.addEventListener('keydown',e=>{
   if(mode==='play'){
     const k=normKey(e);
     if(['w','a','s','d','q','e','arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();
-    if(k==='r'){startSoloRun();return;}
+    if(k==='r'){beginNewRun(false);startSoloRun();return;}
     heldKeys.add(k);
     return;
   }
   if(e.code==='Space'){e.preventDefault();document.getElementById('btnPlay').click();}
   else if(e.key==='r'||e.key==='R')document.getElementById('btnReplay').click();
   else if(e.key==='t'||e.key==='T')document.getElementById('btnTelem').click();
-  else if(e.key==='i'||e.key==='I')document.getElementById('btnInput').click();
   else if(e.key==='c'||e.key==='C')document.getElementById('btnCompare').click();
   else if(e.key==='d'||e.key==='D')document.getElementById('btnData').click();
 });
 window.addEventListener('keyup',e=>{heldKeys.delete(normKey(e));});
 
 /* ---- boot ---- */
-loadRuns(); loadSoloBest(); buildHelp(); buildLearn(); bindTips();
-resize(); resetEvolution(); setMode('play'); frame();
+loadRuns(); loadSoloBest(); loadChal(); buildHelp(); buildLearn(); bindTips();
+try{ const s=JSON.parse(localStorage.getItem('frcds_solo_settings')||'null');   // restore last session's setup
+  if(s){ if(DRIVES[s.drive])setDrive(s.drive); if([1,1.5,2].includes(s.sens))sensitivity=s.sens;
+         if(['joystick','keyboard'].includes(s.inputMode))inputMode=s.inputMode;
+         if(s.pop>=20&&s.pop<=120)evo.pop=s.pop; } }catch(e){}
+resize(); resetEvolution(); syncSettingUI(); setMode('play'); frame();
 </script>
 <!--
   changelog
+  v2.0.0 (2026-07-17): the big usability + education pass.
+    GAMEPAD support in Play mode (per-drive two-stick mappings ported from the real game's
+    getInp: tank = one stick per track, swerve = L move + R rotate; A/Start begins a run).
+    ORIGINAL GRAPHICS ported from the real game: grid floor, zone tints + labels, metal wall
+    with gap markers, gradient balls with shadow + gloss, square robot with drive-colored
+    border/bumper/glow/shadow, filled scoop pocket, ANIMATED tank tracks and aiming swerve
+    pods; per-drive colors (#00e676/#40c4ff/#ffab40/#e040fb).
+    SETTINGS UX overhaul: run-defining settings (drive/sens/AI-input/POP, amber edge, now
+    dropdowns + slider) queue as ⏳ pending and apply ONLY when a new run starts — changing
+    them never interrupts a run; live settings (speed/MUT/telemetry/toggles, mint edge) apply
+    instantly. Settings persist across sessions.
+    SPEED SLIDER with true slow motion (0.25x/0.5x via fractional stepping) and a REPLAY
+    SCRUBBER: drag to any instant of the champion's run (deterministic re-sim) to study
+    telemetry frame by frame.
+    TELEMETRY rework: honest per-drive control layout — two sticks where the drive really
+    uses two, both keyboard clusters (WASD + arrows), works for AI and human alike.
+    GUIDED TUTORIAL (10 steps) that drives the app while explaining how adversarial ML works
+    and what every lever does. CHALLENGES: 9 gamified goals (target times, generation and
+    compute budgets, beat-the-AI, multi-drive) with saved progress. KONAMI CODE easter egg.
   v1.0.0 (2026-07-17): initial bundle. Combines a genuinely playable single-player time trial
     (WASD/Arrows + Q/E, 3-2-1-GO countdown, no artificial timeout — matches the real game's
     personal-best framing) with the AI Speedrun neuroevolution trainer (ported from
