@@ -64,12 +64,13 @@ Gradient-free **neuroevolution** — no training data, no backprop, no GPU.
 
 Cycle **🚗 Drive type** through the 4 original DriveShowdown controls, each with faithful kinematics:
 
-- **Tank** — two tracks; can't floor-and-turn-max at once. (Surprise: the *fastest learner* — first
-  full clear around generation 13–18 in seeded tests.)
-- **Arcade** — single stick; throttle and turn are independent.
-- **Swerve · bot** — omnidirectional, robot-relative (strafe any way + rotate). Trains reliably
-  (3/3 seeds) — its sensing frame, control frame, and scoop frame all coincide, so "chase the
-  ball forward" automatically leads with the scoop.
+- **Tank** — two tracks; can't floor-and-turn-max at once. Trains the most reliably (3/3 seeds
+  in the final verification sweep).
+- **Arcade** — single stick; throttle and turn are independent. Can bootstrap astonishingly fast
+  (one seed cleared at generation 13).
+- **Swerve · bot** — omnidirectional, robot-relative (strafe any way + rotate). Trains well —
+  its sensing frame, control frame, and scoop frame all coincide, so "chase the ball forward"
+  automatically leads with the scoop. Fastest champion observed: 23.38s.
 - **Swerve · field** — omnidirectional, field-relative with heading hold (scoop locked up-field,
   like a real FRC heading-lock). **The big finding:** it's *physically* just as capable — a
   hand-coded controller clears all 8 in ~28s under the exact same physics — but it is **by far
@@ -81,6 +82,18 @@ Cycle **🚗 Drive type** through the 4 original DriveShowdown controls, each wi
 
 **⚙ Sensitivity** (1× / 1.5× / 2×) is the real game's speed & turn lever — 2× is twice as fast and
 turny, so the theoretical best time is faster. Analog input + 2× sensitivity = the outright fastest.
+
+**Verified training results** (3 random seeds per drive, 250-generation cap, headless):
+
+| Drive | Full clears | Champion times | First-clear generation | Misses reached |
+|---|---|---|---|---|
+| Tank | **3/3** | 33.00s · 35.60s · 47.43s | 68–142 | — |
+| Arcade | 2/3 | 37.27s · 39.50s | 13–107 | 7/8 |
+| Swerve · bot | 2/3 | **23.38s** · 46.95s | 66–102 | 6/8 |
+| Swerve · field | 0/3 | — (physically capable: hand-coded oracle does 27.97s) | — | 5–7/8 |
+
+Every run reaches at least 5/8 — there are no hard freezes anymore. Field-swerve genuinely is
+the expert-difficulty drive for neuroevolution; that contrast *is* the experiment.
 
 ### Controls, telemetry & analysis
 
