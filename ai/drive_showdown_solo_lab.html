@@ -340,6 +340,35 @@ function gpStartPressed(){                            // A button (or Start) beg
   const b=g.pad.buttons;
   return !!((b[0]&&b[0].pressed)||(b[9]&&b[9].pressed));
 }
+// ---- rumble (Play mode haptics): contact ticks, goal pulses, GO, finish blast ----
+let rumbleOK=true;
+function rumble(strong,weak,ms){
+  if(!rumbleOK)return;
+  const g=gpAxes(), act=g.pad&&g.pad.vibrationActuator;
+  if(!act||!act.playEffect)return;
+  try{act.playEffect('dual-rumble',{duration:ms,strongMagnitude:clamp01(strong),weakMagnitude:clamp01(weak)});}
+  catch(e){rumbleOK=false;}                            // some pads/browsers reject; fail silent, once
+}
+let rumTouchLast=0, prevSoloScored=0, prevSoloPhase='idle';
+function soloRumble(){
+  const c=solo.car;
+  if(solo.phase==='countdown')prevSoloScored=0;
+  if(c&&gpConnected){
+    if(solo.phase==='playing'){
+      if(c.evTouch){ c.evTouch=false;
+        const now=performance.now();
+        if(now-rumTouchLast>120){rumTouchLast=now; rumble(0.12,0.35,60);} }   // light tick while plowing a ball
+      if(c.scored>prevSoloScored) rumble(0.55,0.9,160);                       // goal pulse
+      prevSoloScored=c.scored;
+    }
+    if(prevSoloPhase==='countdown'&&solo.phase==='playing') rumble(0.7,0.7,140);   // GO!
+    if(prevSoloPhase==='playing'&&solo.phase==='done'&&c.finishT!=null){           // finish blast (+PB double-pulse)
+      const pb=solo.best[soloKey()], isPB=pb&&Math.abs(pb.t-c.finishT)<1e-6;
+      rumble(1,1,420); if(isPB)setTimeout(()=>rumble(1,1,260),380);
+    }
+  }
+  prevSoloPhase=solo.phase;
+}
 
 /* ============================== PHYSICS (ported) ========================== */
 function wallCheckRobot(r){
@@ -410,6 +439,7 @@ function stepWorld(car){
     if(d<RR+BR){ const nx=dx/d,ny=dy/d,ov=RR+BR-d;
       b.x+=nx*ov;b.y+=ny*ov; r.x-=nx*ov*0.055;r.y-=ny*ov*0.055; wallCheckRobot(r); wallCheckBall(b);
       const psp=Math.max(rs*0.88,55); b.vx+=nx*psp;b.vy+=ny*psp; scoreIf(b,car.t);
+      if(car.human)car.evTouch=true;                   // haptics: ball contact (human only)
     }
   }
   const ch=Math.cos(r.h),sh=Math.sin(r.h);
@@ -425,6 +455,7 @@ function stepWorld(car){
       const wx=ch*bnx-sh*bny, wy=sh*bnx+ch*bny;
       b.x+=wx*bestOv;b.y+=wy*bestOv; wallCheckBall(b);
       const psp=Math.max(rs*0.92,60); b.vx+=wx*psp;b.vy+=wy*psp; scoreIf(b,car.t);
+      if(car.human)car.evTouch=true;                   // haptics: scoop contact (human only)
     }
   }
   car.t+=DT; car.steps++;
@@ -1218,6 +1249,7 @@ function frameLab(fieldView,SB){
 }
 function frameSolo(fieldView,SB){
   if(solo.phase==='countdown'||solo.phase==='playing') stepSolo();
+  soloRumble();
   drawField();
   drawHumanGhosts();
   if(solo.car){
@@ -1351,6 +1383,7 @@ function buildHelp(){
       <ul>
         <li><span class="k">Tank</span>: <kbd>W/S</kbd> = right track, <kbd>↑/↓</kbd> = left track (pad: one stick per track). <span class="k">Arcade</span>: WASD <i>or</i> arrows (pad: either stick). <span class="k">Swerve·bot</span>: WASD move + <kbd>←/→</kbd> rotate (pad: L stick move, R stick rotate). <span class="k">Swerve·field</span>: WASD moves on the field, heading hold.</li>
         <li><span class="k">▶ Start Run</span> or <kbd>R</kbd> or pad <b>A/Start</b> — 3-2-1-GO, then drive. No timer cuts you off — it's a personal-best time trial.</li>
+        <li><span class="k">Rumble</span> (pads that support it): light ticks while plowing a ball, a pulse per goal, a buzz on GO, a blast at the finish — double-blast on a new PB.</li>
         <li><span class="k">🏆 Race AI</span> — load the Lab's best run as a live ghost opponent. <span class="k">👻 Export Mine / 📥 Import</span> — share ghosts.</li>
       </ul>
     </div>
@@ -1676,6 +1709,11 @@ resize(); resetEvolution(); syncSettingUI(); setMode('play'); frame();
 </script>
 <!--
   changelog
+  v2.1.0 (2026-07-17): gamepad RUMBLE in Play mode (dual-rumble via vibrationActuator, fail-
+    silent where unsupported): light contact ticks while plowing balls (throttled to 120ms),
+    a pulse per goal, a buzz on GO, a finish blast, and a double-blast on a new PB. Contact
+    events are flagged human-only inside the physics so AI training is untouched. Also: the
+    Konami card now carries the real Claude referral link.
   v2.0.0 (2026-07-17): the big usability + education pass.
     GAMEPAD support in Play mode (per-drive two-stick mappings ported from the real game's
     getInp: tank = one stick per track, swerve = L move + R rotate; A/Start begins a run).
