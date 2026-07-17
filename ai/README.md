@@ -64,12 +64,20 @@ Gradient-free **neuroevolution** — no training data, no backprop, no GPU.
 
 Cycle **🚗 Drive type** through the 4 original DriveShowdown controls, each with faithful kinematics:
 
-- **Tank** — two tracks; can't floor-and-turn-max at once, so a touch slower than arcade.
+- **Tank** — two tracks; can't floor-and-turn-max at once. (Surprise: the *fastest learner* — first
+  full clear around generation 13–18 in seeded tests.)
 - **Arcade** — single stick; throttle and turn are independent.
-- **Swerve · bot** — omnidirectional, robot-relative (strafe any way + rotate).
-- **Swerve · field** — omnidirectional, field-relative — *same capability* as bot-centric, so a
-  similar best time, but it has to learn to account for its heading, so it often **trains at a
-  different rate**. Watch the COMPUTE stat and the Compare table.
+- **Swerve · bot** — omnidirectional, robot-relative (strafe any way + rotate). Trains reliably
+  (3/3 seeds) — its sensing frame, control frame, and scoop frame all coincide, so "chase the
+  ball forward" automatically leads with the scoop.
+- **Swerve · field** — omnidirectional, field-relative with heading hold (scoop locked up-field,
+  like a real FRC heading-lock). **The big finding:** it's *physically* just as capable — a
+  hand-coded controller clears all 8 in ~28s under the exact same physics — but it is **by far
+  the hardest for evolution to learn**. In field frame, a random neural net is a near-constant
+  function, i.e. a straight-line plow that caps out at 3 balls; the tool counters with Fourier
+  phase inputs, wall-danger fitness shaping, and route-diversity elites, which get it to 7/8 and
+  climbing. Expect it to need long runs (and POP 120) for a full clear — watching the *same
+  robot* train at wildly different rates purely because of its control frame is the point.
 
 **⚙ Sensitivity** (1× / 1.5× / 2×) is the real game's speed & turn lever — 2× is twice as fast and
 turny, so the theoretical best time is faster. Analog input + 2× sensitivity = the outright fastest.

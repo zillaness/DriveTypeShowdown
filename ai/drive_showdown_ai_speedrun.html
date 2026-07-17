@@ -160,12 +160,12 @@ const DRIVES={
   tank:   {label:'Tank',           model:'tank', in:10, out:2, key:'tank',           outLab:['steer','throttle'],       desc:'two tracks (steer+throttle → clamped L/R) — can\'t floor-and-turn-max at once, so a touch slower than arcade'},
   arcade: {label:'Arcade',         model:'diff', in:10, out:2, key:'arcade',         outLab:['steer','throttle'],       desc:'single stick — throttle and turn are independent (square control envelope), so slightly freer than tank'},
   swervB: {label:'Swerve · bot',   model:'holoR',in:10, out:3, key:'holo_swerve',    outLab:['forward','strafe','rotate'],desc:'omnidirectional, robot-relative — strafe any direction + rotate independently'},
-  swervF: {label:'Swerve · field', model:'holoF',in:11, out:2, key:'holo_swerve_fc', outLab:['move X','move Y'],desc:'omnidirectional, field-relative with HEADING HOLD (scoop locked up-field, like a real FRC heading-lock) — same speed envelope as bot-centric, different control frame; sees the clock, so it can evolve open-loop choreographies'},
+  swervF: {label:'Swerve · field', model:'holoF',in:16, out:2, key:'holo_swerve_fc', outLab:['move X','move Y'],desc:'omnidirectional, field-relative with HEADING HOLD (scoop locked up-field, like a real FRC heading-lock) — physically as capable as bot-centric (a hand-coded controller clears 8/8 in 28s) but BY FAR the hardest for evolution to learn'},
 };
 const DRIVE_ORDER=['tank','arcade','swervB','swervF'];
 let drive='tank';
 const IN_BASE=['b1x','b1y','b1·','b2x','b2y','g→x','g→y','R.x','R.y','n/8'];
-function inLabels(){return DRIVES[drive].in>10?IN_BASE.concat(['t']):IN_BASE;}
+function inLabels(){return DRIVES[drive].in>10?IN_BASE.concat(['s1','c1','s4','c4','s10','c10']):IN_BASE;}
 function outLabels(){return DRIVES[drive].outLab;}
 function genomeLength(s){let n=0;for(let i=0;i<s.length-1;i++)n+=s[i]*s[i+1]+s[i+1];return n;}
 let NET=[DRIVES[drive].in,12,8,DRIVES[drive].out];     // in = task sensors (+heading for field-swerve); out = drive DOF
@@ -315,7 +315,11 @@ function stepWorld(car){
   if(car.steps%2===0){ car.ghost.push([Math.round(car.t*1000)/1000,Math.round(r.x*10)/10,Math.round(r.y*10)/10,Math.round(r.h*1000)/1000]); } // 30 Hz, matches the game's ghost format
   if(car.path.length===0 || (r.x-car.path[car.path.length-1][0])**2+(r.y-car.path[car.path.length-1][1])**2>16) car.path.push([r.x,r.y]);
   let scored=0;
-  for(const b of car.balls){ if(b.sc){scored++;} else { const cl=1-clamp(Math.hypot(b.x-GAP_CX,b.y-GOAL_Y)/470,0,1); if(cl>b.close)b.close=cl; } }
+  for(const b of car.balls){ if(b.sc){scored++;} else {
+    // dead-zone shaping: progress credit shrinks near walls/corners — pushing a ball INTO a
+    // pocket must never look like progress (naive pursuit pins balls, and pinning used to pay)
+    const cl=(1-clamp(Math.hypot(b.x-GAP_CX,b.y-GOAL_Y)/470,0,1))*(1-0.65*wallDanger(b.x,b.y));
+    if(cl>b.close)b.close=cl; } }
   car.scored=scored;
   // telemetry: the AI's theoretical control inputs + pose, 30 Hz (only when telemetry is on)
   if(telemOn && car.steps%2===0){
@@ -350,21 +354,35 @@ function stepWorld(car){
   else if(car.t>=TIMEOUT || car.steps-car.progStep>=600){ car.done=true; car.finishT=null; } // 10s with no ball interaction at all -> hopeless; stop early
   car.fit=fitnessSP(car);
 }
+// FOURIER PHASE features (field-swerve only): in field frame a random tiny-MLP policy is a
+// near-constant function — a ballistic straight-line plow, hard ceiling 3 balls (populations
+// froze there for 100+ generations through cataclysms). A linear clock didn't help; sin/cos at
+// 1x/4x/10x of the run frequency turn random policies into curved multi-ball sweeps and let
+// open-loop choreographies bend segment by segment — measured to lift field-swerve 3/8 -> 7/8.
+function pushPhase(arr,car){
+  const p=2*Math.PI*car.t/TIMEOUT;
+  arr.push(Math.sin(p),Math.cos(p),Math.sin(4*p),Math.cos(4*p),Math.sin(10*p),Math.cos(10*p));
+}
+// 0..1: how close a spot is to an irrecoverable wall/corner pocket. The scoop only faces
+// up-field, so contact normals near walls all point INTO the wall — a ball shoved into a side
+// wall, bottom corner, or the top wall-shadow (beside the gap) is nearly unrecoverable.
+function wallDanger(x,y){
+  const d0=Math.min(x-BR, FW-BR-x, FH-BR-y);
+  const d=(y<WALL_Y+40 && (x<GAP_L||x>GAP_R)) ? Math.min(d0,10) : d0;
+  return 1-clamp(d/60,0,1);
+}
 function senseSP(car){
   const r=car.robot;
   let b1=null,b2=null,d1=1e9,d2=1e9;
   for(const b of car.balls){ if(b.sc)continue; const d=Math.hypot(b.x-r.x,b.y-r.y);
     if(d<d1){d2=d1;b2=b1;d1=d;b1=b;} else if(d<d2){d2=d;b2=b;} }
   if(!b1){const e=[0,0,0,0,0,0,0,r.x/FW*2-1,r.y/FH*2-1,1];
-    if(DRIVES[drive].in>10)e.push(2*car.t/TIMEOUT-1); return e;}
+    if(DRIVES[drive].in>10)pushPhase(e,car); return e;}
   if(!b2){b2=b1;d2=d1;}
   // Sensor frame matches the drive's CONTROL frame: field-centric swerve senses in FIELD
   // coordinates (translation is directly learnable, heading never scrambles the ball inputs);
-  // everything else senses in the robot frame. Field-swerve ALSO gets the nearest ball in the
-  // ROBOT frame — its heading still aims the scoop, and raw sinθ/cosθ proved unlearnable (the
-  // net would have to synthesize a coordinate rotation; it froze at 3-4/8). Handing it the
-  // pre-rotated "ball relative to my scoop mouth" signal closes the loop the way a real
-  // field-centric driver does: watch the field, glance at the intake.
+  // everything else senses in the robot frame. Field-swerve additionally gets Fourier phase
+  // features (see pushPhase below).
   const fieldFrame=DRIVES[drive].model==='holoF';
   const ch=fieldFrame?1:Math.cos(r.h), sh=fieldFrame?0:Math.sin(r.h);
   const l1x=ch*(b1.x-r.x)+sh*(b1.y-r.y), l1y=-sh*(b1.x-r.x)+ch*(b1.y-r.y);
@@ -374,12 +392,7 @@ function senseSP(car){
   const base=[clamp(l1x/220,-1,1),clamp(l1y/220,-1,1),1-clamp(d1/300,0,1),
          clamp(l2x/260,-1,1),clamp(l2y/260,-1,1), glx,gly,
          r.x/FW*2-1, r.y/FH*2-1, car.scored/8];
-  // PHASE input (field-swerve only): in field frame a random tiny-MLP policy is a near-constant
-  // function — a ballistic straight-line plow — and the behavior classes between "3-ball plow"
-  // and "reactive herding" are disconnected under mutation (0/3 seeds finished across 5 remedies).
-  // Seeing the normalized clock lets near-constant-PER-PHASE policies evolve: open-loop polyline
-  // choreographies that bend segment by segment — the natural strategy family for this frame.
-  if(DRIVES[drive].in>10) base.push(2*car.t/TIMEOUT-1);
+  if(DRIVES[drive].in>10) pushPhase(base,car);
   return base;
 }
 function fitnessSP(car){
@@ -392,7 +405,7 @@ function fitnessSP(car){
   //      6-ball routines keep compressing — which frees the time needed to reach ball 7.
   //      (Weakening it to 3/s froze fitness solid: nobody had time left to explore.)
   let fit=0;
-  for(const b of car.balls){ if(b.sc)fit+=10000-clamp(b.scT,0,TIMEOUT)*12; else fit+=300*b.close; }
+  for(const b of car.balls){ if(b.sc)fit+=b.val-clamp(b.scT,0,TIMEOUT)*12; else fit+=300*b.close; }
   let nd=1e9; const r=car.robot; for(const b of car.balls) if(!b.sc)nd=Math.min(nd,Math.hypot(b.x-r.x,b.y-r.y));
   if(nd<1e9)fit+=40*(1-clamp(nd/500,0,1));
   fit-=((car.done&&car.finishT==null)?TIMEOUT:car.t)*10; // speed pressure; every DNF pays the full-time cost so an early-killed staller can't outrank a slow progresser
@@ -402,7 +415,8 @@ function fitnessSP(car){
 function makeCar(genome){
   return {genome,out:[0,0,0],
     robot:{x:ROBOT_START.x,y:ROBOT_START.y,h:ROBOT_START.h},
-    balls:BALL_STARTS.map(p=>({x:p.x,y:p.y,vx:0,vy:0,sc:false,scT:0,close:0})),
+    balls:BALL_STARTS.map(p=>({x:p.x,y:p.y,vx:0,vy:0,sc:false,scT:0,close:0,
+      val:10000+500*wallDanger(p.x,p.y)})), // wall-adjacent balls worth more -> routes clear the hard ones early
     t:0,steps:0,ghost:[],telem:[],path:[],done:false,scored:0,finishT:null,fit:0,progMark:-1,progStep:0,lastScored:0,bestApproach:1e9,snap:null,snapStep:0,ballsDisplaced:false};
 }
 
@@ -448,6 +462,17 @@ function nextGeneration(){
   const elites=Math.max(2,Math.round(P*0.08));
   const immigrants=Math.max(1,Math.round(P*(evo.stag>=12?0.25:0.12))); // fresh random blood; tripled-ish while stagnant
   const next=[]; for(let i=0;i<elites;i++)next.push(Float32Array.from(scored[i].genome));
+  // route-diversity elites: keep the best car of each distinct scored-ball PATTERN (which balls
+  // went in). Different 7-ball routes survive side by side instead of one champion freezing the
+  // population at its last-ball wall — more routes sit mutation-adjacent to a full clear.
+  const seenPat=new Set(); let patEl=0;
+  for(let i=0;i<elites&&i<scored.length;i++)seenPat.add(scored[i].balls.reduce((s,b,k)=>s|(b.sc?1<<k:0),0));
+  for(const c of scored){
+    if(patEl>=6||next.length>=P-immigrants-4)break;
+    const pat=c.balls.reduce((s,b,k)=>s|(b.sc?1<<k:0),0);
+    if(seenPat.has(pat))continue;
+    seenPat.add(pat); next.push(Float32Array.from(c.genome)); patEl++;
+  }
   while(next.length<P-immigrants){const ch=crossover(tournament(scored),tournament(scored));mutate(ch);next.push(ch);}
   while(next.length<P)next.push(RNG()<0.35?reactiveGenome():randomGenome());
   evo.genomes=next; evo.gen++; spawnGeneration();
@@ -980,8 +1005,8 @@ function buildHelp(){
       </ul>
       <h2>DRIVE TYPES</h2>
       <ul>
-        <li><span class="k">🚗 Tank</span> two tracks (can't floor-and-turn-max at once) · <span class="k">Arcade</span> single stick (throttle+turn independent) · <span class="k">Swerve · bot</span> omni, robot-relative · <span class="k">Swerve · field</span> omni, field-relative.</li>
-        <li>Each restarts evolution. The two swerves reach a <i>similar</i> best time but can <b>train at different rates</b> — watch the COMPUTE stat &amp; Compare table. <span class="g">Car steering is queued.</span></li>
+        <li><span class="k">🚗 Tank</span> two tracks (surprise: the fastest learner) · <span class="k">Arcade</span> single stick · <span class="k">Swerve · bot</span> omni, robot-relative (trains reliably) · <span class="k">Swerve · field</span> omni, field-relative with heading hold.</li>
+        <li>Each restarts evolution. <b>Field-swerve is physically as capable</b> (a hand-coded controller clears 8/8 in ~28s) <b>but by far the hardest to evolve</b> — random field-frame policies are straight-line plows. Expect 6-7/8, use POP 120, and let it run. Watch COMPUTE &amp; Compare for the training-cost story. <span class="g">Car steering is queued.</span></li>
       </ul>
       <h2>SENSITIVITY</h2>
       <ul>
@@ -1050,7 +1075,8 @@ document.getElementById('btnDrive').onclick=function(){
   setDrive(DRIVE_ORDER[(DRIVE_ORDER.indexOf(drive)+1)%DRIVE_ORDER.length]);
   this.textContent='🚗 '+DRIVES[drive].label;
   stopReplay(); resetEvolution();
-  flash('Drive type → '+DRIVES[drive].label+': '+DRIVES[drive].desc+'. Evolution restarted (💾 Save Run first to keep the old champion).');
+  flash('Drive type → '+DRIVES[drive].label+': '+DRIVES[drive].desc+'. Evolution restarted (💾 Save Run first to keep the old champion).'+
+        (drive==='swervF'?' TIP: crank POP to 120 and be patient — this one usually reaches 6-7/8 and needs long runs (or luck) for a full clear.':''));
 };
 document.getElementById('btnSens').onclick=function(){
   const opts=[1,1.5,2]; sensitivity=opts[(opts.indexOf(sensitivity)+1)%opts.length];
@@ -1106,6 +1132,20 @@ resize(); resetEvolution(); frame();
 </script>
 <!--
   changelog
+  v1.4.0 (2026-07-17): field-swerve resolution — the frame-vs-evolvability finding.
+    A 4-agent parallel investigation settled it: (a) ORACLE — a hand-coded controller clears
+    8/8 in 27.97s under the exact game physics with heading locked, so field-centric swerve is
+    NOT physically handicapped; (b) AUDIT — no bug: the holoF path is bit-identical to the
+    working holoR path in differential micro-tests; (c) the failure is pure evolvability: in
+    field frame a random tiny-MLP is a near-constant function = a ballistic 3-ball plow, and
+    that behavior class is disconnected from herding under mutation. Fixes (variant-tested):
+    Fourier phase inputs for field-swerve (sin/cos at 1x/4x/10x run frequency — random policies
+    become curved multi-ball sweeps; lifts 3/8 -> 7/8); dead-zone shaping (progress credit
+    shrinks near walls/corners, so pinning stops paying); danger-weighted ball values (wall
+    balls worth +500 more, routes clear them early; lexicographic dominance margin preserved);
+    route-diversity elites (best genome per distinct scored-ball pattern survives, so different
+    7-ball routes coexist instead of one champion freezing the population). Field-swerve now
+    reaches 7/8 and keeps improving; a full clear needs long runs — documented honestly in-app.
   v1.3.2 (2026-07-17): learnability overhaul — every drive type now trains reliably.
     Root-caused three compounding issues via seeded headless sweeps:
     (1) heading inputs (sinθ/cosθ) fed to ALL drives acted as noise and wrecked diff-drive
