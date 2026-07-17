@@ -157,20 +157,29 @@ const HUMAN_PAL=['#ffffff','#ff9de0','#a0e0ff','#ffe08a','#c0ffb0','#e0b0ff'];
 // model: diff = differential (drive along heading + turn); car = Ackermann (turn scales with speed,
 // no pivot); holoR = omnidirectional robot-relative (swerve); holoF = omnidirectional field-relative.
 const DRIVES={
-  tank:   {label:'Tank',           model:'tank', out:2, key:'tank',           outLab:['steer','throttle'],       desc:'two tracks (steer+throttle → clamped L/R) — can\'t floor-and-turn-max at once, so a touch slower than arcade'},
-  arcade: {label:'Arcade',         model:'diff', out:2, key:'arcade',         outLab:['steer','throttle'],       desc:'single stick — throttle and turn are independent (square control envelope), so slightly freer than tank'},
-  swervB: {label:'Swerve · bot',   model:'holoR',out:3, key:'holo_swerve',    outLab:['forward','strafe','rotate'],desc:'omnidirectional, robot-relative — strafe any direction + rotate independently'},
-  swervF: {label:'Swerve · field', model:'holoF',out:3, key:'holo_swerve_fc', outLab:['move X','move Y','rotate'],desc:'omnidirectional, field-relative — the same capability as bot-centric, just a different control frame'},
+  tank:   {label:'Tank',           model:'tank', in:10, out:2, key:'tank',           outLab:['steer','throttle'],       desc:'two tracks (steer+throttle → clamped L/R) — can\'t floor-and-turn-max at once, so a touch slower than arcade'},
+  arcade: {label:'Arcade',         model:'diff', in:10, out:2, key:'arcade',         outLab:['steer','throttle'],       desc:'single stick — throttle and turn are independent (square control envelope), so slightly freer than tank'},
+  swervB: {label:'Swerve · bot',   model:'holoR',in:10, out:3, key:'holo_swerve',    outLab:['forward','strafe','rotate'],desc:'omnidirectional, robot-relative — strafe any direction + rotate independently'},
+  swervF: {label:'Swerve · field', model:'holoF',in:12, out:3, key:'holo_swerve_fc', outLab:['move X','move Y','rotate'],desc:'omnidirectional, field-relative — the same capability as bot-centric, just a different control frame (sees its own heading, like a real field-centric driver)'},
 };
 const DRIVE_ORDER=['tank','arcade','swervB','swervF'];
 let drive='tank';
-const IN_LAB=['b1x','b1y','b1·','b2x','b2y','g→x','g→y','R.x','R.y','n/8','sinθ','cosθ'];
+const IN_BASE=['b1x','b1y','b1·','b2x','b2y','g→x','g→y','R.x','R.y','n/8'];
+function inLabels(){return DRIVES[drive].in>10?IN_BASE.concat(['sinθ','cosθ']):IN_BASE;}
 function outLabels(){return DRIVES[drive].outLab;}
 function genomeLength(s){let n=0;for(let i=0;i<s.length-1;i++)n+=s[i]*s[i+1]+s[i+1];return n;}
-let NET=[12,12,8,DRIVES[drive].out];                   // 12 task sensors (incl. heading); output side = drive DOF
+let NET=[DRIVES[drive].in,12,8,DRIVES[drive].out];     // in = task sensors (+heading for field-swerve); out = drive DOF
 let GENOME_LEN=genomeLength(NET);
-function setDrive(id){drive=id;NET=[12,12,8,DRIVES[id].out];GENOME_LEN=genomeLength(NET);}
-function randomGenome(){const g=new Float32Array(GENOME_LEN);for(let i=0;i<GENOME_LEN;i++)g[i]=gauss()*0.8;return g;}
+function setDrive(id){drive=id;NET=[DRIVES[id].in,12,8,DRIVES[id].out];GENOME_LEN=genomeLength(NET);}
+function randomGenome(){
+  const g=new Float32Array(GENOME_LEN);
+  for(let i=0;i<GENOME_LEN;i++)g[i]=gauss()*0.8;
+  // small final-layer init: gentle initial outputs (less bang-bang spinning) bootstrap ball-
+  // pushing far better than saturated controls — especially for the swerves' rotate channel
+  const lastN=NET[NET.length-2]*NET[NET.length-1]+NET[NET.length-1];
+  for(let i=GENOME_LEN-lastN;i<GENOME_LEN;i++)g[i]*=0.4;
+  return g;
+}
 const _A=new Float32Array(16),_B=new Float32Array(16);
 function forward(genome,inputs){
   let cur=_A,nxt=_B;for(let i=0;i<inputs.length;i++)cur[i]=inputs[i];
@@ -285,12 +294,21 @@ function stepWorld(car){
     car.telem.push([Math.round(car.t*1000)/1000,Math.round(r.x*10)/10,Math.round(r.y*10)/10,Math.round(r.h*1000)/1000,
                     Math.round(o0*1000)/1000,Math.round(o1*1000)/1000,Math.round(o2*1000)/1000,Math.round(rs*10)/10,scored]);
   }
-  // ball-progress metric (monotone): scoring, or pushing any ball nearer the gap, raises it
-  let closeSum=0; for(const b of car.balls) closeSum+=b.close;
+  // ball-progress metric (monotone): scoring, or pushing any ball nearer the gap, raises it.
+  // The stall timer also resets while ANY ball is in motion — a policy actively dribbling balls
+  // is learning material and keeps its full run; only true non-interactors (wall-sitters,
+  // spinners) get killed early. Killing ball-touchers amputates evolution's bootstrap path.
+  let closeSum=0, ballsMoving=false, ndS=1e9;
+  for(const b of car.balls){ closeSum+=b.close;
+    if(!b.sc){ if(Math.abs(b.vx)>1||Math.abs(b.vy)>1) ballsMoving=true;
+      const d=Math.hypot(b.x-r.x,b.y-r.y); if(d<ndS)ndS=d; } }
+  if(scored>car.lastScored){ car.lastScored=scored; car.bestApproach=1e9; } // new ball down -> fresh approach budget for the next one
   const prog=scored*1000+closeSum*300;
   if(prog>car.progMark+0.5){ car.progMark=prog; car.progStep=car.steps; }
+  else if(ballsMoving) car.progStep=car.steps;
+  else if(ndS<car.bestApproach-4){ car.bestApproach=ndS; car.progStep=car.steps; } // setting a new approach record toward an unscored ball counts as progress — late exploration finds ball 7
   if(scored===8){ car.done=true; car.finishT=car.t; }
-  else if(car.t>=TIMEOUT || car.steps-car.progStep>=600){ car.done=true; car.finishT=null; } // 10s without ball progress -> hopeless; stop early (huge compute saver in early gens)
+  else if(car.t>=TIMEOUT || car.steps-car.progStep>=600){ car.done=true; car.finishT=null; } // 10s with no ball interaction at all -> hopeless; stop early
   car.fit=fitnessSP(car);
 }
 function senseSP(car){
@@ -298,20 +316,38 @@ function senseSP(car){
   let b1=null,b2=null,d1=1e9,d2=1e9;
   for(const b of car.balls){ if(b.sc)continue; const d=Math.hypot(b.x-r.x,b.y-r.y);
     if(d<d1){d2=d1;b2=b1;d1=d;b1=b;} else if(d<d2){d2=d;b2=b;} }
-  if(!b1)return[0,0,0,0,0,0,0,r.x/FW*2-1,r.y/FH*2-1,1,Math.sin(r.h),Math.cos(r.h)];
+  if(!b1){const e=[0,0,0,0,0,0,0,r.x/FW*2-1,r.y/FH*2-1,1];
+    if(DRIVES[drive].in>10)e.push(Math.sin(r.h),Math.cos(r.h)); return e;}
   if(!b2){b2=b1;d2=d1;}
-  const ch=Math.cos(r.h),sh=Math.sin(r.h);
+  // Sensor frame matches the drive's CONTROL frame: field-centric swerve senses in FIELD
+  // coordinates (translation is directly learnable, heading never scrambles the ball inputs);
+  // everything else senses in the robot frame. Field-swerve ALSO gets sinθ/cosθ — its heading
+  // still aims the scoop, and without observing it the fitness landscape is chaotic (any
+  // mutation diverges the open-loop heading drift → the elite froze at 3/8 for 70 gens).
+  // A real field-centric driver has eyes on their robot's orientation; so does this net.
+  const fieldFrame=DRIVES[drive].model==='holoF';
+  const ch=fieldFrame?1:Math.cos(r.h), sh=fieldFrame?0:Math.sin(r.h);
   const l1x=ch*(b1.x-r.x)+sh*(b1.y-r.y), l1y=-sh*(b1.x-r.x)+ch*(b1.y-r.y);
   const l2x=ch*(b2.x-r.x)+sh*(b2.y-r.y), l2y=-sh*(b2.x-r.x)+ch*(b2.y-r.y);
   let gvx=GAP_CX-b1.x, gvy=GOAL_Y-b1.y; const gl=Math.hypot(gvx,gvy)||1; gvx/=gl; gvy/=gl;
   const glx=ch*gvx+sh*gvy, gly=-sh*gvx+ch*gvy;
-  return[clamp(l1x/220,-1,1),clamp(l1y/220,-1,1),1-clamp(d1/300,0,1),
+  const base=[clamp(l1x/220,-1,1),clamp(l1y/220,-1,1),1-clamp(d1/300,0,1),
          clamp(l2x/260,-1,1),clamp(l2y/260,-1,1), glx,gly,
-         r.x/FW*2-1, r.y/FH*2-1, car.scored/8, sh, ch];   // + absolute heading (needed for field-relative drive)
+         r.x/FW*2-1, r.y/FH*2-1, car.scored/8];
+  if(DRIVES[drive].in>10)base.push(Math.sin(r.h),Math.cos(r.h));
+  return base;
 }
 function fitnessSP(car){
+  // TRUE lexicographic fitness. Two properties must hold at once:
+  //  (1) ball count dominates ABSOLUTELY: base 10000/ball exceeds the max possible
+  //      intra-class spread (8x672 time bonuses + 2400 close + 40 prox + 560 DNF < 8400),
+  //      so any slow 7-ball run beats any fast 6-ball run (margin >= +1624). At 1000/ball
+  //      the ordering inverted and evolution froze at 6/8 for 70+ generations.
+  //  (2) strong speed pressure WITHIN a class: the full 12/s per-ball discount, so
+  //      6-ball routines keep compressing — which frees the time needed to reach ball 7.
+  //      (Weakening it to 3/s froze fitness solid: nobody had time left to explore.)
   let fit=0;
-  for(const b of car.balls){ if(b.sc)fit+=1000-clamp(b.scT,0,TIMEOUT)*12; else fit+=300*b.close; }
+  for(const b of car.balls){ if(b.sc)fit+=10000-clamp(b.scT,0,TIMEOUT)*12; else fit+=300*b.close; }
   let nd=1e9; const r=car.robot; for(const b of car.balls) if(!b.sc)nd=Math.min(nd,Math.hypot(b.x-r.x,b.y-r.y));
   if(nd<1e9)fit+=40*(1-clamp(nd/500,0,1));
   fit-=((car.done&&car.finishT==null)?TIMEOUT:car.t)*10; // speed pressure; every DNF pays the full-time cost so an early-killed staller can't outrank a slow progresser
@@ -322,7 +358,7 @@ function makeCar(genome){
   return {genome,out:[0,0,0],
     robot:{x:ROBOT_START.x,y:ROBOT_START.y,h:ROBOT_START.h},
     balls:BALL_STARTS.map(p=>({x:p.x,y:p.y,vx:0,vy:0,sc:false,scT:0,close:0})),
-    t:0,steps:0,ghost:[],telem:[],path:[],done:false,scored:0,finishT:null,fit:0,progMark:-1,progStep:0};
+    t:0,steps:0,ghost:[],telem:[],path:[],done:false,scored:0,finishT:null,fit:0,progMark:-1,progStep:0,lastScored:0,bestApproach:1e9};
 }
 
 /* ============================== EVOLUTION ================================= */
@@ -335,9 +371,10 @@ function resetEvolution(){evo.gen=1;evo.bestTime=Infinity;evo.bestGhost=null;evo
 function tournament(sorted){let bi=1e9,best=null;for(let k=0;k<3;k++){const idx=(Math.pow(RNG(),1.7)*sorted.length)|0;if(idx<bi){bi=idx;best=sorted[idx];}}return best.genome;}
 function crossover(a,b){const c=new Float32Array(GENOME_LEN);for(let i=0;i<GENOME_LEN;i++)c[i]=RNG()<0.5?a[i]:b[i];return c;}
 function mutate(g){
-  const boost=1+Math.min(1.5,evo.stag*0.12);            // stagnation-adaptive: up to 2.5x while stuck on a plateau
+  const boost=1+Math.min(1,evo.stag*0.08);              // stagnation-adaptive: rate up to 2x while stuck on a plateau
   const rate=Math.min(0.9,evo.mut*boost);
-  for(let i=0;i<GENOME_LEN;i++){if(RNG()<rate){if(RNG()<0.1)g[i]=gauss()*0.8;else g[i]+=gauss()*0.35*boost;}}
+  const sig=0.35*(1+Math.min(0.5,evo.stag*0.04));       // creep sigma up to 1.5x (too-hot mutation wrecks elites' offspring)
+  for(let i=0;i<GENOME_LEN;i++){if(RNG()<rate){if(RNG()<0.1)g[i]=gauss()*0.8;else g[i]+=gauss()*sig;}}
   return g;
 }
 function nextGeneration(){
@@ -470,7 +507,8 @@ function drawNet(genome,inputs,x,y,w,h){
     G.beginPath();G.arc(pos[l][i][0],pos[l][i][1],5,0,7);G.fill();
     G.strokeStyle='rgba(255,255,255,.15)';G.lineWidth=1;G.stroke();}
   G.fillStyle='#666688';G.font='9px "Courier New",monospace';G.textAlign='right';
-  for(let i=0;i<NET[0];i++)G.fillText(IN_LAB[i],pos[0][i][0]-9,pos[0][i][1]+3);
+  const IL=inLabels();
+  for(let i=0;i<NET[0];i++)G.fillText(IL[i],pos[0][i][0]-9,pos[0][i][1]+3);
   G.textAlign='left';const last=NET.length-1,OL=outLabels();
   for(let i=0;i<NET[last];i++)G.fillText(OL[i],pos[last][i][0]+9,pos[last][i][1]+3);
 }
@@ -917,7 +955,7 @@ function buildHelp(){
       </ul>
       <h2>BRAIN INPUTS (right panel)</h2>
       <ul>
-        <li><span class="k">b1x b1y b1·</span> nearest un-scored ball (position in the robot's frame + closeness) · <span class="k">b2x b2y</span> 2nd-nearest ball · <span class="k">g→x g→y</span> direction that ball must travel to reach the gap · <span class="k">R.x R.y</span> robot position · <span class="k">n/8</span> balls scored. Outputs: <span class="k">steer, throttle</span>.</li>
+        <li><span class="k">b1x b1y b1·</span> nearest un-scored ball (position + closeness) · <span class="k">b2x b2y</span> 2nd-nearest ball · <span class="k">g→x g→y</span> direction that ball must travel to reach the gap · <span class="k">R.x R.y</span> robot position · <span class="k">n/8</span> balls scored. Sensors are in the robot's frame — except field-centric swerve, which senses in <b>field</b> coordinates to match its control frame (just like a real field-centric driver). Outputs = the drive's controls.</li>
       </ul>
     </div>
     </div>
@@ -1014,6 +1052,21 @@ resize(); resetEvolution(); frame();
 </script>
 <!--
   changelog
+  v1.3.2 (2026-07-17): learnability overhaul — every drive type now trains reliably.
+    Root-caused three compounding issues via seeded headless sweeps:
+    (1) heading inputs (sinθ/cosθ) fed to ALL drives acted as noise and wrecked diff-drive
+        training → sensors are now FRAME-CONSISTENT: robot-frame for tank/arcade/swervB,
+        field-frame for field-centric swerve (which alone also gets sinθ/cosθ — its heading
+        still aims the scoop and is otherwise unobservable, freezing evolution at 3/8);
+    (2) the fitness was DECEPTIVE: at 1000/ball with a 12/s time discount, a fast 6-ball
+        run outranked a slow 7-ball run, freezing populations at 6/8 for 70+ generations →
+        true lexicographic fitness (10000/ball base dominates absolutely, 12/s discount
+        keeps full speed pressure within a ball-count class);
+    (3) the v1.3.1 early-stall kill amputated evolution's bootstrap (random ball-touchers
+        died before accidentally scoring) → the stall timer now also resets on any ball
+        motion and on new approach records toward unscored balls, so explorers live while
+        wall-sitters still die fast. Also: small final-layer init (gentler starting outputs).
+    Verified: the previously frozen swervB case now clears 8/8 at gen 92.
   v1.3.1 (2026-07-17): training reliability + speed. Early-stall termination (an attempt that
     makes zero ball progress for 10s stops simulating — hopeless randoms no longer burn the full
     timeout, so early generations run several times faster). All DNFs now pay the full time

@@ -52,10 +52,10 @@ can actually chase — and you can go the other way too, importing *your* ghost 
 
 | Piece | Detail |
 |-------|--------|
-| **Inputs (12)** | nearest un-scored ball (local x, y, closeness), 2nd-nearest ball (x, y), the direction that ball must travel to reach the gap (robot frame), robot position (x, y), fraction of balls scored, and the robot's absolute heading (sinθ, cosθ) |
-| **Brain** | MLP `12 → 12 → 8 → 2 or 3`, `tanh` (output size = the drive type's degrees of freedom) |
+| **Inputs (10–12)** | nearest un-scored ball (position, closeness), 2nd-nearest ball, the direction that ball must travel to reach the gap, robot position, fraction scored. Sensors are **frame-consistent with the drive's controls**: robot-frame for tank/arcade/bot-swerve, field-frame for field-swerve (which alone also sees its heading sinθ/cosθ, since heading still aims the scoop) |
+| **Brain** | MLP `10–12 → 12 → 8 → 2 or 3`, `tanh` (in/out sized to the drive type) |
 | **Outputs** | steer/throttle (tank, arcade), or forward/strafe/rotate (swerve) |
-| **Fitness** | `1000 × balls scored` (earlier = more) + progress of un-scored balls toward the gap − a small time penalty + a large bonus for a full 8/8 clear that grows the faster you finish |
+| **Fitness** | **lexicographic**: balls scored dominates absolutely (10,000/ball), then per-ball speed (12/s discount), ball progress toward the gap, and a big finish bonus that grows the faster the full clear — so evolution can never prefer a fast 6-ball run over any 7-ball run |
 | **Evolution** | elitism (top ~8%) + front-biased tournament selection + uniform crossover + Gaussian mutation + fresh "immigrant" genomes each generation (to escape plateaus) |
 
 Gradient-free **neuroevolution** — no training data, no backprop, no GPU.
