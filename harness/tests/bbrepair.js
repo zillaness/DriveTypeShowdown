@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Projects and Mods
+// GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE.
 // bbrepair.js — REPAIR TORCH 3v3 assessment: does a healer earn a team slot?
 // Team A = [fighter, fighter, REPAIR] vs Team B = [fighter, fighter, fighter]. If A wins ~50%+, the
 // repair's heal is worth giving up a 3rd attacker; if it loses badly, the healing is too weak.

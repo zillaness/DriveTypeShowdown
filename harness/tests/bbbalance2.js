@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Projects and Mods
+// GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE.
 // bbbalance2.js — RoboRumble ARMOR + PERK + 3v3 ALLIANCE-SYNERGY balance report (tuning report, not pass/fail).
 // Drives the REAL startP2BB grid path (seats 0-2 = RED side0, 3-5 = BLUE side1) so every perk/armor/minibot
 // effect resolves exactly as in-game. Seeded CPU-vs-CPU, sides alternated to cancel positional bias.

@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Projects and Mods
+// GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE.
 // bbreport.js — RoboRumble RELATIVE-STRENGTH report: ARMOR + PERK sweeps (companion to bbbalance.js which does weapons).
 // Seeded CPU-vs-CPU 1v1, mirrored loadouts so only the ARMOR (or PERK) differs. Prints overall win% per armor / per perk.
 // Run: ./extract.sh && node harness/tests/bbreport.js /tmp/g.js

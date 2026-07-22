@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (C) 2026 Projects and Mods
+# GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE.
 # Run full battery; flag any suite with a FAIL line or nonzero exit.
 cd "$(dirname "$0")"
 fail=0

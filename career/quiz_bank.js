@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Projects and Mods
+// GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE.
 /* ============================================================================
  * DriveShowdown — CAREER MODE quiz bank  (content, not engine)
  * ----------------------------------------------------------------------------

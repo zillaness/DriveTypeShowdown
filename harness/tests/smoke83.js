@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Projects and Mods
+// GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE.
 // smoke83 — CAREER / STORY MODE, Phases ①–③
 //   ① shell + HUB + CYOA beat screen (story/coach/finale, choices, when-gating, then-chaining)
 //   ② startCareerMatch: drive-lock + adaptive tier launches the real mode engine

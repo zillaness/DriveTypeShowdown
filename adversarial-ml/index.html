@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<!-- Copyright (C) 2026 Projects and Mods -->
+<!-- GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07070e">
+<title>Drive Type Showdown — AI Lab</title>
+<style>
+  :root{--g:#00e676;--bg:#08080f;--card:#12121c;--edge:#25253a;--muted:#8a8aa0}
+  html,body{margin:0;min-height:100%}
+  body{background:var(--bg);color:#e8e8f0;font-family:'Courier New',ui-monospace,monospace;
+    padding:32px 20px 48px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto}
+  h1{font-size:1.5rem;margin:0 0 4px;color:#fff}
+  .tag{color:var(--g);font-size:.85rem;margin:0 0 6px}
+  p.lead{color:var(--muted);font-size:.9rem;line-height:1.6;margin:0 0 26px}
+  a.card{display:block;text-decoration:none;color:inherit;background:var(--card);
+    border:1px solid var(--edge);border-radius:14px;padding:18px 20px;margin:0 0 14px;transition:border-color .15s,transform .15s}
+  a.card:hover,a.card:focus{border-color:var(--g);transform:translateY(-2px);outline:none}
+  a.card.star{border-color:rgba(0,230,118,.5)}
+  .ct{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .ct h2{font-size:1.05rem;margin:0;color:#fff}
+  .badge{font-size:.7rem;color:#08080f;background:var(--g);border-radius:999px;padding:2px 9px;font-weight:700}
+  .cd{color:var(--muted);font-size:.85rem;line-height:1.55;margin:8px 0 0}
+  footer{color:#55556a;font-size:.75rem;margin-top:30px;line-height:1.6}
+  footer a{color:var(--g)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Drive Type Showdown — AI Lab</h1>
+  <p class="tag">🤖 neuroevolution · the AI learns to play the game</p>
+  <p class="lead">A population of small neural-net "brains" learns to drive and score
+  entirely in your browser — no training data, no backprop, no GPU. Each generation
+  the fittest breed (elitism + tournament selection + crossover + mutation) until the
+  bots solve the real game's field, physics, and scoring. Pick a lab below.</p>
+
+  <a class="card star" href="drive_showdown_solo_lab.html">
+    <div class="ct"><h2>Solo Lab</h2><span class="badge">★ start here</span></div>
+    <p class="cd">Watch a population evolve to drive-and-score, generation by generation —
+    fitness graphs, the live best-brain, and the knobs to tune evolution.</p>
+  </a>
+
+  <a class="card" href="drive_showdown_ai_speedrun.html">
+    <div class="ct"><h2>AI Speedrun</h2></div>
+    <p class="cd">Evolves brains against a faithful re-port of the game (field geometry,
+    scoop-plow physics, all 8 ball spawns) toward a full 8/8 clear as fast as possible.</p>
+  </a>
+
+  <a class="card" href="ai_drive_showdown.html">
+    <div class="ct"><h2>AI Drive Showdown</h2></div>
+    <p class="cd">The original in-browser AI-plays-the-game demo.</p>
+  </a>
+
+  <footer>
+    ← <a href="../">Back to Drive Type Showdown</a><br>
+    Experimental research build. Copyright © 2026 Projects and Mods —
+    GPL-3.0-or-later WITH Commons Clause (non-commercial).
+  </footer>
+</div>
+</body>
+</html>

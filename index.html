@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!-- Copyright (C) 2026 Projects and Mods -->
+<!-- GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07070e">
+<title>Drive Type Showdown</title>
+<!--
+  Stable public entry point for GitHub Pages. The game build is renamed every
+  release (drive_showdown_vN.html -> vN+1.html), so this page just redirects to
+  the current build. The release ritual bumps the filename references below via
+  one sed line — keep them in sync with the latest build.
+-->
+<meta http-equiv="refresh" content="0; url=drive_showdown_v6.5.2.html">
+<link rel="canonical" href="drive_showdown_v6.5.2.html">
+<style>
+  html,body{height:100%;margin:0}
+  body{background:#08080f;color:#e8e8f0;font-family:'Courier New',ui-monospace,monospace;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:100dvh;text-align:center;padding:24px;-webkit-font-smoothing:antialiased}
+  .spinner{width:46px;height:46px;margin-bottom:22px;border:4px solid rgba(0,230,118,.18);
+    border-top-color:#00e676;border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em;margin:0 0 8px;color:#fff}
+  p{margin:0;font-size:.85rem;color:#8a8aa0}
+  a{color:#00e676;text-decoration:none;border-bottom:1px solid rgba(0,230,118,.4)}
+  a:hover,a:focus{border-bottom-color:#00e676;outline:none}
+  @media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+</style>
+</head>
+<body>
+  <div class="spinner" role="presentation" aria-hidden="true"></div>
+  <h1>Loading Drive Type Showdown&hellip;</h1>
+  <p>If nothing happens, <a href="drive_showdown_v6.5.2.html">tap here to play</a>.</p>
+  <script>
+    // replace() keeps this shim out of history, so Back returns to where the player came from.
+    location.replace('drive_showdown_v6.5.2.html');
+  </script>
+</body>
+</html>

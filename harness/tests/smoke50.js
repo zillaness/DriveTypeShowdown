@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Projects and Mods
+// GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE.
 // smoke50 — v5.0 unified setup screen: flow, drive picker (tabs+arrows), rename, sensitivity slider, names
 const fs=require('fs');let src=fs.readFileSync('/tmp/g.js','utf8');
 src+=`

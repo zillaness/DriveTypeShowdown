@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Projects and Mods
+// GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE.
 const fs=require('fs');
 let src=fs.readFileSync(process.argv[2]||'/tmp/g.js','utf8');
 src+=`

@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Projects and Mods
+// GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE.
 // smoke58 — ball 3v3 (MULTI grid): N-main spawn, CPU brain, scoring, no-NaN, draw, 1v1 fallthrough
 const fs=require('fs');let src=fs.readFileSync('/tmp/g.js','utf8');
 src+=`

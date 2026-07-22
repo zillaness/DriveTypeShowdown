@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<!--
+  file: ai/ai_drive_showdown.html
+  version: 1.0.0
+  author: Sam Cao (AI Lab addon)
+  created: 2026-07-16
+  description: Single-file adversarial neuroevolution lab for DriveShowdown. A population of
+    neural-network cars learns to drive a procedurally generated track through survival-of-the-
+    fittest selection (adversarial competition + genetic breeding). Live neural-net + fitness
+    visualization, plus a head-to-head SHOWDOWN race between evolved champions — the classic
+    "AI learns to play this game" YouTube spectacle. No build, no libraries, runs offline.
+  ai_update: Patch with targeted edits only. Bump version + changelog at bottom. JS syntax check after edits.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07070e">
+<title>DriveShowdown · AI Lab</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{--bg:#07070e;--panel:#0e0e1c;--line:#1d1d33;--mint:#44ffaa;--blue:#5aa8ff;--amber:#ffce4d;--red:#ff5c6a;--dim:#7a7a98;}
+  html,body{height:100%;background:var(--bg);color:#e8e8ff;font-family:'Courier New',monospace;overflow:hidden;}
+  #app{display:flex;flex-direction:column;height:100dvh;}
+  #bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;background:linear-gradient(180deg,#101024,#0a0a16);
+       border-bottom:1px solid var(--line);user-select:none;}
+  #bar .brand{font-weight:bold;letter-spacing:1px;color:var(--mint);text-shadow:0 0 10px rgba(68,255,170,.4);margin-right:4px;white-space:nowrap;}
+  #bar .brand b{color:#fff;}
+  #bar .tag{font-size:10px;color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:2px 6px;white-space:nowrap;}
+  button{font-family:inherit;font-size:12px;color:#dfe;background:#161630;border:1px solid #2a2a4a;border-radius:6px;
+          padding:6px 10px;cursor:pointer;transition:.12s;white-space:nowrap;}
+  button:hover{background:#20204a;border-color:var(--mint);color:#fff;}
+  button.on{background:var(--mint);color:#04120c;border-color:var(--mint);font-weight:bold;}
+  button.red{border-color:#4a2a34;}
+  button.red.on{background:var(--red);color:#180608;border-color:var(--red);}
+  .sep{width:1px;height:22px;background:var(--line);margin:0 2px;}
+  .ctl{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--dim);}
+  .ctl input[type=range]{width:88px;accent-color:var(--mint);}
+  #canwrap{position:relative;flex:1;min-height:0;}
+  canvas{display:block;width:100%;height:100%;}
+  #hint{position:absolute;left:12px;bottom:10px;font-size:11px;color:var(--dim);pointer-events:none;text-shadow:0 1px 3px #000;}
+  a.dl{display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <span class="brand">DRIVE<b>SHOWDOWN</b> · AI LAB</span>
+    <span class="tag" id="modeTag">EVOLVE</span>
+    <span class="sep"></span>
+    <button id="btnPlay" class="on">⏸ Pause</button>
+    <button id="btnSpeed">▶ 2×</button>
+    <span class="sep"></span>
+    <button id="btnTrack">⟳ New Track</button>
+    <button id="btnReset">↺ Reset Evolution</button>
+    <span class="sep"></span>
+    <button id="btnShowdown" class="red">⚔ Showdown</button>
+    <button id="btnSave">💾 Save Champion</button>
+    <button id="btnLoad">📂 Load</button>
+    <span class="sep"></span>
+    <div class="ctl">POP <input id="pop" type="range" min="20" max="120" step="10" value="60"><span id="popV">60</span></div>
+    <div class="ctl">MUT <input id="mut" type="range" min="1" max="60" step="1" value="18"><span id="mutV">0.18</span></div>
+    <div class="ctl">SENSORS <input id="sensToggle" type="checkbox" checked style="accent-color:var(--mint)"></div>
+  </div>
+  <div id="canwrap">
+    <canvas id="view"></canvas>
+    <div id="hint">Green cars = a population of neural nets. Fittest survive &amp; breed each generation. Hit ⚔ Showdown to race the two best brains head-to-head.</div>
+  </div>
+</div>
+<input id="fileIn" type="file" accept="application/json" style="display:none">
+<a id="dl" class="dl"></a>
+<script>
+"use strict";
+/* ============================================================================
+   DriveShowdown AI Lab — adversarial neuroevolution
+   ----------------------------------------------------------------------------
+   A genome is a flat weight vector for a small MLP. Each generation, a whole
+   population drives the track simultaneously; the fittest are selected
+   (adversarial competition), bred with crossover, and mutated. Over dozens of
+   generations the fleet goes from crashing instantly to ripping clean laps.
+   ==========================================================================*/
+
+const CV = document.getElementById('view');
+const G  = CV.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+/* ---- deterministic RNG (mulberry32) so tracks are reproducible ---- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+let RNG = Math.random;                 // used for evolution noise (non-reproducible on purpose)
+function gauss(){                       // Box–Muller standard normal
+  let u=0,v=0; while(u===0)u=RNG(); while(v===0)v=RNG();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+const clamp=(x,a,b)=>x<a?a:x>b?b:x;
+const clamp01=x=>x<0?0:x>1?1:x;
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+/* ============================== NEURAL NET ================================= */
+// Fixed-topology MLP. Genome = [layer0 weights row-major, layer0 biases, ...].
+const NET = [6, 8, 6, 2];              // 5 range sensors + speed -> ... -> steer, throttle
+function genomeLength(sizes){
+  let n=0; for(let i=0;i<sizes.length-1;i++){ n += sizes[i]*sizes[i+1] + sizes[i+1]; } return n;
+}
+const GENOME_LEN = genomeLength(NET);
+
+function randomGenome(){
+  const g = new Float32Array(GENOME_LEN);
+  for(let i=0;i<GENOME_LEN;i++) g[i] = gauss()*0.8;
+  return g;
+}
+// Forward pass. Reuses scratch buffers for speed. Returns [steer,throttle] in [-1,1].
+const _bufA = new Float32Array(16), _bufB = new Float32Array(16);
+function forward(genome, inputs){
+  let cur=_bufA, nxt=_bufB;
+  for(let i=0;i<inputs.length;i++) cur[i]=inputs[i];
+  let p=0, size=inputs.length;
+  for(let l=0;l<NET.length-1;l++){
+    const inN=NET[l], outN=NET[l+1];
+    for(let o=0;o<outN;o++){
+      let s=0;
+      for(let i=0;i<inN;i++){ s += genome[p++]*cur[i]; }
+      s += genome[p++];                // bias
+      nxt[o]=Math.tanh(s);
+    }
+    const t=cur;cur=nxt;nxt=t; size=outN;
+  }
+  return cur;                          // length NET[last]
+}
+
+/* ============================== TRACK ===================================== */
+const HALF = 52;                       // track half-width (world px)
+let track = null;                      // {pts, mask, mgw, mgh, cell, minX, minY, worldW, worldH, seed, gateSpacing}
+
+function buildTrack(seed){
+  const rng = mulberry32(seed>>>0);
+  const N = 110, baseR = 300;
+  const harm = [];
+  for(let k=0;k<3;k++) harm.push({amp:(rng()*(k<1?85:45)), ph:rng()*Math.PI*2, fr:k+2});
+  let pts=[];
+  for(let i=0;i<N;i++){
+    const a=i/N*Math.PI*2; let r=baseR;
+    for(const h of harm) r+=h.amp*Math.sin(h.fr*a+h.ph);
+    r=Math.max(185,r);
+    pts.push({x:Math.cos(a)*r, y:Math.sin(a)*r});
+  }
+  // smooth to kill kinks (keeps the loop drivable)
+  for(let pass=0;pass<3;pass++){
+    const np=[];
+    for(let i=0;i<N;i++){
+      const a=pts[(i-1+N)%N], b=pts[i], c=pts[(i+1)%N];
+      np.push({x:(a.x+2*b.x+c.x)/4, y:(a.y+2*b.y+c.y)/4});
+    }
+    pts=np;
+  }
+  // bounds
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  for(const p of pts){minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}
+  const pad=HALF+30;
+  minX-=pad;minY-=pad;maxX+=pad;maxY+=pad;
+  const worldW=maxX-minX, worldH=maxY-minY;
+  // occupancy mask (fast on-track lookups)
+  const cell=5, mgw=Math.ceil(worldW/cell), mgh=Math.ceil(worldH/cell);
+  const mask=new Uint8Array(mgw*mgh);
+  const h2=HALF*HALF;
+  for(let gy=0;gy<mgh;gy++){
+    const wy=minY+(gy+0.5)*cell;
+    for(let gx=0;gx<mgw;gx++){
+      const wx=minX+(gx+0.5)*cell;
+      let best=1e12;
+      for(let i=0;i<pts.length;i++){
+        const a=pts[i], b=pts[(i+1)%pts.length];
+        const dx=b.x-a.x, dy=b.y-a.y, L=dx*dx+dy*dy;
+        let t=L>0?((wx-a.x)*dx+(wy-a.y)*dy)/L:0; t=t<0?0:t>1?1:t;
+        const px=a.x+dx*t-wx, py=a.y+dy*t-wy;
+        const d=px*px+py*py; if(d<best)best=d;
+        if(best<=h2)break;
+      }
+      if(best<=h2) mask[gy*mgw+gx]=1;
+    }
+  }
+  // start direction = tangent at gate 0
+  const t0=Math.atan2(pts[1].y-pts[0].y, pts[1].x-pts[0].x);
+  let gateSpacing=0; for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length];gateSpacing+=Math.hypot(b.x-a.x,b.y-a.y);} gateSpacing/=pts.length;
+  return {pts,mask,mgw,mgh,cell,minX,minY,worldW,worldH,seed,startX:pts[0].x,startY:pts[0].y,startA:t0,gateSpacing};
+}
+function onTrack(wx,wy){
+  const gx=((wx-track.minX)/track.cell)|0, gy=((wy-track.minY)/track.cell)|0;
+  if(gx<0||gy<0||gx>=track.mgw||gy>=track.mgh) return false;
+  return track.mask[gy*track.mgw+gx]===1;
+}
+
+/* ============================== CAR ======================================= */
+const N_SENS=5, SENS_ANG=[-1.15,-0.55,0,0.55,1.15], SENS_RANGE=170;
+const CAR_LEN=15, MAXSPEED=3.35, ENGINE=0.11, FRICTION=0.965, TURN=0.052;
+
+function makeCar(genome,color){
+  return {genome,color,x:track.startX,y:track.startY,a:track.startA,spd:0,
+          alive:true,fit:0,progress:0,cumArc:0,lastArc:0,laps:0,gate:0,
+          ticks:0,idle:0,bestProg:0,dist:0,sens:new Float32Array(N_SENS),out:[0,0]};
+}
+// Project the car onto the centerline; return arc position (segIndex + t) in [0,N).
+function nearestArc(car){
+  const pts=track.pts, N=pts.length; let best=1e18, bi=0, bt=0;
+  for(let i=0;i<N;i++){
+    const a=pts[i], b=pts[(i+1)%N];
+    const dx=b.x-a.x, dy=b.y-a.y, L=dx*dx+dy*dy;
+    let t=L>0?((car.x-a.x)*dx+(car.y-a.y)*dy)/L:0; t=t<0?0:t>1?1:t;
+    const px=a.x+dx*t-car.x, py=a.y+dy*t-car.y, d=px*px+py*py;
+    if(d<best){best=d;bi=i;bt=t;}
+  }
+  return bi+bt;
+}
+function sense(car){
+  for(let s=0;s<N_SENS;s++){
+    const ang=car.a+SENS_ANG[s], dx=Math.cos(ang), dy=Math.sin(ang);
+    let d=0; const step=7;
+    while(d<SENS_RANGE){ d+=step; if(!onTrack(car.x+dx*d, car.y+dy*d)) break; }
+    car.sens[s]=clamp01(d/SENS_RANGE);
+  }
+}
+function stepCar(car,dt){
+  if(!car.alive) return;
+  sense(car);
+  const inp=[car.sens[0],car.sens[1],car.sens[2],car.sens[3],car.sens[4], car.spd/MAXSPEED];
+  const o=forward(car.genome,inp); car.out[0]=o[0]; car.out[1]=o[1];
+  const steer=o[0], thr=o[1];
+  // steering scales a touch with speed (can't pivot when parked)
+  car.a += steer*TURN*(0.35+0.65*clamp01(Math.abs(car.spd)/MAXSPEED))*dt;
+  car.spd += thr*ENGINE*dt; car.spd*=Math.pow(FRICTION,dt);
+  car.spd=clamp(car.spd,-MAXSPEED*0.4,MAXSPEED);
+  const nx=car.x+Math.cos(car.a)*car.spd*dt, ny=car.y+Math.sin(car.a)*car.spd*dt;
+  car.dist+=Math.abs(car.spd)*dt;
+  car.x=nx; car.y=ny; car.ticks+=dt; car.idle+=dt;
+  if(!onTrack(nx,ny)){ car.alive=false; return; }
+  // progress by projecting onto the centerline (unwrapped for laps)
+  const N=track.pts.length, arc=nearestArc(car);
+  let d=arc-car.lastArc;
+  if(d<-N/2) d+=N; else if(d>N/2) d-=N;   // handle wrap across the start line
+  if(Math.abs(d)>2){ car.lastArc=arc; d=0; } // projection jumped (pinch point) -> don't count phantom progress
+  car.cumArc+=d; car.lastArc=arc;
+  if(car.cumArc>car.bestProg+0.15){ car.bestProg=car.cumArc; car.idle=0; }
+  car.progress=Math.max(car.progress,car.cumArc);
+  car.laps=Math.max(0,Math.floor(car.progress/N));
+  car.gate=Math.max(0,Math.floor(car.progress));
+  if(car.idle>150){ car.alive=false; return; }        // no forward progress -> stuck
+}
+function fitnessOf(car){
+  return car.progress + car.ticks*0.0004;              // progress in centerline-segments (N = one lap)
+}
+
+/* ============================== EVOLUTION ================================= */
+const evo = {
+  pop:60, mut:0.18, gen:1, cars:[], genomes:[], ticks:0, runLimit:2600,
+  bestEver:0, bestGenome:null, secondGenome:null, championGen:0,
+  hist:[],           // per-gen {best,avg}
+  newRecord:0,       // flash timer
+};
+function seedPopulation(n){
+  evo.genomes=[]; for(let i=0;i<n;i++) evo.genomes.push(randomGenome());
+}
+function spawnGeneration(){
+  evo.cars=[]; evo.ticks=0;
+  for(let i=0;i<evo.genomes.length;i++){
+    const hue = 150 + (i/evo.genomes.length)*40;
+    evo.cars.push(makeCar(evo.genomes[i], `hsl(${hue},90%,60%)`));
+  }
+}
+function resetEvolution(){
+  evo.gen=1; evo.bestEver=0; evo.bestGenome=null; evo.secondGenome=null; evo.hist=[]; evo.newRecord=0;
+  seedPopulation(evo.pop); spawnGeneration();
+}
+function tournament(sorted){                     // pick a fit parent (front-biased)
+  let best=null,bi=1e9;
+  for(let k=0;k<3;k++){
+    const idx=(Math.pow(RNG(),1.7)*sorted.length)|0;
+    if(idx<bi){bi=idx;best=sorted[idx];}
+  }
+  return best.genome;
+}
+function crossover(a,b){
+  const c=new Float32Array(GENOME_LEN);
+  for(let i=0;i<GENOME_LEN;i++) c[i]= RNG()<0.5 ? a[i] : b[i];
+  return c;
+}
+function mutate(g){
+  const rate=evo.mut;
+  for(let i=0;i<GENOME_LEN;i++){
+    if(RNG()<rate){
+      if(RNG()<0.1) g[i]=gauss()*0.8;             // occasional full reset
+      else g[i]+=gauss()*0.35;                     // creep
+    }
+  }
+  return g;
+}
+function nextGeneration(){
+  const scored=evo.cars.map(c=>({genome:c.genome,fit:c.fit})).sort((a,b)=>b.fit-a.fit);
+  const best=scored[0].fit, avg=scored.reduce((s,x)=>s+x.fit,0)/scored.length;
+  evo.hist.push({best,avg});
+  if(best>evo.bestEver){ evo.bestEver=best; evo.bestGenome=Float32Array.from(scored[0].genome); evo.championGen=evo.gen; evo.newRecord=90; }
+  evo.secondGenome=Float32Array.from(scored[Math.min(1,scored.length-1)].genome);
+  // build next genomes: elites carried over untouched, rest bred
+  const elites=Math.max(2,Math.round(evo.genomes.length*0.08));
+  const next=[];
+  for(let i=0;i<elites;i++) next.push(Float32Array.from(scored[i].genome));
+  while(next.length<evo.genomes.length){
+    const child=crossover(tournament(scored),tournament(scored));
+    mutate(child); next.push(child);
+  }
+  evo.genomes=next; evo.gen++; spawnGeneration();
+}
+function stepEvolution(dt){
+  let anyAlive=false;
+  for(const c of evo.cars){ if(c.alive){ stepCar(c,dt); c.fit=fitnessOf(c); anyAlive=true; } }
+  evo.ticks+=dt;
+  if(!anyAlive || evo.ticks>evo.runLimit) nextGeneration();
+}
+
+/* ============================== SHOWDOWN ================================== */
+// Two evolved brains race the same track wheel-to-wheel, with car–car collisions.
+const show = { active:false, red:null, blue:null, winner:null, banner:0, laps:2, t:0 };
+function startShowdown(){
+  if(!evo.bestGenome){ flash('Evolve a champion first — let it train a few generations.'); return; }
+  const champ = evo.bestGenome;
+  const rival = evo.secondGenome ? evo.secondGenome : mutate(Float32Array.from(champ));
+  show.red = makeCar(Float32Array.from(champ), '#ff5c6a'); show.red.name='CHAMPION';
+  show.blue= makeCar(Float32Array.from(rival), '#5aa8ff'); show.blue.name='CHALLENGER';
+  // stagger the start so they don't overlap on gate 0
+  show.red.x-=14; show.blue.x+=14;
+  show.winner=null; show.banner=0; show.t=0; show.active=true;
+  document.getElementById('modeTag').textContent='SHOWDOWN';
+  document.getElementById('btnShowdown').classList.add('on');
+}
+function stopShowdown(){
+  show.active=false;
+  document.getElementById('modeTag').textContent='EVOLVE';
+  document.getElementById('btnShowdown').classList.remove('on');
+}
+function collide(a,b){
+  const dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy), min=CAR_LEN*1.3;
+  if(d>0 && d<min){
+    const nx=dx/d, ny=dy/d, push=(min-d)/2;
+    a.x-=nx*push; a.y-=ny*push; b.x+=nx*push; b.y+=ny*push;
+    a.spd*=0.8; b.spd*=0.8;                     // contact scrubs speed — blocking matters
+  }
+}
+function stepShowdown(dt){
+  if(show.winner){ show.banner+=dt; return; }
+  for(const c of [show.red,show.blue]){
+    if(!c.alive){ continue; }
+    stepCar(c,dt);
+    if(c.laps>=show.laps){ show.winner=c; show.banner=0; }
+  }
+  collide(show.red,show.blue);
+  show.t+=dt;
+  // if both die, whoever got furthest wins
+  if(!show.red.alive && !show.blue.alive && !show.winner){
+    show.winner = (show.red.gate>=show.blue.gate)? show.red : show.blue; show.banner=0;
+  }
+}
+
+/* ============================== RENDER ==================================== */
+let cam={s:1,ox:0,oy:0};
+function fitCamera(view){
+  const pad=22;
+  const s=Math.min((view.w-2*pad)/track.worldW,(view.h-2*pad)/track.worldH);
+  cam.s=s;
+  cam.ox=view.x+(view.w-track.worldW*s)/2 - track.minX*s;
+  cam.oy=view.y+(view.h-track.worldH*s)/2 - track.minY*s;
+}
+const WX=x=>x*cam.s+cam.ox, WY=y=>y*cam.s+cam.oy;
+
+function drawTrack(){
+  const pts=track.pts;
+  // asphalt
+  G.lineJoin='round'; G.lineCap='round';
+  G.beginPath();
+  G.moveTo(WX(pts[0].x),WY(pts[0].y));
+  for(let i=1;i<pts.length;i++) G.lineTo(WX(pts[i].x),WY(pts[i].y));
+  G.closePath();
+  G.strokeStyle='#15151f'; G.lineWidth=2*HALF*cam.s; G.stroke();
+  G.strokeStyle='#20202e'; G.lineWidth=2*HALF*cam.s-6; G.stroke();
+  // dashed centerline
+  G.setLineDash([10,14]); G.strokeStyle='rgba(120,120,160,.35)'; G.lineWidth=Math.max(1,2*cam.s);
+  G.stroke(); G.setLineDash([]);
+  // start / finish line
+  const a=pts[0], b=pts[1], ang=Math.atan2(b.y-a.y,b.x-a.x)+Math.PI/2;
+  const hx=Math.cos(ang)*HALF, hy=Math.sin(ang)*HALF;
+  G.strokeStyle='#e9e9ff'; G.lineWidth=Math.max(2,3*cam.s);
+  G.beginPath(); G.moveTo(WX(a.x-hx),WY(a.y-hy)); G.lineTo(WX(a.x+hx),WY(a.y+hy)); G.stroke();
+}
+function drawCar(c,ghost){
+  const x=WX(c.x),y=WY(c.y),s=cam.s;
+  G.save(); G.translate(x,y); G.rotate(c.a);
+  const L=CAR_LEN*s, w=CAR_LEN*0.6*s;
+  G.globalAlpha = ghost?0.16:1;
+  G.fillStyle=c.color;
+  G.beginPath(); G.moveTo(L*0.8,0); G.lineTo(-L*0.6,w); G.lineTo(-L*0.35,0); G.lineTo(-L*0.6,-w); G.closePath(); G.fill();
+  G.globalAlpha=1; G.restore();
+}
+function drawSensors(c){
+  G.lineWidth=1;
+  for(let s=0;s<N_SENS;s++){
+    const ang=c.a+SENS_ANG[s], d=c.sens[s]*SENS_RANGE;
+    const ex=c.x+Math.cos(ang)*d, ey=c.y+Math.sin(ang)*d;
+    const v=c.sens[s];
+    G.strokeStyle=`rgba(${255*(1-v)|0},${255*v|0},120,.55)`;
+    G.beginPath(); G.moveTo(WX(c.x),WY(c.y)); G.lineTo(WX(ex),WY(ey)); G.stroke();
+    G.fillStyle=G.strokeStyle; G.beginPath(); G.arc(WX(ex),WY(ey),2.5,0,7); G.fill();
+  }
+}
+
+/* ---- sidebar panels ---- */
+function panel(x,y,w,h,title){
+  G.fillStyle='rgba(14,14,28,.92)'; G.strokeStyle='#22223a'; G.lineWidth=1;
+  roundRect(x,y,w,h,8); G.fill(); G.stroke();
+  G.fillStyle='#8a8ab0'; G.font='11px "Courier New",monospace'; G.textAlign='left';
+  G.fillText(title,x+10,y+16);
+}
+function roundRect(x,y,w,h,r){G.beginPath();G.moveTo(x+r,y);G.arcTo(x+w,y,x+w,y+h,r);G.arcTo(x+w,y+h,x,y+h,r);G.arcTo(x,y+h,x,y,r);G.arcTo(x,y,x+w,y,r);G.closePath();}
+
+function drawNet(genome, inputs, out, x,y,w,h){
+  panel(x,y,w,h,'CHAMPION BRAIN — live activations');
+  const pad=22, gx0=x+34, gx1=x+w-56, gy0=y+pad+10, gy1=y+h-16;
+  const layerX=[]; for(let l=0;l<NET.length;l++) layerX.push(lerp(gx0,gx1,l/(NET.length-1)));
+  // node positions
+  const pos=[];
+  for(let l=0;l<NET.length;l++){
+    const n=NET[l]; const arr=[];
+    for(let i=0;i<n;i++){ const yy=n===1?(gy0+gy1)/2:lerp(gy0,gy1,i/(n-1)); arr.push({x:layerX[l],y:yy}); }
+    pos.push(arr);
+  }
+  // compute activations per layer for coloring
+  const acts=[Array.from(inputs)];
+  let cur=Array.from(inputs), p=0;
+  for(let l=0;l<NET.length-1;l++){
+    const inN=NET[l],outN=NET[l+1],nx=[];
+    // edges
+    for(let o=0;o<outN;o++){
+      let s=0;
+      for(let i=0;i<inN;i++){
+        const wgt=genome[p++];
+        const alpha=clamp01(Math.abs(wgt)*0.5);
+        G.strokeStyle = wgt>=0 ? `rgba(68,255,170,${0.06+alpha*0.5})` : `rgba(255,92,106,${0.06+alpha*0.5})`;
+        G.lineWidth=clamp(Math.abs(wgt)*1.3,0.3,2.4);
+        G.beginPath(); G.moveTo(pos[l][i].x,pos[l][i].y); G.lineTo(pos[l+1][o].x,pos[l+1][o].y); G.stroke();
+        s+=wgt*cur[i];
+      }
+      s+=genome[p++]; nx.push(Math.tanh(s));
+    }
+    acts.push(nx); cur=nx;
+  }
+  // nodes
+  const labels={0:['S-L','S-l','S-f','S-r','S-R','v']};
+  const outLab=['steer','throttle'];
+  for(let l=0;l<NET.length;l++){
+    for(let i=0;i<pos[l].length;i++){
+      const a=acts[l][i]||0, mag=clamp01(Math.abs(a));
+      G.fillStyle = a>=0 ? `rgba(68,255,170,${0.25+mag*0.75})` : `rgba(255,92,106,${0.25+mag*0.75})`;
+      G.beginPath(); G.arc(pos[l][i].x,pos[l][i].y,5.5,0,7); G.fill();
+      G.strokeStyle='rgba(255,255,255,.15)'; G.lineWidth=1; G.stroke();
+    }
+  }
+  // input labels
+  G.fillStyle='#666688'; G.font='9px "Courier New",monospace'; G.textAlign='right';
+  for(let i=0;i<NET[0];i++) G.fillText(labels[0][i], pos[0][i].x-9, pos[0][i].y+3);
+  G.textAlign='left';
+  const last=NET.length-1;
+  for(let i=0;i<NET[last];i++){ G.fillText(outLab[i], pos[last][i].x+9, pos[last][i].y+3); }
+}
+
+function drawGraph(x,y,w,h){
+  panel(x,y,w,h,'FITNESS / GENERATION');
+  const gx0=x+10,gx1=x+w-10,gy0=y+26,gy1=y+h-14;
+  const hist=evo.hist; if(hist.length<1){ G.fillStyle='#555'; G.fillText('training…',x+12,y+h/2); return; }
+  let mx=1; for(const p of hist){ mx=Math.max(mx,p.best); }
+  const N=hist.length;
+  const px=i=>N<=1?gx0:lerp(gx0,gx1,i/(N-1)), py=v=>lerp(gy1,gy0,clamp01(v/mx));
+  // avg
+  G.strokeStyle='#5aa8ff'; G.lineWidth=1.4; G.beginPath();
+  hist.forEach((p,i)=>{ i?G.lineTo(px(i),py(p.avg)):G.moveTo(px(i),py(p.avg)); }); G.stroke();
+  // best
+  G.strokeStyle='#44ffaa'; G.lineWidth=1.8; G.beginPath();
+  hist.forEach((p,i)=>{ i?G.lineTo(px(i),py(p.best)):G.moveTo(px(i),py(p.best)); }); G.stroke();
+  G.fillStyle='#44ffaa'; G.font='9px "Courier New",monospace'; G.fillText('best',gx1-46,gy0+2);
+  G.fillStyle='#5aa8ff'; G.fillText('avg',gx1-16,gy0+2);
+  G.fillStyle='#555'; G.fillText('gen '+N,x+12,gy1+11);
+}
+
+function hud(view){
+  G.textAlign='left';
+  if(!show.active){
+    const alive=evo.cars.filter(c=>c.alive).length;
+    stat(view.x+14,view.y+26,'GENERATION', evo.gen, '#fff', 26);
+    stat(view.x+14,view.y+64,'ALIVE', alive+' / '+evo.cars.length, '#44ffaa', 18);
+    stat(view.x+14,view.y+96,'BEST EVER', evo.bestEver.toFixed(2)+'  (gen '+evo.championGen+')', '#ffce4d', 16);
+    // progress bar for generation time
+    const bw=170,bx=view.x+14,by=view.y+112;
+    G.fillStyle='#16162a'; roundRect(bx,by,bw,6,3); G.fill();
+    G.fillStyle='#44ffaa'; roundRect(bx,by,bw*clamp01(evo.ticks/evo.runLimit),6,3); G.fill();
+    if(evo.newRecord>0){
+      G.globalAlpha=clamp01(evo.newRecord/90); G.fillStyle='#ffce4d';
+      G.font='bold 30px "Courier New",monospace'; G.textAlign='center';
+      G.fillText('🏁 NEW RECORD', view.x+view.w/2, view.y+50); G.globalAlpha=1; G.textAlign='left';
+      evo.newRecord--;
+    }
+  } else {
+    stat(view.x+14,view.y+26,'⚔ SHOWDOWN — first to '+show.laps+' laps', '', '#fff', 18);
+    scoreRow(view.x+14,view.y+58, show.red);
+    scoreRow(view.x+14,view.y+86, show.blue);
+    if(show.winner){
+      const c=show.winner;
+      G.textAlign='center';
+      G.fillStyle=c.color; G.font='bold 42px "Courier New",monospace';
+      G.globalAlpha=clamp01(0.4+0.6*Math.abs(Math.sin(show.banner*0.06)));
+      G.fillText((c===show.red?'CHAMPION':'CHALLENGER')+' WINS!', view.x+view.w/2, view.y+view.h/2);
+      G.globalAlpha=1;
+      G.fillStyle='#aaa'; G.font='13px "Courier New",monospace';
+      G.fillText('Press ⚔ Showdown again for a rematch, or resume evolving.', view.x+view.w/2, view.y+view.h/2+28);
+      G.textAlign='left';
+    }
+  }
+}
+function stat(x,y,label,val,color,size){
+  G.fillStyle='#6a6a88'; G.font='10px "Courier New",monospace'; G.fillText(label,x,y-14);
+  G.fillStyle=color||'#fff'; G.font='bold '+size+'px "Courier New",monospace'; G.fillText(String(val),x,y+size-8);
+}
+function scoreRow(x,y,c){
+  G.fillStyle=c.color; G.beginPath(); G.arc(x+5,y-4,5,0,7); G.fill();
+  G.fillStyle='#e8e8ff'; G.font='bold 13px "Courier New",monospace';
+  G.fillText((c===show.red?'CHAMPION ':'CHALLENGER'), x+16, y);
+  G.fillStyle=c.alive?'#9a9ac0':'#ff5c6a'; G.font='12px "Courier New",monospace';
+  G.fillText('lap '+c.laps+'/'+show.laps+'  ·  gate '+c.gate+(c.alive?'':'  CRASHED'), x+150, y);
+}
+function flash(msg){ const h=document.getElementById('hint'); h.textContent=msg; h.style.color='#ffce4d'; setTimeout(()=>{h.style.color='';},2600); }
+
+/* ============================== MAIN LOOP ================================= */
+const SPEEDS=[{lbl:'▶ 1×',n:1},{lbl:'▶ 2×',n:2},{lbl:'▶ 5×',n:5},{lbl:'⏩ 20×',n:20},{lbl:'⏩ MAX',n:120}];
+let speedIdx=1, playing=true, showSensors=true;
+
+function frame(){
+  requestAnimationFrame(frame);
+  const view={x:0,y:0,w:W,h:H};
+  const SB=clamp(W*0.30,280,380);
+  const trackView={x:0,y:0,w:W-SB,h:H};
+  fitCamera(trackView);
+
+  // ---- simulate ----
+  if(playing){
+    const iters=SPEEDS[speedIdx].n;
+    for(let k=0;k<iters;k++){
+      if(show.active) stepShowdown(1); else stepEvolution(1);
+    }
+  }
+
+  // ---- draw ----
+  G.fillStyle='#07070e'; G.fillRect(0,0,W,H);
+  drawTrack();
+
+  if(show.active){
+    drawCar(show.red,false); drawCar(show.blue,false);
+    if(showSensors){ drawSensors(show.red); drawSensors(show.blue); }
+  } else {
+    // dead cars faint, alive bright, leader gets sensors
+    let leader=null;
+    for(const c of evo.cars){ if(c.alive && (!leader||c.fit>leader.fit)) leader=c; }
+    for(const c of evo.cars) if(!c.alive) drawCar(c,true);
+    for(const c of evo.cars) if(c.alive && c!==leader) drawCar(c,false);
+    if(leader){
+      if(showSensors) drawSensors(leader);
+      drawCar(leader,false);
+      // leader ring
+      G.strokeStyle='#ffce4d'; G.lineWidth=2;
+      G.beginPath(); G.arc(WX(leader.x),WY(leader.y),CAR_LEN*cam.s*1.5,0,7); G.stroke();
+    }
+  }
+
+  hud(trackView);
+
+  // sidebar
+  const sx=W-SB+10, sw=SB-20;
+  const netH=Math.min(H*0.42,300), graphH=Math.min(H*0.30,190);
+  const activeCar = show.active ? (show.red.alive?show.red:show.blue)
+                                : (evo.cars.find(c=>c.alive)||evo.cars[0]);
+  const brainGenome = show.active ? show.red.genome : (evo.bestGenome||activeCar.genome);
+  const inp = activeCar ? [activeCar.sens[0],activeCar.sens[1],activeCar.sens[2],activeCar.sens[3],activeCar.sens[4],activeCar.spd/MAXSPEED] : [0,0,0,0,0,0];
+  drawNet(brainGenome, inp, activeCar?activeCar.out:[0,0], sx, 10, sw, netH);
+  drawGraph(sx, 10+netH+10, sw, graphH);
+  // leaderboard / info
+  const ly=10+netH+10+graphH+10, lh=H-ly-10;
+  if(lh>60){
+    panel(sx,ly,sw,lh,'LEADERBOARD');
+    G.font='11px "Courier New",monospace'; G.textAlign='left';
+    if(show.active){
+      G.fillStyle='#9a9ac0';
+      G.fillText('Two evolved brains, same track,',sx+10,ly+34);
+      G.fillText('wheel-to-wheel with collisions.',sx+10,ly+50);
+      G.fillText('Contact scrubs speed — so',sx+10,ly+66);
+      G.fillText('blocking is a real strategy.',sx+10,ly+82);
+    } else {
+      const top=evo.cars.slice().sort((a,b)=>b.fit-a.fit).slice(0,Math.min(8,Math.floor((lh-30)/16)));
+      top.forEach((c,i)=>{
+        const yy=ly+34+i*16;
+        G.fillStyle=c.alive?c.color:'#55556e';
+        G.fillText('#'+(i+1),sx+10,yy);
+        G.fillText('gate '+c.gate+'  ·  fit '+c.fit.toFixed(2),sx+44,yy);
+        if(!c.alive){G.fillStyle='#ff5c6a';G.fillText('✕',sx+sw-22,yy);}
+      });
+    }
+  }
+}
+
+/* ============================== UI WIRING ================================= */
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  const wrap=document.getElementById('canwrap');
+  W=wrap.clientWidth; H=wrap.clientHeight;
+  CV.width=Math.round(W*DPR); CV.height=Math.round(H*DPR);
+  G.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize',resize);
+
+document.getElementById('btnPlay').onclick=function(){
+  playing=!playing; this.textContent=playing?'⏸ Pause':'▶ Play'; this.classList.toggle('on',playing);
+};
+document.getElementById('btnSpeed').onclick=function(){
+  speedIdx=(speedIdx+1)%SPEEDS.length; this.textContent=SPEEDS[speedIdx].lbl;
+};
+document.getElementById('btnTrack').onclick=function(){
+  track=buildTrack((Math.random()*1e9)>>>0);
+  if(show.active) startShowdown(); else spawnGeneration();
+};
+document.getElementById('btnReset').onclick=function(){
+  stopShowdown(); resetEvolution(); flash('Evolution reset — fresh random population.');
+};
+document.getElementById('btnShowdown').onclick=function(){
+  if(show.active) stopShowdown(); else startShowdown();
+};
+document.getElementById('btnSave').onclick=function(){
+  if(!evo.bestGenome){ flash('No champion yet — let it train first.'); return; }
+  const data={version:1,net:NET,gen:evo.championGen,fitness:evo.bestEver,trackSeed:track.seed,
+              genome:Array.from(evo.bestGenome), second:evo.secondGenome?Array.from(evo.secondGenome):null};
+  const json=JSON.stringify(data);
+  try{ localStorage.setItem('driveshowdown_champion',json); }catch(e){}
+  const blob=new Blob([json],{type:'application/json'});
+  const a=document.getElementById('dl'); a.href=URL.createObjectURL(blob);
+  a.download='driveshowdown_champion_gen'+evo.championGen+'.json'; a.click();
+  flash('Champion saved (gen '+evo.championGen+', fitness '+evo.bestEver.toFixed(2)+').');
+};
+document.getElementById('btnLoad').onclick=function(){ document.getElementById('fileIn').click(); };
+document.getElementById('fileIn').onchange=function(e){
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ applyChampion(JSON.parse(r.result)); flash('Champion loaded — hit ⚔ Showdown to race it.'); }
+                 catch(err){ flash('Could not read that file.'); } };
+  r.readAsText(f); e.target.value='';
+};
+function applyChampion(d){
+  if(!d.genome) throw 'bad';
+  evo.bestGenome=Float32Array.from(d.genome);
+  evo.secondGenome=d.second?Float32Array.from(d.second):null;
+  evo.bestEver=d.fitness||0; evo.championGen=d.gen||0;
+}
+document.getElementById('pop').oninput=function(){
+  evo.pop=+this.value; document.getElementById('popV').textContent=this.value;
+};
+document.getElementById('pop').onchange=function(){
+  if(!show.active){ seedPopulation(evo.pop); evo.gen=1; evo.hist=[]; spawnGeneration(); flash('Population resized to '+evo.pop+' — restarting evolution.'); }
+};
+document.getElementById('mut').oninput=function(){
+  evo.mut=+this.value/100; document.getElementById('mutV').textContent=evo.mut.toFixed(2);
+};
+document.getElementById('sensToggle').onchange=function(){ showSensors=this.checked; };
+window.addEventListener('keydown',e=>{
+  if(e.code==='Space'){ e.preventDefault(); document.getElementById('btnPlay').click(); }
+  if(e.key==='n'||e.key==='N') document.getElementById('btnTrack').click();
+  if(e.key==='s'||e.key==='S') document.getElementById('btnShowdown').click();
+});
+
+/* ---- boot ---- */
+resize();
+track=buildTrack((Math.random()*1e9)>>>0);
+// try to restore a previously saved champion (nice for a fresh page load)
+try{ const saved=localStorage.getItem('driveshowdown_champion'); if(saved) applyChampion(JSON.parse(saved)); }catch(e){}
+resetEvolution();
+frame();
+</script>
+<!--
+  changelog
+  v1.0.0 (2026-07-16): initial AI Lab. Neuroevolution racing population (MLP genomes,
+    raycast sensors, GA with elitism + tournament + crossover + gaussian mutation),
+    live brain + fitness-graph + leaderboard viz, and a head-to-head SHOWDOWN race
+    between the two best evolved brains with car–car collisions. Save/Load champion JSON.
+-->
+</body>
+</html>

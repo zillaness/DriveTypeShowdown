@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Projects and Mods
+// GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE.
 // bbbalance3.js — RoboRumble 3v3 TEAM balance: a side of 3×weaponX vs 3×weaponY, seeded CPU teams,
 // sides alternated. Prints a team win-rate matrix + each weapon's overall TEAM win%. Companion to
 // bbbalance.js (1v1) — shows how weapons scale to 3v3 (AoE / control / push / support shine here).

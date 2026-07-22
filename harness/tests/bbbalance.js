@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Projects and Mods
+// GPL-3.0-or-later WITH Commons Clause (non-commercial) — see LICENSE.
 // bbbalance.js — RoboRumble WEAPON BALANCE simulator (a tuning report, not a pass/fail smoke).
 // Runs seeded CPU-vs-CPU 1v1 matches for every weapon matchup, alternates sides to cancel positional bias,
 // and prints a win-rate matrix + each weapon's overall win rate. Tune fuel / spin / front-pierce / HP toward 50%.
