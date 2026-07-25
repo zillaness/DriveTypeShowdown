@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <!--
   file: ai/drive_showdown_solo_lab.html
-  version: 1.0.0
+  version: 3.0.0
   author: Sam Cao (AI Lab addon)
+  license: GPL-3.0-or-later WITH Commons Clause (non-commercial) — (C) 2026 Projects and Mods, see /LICENSE.
   created: 2026-07-17
   description: Bundles a genuinely PLAYABLE single-player time trial (push all 8 balls through
     the gap, fastest wins) with the neuroevolution AI LAB from drive_showdown_ai_speedrun.html,
@@ -19,7 +20,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#07070e">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMGQxNTI2Ii8+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTAgMzkuNSkgcm90YXRlKDkwKSI+PHJlY3QgeD0iLTE0IiB5PSItMjIiIHdpZHRoPSIzMCIgaGVpZ2h0PSI1LjUiIHJ4PSIxLjYiIGZpbGw9IiMwZTBlMWEiIHN0cm9rZT0iIzAwZTY3NiIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2Utb3BhY2l0eT0iMC41NSIvPjxyZWN0IHg9Ii0xNCIgeT0iMTYuNSIgd2lkdGg9IjMwIiBoZWlnaHQ9IjUuNSIgcng9IjEuNiIgZmlsbD0iIzBlMGUxYSIgc3Ryb2tlPSIjMDBlNjc2IiBzdHJva2Utd2lkdGg9IjEiIHN0cm9rZS1vcGFjaXR5PSIwLjU1Ii8+PHBhdGggZD0iTTE3IC0xNyBMMTkgLTIyIE0xNyAxNyBMMTkgMjIiIHN0cm9rZT0iIzAwZTY3NiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2Utb3BhY2l0eT0iMC40NyIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0xOSAtMjIgTDMxIC0zMCBMNDMgLTM3IEw0MyAzNyBMMzEgMzAgTDE5IDIyIFoiIGZpbGw9IiMzYzNjNWEiIGZpbGwtb3BhY2l0eT0iMC4zNSIvPjxyZWN0IHg9Ii0xNyIgeT0iLTE3IiB3aWR0aD0iMzQiIGhlaWdodD0iMzQiIHJ4PSI0IiBmaWxsPSIjMWExYTJlIi8+PHJlY3QgeD0iLTE3IiB5PSItMTciIHdpZHRoPSIzNCIgaGVpZ2h0PSIzNCIgcng9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwZTY3NiIgc3Ryb2tlLXdpZHRoPSIzIi8+PHJlY3QgeD0iMTIiIHk9Ii0xNyIgd2lkdGg9IjUiIGhlaWdodD0iMzQiIGZpbGw9IiMwMGU2NzYiIGZpbGwtb3BhY2l0eT0iMC44Ii8+PHBhdGggZD0iTTE5IC0yMiBMMzEgLTMwIEw0MyAtMzciIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwZTY3NiIgc3Ryb2tlLXdpZHRoPSI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48cGF0aCBkPSJNMTkgMjIgTDMxIDMwIEw0MyAzNyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDBlNjc2IiBzdHJva2Utd2lkdGg9IjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxwYXRoIGQ9Ik00MyAtMzcgTDQzIDM3IiBzdHJva2U9IiMwMGU2NzYiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLW9wYWNpdHk9IjAuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PHBhdGggZD0iTTE5IC0yMiBMMzEgLTMwIEw0MyAtMzcgTTE5IDIyIEwzMSAzMCBMNDMgMzciIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZmZmZiIgc3Ryb2tlLW9wYWNpdHk9IjAuMjciIHN0cm9rZS13aWR0aD0iMS4yIi8+PC9nPjxwYXRoIGQ9Ik00NC42IDQxLjYgTDQyLjQgNDYuNiBMNTcuNiA0Ni42IEw1NS40IDQxLjYgWiIgZmlsbD0iIzVhYThmZiIvPjxwYXRoIGQ9Ik00Ni41IDMxLjQgTDQ2LjUgMzYuMiBMNDIuNCA0Ni42IEw1Ny42IDQ2LjYgTDUzLjUgMzYuMiBMNTMuNSAzMS40IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMGU2NzYiIHN0cm9rZS13aWR0aD0iMi40IiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNDQuNiAzMS40IEw1NS40IDMxLjQiIHN0cm9rZT0iIzAwZTY3NiIgc3Ryb2tlLXdpZHRoPSIyLjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==">
 <title>DriveShowdown · Solo + AI Lab</title>
+<script>const LAB_VERSION='3.0.0';</script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
   :root{--bg:#07070e;--panel:#0e0e1c;--line:#1d1d33;--mint:#44ffaa;--blue:#5aa8ff;--amber:#ffce4d;--red:#ff5c6a;--dim:#7a7a98;--ball:#ffd740;--gold:#ffce4d;}
@@ -29,9 +32,10 @@
        border-bottom:1px solid var(--line);user-select:none;}
   #bar .brand{font-weight:bold;letter-spacing:1px;color:var(--mint);text-shadow:0 0 10px rgba(68,255,170,.4);margin-right:4px;white-space:nowrap;}
   #bar .brand b{color:#fff;}
-  button{font-family:inherit;font-size:12px;color:#dfe;background:#161630;border:1px solid #2a2a4a;border-radius:6px;
-          padding:6px 10px;cursor:pointer;transition:.12s;white-space:nowrap;}
-  button:hover{background:#20204a;border-color:var(--mint);color:#fff;}
+  button,a.navbtn{font-family:inherit;font-size:12px;color:#dfe;background:#161630;border:1px solid #2a2a4a;border-radius:6px;
+          padding:6px 10px;cursor:pointer;transition:.12s;white-space:nowrap;text-decoration:none;display:inline-block;}
+  button:hover,a.navbtn:hover{background:#20204a;border-color:var(--mint);color:#fff;}
+  a.navbtn{border-color:#1a3a2a;}
   button.on{background:var(--mint);color:#04120c;border-color:var(--mint);font-weight:bold;}
   button.gold{border-color:#4a3a1a;}
   button.gold.on{background:var(--gold);color:#1a1204;border-color:var(--gold);}
@@ -94,7 +98,9 @@
 <body>
 <div id="app">
   <div id="bar">
-    <span class="brand">DRIVE<b>SHOWDOWN</b> · SOLO + AI LAB</span>
+    <span class="brand">DRIVE<b>SHOWDOWN</b> · SOLO + AI LAB <span id="labVer" style="color:#5aa8ff;font-size:10px;letter-spacing:0;text-shadow:none;"></span></span>
+    <script>document.getElementById('labVer').textContent='v'+LAB_VERSION;</script>
+    <a class="navbtn" href="../" target="_blank" rel="noopener" data-tip="Open the <b>full Drive Type Showdown game</b> — the complete multiplayer/RoboRumble build this AI Lab is a companion to. Opens in a new tab so your training run here keeps going.">🎮 Full Game ↗</a>
     <span class="sep"></span>
     <button id="btnModePlay" class="on" data-tip="<b>Play mode</b> — drive the real single-player time trial yourself with keyboard or gamepad. Shortcut: <b>M</b> toggles modes.">🎮 PLAY</button>
     <button id="btnModeLab" data-tip="<b>Lab mode</b> — the neuroevolution trainer: watch a population of neural-net drivers evolve to beat the same course. Shortcut: <b>M</b>.">🤖 LAB</button>
