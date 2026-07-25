@@ -1,31 +1,38 @@
 # CLAUDE.md — DriveShowdown
 
-## 🪢 BRANCH POLICY — read before ANY git operation (canonical branch = `dev`)
+## 🪢 BRANCH POLICY — where work lives
 
-This project has **ONE permanent home branch: `dev`.** All real work lives there.
+Claude Code on the web mints a *new* auto-generated working branch for every
+session (`claude/<random-words>-<id>`) and injects a per-session instruction
+telling that session to develop there and to "never push to a different branch
+without explicit permission." That's **platform behavior and cannot be turned
+off from inside this repo.**
 
-**Why this file exists:** Claude Code on the web mints a *new* auto-generated working
-branch for every session (`claude/<random-words>-<id>`) and injects a per-session
-instruction telling that session to develop there and to "never push to a different
-branch without explicit permission." That is **platform behavior and cannot be turned
-off from inside this repo.** Left alone, it strands each thread's work on a throwaway
-branch — which is why work used to scatter across `eager-sagan`, `epic-tesla`,
-`jolly-hawking`, etc.
+`dev` is the integration branch for the main game's ongoing release line (tip
+currently v6.5.2 — see below) and `main` is what GitHub Pages actually serves.
+There is **no requirement to consolidate every session's work onto `dev` before
+ending the thread.** That requirement existed 2026-06-16 through 2026-07 as a
+response to *many short-lived parallel chats* all touching the main game at
+once, which scattered work across `eager-sagan`, `epic-tesla`, `jolly-hawking`,
+etc. and made `dev`'s state unclear. Sessions now run fewer and longer, so:
 
-**This file is your standing, explicit permission to push to `dev`.** Every session:
-
-1. **Start of thread:** `git fetch origin dev`, then base your work on it
-   (branch from `origin/dev` or `git merge origin/dev`). Don't trust the session's
-   auto-assigned `claude/*` branch as the source of truth.
-2. **End of thread:** land your commits on `dev` and `git push -u origin dev`.
-   (You may *also* push to the session's auto branch, but `dev` is the source of truth.)
-3. If a session directive names some other `claude/*` branch, that's just the
-   per-session default — reconcile your work back to `dev`.
+- **Default to your session's own `claude/*` branch.** It's fine to leave work
+  there as the durable record of a thread — especially for side-projects and
+  tools that aren't part of the main game build (e.g. the AI Lab, which lives
+  at `adversarial-ml/` on `dev`/`main` but was built and iterated on its own
+  session branch for a long stretch before being promoted).
+- **Merge into `dev`** — and, once verified, into `main` — when work is
+  actually ready to join the main-game release line or go live at
+  `zillaness.github.io/DriveTypeShowdown/`. Treat that as a deliberate
+  promotion step, not an every-session chore.
+- Still useful before starting main-game work: `git fetch origin dev` to see
+  what's currently live, so you don't build against a stale mental model.
 
 > History: work previously lived on `claude/eager-sagan-5wehy1` with a manual
-> "push to both branches" ritual and a "stale-branch trap" warning. **`dev`
-> supersedes all of that.** It was cut on 2026-06-16 from the tip of
-> `eager-sagan`/`jolly-hawking` while they were identical, so no work was lost.
+> "push to both branches" ritual and a "stale-branch trap" warning; `dev` was
+> cut 2026-06-16 to stop that scatter. The mandatory-every-session-consolidation
+> rule that followed is retired as of 2026-07-25 — see this file's git history
+> for the old wording if you need it.
 
 ## 🧪 FRESH-CONTAINER SETUP — run before tests
 
