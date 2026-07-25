@@ -32,9 +32,10 @@
        border-bottom:1px solid var(--line);user-select:none;}
   #bar .brand{font-weight:bold;letter-spacing:1px;color:var(--mint);text-shadow:0 0 10px rgba(68,255,170,.4);margin-right:4px;white-space:nowrap;}
   #bar .brand b{color:#fff;}
-  button{font-family:inherit;font-size:12px;color:#dfe;background:#161630;border:1px solid #2a2a4a;border-radius:6px;
-          padding:6px 10px;cursor:pointer;transition:.12s;white-space:nowrap;}
-  button:hover{background:#20204a;border-color:var(--mint);color:#fff;}
+  button,a.navbtn{font-family:inherit;font-size:12px;color:#dfe;background:#161630;border:1px solid #2a2a4a;border-radius:6px;
+          padding:6px 10px;cursor:pointer;transition:.12s;white-space:nowrap;text-decoration:none;display:inline-block;}
+  button:hover,a.navbtn:hover{background:#20204a;border-color:var(--mint);color:#fff;}
+  a.navbtn{border-color:#1a3a2a;}
   button.on{background:var(--mint);color:#04120c;border-color:var(--mint);font-weight:bold;}
   button.gold{border-color:#4a3a1a;}
   button.gold.on{background:var(--gold);color:#1a1204;border-color:var(--gold);}
@@ -99,6 +100,7 @@
   <div id="bar">
     <span class="brand">DRIVE<b>SHOWDOWN</b> · SOLO + AI LAB <span id="labVer" style="color:#5aa8ff;font-size:10px;letter-spacing:0;text-shadow:none;"></span></span>
     <script>document.getElementById('labVer').textContent='v'+LAB_VERSION;</script>
+    <a class="navbtn" href="../" target="_blank" rel="noopener" data-tip="Open the <b>full Drive Type Showdown game</b> — the complete multiplayer/RoboRumble build this AI Lab is a companion to. Opens in a new tab so your training run here keeps going.">🎮 Full Game ↗</a>
     <span class="sep"></span>
     <button id="btnModePlay" class="on" data-tip="<b>Play mode</b> — drive the real single-player time trial yourself with keyboard or gamepad. Shortcut: <b>M</b> toggles modes.">🎮 PLAY</button>
     <button id="btnModeLab" data-tip="<b>Lab mode</b> — the neuroevolution trainer: watch a population of neural-net drivers evolve to beat the same course. Shortcut: <b>M</b>.">🤖 LAB</button>
