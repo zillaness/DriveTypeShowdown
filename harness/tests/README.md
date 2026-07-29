@@ -1,9 +1,9 @@
 ---
 file: README.md
-version: 1.6
+version: 1.12
 author: Samuel Cao
 created: 2026-06-12
-last_updated: 2026-06-12
+last_updated: 2026-07-29
 description: Test battery for FRC Drive Showdown. Run every suite against every new version before delivery.
 ai_update: Update last_updated and version. Append changelog at bottom.
 ---
@@ -48,6 +48,7 @@ plus unit checks for the in-lane aligned drive-through and the behind-side gate 
 - ALWAYS count-assert harness edits too — two silent no-op edits bit this project.
 
 ## CHANGELOG
+- v1.12 (2026-07-29): smoke54 +19 → 111 asserts for game v6.6.0 (RENDER SCALE). Covers the slider's shape against the RSCALES table, all four explicit steps resizing the backing store to 1280×720 / 1920×1080 / 2560×1440 / 3840×2160 while CW/CH and the CSS size hold still, the setter applying live via fitCanvas, the informative show() label, anyCheat/TURN-OFF-ALL wiring, and AUTO reproducing the historical min(devicePixelRatio,2) at DPR 1/1.5/2/3/4. The other half guards the landscape-only flag: drawKonami._rows stays index-aligned in portrait (the hidden row gets an off-screen placeholder, NOT a filtered-out slot — filtering desynchronises every hit test), no blank gap in the column, the placeholder is unclickable, and cheatMove/cheatAdjust/the description line never focus it. Harness note: the mock canvas already exposes width/height/_dpr/style, so fitCanvas is directly assertable — no browser needed for the resolution asserts.
 - v1.11 (2026-06-14): Updated for the game v5.1 fix pass. smoke40 (now 10 asserts): the old "CHAMPION edges the player" speed assert is replaced by a speed-CAP assert (CHAMPION translate capped to the player drive speed, measured facing the target so the heading-locked projection is isolated) plus two drive-kinematics asserts (arcade velocity stays along the heading, swerve can strafe); the shot-block integration loop now also applies inp.vr, matching the real movement path so a heading-locked defender can turn to track. smoke45 (now 14 asserts): CHAMPION capacity 6->3 (fits within the plow arms), plus two movement-drop asserts (CHAMPION holds perfectly while driving unbumped; ROOKIE leaks its carry while moving). smoke31/smoke37 gamepad-nav checks rewritten for spatial up/down + left/right and the v5.0 merged mode->p2settings flow. Full battery green.
 - v1.0 (2026-06-12): Initial bundle, suites through v3.7.
 - v1.1 (2026-06-12): Added smoke38 (H2H CPU + SFX, 44 asserts) for game v3.8. Documented brain-test seeding and the hazard-run bound.

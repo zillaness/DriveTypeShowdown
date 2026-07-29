@@ -260,6 +260,53 @@ src+=`
    ok('TASER appears in the cycler when EXPERIMENTAL FEATURES is on',s2.has('taser'));
    expFeatures=_e;cannonWeapon=_c;}
 
+  // ── v6.6.0 RENDER SCALE: a real backing-store multiplier, landscape-only, index-safe ──
+  {const _sv=curLayout;applyLayout('land2p');
+   const ri=CHEATS.findIndex(c=>c.name==='RENDER SCALE'),rc=CHEATS[ri];
+   ok('RENDER SCALE is a slider over the RSCALES table (0..'+(RSCALES.length-1)+')',ri>=0&&rc.slider===true&&rc.min===0&&rc.max===RSCALES.length-1&&rc.step===1&&rc.land===true);
+   ok('RSCALES[0] is AUTO (falsy → fall back to the display DPR)',RSCALES[0]===0&&RSCALES.join()==='0,1,1.5,2,3');
+   // every explicit step resizes the BACKING STORE only — CW/CH and the CSS size never move
+   const _cw=CW,_ch=CH,_css=canvas.style.width+'|'+canvas.style.height;
+   const want=[[1,1280,720],[2,1920,1080],[3,2560,1440],[4,3840,2160]];
+   let allW=true,cssStuck=true,logicStuck=true;
+   for(const [i,w,h] of want){rc.set(i);
+     if(canvas.width!==w||canvas.height!==h||canvas._dpr!==RSCALES[i]){allW=false;console.log('   step '+i+' → '+canvas.width+'x'+canvas.height+' (want '+w+'x'+h+')');}
+     if(canvas.style.width+'|'+canvas.style.height!==_css)cssStuck=false;
+     if(CW!==_cw||CH!==_ch)logicStuck=false;}
+   ok('RENDER SCALE steps resize the backing store to 1280×720 / 1920×1080 / 2560×1440 / 3840×2160',allW);
+   ok('RENDER SCALE never touches the CSS display size',cssStuck);
+   ok('RENDER SCALE never touches the logical CW/CH',logicStuck);
+   ok('the setter applies live (fitCanvas ran without a resize event)',canvas._dpr===3);
+   ok('a non-AUTO render scale counts as an active cheat',anyCheat()===true);
+   ok('show() reports the step AND the live pixel dimensions',rc.show(0)==='AUTO'&&rc.show(2)==='1.5× · '+Math.round(CW*1.5)+'×'+Math.round(CH*1.5)&&rc.show(4)==='3× · 3840×2160');
+   cheatsAllOff();
+   ok('⟲ TURN OFF ALL returns RENDER SCALE to AUTO + refits',renderScaleIdx===0&&canvas._dpr===Math.min(window.devicePixelRatio||1,2)&&!anyCheat());
+   // AUTO must be byte-identical to the pre-v6.6.0 behavior at every DPR
+   {const _d=window.devicePixelRatio;let autoOk=true;
+    for(const d of [1,1.5,2,3,4]){window.devicePixelRatio=d;fitCanvas();
+      const exp=Math.min(d,2);if(canvas._dpr!==exp||canvas.width!==Math.round(CW*exp))autoOk=false;}
+    window.devicePixelRatio=_d;fitCanvas();
+    ok('AUTO preserves the historical min(devicePixelRatio,2) at every DPR',autoOk);}
+   // landscape draws it; portrait skips it WITHOUT breaking rows[i] ↔ CHEATS[i]
+   konamiActive=true;drawKonami();
+   ok('landscape: RENDER SCALE is drawn on-screen',drawKonami._rows[ri].y>0&&drawKonami._rows[ri].w>0);
+   ok('landscape: nothing is hidden, so the column split is unchanged',cheatCount()===CHEATS.length);
+   applyLayout('legacy');drawKonami();
+   const pr=drawKonami._rows;
+   ok('portrait: RENDER SCALE is hidden behind an off-screen placeholder',pr[ri].y<0&&pr[ri].w===0);
+   ok('portrait: _rows stays index-aligned with CHEATS ('+pr.length+'=='+CHEATS.length+')',pr.length===CHEATS.length);
+   ok('portrait: the visible count drops by exactly the hidden row',cheatCount()===CHEATS.length-1);
+   {const vy=pr.filter((r,i)=>cheatVis(i)).map(r=>r.y),gaps=new Set(vy.slice(1).map((y,i)=>y-vy[i]));
+    ok('portrait: no blank gap where the hidden row would have been',gaps.size===1);}
+   {const before=CHEATS.map(c=>c.get());click(pr[ri].x,pr[ri].y);click(pr[ri].x,0);
+    ok('portrait: the placeholder rect is unclickable',CHEATS.every((c,i)=>c.get()===before[i]));}
+   {cheatIdx=0;let stray=false;for(let k=0;k<CHEATS.length*2;k++){cheatMove(1);if(!cheatVis(cheatIdx))stray=true;}
+    for(let k=0;k<CHEATS.length*2;k++){cheatMove(-1);if(!cheatVis(cheatIdx))stray=true;}
+    for(let k=0;k<12;k++){cheatAdjust(k%2?1:-1);if(!cheatVis(cheatIdx))stray=true;}
+    ok('portrait: keyboard/pad nav never focuses the hidden row',!stray);}
+   {cheatIdx=ri;drawKonami();ok('portrait: a stale focus on the hidden row is snapped away (description stays valid)',cheatVis(cheatIdx));}
+   cheatIdx=0;konamiActive=false;applyLayout(_sv);cheatsAllOff();}
+
   console.log('--- cheats: '+P+' pass, '+F+' fail ---');
 })();
 `;
