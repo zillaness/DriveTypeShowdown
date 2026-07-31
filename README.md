@@ -20,6 +20,12 @@ BALL (push / shooter) · TANK FIGHT · ROBORUMBLE · OBSTACLE RACE · CAREER / S
 plus experimental modes behind the EXPERIMENTAL FEATURES toggle (Battle Ball,
 Smoke Screen, Kids Mode, Balloon Battle).
 
+| | |
+| --- | --- |
+| ![Main menu](docs/screenshots/drive_type_showdown_menu_v1.0.png) | ![Tank vs arcade drive, head to head — the core premise](docs/screenshots/drive_type_showdown_tank_vs_arcade_v1.0.png) |
+| ![Field-centric swerve, the drive type FRC teams argue about](docs/screenshots/drive_type_showdown_swerve_field_centric_v1.0.png) | ![RoboRumble — a 3v3 flamethrower clash](docs/screenshots/drive_type_showdown_3v3_rumble_flamethrower_clash_hero_v1.0.png) |
+| ![SHOOTER — 3v3 crossfire at the goal line](docs/screenshots/drive_type_showdown_3v3_ball_shooter_crossfire_hero_v1.0.png) | ![The adversarial ML lab mid-run — neuroevolution learning to play](docs/screenshots/adversarial_ml_lab_play_v1.0.png) |
+
 ## Develop / test
 The container is ephemeral and the test harness reads an extracted copy of the
 game at `/tmp/g.js`, which does not exist on a fresh clone — always extract first:
