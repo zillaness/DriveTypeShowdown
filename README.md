@@ -20,11 +20,31 @@ BALL (push / shooter) · TANK FIGHT · ROBORUMBLE · OBSTACLE RACE · CAREER / S
 plus experimental modes behind the EXPERIMENTAL FEATURES toggle (Battle Ball,
 Smoke Screen, Kids Mode, Balloon Battle).
 
+### The drive types
+
 | | |
 | --- | --- |
-| ![Main menu](docs/screenshots/drive_type_showdown_menu_v1.0.png) | ![Tank vs arcade drive, head to head — the core premise](docs/screenshots/drive_type_showdown_tank_vs_arcade_v1.0.png) |
-| ![Field-centric swerve, the drive type FRC teams argue about](docs/screenshots/drive_type_showdown_swerve_field_centric_v1.0.png) | ![RoboRumble — a 3v3 flamethrower clash](docs/screenshots/drive_type_showdown_3v3_rumble_flamethrower_clash_hero_v1.0.png) |
-| ![SHOOTER — 3v3 crossfire at the goal line](docs/screenshots/drive_type_showdown_3v3_ball_shooter_crossfire_hero_v1.0.png) | ![The adversarial ML lab mid-run — neuroevolution learning to play](docs/screenshots/adversarial_ml_lab_play_v1.0.png) |
+| ![Main menu](docs/screenshots/drive_type_showdown_menu_v1.0.png) | ![Mode select](docs/screenshots/drive_type_showdown_mode_select_v1.0.png) |
+| ![Tank vs arcade drive, head to head — the original premise](docs/screenshots/drive_type_showdown_tank_vs_arcade_v1.0.png) | ![Field-centric swerve, the drive type FRC teams argue about](docs/screenshots/drive_type_showdown_swerve_field_centric_v1.0.png) |
+| ![Bot-centric swerve — same modules, different reference frame](docs/screenshots/drive_type_showdown_swerve_bot_centric_v1.0.png) | ![BALL mode — push the field, hold the goal](docs/screenshots/drive_type_showdown_ball_mode_v1.0.png) |
+
+### The arcade it grew into
+
+| | |
+| --- | --- |
+| ![SHOOTER — 3v3 crossfire at the goal line](docs/screenshots/drive_type_showdown_3v3_ball_shooter_crossfire_hero_v1.0.png) | ![TANK FIGHT](docs/screenshots/drive_type_showdown_tank_fight_v1.0.png) |
+| ![RoboRumble loadout — pick your weapon and armor](docs/screenshots/drive_type_showdown_robo_rumble_loadout_v1.0.png) | ![RoboRumble — a 3v3 flamethrower clash](docs/screenshots/drive_type_showdown_3v3_rumble_flamethrower_clash_hero_v1.0.png) |
+| ![OBSTACLE RACE](docs/screenshots/drive_type_showdown_obstacle_race_v1.0.png) | ![CAREER — the story-driven tutorial](docs/screenshots/drive_type_showdown_career_story_v1.0.png) |
+| ![Kids Mode (experimental)](docs/screenshots/drive_type_showdown_kids_mode_v1.0.png) | ![Balloon Battle (experimental)](docs/screenshots/drive_type_showdown_balloon_battle_v1.0.png) |
+
+### The AI lab
+
+| | |
+| --- | --- |
+| ![The adversarial ML lab — population setup](docs/screenshots/adversarial_ml_lab_v1.0.png) | ![The lab mid-run — neuroevolution learning to play](docs/screenshots/adversarial_ml_lab_play_v1.0.png) |
+
+> There is also a cheat menu. It opens the way cheat menus have opened since
+> 1986 — on the main menu, from memory. Contra veterans know the way.
 
 ## Develop / test
 The container is ephemeral and the test harness reads an extracted copy of the
